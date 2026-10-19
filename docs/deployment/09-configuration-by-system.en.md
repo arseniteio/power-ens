@@ -38,14 +38,9 @@ Controls op.cont.2, op.exp.9, op.mon.2 and op.nub.1 only have common settings: n
 
 ## 4. Value applied to an agent
 
-To evaluate a control on an agent's row, each per-system or per-platform parameter takes the first value available in this order:
+On an agent, each per-system or per-platform parameter takes its own setting; without one, the value of the template assigned in the control or, with no template assigned, that of the built-in template of its type; if the template does not set it, the control's common value.
 
-1. the agent's own setting;
-2. the value of the template assigned to the agent in that control;
-3. with no template assigned, the value of the built-in template of its system type;
-4. the control's common value.
-
-The assigned template and the built-in template of its type are alternatives: the built-in template of its type only applies when the control has no template assigned on that agent. The «Sin plantilla (valores comunes)» assignment leaves the agent on the common value. A parameter the applied template does not set takes the common value.
+The «Sin plantilla (valores comunes)» assignment leaves the agent on the common value. This explanation is not repeated on the screen.
 
 Resolution rules:
 
@@ -64,13 +59,13 @@ The tab lists the 23 catalog controls with their state and, per control, its bui
 
 | State | Meaning |
 |---|---|
-| Configurado | Every required common setting of the control's level has a value |
-| Incompleto | Required common settings are missing; they are listed below |
+| Configurado | Every required common setting of the control's level has a value, and no agent in scope that evaluates it lacks a required parameter |
+| Incompleto | Required common settings are missing («Falta «<parameter>».») or an agent has no value for a required parameter («Falta «<parameter>» en N agentes.») |
 | Inválido | A common setting has an invalid value; they are listed below |
 | Sin configurar | No common setting has a value |
 | Sin añadir | The control exists in the catalog but is not in the document; it is not evaluated |
 
-The state is computed from the common settings only. Per-system and per-platform parameters are completed with templates and own settings, and their completeness is shown in «Asignación» and on the «Agentes» tab.
+While the agents are being read, the column shows «Comprobando los agentes…». The per-agent detail is in «Asignación» and on the «Agentes» tab.
 
 ### 5.1 Add a catalog control
 
@@ -95,7 +90,7 @@ The button adds the control definition as is, the same as the seed block in `con
 
 2. In «Ajustes comunes», press «Configurar <control>» («Completar configuración», «Corregir configuración» or «Revisar configuración», depending on the state), declare the values and save.
 
-   Expected result: the control state is updated. The «Valor común de los parámetros por sistema y por plataforma» drop-down shows the value an agent takes when it has no own setting and no template sets the parameter.
+   Expected result: the control state is updated. The «Valor común de los parámetros que cambian por agente» drop-down shows the value an agent takes when it has no own setting and no template sets the parameter.
 
 ### 5.3 Templates
 
@@ -113,19 +108,19 @@ A template is a named set of values for a control's per-system and per-platform 
 | Copias con PBS | Linux | mp.info.6 | P-06 `/backup`, P-07 `root`, P-10 `pbs`, P-11 PBS key, P-12 `root.pxar`, P-13 restore witness |
 | Copias Zimbra NE | — | mp.info.6 | P-06 `/opt/zimbra/backup`, P-07 `zimbra`, P-10 `zimbra-ne` |
 
-«Copias con PBS» and «Copias Zimbra NE» are mp.info.6 alternatives: they do not apply by type and are assigned per agent. mp.info.6 facts with `data.origen = pbs` or `data.origen = zimbra-ne` propose them in the assignment with «propuesta por sus hechos». Zimbra 10 Network with zmbackup is not combined with PBS.
+«Copias con PBS» and «Copias Zimbra NE» are mp.info.6 alternatives: they do not apply by type and are assigned per agent. mp.info.6 backup data (`data.origen = pbs` or `data.origen = zimbra-ne`) proposes them in the assignment with «Propuesta por sus datos». Zimbra 10 Network with zmbackup is not combined with PBS.
 
-The «Plantillas» table shows, per template, the «De serie» or «Propia» badge, its type, how many parameters it sets and how many agents it is assigned to.
+The «Plantillas» table shows, per template, the «De serie» or «Propia» badge, its type, how many parameters it sets and, in «Agentes», how many agents it is assigned to and how many it applies to by their type.
 
 #### 5.3.1 Create or duplicate a template
 
-1. In «Plantillas», press «Duplicar» on a template, or «Crear plantilla».
+1. To duplicate, press «Duplicar» on a template.
 
-   Expected result: with «Duplicar», a custom template «<name> (copia)» with every value of the original; with «Crear plantilla», the «Crear plantilla · <control>» window.
+   Expected result: a custom template «<name> (copia)» with every value of the original is saved at once. To change its name or values, then press «Editar» on the copy (section 5.3.2).
 
-2. Type the name, the description and, where relevant, the system type; declare the values of the parameters the template sets and press «Guardar plantilla».
+2. To create an empty template, press «Crear plantilla», type the name, the description and, where relevant, the system type; declare the values of the parameters it sets and press «Guardar plantilla».
 
-   Expected result: the template appears with the «Propia» badge. A parameter without a value takes the common value. An invalid value is rejected with its reason and nothing is saved; a repeated name in the same control is also rejected.
+   Expected result: the template appears with the «Propia» badge. A parameter without a value takes the common value. An invalid value is rejected with its reason and nothing is saved; a name already taken by another template of the control, built-in or custom, is also rejected.
 
 The system type of a custom template is informative: when it is assigned to an agent of another type, the preview warns about it.
 
@@ -137,7 +132,7 @@ The system type of a custom template is informative: when it is assigned to an a
 
 2. Change the values and press «Guardar plantilla».
 
-   Expected result: the change applies to every agent with the template assigned, except for parameters with an own setting.
+   Expected result: if the template is assigned, the «Guardar «…»: cambia N agentes» window with, per agent, the parameters that change; after pressing «Guardar plantilla» (type `aplicar` first when asked), the change applies to those agents, except for parameters with an own setting. With no agent assigned, it is saved at once.
 
 Built-in templates only offer «Ver» and «Duplicar».
 
@@ -158,8 +153,8 @@ The «Asignación» table lists the agents in scope and the stored profiles of a
 | Column | Content |
 |---|---|
 | Agente | Id and name; opens the agent page on that control |
-| Tipo | The stored type or, if it is not stored, «sin guardar (detectado: …)» |
-| Plantilla | The one that applies: the assigned one, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)» or «Ninguna: valores comunes»; the ones its facts propose; and whether the control is not measured on that agent |
+| Tipo | The stored type or, if it is not stored, «<type> (detectado, sin guardar)» |
+| Plantilla | The one that applies: the assigned one, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» or, with the type not stored, «Ninguna hasta guardar su tipo: valores comunes»; the one its data proposes; and whether the control is not evaluated on that agent |
 | Ajustes propios | How many it has, how many required ones lack a value and whether it is out of scope |
 
 To assign a template to several agents:
@@ -182,14 +177,14 @@ Each agent's type is detected with the first rule that matches:
 
 | Order | Rule | Type | Evidence shown |
 |---|---|---|---|
-| 1 | The agent id is `000` | Manager Wazuh | «el id 000, que en Wazuh es siempre el manager» |
-| 2 | `os.platform` is `windows` in the agent inventory | Windows | «os.platform = windows en el inventario de agentes» |
-| 3 | There are ENSFácil facts with `data.plano = directorio` in the last 30 days | Servidor LDAP | «N hechos del recolector LDAP (data.plano = directorio) en 30 días» |
-| 4 | `os.platform` is in the Linux family, or `os.uname` starts with «Linux» | Linux | «os.platform = ubuntu en el inventario de agentes» |
-| 5 | `os.platform` has a value not covered above | Not detected | «os.platform = …: no es un tipo previsto; se elige a mano» |
+| 1 | The agent is the Wazuh manager (id `000`) | Manager Wazuh | «detectado por ser el manager de Wazuh» |
+| 2 | `os.platform` is `windows` in the agent inventory | Windows | «detectado por el inventario de agentes (Windows)» |
+| 3 | There are ENSFácil facts with `data.plano = directorio` in the last 30 days | Servidor LDAP | «detectado por N datos del directorio LDAP en 30 días» |
+| 4 | `os.platform` is in the Linux family, or `os.uname` starts with «Linux» | Linux | «detectado por el inventario de agentes (Ubuntu)» |
+| 5 | `os.platform` has a value not covered above | Not detected | «el sistema «…» no es un tipo previsto; se elige a mano» |
 | 6 | The inventory has no operating system | Not detected | «el inventario no trae su sistema operativo …; se elige a mano» |
 
-The type that decides the built-in template is the one **stored** in the agent's profile. While the detected type is not stored, the tab shows «N agente(s) con el tipo detectado sin guardar».
+The type that decides the built-in template is the one **stored** in the agent's profile. While the detected type is not stored, the tables show it as «<type> (detectado, sin guardar)», the agent page says its built-in template applies once the type is saved, and the «Agentes» and «Controles» tabs show «N agente(s) con el tipo detectado sin guardar». On a new installation no built-in template applies until the types are saved. An agent with a type corrected by hand is not counted.
 
 1. Press «Guardar los tipos detectados…».
 
@@ -218,7 +213,7 @@ The agent page groups the per-system and per-platform parameters by control. Eac
 
 To change a control's template:
 
-1. Choose «La de serie de su tipo («…»)», a template of the control or «Sin plantilla (valores comunes)» in «Plantilla», and press «Asignar…».
+1. Choose «La de serie de su tipo («…»)» («La de serie de su tipo (tipo sin guardar)» while the type is not stored), a template of the control or «Sin plantilla (valores comunes)» in «Plantilla», and press «Asignar…».
 
    Expected result: if a value changes, the window with the template change and the parameters that change; once confirmed, the template in the control header.
 
@@ -258,7 +253,7 @@ A profile may store settings that do not apply: one for a parameter the control 
 
    Expected result: the «Quitar …» window with each item deleted (name, other names, corrected type, assigned templates and each setting). A whole profile requires typing `quitar`.
 
-What this version does not know (a key stored by a later version) is listed as a warning and is not removed. An assignment to a template that no longer exists is shown as an error and the agent takes the built-in template of its type.
+What this version does not know (a key stored by a later version) is listed in «Datos de otra versión del plugin (se ignoran)» and is not removed. An assignment to a template that no longer exists is shown as an error and the agent takes the built-in template of its type.
 
 ### 6.4 Other names of an agent
 
@@ -272,7 +267,7 @@ The distribution by agents (section 9) recognises a machine by its id, its agent
 
 1. Open ENSFácil > Configuración > General.
 
-   Expected result: the «Configuración global de evaluación» form with the ENS level, the **Traceability level (T)**, used only by op.exp.8, the **Availability level (D)**, used by op.cont.2 and op.cont.3, and the rest of the global configuration; below, «Alcance ENS» with the mode, groups and agents, read-only.
+   Expected result: the «Configuración global de evaluación» form with the ENS level, the **Traceability level (T)**, used only by op.exp.8, the **Availability level (D)**, used by op.cont.2 and op.cont.3, and the rest of the global configuration, with «Descripción del alcance (informes)», the text that describes the scope in the reports; below, «Alcance ENS», read-only, with «Agentes evaluados» and, depending on the mode, the groups or the agents.
 
 2. Change the levels and press «Guardar configuración global».
 

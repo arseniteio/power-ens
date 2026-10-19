@@ -38,14 +38,9 @@ Los controles op.cont.2, op.exp.9, op.mon.2 y op.nub.1 solo tienen ajustes comun
 
 ## 4. Valor que se aplica a un agente
 
-Para evaluar un control en la fila de un agente, cada parámetro por sistema o por plataforma toma el primer valor disponible en este orden:
+Cada parámetro por sistema o por plataforma toma en un agente su ajuste propio; si no lo tiene, el valor de la plantilla asignada en el control o, sin plantilla asignada, el de la plantilla de serie de su tipo; si la plantilla no lo fija, el valor común del control.
 
-1. el ajuste propio del agente;
-2. el de la plantilla asignada al agente en ese control;
-3. sin plantilla asignada, el de la plantilla de serie de su tipo de sistema;
-4. el valor común del control.
-
-La plantilla asignada y la de serie de su tipo son alternativas: la de serie de su tipo solo se aplica cuando el control no tiene plantilla asignada en ese agente. La asignación «Sin plantilla (valores comunes)» deja el agente con el valor común. Un parámetro que la plantilla aplicada no fija toma el valor común.
+La asignación «Sin plantilla (valores comunes)» deja el agente con el valor común. Esta explicación no se repite en la pantalla.
 
 Reglas de la resolución:
 
@@ -64,13 +59,13 @@ La pestaña lista los 23 controles del catálogo con su estado y, por control, s
 
 | Estado | Significado |
 |---|---|
-| Configurado | Todos los ajustes comunes obligatorios del nivel del control tienen valor |
-| Incompleto | Faltan ajustes comunes obligatorios; se listan debajo |
+| Configurado | Todos los ajustes comunes obligatorios del nivel del control tienen valor, y ningún agente del alcance que lo evalúa tiene un parámetro obligatorio sin valor |
+| Incompleto | Faltan ajustes comunes obligatorios («Falta «<parámetro>».») o algún agente no tiene valor para un parámetro obligatorio («Falta «<parámetro>» en N agentes.») |
 | Inválido | Algún ajuste común tiene un valor inválido; se listan debajo |
 | Sin configurar | Ningún ajuste común tiene valor |
 | Sin añadir | El control existe en el catálogo pero no está en el documento; no se evalúa |
 
-El estado se calcula solo con los ajustes comunes. Los parámetros por sistema y por plataforma se completan con plantillas y ajustes propios, y su completitud se ve en «Asignación» y en la pestaña «Agentes».
+Mientras se leen los agentes, la columna muestra «Comprobando los agentes…». El detalle por agente está en «Asignación» y en la pestaña «Agentes».
 
 ### 5.1 Añadir un control del catálogo
 
@@ -95,7 +90,7 @@ El botón añade la definición del control tal cual, la misma que el bloque sem
 
 2. En «Ajustes comunes», pulsar «Configurar <control>» («Completar configuración», «Corregir configuración» o «Revisar configuración», según el estado), declarar los valores y guardar.
 
-   Resultado esperado: el estado del control se actualiza. El desplegable «Valor común de los parámetros por sistema y por plataforma» muestra el valor que toma un agente sin ajuste propio ni plantilla que fije el parámetro.
+   Resultado esperado: el estado del control se actualiza. El desplegable «Valor común de los parámetros que cambian por agente» muestra el valor que toma un agente sin ajuste propio ni plantilla que fije el parámetro.
 
 ### 5.3 Plantillas
 
@@ -113,19 +108,19 @@ Una plantilla es un conjunto de valores con nombre para los parámetros por sist
 | Copias con PBS | Linux | mp.info.6 | P-06 `/backup`, P-07 `root`, P-10 `pbs`, P-11 clave de PBS, P-12 `root.pxar`, P-13 testigo de restauración |
 | Copias Zimbra NE | — | mp.info.6 | P-06 `/opt/zimbra/backup`, P-07 `zimbra`, P-10 `zimbra-ne` |
 
-«Copias con PBS» y «Copias Zimbra NE» son alternativas de mp.info.6: no se aplican por tipo y se asignan a cada agente. Los hechos de mp.info.6 con `data.origen = pbs` o `data.origen = zimbra-ne` las proponen en la asignación con «propuesta por sus hechos». Zimbra 10 Network con zmbackup no se combina con PBS.
+«Copias con PBS» y «Copias Zimbra NE» son alternativas de mp.info.6: no se aplican por tipo y se asignan a cada agente. Los datos de copias de mp.info.6 (`data.origen = pbs` o `data.origen = zimbra-ne`) las proponen en la asignación con «Propuesta por sus datos». Zimbra 10 Network con zmbackup no se combina con PBS.
 
-La tabla de «Plantillas» muestra, por plantilla, la insignia «De serie» o «Propia», su tipo, cuántos parámetros fija y a cuántos agentes está asignada.
+La tabla de «Plantillas» muestra, por plantilla, la insignia «De serie» o «Propia», su tipo, cuántos parámetros fija y, en «Agentes», a cuántos está asignada y a cuántos se aplica por su tipo.
 
 #### 5.3.1 Crear o duplicar una plantilla
 
-1. En «Plantillas», pulsar «Duplicar» en una plantilla, o «Crear plantilla».
+1. Para duplicar, pulsar «Duplicar» en una plantilla.
 
-   Resultado esperado: con «Duplicar», una plantilla propia «<nombre> (copia)» con todos los valores de la original; con «Crear plantilla», la ventana «Crear plantilla · <control>».
+   Resultado esperado: se guarda al momento una plantilla propia «<nombre> (copia)» con todos los valores de la original. Para cambiarle el nombre o los valores, pulsar después «Editar» en la copia (apartado 5.3.2).
 
-2. Escribir el nombre, la descripción y, si procede, el tipo de sistema; declarar los valores de los parámetros que fija la plantilla y pulsar «Guardar plantilla».
+2. Para crear una plantilla vacía, pulsar «Crear plantilla», escribir el nombre, la descripción y, si procede, el tipo de sistema; declarar los valores de los parámetros que fija y pulsar «Guardar plantilla».
 
-   Resultado esperado: la plantilla aparece con la insignia «Propia». Un parámetro sin valor toma el valor común. Un valor inválido se rechaza con el motivo y no se guarda nada; un nombre repetido en el mismo control también se rechaza.
+   Resultado esperado: la plantilla aparece con la insignia «Propia». Un parámetro sin valor toma el valor común. Un valor inválido se rechaza con el motivo y no se guarda nada; un nombre que ya tiene otra plantilla del control, de serie o propia, también se rechaza.
 
 El tipo de sistema de una plantilla propia es informativo: al asignarla a un agente de otro tipo, la vista previa lo avisa.
 
@@ -137,7 +132,7 @@ El tipo de sistema de una plantilla propia es informativo: al asignarla a un age
 
 2. Cambiar los valores y pulsar «Guardar plantilla».
 
-   Resultado esperado: el cambio se aplica a todos los agentes que tienen la plantilla asignada, salvo en los parámetros con ajuste propio.
+   Resultado esperado: si la plantilla está asignada, la ventana «Guardar «…»: cambia N agentes» con, por agente, los parámetros que cambian; tras pulsar «Guardar plantilla» (teclear antes `aplicar` si se pide), el cambio se aplica a esos agentes, salvo en los parámetros con ajuste propio. Sin agentes asignados, se guarda al momento.
 
 Las plantillas de serie solo admiten «Ver» y «Duplicar».
 
@@ -158,8 +153,8 @@ La tabla «Asignación» lista los agentes del alcance y los perfiles guardados 
 | Columna | Contenido |
 |---|---|
 | Agente | Id y nombre; abre la página del agente en ese control |
-| Tipo | El tipo guardado o, si no lo está, «sin guardar (detectado: …)» |
-| Plantilla | La que se aplica: la asignada, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)» o «Ninguna: valores comunes»; las propuestas por sus hechos; y si el control no se mide en ese agente |
+| Tipo | El tipo guardado o, si no lo está, «<tipo> (detectado, sin guardar)» |
+| Plantilla | La que se aplica: la asignada, «… (de serie, por su tipo)», «Sin plantilla (valores comunes)», «Ninguna: valores comunes» o, con el tipo sin guardar, «Ninguna hasta guardar su tipo: valores comunes»; la propuesta por sus datos; y si el control no se evalúa en ese agente |
 | Ajustes propios | Cuántos tiene, cuántos obligatorios quedan sin valor y si está fuera del alcance |
 
 Para asignar una plantilla a varios agentes:
@@ -182,14 +177,14 @@ El tipo de cada agente se detecta con la primera regla que se cumple:
 
 | Orden | Regla | Tipo | Evidencia que se muestra |
 |---|---|---|---|
-| 1 | El id del agente es `000` | Manager Wazuh | «el id 000, que en Wazuh es siempre el manager» |
-| 2 | `os.platform` es `windows` en el inventario de agentes | Windows | «os.platform = windows en el inventario de agentes» |
-| 3 | Hay hechos de ENSFácil con `data.plano = directorio` en los últimos 30 días | Servidor LDAP | «N hechos del recolector LDAP (data.plano = directorio) en 30 días» |
-| 4 | `os.platform` es de la familia Linux, o `os.uname` empieza por «Linux» | Linux | «os.platform = ubuntu en el inventario de agentes» |
-| 5 | `os.platform` trae un valor que no es de los anteriores | Sin detectar | «os.platform = …: no es un tipo previsto; se elige a mano» |
+| 1 | El agente es el manager de Wazuh (id `000`) | Manager Wazuh | «detectado por ser el manager de Wazuh» |
+| 2 | `os.platform` es `windows` en el inventario de agentes | Windows | «detectado por el inventario de agentes (Windows)» |
+| 3 | Hay hechos de ENSFácil con `data.plano = directorio` en los últimos 30 días | Servidor LDAP | «detectado por N datos del directorio LDAP en 30 días» |
+| 4 | `os.platform` es de la familia Linux, o `os.uname` empieza por «Linux» | Linux | «detectado por el inventario de agentes (Ubuntu)» |
+| 5 | `os.platform` trae un valor que no es de los anteriores | Sin detectar | «el sistema «…» no es un tipo previsto; se elige a mano» |
 | 6 | El inventario no trae el sistema operativo | Sin detectar | «el inventario no trae su sistema operativo …; se elige a mano» |
 
-El tipo que decide la plantilla de serie es el **guardado** en el perfil del agente. Mientras el tipo detectado no está guardado, la pestaña muestra «N agente(s) con el tipo detectado sin guardar».
+El tipo que decide la plantilla de serie es el **guardado** en el perfil del agente. Mientras el tipo detectado no está guardado, las tablas lo muestran como «<tipo> (detectado, sin guardar)», la página del agente indica que su plantilla de serie se aplica al guardar el tipo, y las pestañas «Agentes» y «Controles» muestran «N agente(s) con el tipo detectado sin guardar». En una instalación nueva ninguna plantilla de serie se aplica hasta guardar los tipos. Un agente con el tipo corregido a mano no se cuenta.
 
 1. Pulsar «Guardar los tipos detectados…».
 
@@ -218,7 +213,7 @@ La página del agente agrupa por control los parámetros por sistema y por plata
 
 Para cambiar la plantilla de un control:
 
-1. Elegir en «Plantilla» «La de serie de su tipo («…»)», una plantilla del control o «Sin plantilla (valores comunes)», y pulsar «Asignar…».
+1. Elegir en «Plantilla» «La de serie de su tipo («…»)» («La de serie de su tipo (tipo sin guardar)» mientras el tipo no está guardado), una plantilla del control o «Sin plantilla (valores comunes)», y pulsar «Asignar…».
 
    Resultado esperado: si cambia algún valor, la ventana con el cambio de plantilla y los parámetros que cambian; tras confirmarlo, la plantilla en la cabecera del control.
 
@@ -258,7 +253,7 @@ Un perfil puede guardar ajustes que no se aplican: el de un parámetro que el co
 
    Resultado esperado: la ventana «Quitar …» con cada dato que se borra (nombre, otros nombres, tipo corregido, plantillas asignadas y cada ajuste). Un perfil entero exige teclear `quitar`.
 
-Lo que esta versión no conoce (una clave guardada por una versión posterior) se lista como aviso y no se quita. Una asignación a una plantilla que ya no existe se indica como error y el agente toma la plantilla de serie de su tipo.
+Lo que esta versión no conoce (una clave guardada por una versión posterior) se lista en «Datos de otra versión del plugin (se ignoran)» y no se quita. Una asignación a una plantilla que ya no existe se indica como error y el agente toma la plantilla de serie de su tipo.
 
 ### 6.4 Otros nombres de un agente
 
@@ -272,7 +267,7 @@ El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre
 
 1. Abrir ENSFácil > Configuración > General.
 
-   Resultado esperado: el formulario «Configuración global de evaluación» con el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3, y el resto de la configuración global; debajo, «Alcance ENS» con el modo, los grupos y los agentes, en solo lectura.
+   Resultado esperado: el formulario «Configuración global de evaluación» con el nivel ENS, el **Nivel de Trazabilidad (T)**, que solo usa op.exp.8, el **Nivel de Disponibilidad (D)**, que usan op.cont.2 y op.cont.3, y el resto de la configuración global, con «Descripción del alcance (informes)», el texto que describe el alcance en los informes; debajo, «Alcance ENS», en solo lectura, con «Agentes evaluados» y, según el modo, los grupos o los agentes.
 
 2. Cambiar los niveles y pulsar «Guardar configuración global».
 
