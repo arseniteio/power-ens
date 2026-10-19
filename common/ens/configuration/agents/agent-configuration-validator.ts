@@ -83,7 +83,7 @@ const describeModesWithoutValue = (
     .filter(parameterId => !Object.prototype.hasOwnProperty.call(values, parameterId))
     .map(parameterId => {
       const label = control.parameters.find(parameter => parameter.id === parameterId)?.label;
-      return [parameterId, `${control.controlId} ${label ? `«${label}»` : parameterId}: modo de comparación`];
+      return [parameterId, `${control.controlId} ${label ? `«${label}»` : parameterId}`];
     });
 
 export const validateAgentProfile = (
@@ -143,8 +143,8 @@ export const validateAgentProfile = (
       }
     });
 
-    describeModesWithoutValue(control, entry?.matchModes, values).forEach(([parameterId, message]) =>
-      add('warning', 'desconocido', `${message}, sin ajuste propio: se ignora`, controlId, parameterId)
+    describeModesWithoutValue(control, entry?.matchModes, values).forEach(([parameterId, name]) =>
+      add('error', 'huerfano', `${name}: modo de comparación sin ajuste propio; no se aplica`, controlId, parameterId)
     );
   });
 
@@ -211,8 +211,8 @@ export const validateCustomTemplates = (
       if (issue) add('error', `plantilla «${template.name}»: ${issue.message}`, parameterId);
     });
 
-    describeModesWithoutValue(control, template.matchModes, template.values).forEach(([parameterId, message]) =>
-      add('warning', `plantilla «${template.name}»: ${message}, sin valor en la plantilla: se ignora`, parameterId)
+    describeModesWithoutValue(control, template.matchModes, template.values).forEach(([parameterId, name]) =>
+      add('warning', `plantilla «${template.name}»: ${name}: modo de comparación sin valor en la plantilla; se ignora`, parameterId)
     );
   });
 

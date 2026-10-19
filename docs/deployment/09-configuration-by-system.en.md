@@ -294,7 +294,7 @@ Each save writes the whole document; the server keeps the previous version in th
 
 ### 6.3 Remove settings that do not apply
 
-A profile may store settings that do not apply: one for a parameter the control no longer declares, for a control not in the configuration or for a common parameter. The agent page lists them in «Ajustes de este agente que no se aplican», and the «Agentes» tab in «Ajustes de agentes que hay que corregir».
+A profile may store settings that do not apply: one for a parameter the control no longer declares, for a control not in the configuration, for a common parameter or a comparison mode without its own setting. The agent page lists them in «Ajustes de este agente que no se aplican», and the «Agentes» tab in «Ajustes de agentes que hay que corregir».
 
 1. Press «Quitar» next to the setting.
 
@@ -476,12 +476,12 @@ Expected result: `Done` after installing the dependencies; then `ESTRUCTURA VÁL
 |---|---|---|
 | `ESTRUCTURA INVÁLIDA` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
 | `VALORES COMUNES INVÁLIDOS` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, or a common parameter: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, a common parameter or a comparison mode without its own setting: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «la plantilla asignada «…» no existe» | An assignment to a deleted template or one from another version: the agent takes the built-in template of its type | Assign another template (sections 5.4 or 6.2) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with `plantilla <id>` | A custom template with a reserved or repeated id, of a control not present or with an invalid value | Fix or delete the template (section 5.3) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` with «Expresión regular inválida» or «no admite expresiones regulares» | A pattern that does not compile or the «Expresión regular» mode on a parameter that does not accept it: the evidence is `NO_EVALUABLE` | Fix the pattern or go back to «Texto exacto» (section 5.5) |
-| `avisos (…)` | Keys from a later plugin version, repeated template names, unconverted 1.2.0 templates or a comparison mode without a value at its level | None: they do not change the outcome |
+| `avisos (…)` | Keys from a later plugin version, repeated template names, unconverted 1.2.0 templates or a comparison mode without a value in a template | None: they do not change the outcome |
 
 ### 11.3 Seed controls
 

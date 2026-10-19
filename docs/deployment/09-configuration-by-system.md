@@ -294,7 +294,7 @@ Cada guardado escribe el documento entero; el servidor guarda la versión anteri
 
 ### 6.3 Quitar ajustes que no se aplican
 
-Un perfil puede guardar ajustes que no se aplican: el de un parámetro que el control ya no declara, el de un control que no está en la configuración o el de un parámetro común. La página del agente los lista en «Ajustes de este agente que no se aplican», y la pestaña «Agentes» en «Ajustes de agentes que hay que corregir».
+Un perfil puede guardar ajustes que no se aplican: el de un parámetro que el control ya no declara, el de un control que no está en la configuración, el de un parámetro común o un modo de comparación sin su ajuste propio. La página del agente los lista en «Ajustes de este agente que no se aplican», y la pestaña «Agentes» en «Ajustes de agentes que hay que corregir».
 
 1. Pulsar «Quitar» junto al ajuste.
 
@@ -476,12 +476,12 @@ Resultado esperado: `Done` tras la instalación de las dependencias; después, `
 |---|---|---|
 | `ESTRUCTURA INVÁLIDA` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, un modo que no es `exact` ni `regex` en `matchModes`, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
 | `VALORES COMUNES INVÁLIDOS` | Un valor común que no es válido para su parámetro, por ejemplo una expresión regular escrita con `set-parameters.py` que no compila: el control queda «Inválido» | Corregir el valor en «Ajustes comunes» o con `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, o un parámetro común: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
+| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, un parámetro común o un modo de comparación sin ajuste propio: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «la plantilla asignada «…» no existe» | Una asignación a una plantilla borrada o de otra versión: el agente toma la de serie de su tipo | Asignar otra plantilla (apartados 5.4 o 6.2) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con `plantilla <id>` | Una plantilla propia con un id reservado o repetido, de un control que no está o con un valor inválido | Corregir o borrar la plantilla (apartado 5.3) |
 | `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «Expresión regular inválida» o «no admite expresiones regulares» | Un patrón que no compila o un modo «Expresión regular» en un parámetro que no lo admite: la evidencia queda en `NO_EVALUABLE` | Corregir el patrón o volver a «Texto exacto» (apartado 5.5) |
-| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos, plantillas de la 1.2.0 sin convertir o un modo de comparación sin valor en su nivel | Ninguna: no cambian la salida |
+| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos, plantillas de la 1.2.0 sin convertir o un modo de comparación sin valor en una plantilla | Ninguna: no cambian la salida |
 
 ### 11.3 Sembrar controles
 
