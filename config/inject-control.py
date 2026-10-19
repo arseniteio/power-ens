@@ -16,8 +16,8 @@ Dry-run by default; --apply to write.
 
 ORGANISATION DATA (`configuration.organizationData`, plugin 1.4.0) IS KEPT AS IT IS. A parameter of the
 control that reads an organisation item and has no value (a new control, or after --sustituir) takes the
-item's value, as the plugin does on load; a parameter with a different value is left for the plugin to
-show as a conflict.
+item's value, or, if the item has none yet, the value the other controls agree on, as the plugin does on
+load; a parameter with a different value is left for the plugin to show as a conflict.
 
 THE PER-AGENT LAYER AND THE CUSTOM TEMPLATES (`configuration.agents` and `configuration.templates`,
 plugin 1.3.0) ARE NOT TOUCHED: the whole `_source` is written and only `controls` changes. If a
@@ -244,7 +244,7 @@ controls.append(block)
 cfg["controls"] = controls
 
 # --- organisation data: kept; the control's empty parameters that read an item take its value
-shape_errors = organization.validate_shape(cfg.get("organizationData"))
+shape_errors = organization.validate_shape(cfg)
 if shape_errors:
     print("WARNING: configuration.organizationData is not valid and the plugin will not load the environment: {}".format(
         " ".join(shape_errors)))
@@ -255,12 +255,15 @@ if cfg.get("organizationData") and items:
 for item in items or []:
     if not any(view["controlId"] == control_id for view in item.get("views", [])) or shape_errors:
         continue
-    stored = organization.stored_value(cfg, item["id"])
-    if stored is None:
+    value = organization.stored_value(cfg, item["id"])
+    sources = ["Datos de la organización"]
+    if value is None:
+        value, sources = organization.adopted_value(cfg, item)
+    if value is None:
         continue
     single = {"controls": [block]}
-    for _, pid, _, value in organization.write_through(single, item, stored, only_empty=True):
-        print("  {} takes «{}» from Datos de la organización: {}".format(pid, item["label"], json.dumps(value, ensure_ascii=False)[:70]))
+    for _, pid, _, written in organization.write_through(single, item, value, only_empty=True):
+        print("  {} takes «{}» from {}: {}".format(pid, item["label"], " and ".join(sources), json.dumps(written, ensure_ascii=False)[:70]))
 
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 cfg["updatedAt"] = now

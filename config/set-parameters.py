@@ -389,7 +389,7 @@ if per_item and items is None:
 elif items is None and config.get("organizationData") is not None and wanted:
     print("WARNING: cannot read the organisation data items (run from the config/ directory of the full plugin repo): "
           "a parameter that is organisation data is written as a parameter only, and the plugin shows it as a conflict.")
-errors += organization.validate_shape(config.get("organizationData"))
+errors += organization.validate_shape(config)
 
 
 def ask_item(item_id, value, source):
@@ -434,6 +434,10 @@ for control_id, values in wanted.items():
                           "(a «|» inside an entry, or more cells than columns)" % (control_id, pid, item["id"]))
         else:
             ask_item(item["id"], result, "%s %s" % (control_id, pid))
+
+for item_id, (value, source) in item_changes.items():
+    item = organization.get_item(items, item_id)
+    errors += ["%s: %s" % (source, problem) for problem in organization.single_value_problems(config, item, value)]
 
 if errors:
     for e in errors:

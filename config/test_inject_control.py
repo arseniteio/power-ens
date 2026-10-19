@@ -253,6 +253,19 @@ def main():
         state["doc"] = {"configuration": {"controls": [], "organizationData": {"values": {"retencion": None}}}, "updatedAt": ""}
         r = seed(url, org_path)
         check("organisation data · an invalid block is warned about", "configuration.organizationData is not valid" in r.stdout, r.stdout)
+        state["doc"] = {"configuration": {"controls": [], "organizationData": None}, "updatedAt": ""}
+        r = seed(url, org_path)
+        check("organisation data · a null block is warned about as the plugin refuses it", "must be an object" in r.stdout, r.stdout)
+        others = [{"controlId": "op.acc.2", "parameters": [{"id": "P-12", "type": "list", "value": ["sudo"]}]},
+                  {"controlId": "op.acc.4", "parameters": [{"id": "P-06", "type": "list", "value": ["sudo"]}]}]
+        state["doc"] = {"configuration": {"controls": json.loads(json.dumps(others))}, "updatedAt": ""}
+        r = seed(url, org_path, "--apply")
+        check("organisation data · without the item yet, an empty parameter takes the value the other controls agree on",
+              values().get("P-11") == ["sudo"] and "takes «Grupos con privilegio administrativo» from op.acc.2 P-12 and op.acc.4 P-06" in r.stdout, r.stdout)
+        others[1]["parameters"][0]["value"] = ["root"]
+        state["doc"] = {"configuration": {"controls": json.loads(json.dumps(others))}, "updatedAt": ""}
+        seed(url, org_path, "--apply")
+        check("organisation data · and stays empty when they differ (the plugin shows the conflict)", values().get("P-11") is None, str(values()))
 
         # --- does not touch the other controls
         other = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intact"}]}

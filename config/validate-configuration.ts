@@ -36,7 +36,9 @@ import type { ENSControlConfiguration } from '../common/ens/configuration/types'
 import {
   checkOrganizationDataKeys,
   describeOrganizationData,
+  describeOrganizationFills,
   normalizeOrganizationData,
+  organizationSingleValueIssues,
   summarizeOrganizationMigration,
 } from '../common/ens/configuration/organization';
 
@@ -93,6 +95,7 @@ const withValue = organizationStates.filter(state => state.status === 'value').m
 
 if (organization.moved.length || organization.written.length) {
   console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [] })} The plugin does it on load and writes it with the next save.`);
+  describeOrganizationFills(organization.filled).forEach(line => console.log(`  ${line}`));
 }
 console.log(`organisation data: ${withValue.length ? withValue.join(', ') : 'no item with value'}`);
 organizationStates
@@ -105,6 +108,14 @@ organizationStates
     )
   );
 checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
+// A parameter that reads one value and finds several rows: which one applies would depend on their order.
+const organizationErrors: string[] = organizationStates
+  .filter(state => state.value !== undefined)
+  .flatMap(state => organizationSingleValueIssues(model, state.item, state.value).map(issue => `«${state.item.label}» ${issue.source}: ${issue.reason}`));
+if (organizationErrors.length) {
+  console.log(`INVALID ORGANISATION DATA (${organizationErrors.length}): fix the item in Configuración > General or with set-parameters.py.`);
+  organizationErrors.forEach(message => console.log(`  - ${message}`));
+}
 
 const templates = getCustomTemplates(model);
 console.log(`custom templates: ${templates.length ? templates.map(template => `${template.controlId} «${template.name}» (${template.id})`).join(', ') : 'none'}`);
@@ -150,7 +161,7 @@ if (commonErrors.length) {
 
 if (!errors.length) {
   console.log('VALID AGENT AND TEMPLATE SETTINGS.');
-  process.exit(commonErrors.length ? 1 : 0);
+  process.exit(commonErrors.length || organizationErrors.length ? 1 : 0);
 }
 
 console.log(`INVALID AGENT OR TEMPLATE SETTINGS (${errors.length}): the plugin loads the environment; what «does not apply» is ignored and removed on the agent page or with set-parameters.py, and an agent with an invalid value is evaluated with an invalid configuration.`);

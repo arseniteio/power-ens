@@ -222,6 +222,29 @@ def view_rows(item, view, parameter_type, value):
     return rows
 
 
+def merge_row(item, rows, row):
+    """Adds a row: with `key`, into the row with the same key (existing cells win); otherwise into an identical row."""
+    key = item.get("key") or []
+    if key and all(cell(row.get(k)) for k in key):
+        index = next((i for i, r in enumerate(rows) if all(same(r.get(k), row.get(k)) for k in key)), -1)
+    else:
+        index = next((i for i, r in enumerate(rows)
+                      if sorted(r) == sorted(row) and all(is_multiselect(item, c) or cell(r.get(c)) == cell(row.get(c)) for c in row)), -1)
+    if index < 0:
+        return rows + [dict(row)]
+    merged = dict(rows[index])
+    for column, value in row.items():
+        if is_multiselect(item, column):
+            joined = options(merged.get(column))
+            for option in options(value):
+                if not any(same(existing, option) for existing in joined):
+                    joined.append(option)
+            merged[column] = ", ".join(joined)
+        elif not cell(merged.get(column)):
+            merged[column] = value
+    return rows[:index] + [merged] + rows[index + 1:]
+
+
 def same_value(parameter_type, left, right):
     shape = shape_of(parameter_type)
     if shape == "scalar":
@@ -233,7 +256,7 @@ def same_value(parameter_type, left, right):
     return normalize(left) == normalize(right)
 
 
-# --- writing ----------------------------------------------------------------
+# --- the document -------------------------------------------------------------
 
 def stored_value(config, item_id):
     values = ((config.get("organizationData") or {}).get("values") or {})
@@ -261,6 +284,48 @@ def find_parameter(config, control_id, parameter_id):
                 if parameter.get("id") == parameter_id:
                     return parameter
     return None
+
+
+def adopted_value(config, item):
+    """What the plugin moves to an item without a stored value: the values of the parameters that have one, when
+    every one of them keeps its value. None when there is none or they differ (the plugin shows the conflict).
+    Returns (value, [views that supplied it])."""
+    configured = []
+    for view in item.get("views", []):
+        parameter = find_parameter(config, view["controlId"], view["parameterId"])
+        if parameter is not None and not is_empty(parameter.get("value")):
+            configured.append((view, parameter))
+    if not configured:
+        return None, []
+    rows = []
+    for view, parameter in configured:
+        own = []
+        for row in view_rows(item, view, parameter.get("type"), parameter.get("value")):
+            own = merge_row(item, own, row)
+        if not same_value(parameter.get("type"), project(item, view, parameter.get("type"), own), parameter.get("value")):
+            return None, []
+        for row in view_rows(item, view, parameter.get("type"), parameter.get("value")):
+            rows = merge_row(item, rows, row)
+    for view, parameter in configured:
+        if not same_value(parameter.get("type"), project(item, view, parameter.get("type"), rows), parameter.get("value")):
+            return None, []
+    return value_from_rows(item, rows), ["%s %s" % (view["controlId"], view["parameterId"]) for view, _ in configured]
+
+
+def single_value_problems(config, item, value):
+    """A parameter that reads one value and finds several rows of its use: their order would decide."""
+    problems = []
+    rows = item_rows(item, value)
+    for view in item.get("views", []):
+        parameter = find_parameter(config, view["controlId"], view["parameterId"])
+        if parameter is None or shape_of(parameter.get("type")) != "scalar":
+            continue
+        columns = view.get("columns") or column_names(item)
+        found = [r for r in rows if matches(item, r, view) and any(cell(r.get(c)) for c in columns)]
+        if len(found) > 1:
+            problems.append("%s %s lee un solo valor: dejar una sola fila con uso «%s» en «%s»" % (
+                view["controlId"], view["parameterId"], ", ".join((view.get("where") or {}).values()), item["label"]))
+    return problems
 
 
 def write_through(config, item, value, only_empty=False):
@@ -322,10 +387,11 @@ def assign_view(item, stored, view, parameter_type, new_value):
     return value_from_rows(item, rows)
 
 
-def validate_shape(block, path="configuration.organizationData"):
-    """What would stop the plugin from loading the environment."""
-    if block is None:
+def validate_shape(config, path="configuration.organizationData"):
+    """What would stop the plugin from loading the environment. An absent key is valid; `null` is not."""
+    if "organizationData" not in config:
         return []
+    block = config["organizationData"]
     if not isinstance(block, dict):
         return ["%s must be an object." % path]
     values = block.get("values")

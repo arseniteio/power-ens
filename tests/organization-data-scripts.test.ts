@@ -1,11 +1,15 @@
 /** The scripts (config/ensfacil_organization.py) read organisation data exactly as the plugin does. */
 import { execFileSync } from 'child_process';
 import { ENSConfigurationRegistry } from '../common/ens/configuration/registry';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import {
   ENS_ORGANIZATION_DATA_ITEMS,
+  describeOrganizationItem,
+  organizationSingleValueIssues,
   organizationViewValue,
   sameParameterValue,
 } from '../common/ens/configuration/organization';
+import { organizationViewRows } from '../common/ens/configuration/organization/organization-data-views';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -55,38 +59,102 @@ const cases = ENS_ORGANIZATION_DATA_ITEMS.flatMap(item =>
   )
 );
 
+// Stored values written as text (a table with newlines, a list with commas) are read the same way.
+const TEXT_CASES = [
+  { item: 'entorno_preproduccion', view: { controlId: 'op.exp.4', parameterId: 'P-06' }, type: 'table', value: 'srv-a | pre-a\nsrv-b | pre-b | informe' },
+  { item: 'grupos_privilegiados', view: { controlId: 'op.acc.1', parameterId: 'P-11' }, type: 'list', value: 'sudo, wheel' },
+  { item: 'retencion', view: { controlId: 'op.acc.1', parameterId: 'P-06', where: { uso: 'cuentas' }, columns: ['dias'] }, type: 'duration_days', value: 'cuentas |  | 365\ncopias |  | 30' },
+  { item: 'registro_pruebas', view: { controlId: 'op.cont.3', parameterId: 'P-04' }, type: 'select', value: 'Otra herramienta' },
+];
+const allCases = [...cases, ...TEXT_CASES];
+
+// Parameter values compared as the engine does: rows in any order, trailing empty cells, duplicates.
+const SAME_PAIRS: { type: string; left: unknown; right: unknown }[] = [
+  { type: 'table', left: ['a | b', 'c | d'], right: ['c | d | ', 'a | b'] },
+  { type: 'table', left: 'a | b\nc | d', right: ['a | b', 'c | d', 'a | b'] },
+  { type: 'table', left: ['a | b'], right: ['a |  | b'] },
+  { type: 'table', left: ['Ana | x'], right: ['ana | x'] },
+  { type: 'list', left: 'sudo, wheel', right: ['wheel', 'sudo'] },
+  { type: 'list', left: ['sudo'], right: [] },
+  { type: 'duration_days', left: 365, right: '365' },
+  { type: 'duration_days', left: 365, right: 30 },
+  { type: 'select', left: undefined, right: '' },
+];
+
+// Documents built from each view's reading of the sample: the migration moves the same value in both.
+const documents = ENS_ORGANIZATION_DATA_ITEMS.filter(item => item.views.length).flatMap(item => {
+  const consistent: any = JSON.parse(JSON.stringify(defaultENSConfigurationTemplate));
+  delete consistent.organizationData;
+  item.views.forEach(view => {
+    const parameter = consistent.controls.find((control: any) => control.controlId === view.controlId).parameters.find((candidate: any) => candidate.id === view.parameterId);
+    const value = organizationViewValue(item, view, parameter, SAMPLES[item.id] as any);
+    if (value === undefined) delete parameter.value;
+    else parameter.value = value;
+  });
+  // The first view alone with a value, and the second changed: adopted, and a conflict.
+  const alone: any = JSON.parse(JSON.stringify(consistent));
+  item.views.slice(1).forEach(view => delete alone.controls.find((control: any) => control.controlId === view.controlId).parameters.find((candidate: any) => candidate.id === view.parameterId).value);
+  const changed: any = JSON.parse(JSON.stringify(consistent));
+  if (item.views.length > 1 && !item.views[1].where) {
+    const second = changed.controls.find((control: any) => control.controlId === item.views[1].controlId).parameters.find((candidate: any) => candidate.id === item.views[1].parameterId);
+    second.value = second.type === 'list' ? ['otro'] : ['otro | valor'];
+  }
+  return [consistent, alone, changed].map(configuration => ({ item: item.id, configuration }));
+});
+
+const SINGLE_VALUE = ['accesos | VPN | 365', 'accesos | web | 90', 'cuentas |  | 365'];
+
 const PYTHON = `
 import json, sys
 sys.path.insert(0, sys.argv[1])
 import ensfacil_organization as o
 items = o.load_items()
-cases = json.load(sys.stdin)
-out = {"items": items, "views": [], "assign": []}
-for case in cases:
+data = json.load(sys.stdin)
+out = {"items": items, "views": [], "assign": [], "rows": [], "same": [], "adopted": [], "single": []}
+for case in data["cases"]:
     item = o.get_item(items, case["item"])
     seen = o.view_value(item, case["view"], case["type"], case.get("value"))
     out["views"].append(seen)
+    out["rows"].append(o.view_rows(item, case["view"], case["type"], seen))
     # Setting the view to what it reads must leave the item reading the same.
     after = o.assign_view(item, case.get("value"), case["view"], case["type"], seen)
     out["assign"].append(o.view_value(item, case["view"], case["type"], after))
+for pair in data["same"]:
+    out["same"].append(o.same_value(pair["type"], pair.get("left"), pair.get("right")))
+for document in data["documents"]:
+    out["adopted"].append(o.adopted_value(document["configuration"], o.get_item(items, document["item"]))[0])
+retention = o.get_item(items, "retencion")
+out["single"] = o.single_value_problems(data["single"]["configuration"], retention, data["single"]["value"])
 json.dump(out, sys.stdout)
 `;
 
+const single = { configuration: defaultENSConfigurationTemplate, value: SINGLE_VALUE };
 const python = JSON.parse(
-  execFileSync('python3', ['-I', '-c', PYTHON, `${__dirname}/../config`], { input: JSON.stringify(cases), encoding: 'utf8' })
+  execFileSync('python3', ['-I', '-c', PYTHON, `${__dirname}/../config`], {
+    input: JSON.stringify({ cases: allCases, same: SAME_PAIRS, documents, single }),
+    encoding: 'utf8',
+  })
 );
 
+const itemOf = (id: string) => ENS_ORGANIZATION_DATA_ITEMS.find(candidate => candidate.id === id)!;
+
 check('the scripts read the same items as the plugin', JSON.stringify(python.items) === JSON.stringify(ENS_ORGANIZATION_DATA_ITEMS));
-const differences = cases
+const differences = allCases
   .map((entry, index) => {
-    const item = ENS_ORGANIZATION_DATA_ITEMS.find(candidate => candidate.id === entry.item)!;
-    const plugin = organizationViewValue(item, entry.view, { type: entry.type as any }, entry.value as any);
+    const plugin = organizationViewValue(itemOf(entry.item), entry.view, { type: entry.type as any }, entry.value as any);
     return JSON.stringify(plugin) === JSON.stringify(python.views[index] ?? undefined) ? undefined : { view: `${entry.view.controlId} ${entry.view.parameterId}`, plugin, script: python.views[index] };
   })
   .filter(Boolean);
-check(`every view (${cases.length}) reads the same value in the plugin and in the scripts`, differences.length === 0, differences);
+check(`every view (${allCases.length}, ${TEXT_CASES.length} of them stored as text) reads the same value in the plugin and in the scripts`, differences.length === 0, differences);
 check('some views read nothing in the samples, so the comparison covers empty values too', python.views.some((value: unknown) => value === null));
-const roundTrip = cases
+const rowDifferences = allCases
+  .map((entry, index) => {
+    const plugin = organizationViewRows(itemOf(entry.item), entry.view, { type: entry.type as any }, (python.views[index] ?? undefined) as any);
+    return JSON.stringify(plugin) === JSON.stringify(python.rows[index]) ? undefined : { view: `${entry.view.controlId} ${entry.view.parameterId}`, plugin, script: python.rows[index] };
+  })
+  .filter(Boolean);
+check('a parameter value becomes the same item rows in both', rowDifferences.length === 0, rowDifferences);
+const roundTrip = allCases
   .map((entry, index) =>
     sameParameterValue({ type: entry.type as any }, python.assign[index] ?? undefined, python.views[index] ?? undefined)
       ? undefined
@@ -94,6 +162,18 @@ const roundTrip = cases
   )
   .filter(Boolean);
 check('setting a parameter through the scripts keeps what it reads (P-xx form)', roundTrip.length === 0, roundTrip);
+const sameDifferences = SAME_PAIRS.filter((pair, index) => sameParameterValue({ type: pair.type as any }, pair.left as any, pair.right as any) !== python.same[index]);
+check(`values compare the same way (${SAME_PAIRS.length} pairs, both outcomes)`, sameDifferences.length === 0 && python.same.includes(true) && python.same.includes(false), sameDifferences);
+const adoptedDifferences = documents
+  .map((document, index) => {
+    const state = describeOrganizationItem(document.configuration, itemOf(document.item));
+    const plugin = state.status === 'value' && !state.stored ? state.value : undefined;
+    return JSON.stringify(plugin) === JSON.stringify(python.adopted[index] ?? undefined) ? undefined : { item: document.item, case: index % 3, plugin, script: python.adopted[index] };
+  })
+  .filter(Boolean);
+check(`the value moved to an item is the same in both (${documents.length} documents, adopted and in conflict)`, adoptedDifferences.length === 0 && python.adopted.includes(null), adoptedDifferences);
+check('two rows for a one-value parameter are refused with the same message',
+  JSON.stringify(organizationSingleValueIssues(defaultENSConfigurationTemplate, itemOf('retencion'), SINGLE_VALUE).map(issue => `${issue.source} ${issue.reason}`)) === JSON.stringify(python.single), python.single);
 
 console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

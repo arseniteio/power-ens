@@ -262,6 +262,7 @@ def main():
             {"controlId": "op.acc.4", "parameters": [{"id": "P-06", "type": "list", "value": ["root"]}]},
             {"controlId": "op.exp.3", "parameters": [{"id": "P-03", "type": "list", "value": ["dioni"]}]},
             {"controlId": "mp.info.6", "parameters": [{"id": "P-07", "type": "list", "value": ["root"]}, {"id": "P-03", "type": "duration_days", "value": 30}]},
+            {"controlId": "op.acc.5", "parameters": [{"id": "P-08", "type": "duration_days"}]},
         ]}}
 
         def org_param(control_id, parameter_id):
@@ -313,6 +314,8 @@ def main():
             ("a mode on an item", {"organization": {"grupos_privilegiados": {"value": "^a$", "matchMode": "regex"}}}, "takes a plain value"),
             ("an item set twice", {"organization": {"grupos_privilegiados": ["a"]}, "op.acc.1": {"P-11": ["b"]}}, "is set twice"),
             ("a value that does not fit the item", {"op.exp.3": {"P-03": ["a | b"]}}, "does not fit there"),
+            ("two rows for a one-value parameter", {"organization": {"retencion": ["accesos | VPN | 365", "accesos | web | 90"]}},
+             "op.acc.5 P-08 lee un solo valor: dejar una sola fila con uso «accesos» en «Plazos de retención»"),
         ]:
             state["doc"] = json.loads(json.dumps(org_doc))
             state["doc"]["configuration"]["organizationData"] = {"values": {"personal_autorizado": ["root | configuracion"]}}
@@ -354,6 +357,11 @@ def main():
         r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")
         check("organisation · refuses to write over an invalid block, saying where",
               r.returncode == 1 and "organizationData.values.retencion" in r.stderr, r.stderr)
+        state["doc"] = json.loads(json.dumps(org_doc))
+        state["doc"]["configuration"]["organizationData"] = None
+        r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")
+        check("organisation · a null block is refused as the plugin does (an absent one is fine)",
+              r.returncode == 1 and "configuration.organizationData must be an object" in r.stderr, r.stderr)
 
         for name, content, reason in [
             ("rejects an organization parameter per agent", {"agents": {"028": {"op.acc.1": {"P-04": ["x"]}}}}, "organization parameter"),
