@@ -1,9 +1,4 @@
-// The value that applies to an agent, for each per-system or per-platform parameter of a control:
-//   agent override -> template assigned in the control -> built-in template of the agent's type -> common value.
-// The assigned template and the type's built-in are alternatives: the type's built-in applies only when the control
-// has no assignment, and ENS_NO_TEMPLATE pins the common value. Common (organisation) parameters always come from the
-// control. Whole-parameter replacement, as `set-parameters.py`. Single entry point for the browser engine
-// (`getActiveControlConfiguration`) and the server evaluation; 1.2.0 documents are converted on the fly.
+// Override -> assigned template, or else the type's built-in -> common value; the two templates never mix, for 1.2.0 parity.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -144,8 +139,7 @@ export const getInheritedValue = (
 const isManagerRow = (agentId?: string): boolean =>
   agentId === undefined || normalizeAgentId(agentId) === ENS_MANAGER_AGENT;
 
-// Parameters that describe OTHER machines resolve by union: per-system parameters of a manager-measured control on the
-// manager row, and the declared scope parameter (mp.info.6 P-04) on every row.
+// Parameters that describe other machines are read whole by the engine, so they resolve by union.
 export const isUnionParameter = (
   controlId: string,
   parameterId: string,
@@ -213,8 +207,7 @@ export interface ENSResolvedControlConfiguration {
   origins: Record<string, ENSResolvedValueOrigin>;
 }
 
-// A control resolved for an agent's row (without agent: the common view, with the unions) and where each value comes
-// from. The screen uses it; the engine uses `resolveControlConfigurationForAgent`.
+
 const resolveInModel = (
   model: ENSResolvable,
   controlId: string,

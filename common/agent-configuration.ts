@@ -1,20 +1,4 @@
-// Per-agent configuration: the `configuration.agents` and `configuration.templates` layers of the
-// `active` document in wazuh-ens-configuration. Pure types and functions shared by browser and server.
-//
-//   configuration.controls[].parameters[].value   common value of the control (what 1.1.0, the chatbot and the scripts read)
-//   configuration.templates = [                    custom templates (1.3.0); built-ins live in code
-//     { id, controlId, name, description?, systemType?, values: { "<P-xx>": value } }
-//   ]
-//   configuration.agents = {
-//     "<normalised agent id>": {
-//       name, aliases[], detectedType, detectedBy, typeOverride,
-//       templates[],                                1.2.0 only: converted to per-control templateId on load
-//       controls: { "<control>": { templateId?, parameters: { "<P-xx>": value } } }
-//     }
-//   }
-//
-// Top-level keys because the structure validator only admits scalars and string lists in `value`, and
-// inject-control.py replaces the parameter object keeping only `value`.
+// Top-level keys, not inside parameters: inject-control.py keeps only `value` and the validator only scalars and lists.
 
 export type ENSSystemType = 'linux' | 'zimbra-ldap' | 'windows' | 'manager';
 
@@ -82,7 +66,7 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
 
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
 const CONTROL_KEYS = ['templateId', 'parameters'];
-const TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values'];
+export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values'];
 
 // ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
 // se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
@@ -192,8 +176,7 @@ export const validateAgentsConfigurationShape = (
   return errors;
 };
 
-// Fatal shape of `configuration.templates`: absent, or an array of templates whose values are scalars or
-// string lists. Meaning (control, parameter class, duplicate ids, valid values) is checked elsewhere.
+// Only what would stop the environment from loading; meaning is the agent validator's job.
 export const validateCustomTemplatesShape = (
   value: unknown,
   path: string = 'configuration.templates'
@@ -253,7 +236,7 @@ export const checkCustomTemplatesKeys = (
     ? value.flatMap((template, index) =>
         isRecord(template)
           ? Object.keys(template)
-              .filter(key => !TEMPLATE_KEYS.includes(key))
+              .filter(key => !ENS_CUSTOM_TEMPLATE_KEYS.includes(key))
               .map(key => `${path}[${index}].${key}: esta versión no conoce la clave y la ignora.`)
           : []
       )

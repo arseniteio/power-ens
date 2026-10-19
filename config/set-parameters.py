@@ -80,9 +80,10 @@ El valor es el id de una plantilla de serie del control (`linux-ubuntu`,
 `configuration.templates` del mismo control; `none` deja el agente sin plantilla
 (valores comunes) y `null` quita la asignación (vuelve la plantilla de serie de
 su tipo). El valor que se aplica: ajuste propio, plantilla asignada, plantilla
-de serie de su tipo y valor común del control. Un documento de la 1.2.0 (sin la
-clave `configuration.templates`) no admite `template`: se convierte antes
-guardándolo una vez desde Configuración («Guardar la conversión»).
+de serie de su tipo y valor común del control. Un documento sin la clave
+`configuration.templates` y sin nada que convertir se marca como de la 1.3.0 al
+escribir; si tiene plantillas o tipos guardados por la 1.2.0, no admite
+`template` hasta guardar un cambio desde Configuración (el plugin lo convierte).
 
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
 `wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
@@ -217,6 +218,12 @@ NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"
 
 
+def needs_conversion(agents):
+    # Profiles the plugin's 1.2.0 conversion would change: their resolution needs it before any 1.3.0 key.
+    return any(isinstance(p, dict) and (isinstance(p.get("templates"), list) or p.get("detectedType") or p.get("typeOverride"))
+               for p in (agents or {}).values())
+
+
 def vacio(v):
     return v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, list) and not [x for x in v if str(x).strip()])
 
@@ -230,6 +237,8 @@ def valor_valido(v):
 
 
 agentes_doc = config.get("agents") or {}
+legacy_document = not isinstance(config.get("templates"), list)
+mark_130 = legacy_document and not needs_conversion(agentes_doc)
 
 
 def sugerencia(nombre):
@@ -273,21 +282,22 @@ for agente, controles in por_agente.items():
     propios = ((agentes_doc.get(aid) or {}).get("controls") or {})
     for control_id, valores in (controles or {}).items():
         if TEMPLATE_KEY in (valores or {}):
-            plantilla = valores[TEMPLATE_KEY]
-            propias = [t.get("id") for t in (config.get("templates") or []) if isinstance(t, dict) and t.get("controlId") == control_id]
-            if not isinstance(config.get("templates"), list):
-                errores.append("agente %s: el documento es de la 1.2.0 y no admite «template»: guárdalo una vez desde "
-                               "Configuración («Guardar la conversión») y vuelve a ejecutar" % aid)
-            elif vacio(plantilla):
+            template_id = valores[TEMPLATE_KEY]
+            custom_ids = [t.get("id") for t in (config.get("templates") or []) if isinstance(t, dict) and t.get("controlId") == control_id]
+            if legacy_document and not mark_130:
+                errores.append("agente %s: el documento tiene plantillas o tipos de la 1.2.0 que el plugin convierte al guardar: "
+                               "guardar cualquier cambio desde Configuración (si aparece el aviso, «Guardar la conversión») "
+                               "y volver a ejecutar" % aid)
+            elif vacio(template_id):
                 pass
-            elif not isinstance(plantilla, str):
+            elif not isinstance(template_id, str):
                 errores.append("agente %s: %s template tiene que ser el id de una plantilla, «none» o null" % (aid, control_id))
             elif control_id not in por_id:
                 errores.append("agente %s: el control %s no está sembrado" % (aid, control_id))
-            elif plantilla != NO_TEMPLATE and plantilla not in BUILTIN_TEMPLATES.get(control_id, []) + propias:
+            elif template_id != NO_TEMPLATE and template_id not in BUILTIN_TEMPLATES.get(control_id, []) + custom_ids:
                 errores.append("agente %s: %s no tiene la plantilla %s (de serie: %s; propias: %s)" % (
-                    aid, control_id, plantilla, ", ".join(BUILTIN_TEMPLATES.get(control_id, [])) or "ninguna",
-                    ", ".join(propias) or "ninguna"))
+                    aid, control_id, template_id, ", ".join(BUILTIN_TEMPLATES.get(control_id, [])) or "ninguna",
+                    ", ".join(custom_ids) or "ninguna"))
         for pid, v in (valores or {}).items():
             if pid == TEMPLATE_KEY:
                 continue
@@ -351,14 +361,14 @@ for agente, controles in sorted(por_agente.items()):
         entrada = dict(propios.get(control_id) or {})
         parametros = dict(entrada.get("parameters") or {})
         if TEMPLATE_KEY in (valores or {}):
-            nueva = None if vacio(valores[TEMPLATE_KEY]) else valores[TEMPLATE_KEY]
-            vieja = entrada.get("templateId")
-            if nueva == vieja:
+            new_id = None if vacio(valores[TEMPLATE_KEY]) else valores[TEMPLATE_KEY]
+            old_id = entrada.get("templateId")
+            if new_id == old_id:
                 print("   %s template sin cambio" % control_id)
             else:
-                print("   %s template %s  ->  %s" % (control_id, vieja or "(la de serie de su tipo)", nueva or "(la de serie de su tipo)"))
-                if nueva:
-                    entrada["templateId"] = nueva
+                print("   %s template %s  ->  %s" % (control_id, old_id or "(la de serie de su tipo)", new_id or "(la de serie de su tipo)"))
+                if new_id:
+                    entrada["templateId"] = new_id
                 else:
                     entrada.pop("templateId", None)
                 cambios += 1
@@ -399,6 +409,10 @@ if por_agente:
 if not cambios:
     print("\nNada que cambiar.")
     sys.exit(0)
+
+if mark_130:
+    config["templates"] = []
+    print("configuration.templates: se añade vacía (el documento pasa a ser de la 1.3.0; no había nada que convertir)")
 
 if not args.apply:
     print("\n%d cambio(s). DRY-RUN: nada escrito. Añade --apply." % cambios)

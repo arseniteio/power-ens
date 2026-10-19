@@ -1,9 +1,6 @@
 import type { ENSPlatformSource } from './types';
 
-// Añadido «Zimbra NE con zmbackup» (mp.info.6 en un servidor de buzones o MTA
-// de Zimbra 10 Network Edition). Solo vale para Zimbra 10 Network con zmbackup
-// y no se combina con PBS. Se propone a los agentes que emiten hechos de
-// mp.info.6 con `data.origen = zimbra-ne`.
+// An mp.info.6 alternative for Zimbra 10 Network with zmbackup only, proposed by facts with `data.origen = zimbra-ne`.
 //
 // P-11, P-12 y P-13 son de PBS y se quedan sin valor: la prueba de restauración
 // de zmbackup usa una cuenta testigo que se declara en el `.env` de la máquina.

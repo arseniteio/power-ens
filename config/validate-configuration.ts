@@ -18,10 +18,7 @@
  * va a aceptar. Revisar a ojo falló dos veces seguidas sobre el mismo
  * parámetro.
  *
- * Per-agent layer and templates (`configuration.agents`, `configuration.templates`, 1.3.0): their shape is checked by
- * the same structure validator; their meaning (controls, parameters, assigned templates, custom templates and
- * values) does not stop the environment from loading but exits with 1. A 1.2.0 document is checked as the plugin
- * loads it: converted to per-control assignments, with the conversion plan printed. Unknown keys are warnings.
+ * A 1.2.0 document is checked as the plugin loads it: converted first.
  *
  * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
  */

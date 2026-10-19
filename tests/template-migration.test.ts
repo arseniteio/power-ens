@@ -42,6 +42,7 @@ const blocks = readdirSync(CONFIG)
 
 const legacyDocument = (): any => ({
   ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)),
+  templates: undefined,
   controls: JSON.parse(JSON.stringify(blocks)),
   agents: {
     '000': { name: 'mgr', detectedType: 'manager', templates: ['manager-wazuh'] },
@@ -142,6 +143,7 @@ console.log('4. On load, written with the next save');
   check('nothing written on load', saved.length === 0);
   check('the plan waits to be written', service.getPendingTemplateMigration()?.assignments.length === plan.assignments.length);
   await service.updateActiveGlobalConfiguration({ ...active.global, ensLevel: 'ALTO' });
+  check('the first save also records the conversion in its reason', /Configuración global ENS actualizada\. Conversión de la configuración 1\.2\.0: /.test(saved[0]?.changeReason || ''), saved[0]?.changeReason);
   check('any save writes the converted document', saved.length === 1 && Array.isArray(saved[0].configuration.templates) && !saved[0].configuration.agents['024'].templates && saved[0].configuration.global.ensLevel === 'ALTO');
   check('and the plan is no longer pending', service.getPendingTemplateMigration() === undefined);
 

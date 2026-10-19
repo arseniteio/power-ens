@@ -3,10 +3,7 @@ import type {
   ENSSystemType,
 } from '../../../agent-configuration';
 
-// Grounded values of one platform across controls: the source of the built-in templates of each control.
-// Every value comes from a seed block example, a runbook `.env.example` or configuration template, or a lab
-// value without what belongs to another platform or installation; what cannot be grounded stays unset.
-// `tests/agent-configuration-model.test.ts` checks classes and validity.
+// Only grounded values (seed block, runbook example or lab without installation data): the rest stays unset.
 export interface ENSPlatformSource {
   // The 1.2.0 template id: stored in 1.2.0 documents and reused as the built-in template id.
   id: string;

@@ -69,6 +69,12 @@ console.log('1. Custom templates');
   check('edit: name, description and values', JSON.stringify(updated.templates![0]) === JSON.stringify({ id: 'custom-servidores-web', controlId: 'op.acc.1', name: 'Web', description: 'Front', systemType: 'linux', values: { 'P-10': 600 } }), updated.templates);
   check('built-ins are not edited: they are duplicated', throws(() => actions.updateControlTemplate(updated, 'linux-ubuntu', { name: 'x' }), /se duplican/));
 
+  check('a custom template cannot take a built-in name of its control', throws(() => actions.createControlTemplate(doc, { controlId: 'op.acc.1', name: 'linux', values: {} }), /Ya hay una plantilla/));
+  const future: any = JSON.parse(JSON.stringify(created.configuration));
+  future.templates[0].futureKey = { kept: true };
+  check('editing keeps keys a later version stored in the template', JSON.stringify((actions.updateControlTemplate(future, 'custom-servidores-web', { name: 'Otra' }).templates![0] as any).futureKey) === '{"kept":true}');
+  const emptyCopy = actions.duplicateControlTemplate(doc, 'op.acc.2', 'windows-server');
+  check('duplicating an empty built-in does not copy «Sin valores de serie…»', emptyCopy.template.name === 'Windows (copia)' && !/Sin valores de serie/.test(emptyCopy.template.description || ''), emptyCopy.template);
   const assigned = actions.setControlTemplateAssignment(updated, 'op.acc.1', ['101'], 'custom-servidores-web');
   check('edits reach the agents that use it', value(assigned, 'op.acc.1', '101', 'P-10') === 600 && value(actions.updateControlTemplate(assigned, 'custom-servidores-web', { values: { 'P-10': 700 } }), 'op.acc.1', '101', 'P-10') === 700);
   check('usage lists the agents', JSON.stringify(actions.getTemplateUsage(assigned, 'op.acc.1', 'custom-servidores-web')) === '["101"]');
@@ -123,6 +129,8 @@ console.log('3. Stored type');
   const doc = base({ agents: { '101': { detectedType: 'linux' } } });
   const entries = [{ agentId: '101', detection: linux }, { agentId: '103', detection: windows }];
   check('pending: only types not stored yet', JSON.stringify(actions.pendingDetectedTypes(doc, entries).map(entry => entry.agentId)) === '["103"]');
+  const manualDoc = base({ agents: { '103': { typeOverride: 'linux' } } });
+  check('pending: an agent with a manual type is not asked to store the detected one', actions.pendingDetectedTypes(manualDoc, entries).map(entry => entry.agentId).join() === '101');
   const stored = actions.saveDetectedTypes(doc, actions.pendingDetectedTypes(doc, entries));
   check('saving stores the type and its evidence', stored.agents!['103'].detectedType === 'windows' && /windows/.test(stored.agents!['103'].detectedBy || ''));
   check('and with it the built-in of the type applies', value(doc, 'op.acc.1', '103', 'P-11') === undefined && JSON.stringify(value(stored, 'op.acc.1', '103', 'P-11')) === '["Administrators"]');
@@ -141,6 +149,18 @@ console.log('4. Actions on a 1.2.0 document keep its values');
     JSON.stringify(legacy.resolveControlConfigurationForAgent(doc, controlId, agentId)?.parameters.map((p: any) => p.value)) ===
     JSON.stringify(resolveControlConfigurationWithOrigins(next, controlId, agentId)?.configuration.parameters.map(p => p.value))));
   check('the document is converted first: no value changes for any agent', same && Array.isArray(next.templates) && next.agents!['102'].controls!['op.acc.1'].templateId === 'zimbra-ldap');
+}
+
+console.log('4b. Actions on an unconverted 1.2.0 document find its merged templates');
+{
+  const doc = base({ agents: { '101': { detectedType: 'linux', templates: ['windows-server', 'linux-ubuntu'] }, '102': { detectedType: 'linux' } } });
+  delete doc.templates;
+  const merged = 'migrated-op.acc.1-windows-server-linux-ubuntu';
+  check('assign it to another agent', actions.setControlTemplateAssignment(doc, 'op.acc.1', ['102'], merged).agents!['102'].controls!['op.acc.1'].templateId === merged);
+  check('duplicate it', actions.duplicateControlTemplate(doc, 'op.acc.1', merged).template.values['P-11'] !== undefined);
+  check('delete it, reassigning its agent', actions.deleteControlTemplate(doc, merged, {}).agents!['101'].controls?.['op.acc.1']?.templateId === undefined);
+  const twin: any = base({ templates: [{ id: 'custom-x', controlId: 'op.acc.1', name: 'X', values: {} }, { id: 'custom-x', controlId: 'op.acc.2', name: 'X', values: {} }] });
+  check('a repeated id in another control survives a delete', JSON.stringify(actions.deleteControlTemplate(twin, 'custom-x').templates!.map((t: any) => t.controlId)) === '["op.acc.2"]');
 }
 
 console.log('5. Removals and missing controls');

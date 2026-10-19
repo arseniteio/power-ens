@@ -18,6 +18,7 @@ import { resolveControlConfigurationForAgent } from '../agents/configuration-res
 import {
   ENSTemplateMigrationPlan,
   planTemplateMigration,
+  summarizeTemplateMigration,
 } from '../agents/template-migration';
 
 let hydrationPromise:
@@ -35,6 +36,12 @@ const commitPersisted = (
 ): ENSConfigurationVersion => {
   pendingTemplateMigration = undefined;
   return ensConfigurationRepository.commitPersisted(configuration);
+};
+
+// The save that first writes the conversion also says so in the history and the audit trail.
+const withPendingConversion = (reason: string): string => {
+  const conversion = pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '';
+  return conversion && !reason.includes(conversion) ? `${reason} ${conversion}` : reason;
 };
 
 export const getENSConfigurationHydrationState =
@@ -117,11 +124,7 @@ export const getConfiguredControlById = (
     control => control.controlId === controlId
   );
 
-// La configuración con la que se evalúa un control: la de la fila de
-// `agentId` (valor del agente → sus plantillas → organización) o, sin agente,
-// la vista de organización. Es el ÚNICO punto por el que la configuración entra
-// en el motor; ver `agents/configuration-resolver.ts`. Sin `configuration.agents`
-// devuelve el mismo objeto que `getConfiguredControlById`.
+// The single entry point of the configuration into the engine; see `agents/configuration-resolver.ts`.
 export const getActiveControlConfiguration = (
   controlId: string,
   agentId?: string
@@ -170,7 +173,7 @@ export const updateActiveControlConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      changeReason
+      withPendingConversion(changeReason)
     );
 
   if (serverState.configuration === null) {
@@ -235,7 +238,7 @@ export const updateActiveGlobalConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      'Configuración global ENS actualizada.'
+      withPendingConversion('Configuración global ENS actualizada.')
     );
 
   if (serverState.configuration === null) {
@@ -265,7 +268,7 @@ export const saveActiveENSConfiguration = async (
   const serverState =
     await saveENSConfiguration(
       candidateConfiguration,
-      changeReason
+      withPendingConversion(changeReason)
     );
 
   if (serverState.configuration === null) {

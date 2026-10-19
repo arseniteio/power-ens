@@ -1,28 +1,4 @@
-// CLASIFICACIÓN DE LOS PARÁMETROS: fuente ÚNICA y declarativa.
-//
-// Cada parámetro de cada control es de una de tres clases:
-//
-//   organisation  política que vale para todas las máquinas (periodicidades,
-//                 umbrales, roles, registros, procedimientos, documentos, nube,
-//                 plan de continuidad). Se edita en «Organización» y ningún
-//                 agente ni plantilla la cambia.
-//   system        describe el estado concreto de UNA máquina (sus cuentas,
-//                 servicios, rutas, ACL, claves, criticidad, responsable). Se
-//                 edita dentro de cada agente.
-//   platform      depende del sistema operativo o del producto (Linux, LDAP
-//                 Zimbra, Windows, PBS…) y es igual en todas las máquinas de esa
-//                 plataforma. Es lo que fijan las plantillas.
-//
-// La usan la pantalla (qué va en cada nivel), el resolutor (qué puede venir de
-// un agente o de una plantilla), el validador (un valor de agente sobre un
-// parámetro de organización es un error) y `config/set-parameters.py`, que lee
-// el objeto de abajo tal cual: por eso es JSON válido entre las llaves, sin
-// comas finales ni comentarios. `tests/agent-configuration-model.test.ts`
-// comprueba que están los 239 parámetros de los 23 bloques, ni uno más.
-//
-// Origen: el análisis del modelo de configuración de la 1.2.0 (tabla por
-// parámetro con el motivo de cada clase).
-
+// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict JSON.
 export type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
 export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =

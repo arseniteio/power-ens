@@ -64,8 +64,10 @@ const conValores = (controlId: string, valores: Record<string, unknown>) => {
   return b;
 };
 
+// A 1.2.0 document: without the 1.3.0 `templates` key.
 const base = (): ENSConfigurationVersion => ({
   ...defaultENSConfigurationTemplate,
+  templates: undefined,
   controls: bloques.map(b => {
     if (b.controlId === 'op.acc.1') {
       return conValores('op.acc.1', {

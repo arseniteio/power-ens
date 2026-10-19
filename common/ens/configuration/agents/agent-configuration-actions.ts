@@ -1,5 +1,4 @@
-// What the configuration screen does to the document, as pure functions: each returns a new document and never
-// mutates its input. Saving is `configuration-state-service`'s job.
+// Pure: each action returns a new document, so it is tested without a server and saved through the queue.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -9,11 +8,12 @@ import type {
   ENSLevel,
   ENSSystemType,
 } from '../types';
-import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, normalizeAgentId } from '../../../agent-configuration';
+import { ENS_CUSTOM_TEMPLATE_KEYS, ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
 import { isEmptyParameterValue } from '../services/parameter-value-validator';
 import { ENSConfigurationRegistry, getENSControlConfiguration } from '../registry';
 import {
   findControlTemplate,
+  getControlTemplates,
   getCustomTemplates,
   hasTemplateParameters,
   isReservedTemplateId,
@@ -35,8 +35,7 @@ const clone = cloneDocument;
 const sameValue = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-// Identity (name, aliases) is refreshed on every write; the stored type changes only through its own actions,
-// because it decides which built-in template applies.
+// The stored type changes only through its own actions: it decides which built-in template applies.
 const withProfile = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -73,10 +72,7 @@ const withControlEntry = (
   return { ...profile, controls };
 };
 
-/**
- * Agent override for one parameter. `undefined`, an empty value or the value it already inherits removes the key
- * (never null): what is the agent's own stays visible, and what is inherited follows its source.
- */
+// A value equal to the inherited one is not stored, so it keeps following its source.
 export const setAgentParameterValue = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -113,10 +109,6 @@ export const clearAgentControlOverrides = (
 ): ENSConfigurationVersion =>
   withProfile(configuration, agentId, current => withControlEntry(current, controlId, entry => ({ ...entry, parameters: {} })));
 
-/**
- * Template assignment of several agents in one control. `undefined` removes the assignment (the built-in of the
- * agent's type applies again); ENS_NO_TEMPLATE pins the common values. Overrides are kept.
- */
 export const setControlTemplateAssignment = (
   configuration: ENSConfigurationVersion,
   controlId: string,
@@ -124,7 +116,7 @@ export const setControlTemplateAssignment = (
   templateId: string | undefined,
   agents: Record<string, ENSDetectableAgent | undefined> = {}
 ): ENSConfigurationVersion => {
-  if (templateId !== undefined && templateId !== ENS_NO_TEMPLATE && !findControlTemplate(configuration, controlId, templateId)) {
+  if (templateId !== undefined && templateId !== ENS_NO_TEMPLATE && !findControlTemplate(toTemplateModel(configuration), controlId, templateId)) {
     throw new Error(`La plantilla «${templateId}» no existe en ${controlId}.`);
   }
 
@@ -270,7 +262,7 @@ const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplat
   if (!hasTemplateParameters(input.controlId)) throw new Error(`${input.controlId} solo tiene ajustes comunes: no admite plantillas.`);
   const control = controlFor(configuration, input.controlId);
   if (!control) throw new Error(`${input.controlId} no es un control de esta versión.`);
-  const duplicated = getCustomTemplates(configuration, input.controlId).some(
+  const duplicated = getControlTemplates(configuration, input.controlId).some(
     template => template.id !== id && template.name.trim().toLowerCase() === name.toLowerCase()
   );
   if (duplicated) throw new Error(`Ya hay una plantilla «${name}» en ${input.controlId}.`);
@@ -309,12 +301,13 @@ export const duplicateControlTemplate = (
   sourceId: string,
   name?: string
 ): { configuration: ENSConfigurationVersion; template: ENSCustomTemplate } => {
-  const source = findControlTemplate(configuration, controlId, sourceId);
+  const model = toTemplateModel(configuration);
+  const source = findControlTemplate(model, controlId, sourceId);
   if (!source) throw new Error(`La plantilla «${sourceId}» no existe en ${controlId}.`);
-  const taken = new Set(getCustomTemplates(configuration, controlId).map(template => template.name.trim().toLowerCase()));
+  const taken = new Set(getControlTemplates(model, controlId).map(template => template.name.trim().toLowerCase()));
   let candidate = name?.trim() || `${source.name} (copia)`;
   for (let n = 2; !name && taken.has(candidate.toLowerCase()); n += 1) candidate = `${source.name} (copia ${n})`;
-  return createControlTemplate(configuration, {
+  return createControlTemplate(model, {
     controlId,
     name: candidate,
     description: source.description,
@@ -341,7 +334,8 @@ export const updateControlTemplate = (
     systemType: 'systemType' in patch ? patch.systemType : current.systemType,
     values: patch.values ?? current.values,
   };
-  next.templates![index] = cleanTemplate(next, merged, templateId);
+  const unknown = Object.fromEntries(Object.entries(current).filter(([key]) => !ENS_CUSTOM_TEMPLATE_KEYS.includes(key)));
+  next.templates![index] = { ...unknown, ...cleanTemplate(next, merged, templateId) };
   return next;
 };
 
@@ -355,28 +349,26 @@ export const getTemplateUsage = (
     .map(([agentId]) => agentId)
     .sort();
 
-/**
- * Deletes a custom template. In use, it is refused unless `reassign` says where its agents go: another template, or
- * `{}` back to the built-in of their type.
- */
+// In use, refused unless `reassign` says where its agents go (`{}`: the built-in of their type).
 export const deleteControlTemplate = (
   configuration: ENSConfigurationVersion,
   templateId: string,
   reassign?: { templateId?: string }
 ): ENSConfigurationVersion => {
-  const template = getCustomTemplates(configuration).find(item => item.id === templateId);
+  const model = toTemplateModel(configuration);
+  const template = getCustomTemplates(model).find(item => item.id === templateId);
   if (!template) {
     throw new Error(isReservedTemplateId(templateId) ? 'Las plantillas de serie no se borran.' : `La plantilla «${templateId}» no existe.`);
   }
   if (reassign?.templateId === templateId) throw new Error('No se puede reasignar a la plantilla que se borra.');
-  const users = getTemplateUsage(configuration, template.controlId, templateId);
+  const users = getTemplateUsage(model, template.controlId, templateId);
   if (users.length && !reassign) {
     throw new Error(`«${template.name}» está asignada a ${users.length} agente(s) (${users.join(', ')}): hay que reasignarlos antes de borrarla.`);
   }
   const reassigned = users.length
-    ? setControlTemplateAssignment(configuration, template.controlId, users, reassign!.templateId)
-    : clone(toTemplateModel(configuration));
-  reassigned.templates = (reassigned.templates || []).filter(item => item.id !== templateId);
+    ? setControlTemplateAssignment(model, template.controlId, users, reassign!.templateId)
+    : clone(model);
+  reassigned.templates = (reassigned.templates || []).filter(item => item.id !== templateId || item.controlId !== template.controlId);
   return reassigned;
 };
 
@@ -413,7 +405,10 @@ export const pendingDetectedTypes = (
   entries: ENSDetectedTypeEntry[]
 ): ENSDetectedTypeEntry[] => {
   const agents = toTemplateModel(configuration).agents || {};
-  return entries.filter(entry => entry.detection.type && agents[normalizeAgentId(entry.agentId)]?.detectedType !== entry.detection.type);
+  return entries.filter(entry => {
+    const profile = agents[normalizeAgentId(entry.agentId)];
+    return entry.detection.type && !knownSystemType(profile?.typeOverride) && profile?.detectedType !== entry.detection.type;
+  });
 };
 
 export const saveDetectedTypes = (
@@ -460,10 +455,7 @@ export const getMissingCatalogControls = (
 ): ENSControlConfiguration[] =>
   registry.filter(control => !configuration.controls.some(item => item.controlId === control.controlId));
 
-/**
- * Adds missing controls as `inject-control.py` does for a new one: the seed block definition with no values except
- * its declared defaults. Controls already present, `agents` and `templates` are left alone.
- */
+// Same as `inject-control.py` for a new control: the seed block, no values but its declared defaults.
 export const addMissingControls = (
   configuration: ENSConfigurationVersion,
   controlIds: string[],
@@ -525,10 +517,7 @@ export const getAgentCompleteness = (
 
 // --- removals -----------------------------------------------------------------
 
-/**
- * Removes what a profile stores and is not applied: a whole profile (e.g. keyed by a name), a control entry
- * (assignment and overrides) or one override. `agentKey` is the key AS STORED, not normalised.
- */
+// `agentKey` is the key as stored, not normalised: a profile saved under a name must be removable.
 export const removeAgentEntry = (
   configuration: ENSConfigurationVersion,
   agentKey: string,

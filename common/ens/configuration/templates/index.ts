@@ -70,9 +70,7 @@ export const getBuiltinTemplates = (controlId: string): ENSControlTemplate[] => 
               id: source.id,
               controlId,
               name: source.label,
-              description: Object.keys(values).length
-                ? source.description
-                : `${source.description} Sin valores de serie en este control: se aplican los ajustes comunes.`,
+              description: source.description,
               systemType: source.systemTypes.length === 1 ? source.systemTypes[0] : undefined,
               values,
               builtin: true,
@@ -85,6 +83,12 @@ export const getBuiltinTemplates = (controlId: string): ENSControlTemplate[] => 
   }
   return builtinsByControl.get(controlId)!;
 };
+
+// What the screen says of a template; an empty built-in says why it changes nothing.
+export const describeTemplate = (template: ENSControlTemplate): string =>
+  template.builtin && !Object.keys(template.values).length
+    ? `${template.description || ''} Sin valores de serie en este control: se aplican los ajustes comunes.`.trim()
+    : template.description || '';
 
 export const getBuiltinTemplate = (controlId: string, templateId: string): ENSControlTemplate | undefined =>
   getBuiltinTemplates(controlId).find(template => template.id === templateId);

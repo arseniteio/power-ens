@@ -1,7 +1,4 @@
-// 1.2.0 -> 1.3.0: cross-control templates applied per agent become a template assignment per control. Pure and
-// idempotent; it runs on load (plan) and is written with the next save. Built so that every agent resolves to the
-// same values as in 1.2.0: one supplying template per control is assigned as is; several are merged first-wins into
-// a custom template; none, where the built-in of the agent's type would now apply, pins «no template».
+// Pins «none» and merges first-wins exactly where needed for every agent to resolve as in 1.2.0.
 import type {
   ENSAgentProfile,
   ENSConfigurationVersion,

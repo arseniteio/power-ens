@@ -1,5 +1,4 @@
-// Meaning of `configuration.agents` and `configuration.templates`; the fatal shape is checked in
-// `common/agent-configuration.ts`. Never used on hydration: a bad value degrades its own row, not the whole environment.
+// Not used on hydration: a bad value must degrade its own row, never stop the whole environment.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -18,6 +17,7 @@ import {
 } from '../../../agent-configuration';
 import {
   findControlTemplate,
+  getBuiltinTemplates,
   getCustomTemplates,
   hasTemplateParameters,
   isReservedTemplateId,
@@ -171,7 +171,8 @@ export const validateCustomTemplates = (
     seen.add(template.id);
 
     const nameKey = `${template.controlId}|${template.name.trim().toLowerCase()}`;
-    if (names.has(nameKey)) {
+    const builtinName = getBuiltinTemplates(template.controlId).some(item => item.name.trim().toLowerCase() === template.name.trim().toLowerCase());
+    if (names.has(nameKey) || builtinName) {
       add('warning', `${template.controlId}: hay otra plantilla llamada «${template.name}»`);
     }
     names.add(nameKey);

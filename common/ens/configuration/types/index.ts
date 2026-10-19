@@ -227,10 +227,7 @@ export interface ENSConfigurationVersion {
   scope: ENSConfigurationScope;
   controls: ENSControlConfiguration[];
   auditTrail: ENSConfigurationAuditEntry[];
-  // Configuración por sistema (1.2.0): valores propios de cada agente, su tipo
-  // y sus plantillas. Opcional y de primer nivel: sin ella todo se evalúa con
-  // el valor de organización, y un plugin 1.1.0 la ignora. Ver
-  // `common/agent-configuration.ts`.
+  // Optional: without it every agent takes the common values, as a 1.1.0 plugin does.
   agents?: ENSAgentsConfiguration;
   // Custom control templates (1.3.0). Its presence marks a 1.3.0 document; built-ins live in code.
   templates?: ENSCustomTemplate[];

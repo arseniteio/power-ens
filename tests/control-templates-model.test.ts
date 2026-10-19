@@ -9,7 +9,7 @@ import {
   ENS_SYSTEM_KEY_COLUMNS,
 } from '../common/ens/configuration/agents/parameter-classes';
 import {
-  ENS_PLATFORM_SOURCES,
+  describeTemplate,
   getBuiltinTemplates,
   getControlTemplates,
   getTypeDefaultTemplate,
@@ -31,6 +31,7 @@ import {
 } from '../common/ens/configuration/agents/agent-configuration-validator';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure as validate120 } from './fixtures/configuration-structure-validator-1.2.0';
+import { ENS_CONFIGURATION_TEMPLATES as FROZEN_120_TEMPLATES } from './fixtures/resolver-1.2.0/templates';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -104,8 +105,8 @@ console.log('2. Built-in templates');
     if (new Set(builtins.map(template => template.id)).size !== builtins.length) problems.push(`${controlId}: repeated id`);
     builtins.forEach(template => {
       if (!template.builtin) problems.push(`${controlId} ${template.id}: not marked built-in`);
-      const source = ENS_PLATFORM_SOURCES.find(item => item.id === template.id)!;
-      if (JSON.stringify(template.values) !== JSON.stringify(source.values[controlId] || {})) problems.push(`${controlId} ${template.id}: not the grounded values`);
+      const frozen = FROZEN_120_TEMPLATES.find(item => item.id === template.id);
+      if (!frozen || JSON.stringify(template.values) !== JSON.stringify(frozen.values[controlId] || {})) problems.push(`${controlId} ${template.id}: not the 1.2.0 grounded values`);
       Object.entries(template.values).forEach(([parameterId, value]) => {
         const at = `${controlId} ${template.id} ${parameterId}`;
         const parameter = blocks[controlId].parameters.find((item: any) => item.id === parameterId);
@@ -121,7 +122,7 @@ console.log('2. Built-in templates');
       if (builtins.filter(template => template.typeDefault && template.systemType === type).length > 1) problems.push(`${controlId}: two defaults for ${type}`);
     });
   });
-  check('each control: built-ins with unique ids, grounded, valid, never common parameters nor lab names', problems.length === 0, problems);
+  check('each control: built-ins with unique ids, the frozen 1.2.0 values, valid, never common parameters nor lab names', problems.length === 0, problems);
 
   const names = (controlId: string) => getBuiltinTemplates(controlId).map(template => template.name).join(',');
   check('op.acc.1: Linux, Servidor LDAP and Windows', names('op.acc.1') === 'Linux,Servidor LDAP,Windows', names('op.acc.1'));
@@ -132,7 +133,7 @@ console.log('2. Built-in templates');
     names('mp.info.6') === 'Linux,Servidor LDAP,Copias con PBS,Copias Zimbra NE' &&
       getBuiltinTemplates('mp.info.6').filter(template => !template.typeDefault).map(template => template.id).join() === 'pbs-backup,zimbra-ne-backup',
     names('mp.info.6'));
-  check('a built-in with nothing grounded says so', /Sin valores de serie/.test(getBuiltinTemplates('op.exp.1')[0].description || ''));
+  check('a built-in with nothing grounded says so on screen, not in its description', /Sin valores de serie/.test(describeTemplate(getBuiltinTemplates('op.exp.1')[0])) && !/Sin valores de serie/.test(getBuiltinTemplates('op.exp.1')[0].description || ''));
   check('type default: Servidor LDAP for an LDAP agent', getTypeDefaultTemplate('op.acc.1', 'zimbra-ldap')?.values['P-01'] === 'LDAP');
   check('type default: none for Windows in op.exp.2', getTypeDefaultTemplate('op.exp.2', 'windows') === undefined);
   check('LDAP: no «adm» among privileged groups; Linux: with it',
@@ -213,6 +214,8 @@ console.log('4. Meaning');
       templateIssues.some(issue => issue.parameterId === 'P-10') && /op\.exp\.9 no está en la configuración/.test(templateText),
     templateText);
   check('a repeated name in a control is a warning', templateIssues.some(issue => issue.severity === 'warning' && /otra plantilla llamada/.test(issue.message)), templateText);
+  const shadow = validateCustomTemplates({ controls, templates: [{ id: 'custom-linux', controlId: 'op.acc.1', name: 'linux', values: {} }] } as any);
+  check('a custom template named like a built-in of its control is a warning', shadow.length === 1 && shadow[0].severity === 'warning', shadow);
 
   const summary = summarizeAgentsConfiguration({ agents: { '028': { typeOverride: 'zimbra-ldap', detectedType: 'linux', controls: { 'op.acc.1': { templateId: 'custom-a', parameters: { 'P-07': ['x | y | z'] } } } } } } as any);
   check('summary per agent: manual type, assignments and overrides', summary[0].type === 'zimbra-ldap' && summary[0].typeSource === 'manual' && summary[0].assignments['op.acc.1'] === 'custom-a' && summary[0].ownValues === 1, summary);

@@ -19,6 +19,8 @@ export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
     groupIds: [],
   },
   controls: ENSConfigurationRegistry,
+  // New documents are born 1.3.0: no 1.2.0 templates to convert.
+  templates: [],
   auditTrail: [
     {
       action: 'CREATED',

@@ -21,7 +21,7 @@
 //
 // Es una función PURA: devuelve el documento migrado y el plan. La pantalla la
 // ejecuta al cargar para enseñar el plan (en seco) y la escribe solo con
-// «Migrar a sistemas», tras confirmarlo; el servidor guarda el documento
+// «Repartir por agentes», tras confirmarlo; el servidor guarda el documento
 // anterior en el historial. Es idempotente: sobre un documento ya migrado no
 // cambia nada.
 //

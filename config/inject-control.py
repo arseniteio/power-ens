@@ -193,10 +193,10 @@ huerfanos = sorted(
 ) if anterior else []
 # Values of custom templates for withdrawn parameters are orphaned the same way.
 huerfanos += sorted(
-    "{} en la plantilla {}".format(pid, plantilla.get("id"))
-    for plantilla in (cfg.get("templates") or [])
-    if isinstance(plantilla, dict) and plantilla.get("controlId") == control_id
-    for pid in (plantilla.get("values") or {})
+    "{} en la plantilla {}".format(pid, template.get("id"))
+    for template in (cfg.get("templates") or [])
+    if isinstance(template, dict) and template.get("controlId") == control_id
+    for pid in (template.get("values") or {})
     if pid not in ids_bloque
 ) if anterior else []
 

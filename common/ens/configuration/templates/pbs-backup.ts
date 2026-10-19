@@ -1,8 +1,6 @@
 import type { ENSPlatformSource } from './types';
 
-// Añadido «Copias con PBS» (mp.info.6 con Proxmox Backup Server). Se suma a la
-// plantilla de la plataforma. Se propone a los agentes que emiten hechos de
-// mp.info.6 con `data.origen = pbs`. No se combina con «Zimbra NE».
+// An mp.info.6 alternative, never a type default: only facts with `data.origen = pbs` propose it.
 export const pbsBackupTemplate: ENSPlatformSource = {
   id: 'pbs-backup',
   label: 'Copias con PBS',
