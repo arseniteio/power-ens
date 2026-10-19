@@ -264,7 +264,7 @@ mp.info.6 no se construyó con la plantilla del auditor y conserva lo desplegado
 
 ### op.exp.10: lecturas de las claves
 
-EV-01 de op.exp.10 registra las lecturas, escrituras, cambios de permisos y borrados de los almacenes de claves con reglas de auditd con permiso de lectura (`-w <ruta> -p rwa`), en Linux y en el servidor LDAP: lecturas auditadas con auditd; FIM solo detecta cambios de integridad. Es la corrección de EV-01 en la plantilla v2.0. Sin auditd, EV-01 queda `NO_EVALUABLE` con su motivo. Windows (SACL de lectura y evento 4663) queda para una fase posterior: no hay runbook `op.exp.10-windows`.
+EV-01 de op.exp.10 registra las lecturas, escrituras, cambios de permisos y borrados de los almacenes de claves con reglas de auditd con permiso de lectura (`-w <ruta> -p rwa`), en Linux y en el servidor LDAP, y con una SACL de lectura y el evento 4663 en Windows (runbook `windows/op.exp.10`, regla 111109). FIM solo detecta cambios de integridad. Es la corrección de EV-01 en la plantilla v2.0. Sin vigilancia de lectura, EV-01 queda `NO_EVALUABLE` con su motivo.
 
 ---
 

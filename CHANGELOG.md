@@ -29,6 +29,9 @@ del Anexo II.
 - mp.info.6: «Correspondencia con la plantilla del auditor» en el detalle, el
   informe y el PDF, con la cobertura de cada P-xx y EV-xx de la plantilla.
   Parámetros, evidencias y requisitos desplegados no cambian.
+- op.exp.10 en Windows: regla 111109 (evento 4663 de lectura de un almacén de
+  claves con SACL) para el runbook `windows/op.exp.10`. EV-01 acepta los
+  accesos auditados con auditd (Linux y LDAP) o con SACL de lectura (Windows).
 - Aviso «Niveles incoherentes» en Controles y en el panel, con enlace a
   General, cuando una dimensión supera el nivel ENS; General no guarda y
   `config/validate-configuration.ts` termina con código 1.

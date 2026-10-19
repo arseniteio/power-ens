@@ -3119,7 +3119,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.10',
     title: 'Accesos auditados al material criptográfico',
     description:
-      'Todo acceso (lectura, escritura, cambio de permisos, borrado) a los almacenes de claves de P-02: lecturas auditadas con auditd (reglas -w <ruta> -p rwa); FIM solo detecta cambios de integridad y no registra lecturas. Con la cuenta de la sesión que lo hizo —la persona aunque haya pasado por sudo— o, sin sesión, la cuenta del proceso, el proceso y el intervalo. Se contrasta la cuenta contra el personal autorizado de P-08. Linux y servidor LDAP; Windows (SACL de lectura) queda pendiente.',
+      'Todo acceso (lectura, escritura, cambio de permisos, borrado) a los almacenes de claves de P-02: lecturas auditadas con auditd en Linux y en el servidor LDAP (reglas -w <ruta> -p rwa) y con una SACL de lectura en Windows (evento 4663); FIM solo detecta cambios de integridad y no registra lecturas. Con la cuenta de la sesión que lo hizo —la persona aunque haya pasado por sudo— o, sin sesión, la cuenta del proceso, el proceso y el intervalo. Se contrasta la cuenta contra el personal autorizado de P-08.',
     requirements: ['op.exp.10.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'ACCESS_CONTROL',

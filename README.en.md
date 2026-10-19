@@ -265,7 +265,7 @@ mp.info.6 was not built from the auditor's template and keeps what is deployed: 
 
 ### op.exp.10: key reads
 
-op.exp.10 EV-01 records reads, writes, permission changes and deletions of the key stores with auditd rules that include read permission (`-w <path> -p rwa`), on Linux and on the LDAP server: reads audited with auditd; FIM only detects integrity changes. This is the EV-01 correction of the v2.0 template. Without auditd, EV-01 stays `NO_EVALUABLE` with its reason. Windows (read SACL and event 4663) is left for a later phase: there is no `op.exp.10-windows` runbook.
+op.exp.10 EV-01 records reads, writes, permission changes and deletions of the key stores with auditd rules that include read permission (`-w <path> -p rwa`), on Linux and on the LDAP server, and with a read SACL and event 4663 on Windows (runbook `windows/op.exp.10`, rule 111109). FIM only detects integrity changes. This is the EV-01 correction of the v2.0 template. Without read auditing, EV-01 stays `NO_EVALUABLE` with its reason.
 
 ---
 

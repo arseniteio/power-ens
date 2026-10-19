@@ -28,6 +28,9 @@ five dimensions, BOE literal texts with their provenance and Annex II order.
 - mp.info.6: «Correspondencia con la plantilla del auditor» in the detail, the
   report and the PDF, with the coverage of each template P-xx and EV-xx.
   Deployed parameters, evidences and requirements do not change.
+- op.exp.10 on Windows: rule 111109 (event 4663, a read of a key store with a
+  SACL) for the `windows/op.exp.10` runbook. EV-01 accepts accesses audited by
+  auditd (Linux and LDAP) or by a read SACL (Windows).
 - «Niveles incoherentes» notice in Controles and the dashboard, with a link to
   General, when a dimension exceeds the ENS level; General does not save and
   `config/validate-configuration.ts` exits with code 1.
