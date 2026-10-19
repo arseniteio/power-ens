@@ -4,8 +4,10 @@ import type {
   ENSAgentProfile,
   ENSConfigurationVersion,
   ENSControlConfiguration,
+  ENSMatchMode,
 } from '../types';
 import { validateParameterValue } from '../services/parameter-value-validator';
+import { withMatchMode } from '../services/parameter-pattern';
 import { getParameterClass } from './parameter-classes';
 import {
   ENS_NO_TEMPLATE,
@@ -46,7 +48,8 @@ export interface ENSTemplateIssue {
 export const describeAgentLevelValueIssue = (
   control: ENSControlConfiguration,
   parameterId: string,
-  value: ENSAgentParameterValue
+  value: ENSAgentParameterValue,
+  matchMode?: ENSMatchMode
 ): { kind: 'huerfano' | 'valor'; message: string } | undefined => {
   const parameter = control.parameters.find(item => item.id === parameterId);
 
@@ -63,12 +66,25 @@ export const describeAgentLevelValueIssue = (
     };
   }
 
-  const verdict = validateParameterValue(parameter, value);
+  const verdict = validateParameterValue(withMatchMode(parameter, matchMode), value);
 
   return verdict.valid
     ? undefined
     : { kind: 'valor', message: `${control.controlId} «${parameter.label}» ${verdict.reason || 'tiene un valor inválido'}` };
 };
+
+// A mode applies only to a value at its own level: alone, it changes nothing.
+const describeModesWithoutValue = (
+  control: ENSControlConfiguration,
+  modes: Record<string, ENSMatchMode> | undefined,
+  values: Record<string, unknown>
+): [string, string][] =>
+  Object.keys(modes || {})
+    .filter(parameterId => !Object.prototype.hasOwnProperty.call(values, parameterId))
+    .map(parameterId => {
+      const label = control.parameters.find(parameter => parameter.id === parameterId)?.label;
+      return [parameterId, `${control.controlId} ${label ? `«${label}»` : parameterId}: modo de comparación`];
+    });
 
 export const validateAgentProfile = (
   agentId: string,
@@ -115,7 +131,7 @@ export const validateAgentProfile = (
     }
 
     Object.entries(values).forEach(([parameterId, value]) => {
-      const issue = describeAgentLevelValueIssue(control, parameterId, value);
+      const issue = describeAgentLevelValueIssue(control, parameterId, value, entry?.matchModes?.[parameterId]);
       if (issue) {
         add(
           'error',
@@ -126,6 +142,10 @@ export const validateAgentProfile = (
         );
       }
     });
+
+    describeModesWithoutValue(control, entry?.matchModes, values).forEach(([parameterId, message]) =>
+      add('warning', 'desconocido', `${message}, sin ajuste propio: se ignora`, controlId, parameterId)
+    );
   });
 
   return issues;
@@ -187,9 +207,13 @@ export const validateCustomTemplates = (
     }
 
     Object.entries(template.values).forEach(([parameterId, value]) => {
-      const issue = describeAgentLevelValueIssue(control, parameterId, value);
+      const issue = describeAgentLevelValueIssue(control, parameterId, value, template.matchModes?.[parameterId]);
       if (issue) add('error', `plantilla «${template.name}»: ${issue.message}`, parameterId);
     });
+
+    describeModesWithoutValue(control, template.matchModes, template.values).forEach(([parameterId, message]) =>
+      add('warning', `plantilla «${template.name}»: ${message}, sin valor en la plantilla: se ignora`, parameterId)
+    );
   });
 
   checkCustomTemplatesKeys(configuration.templates).forEach(message =>

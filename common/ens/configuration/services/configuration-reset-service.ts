@@ -20,7 +20,7 @@
 //   2. la pantalla que lo usa pide escribir ese id a mano antes de habilitar
 //      el botón.
 //
-// Se borra el `value` y nada más. `defaultValue` se conserva: es parte de la
+// Se borran `value` y su modo de comparación. `defaultValue` se conserva: es parte de la
 // DEFINICIÓN del parámetro, no de lo que el cliente declaró, y borrarlo dejaría
 // el bloque distinto del que siembra `inject-control.py`.
 //
@@ -96,6 +96,7 @@ export const buildClearedControlConfiguration = (
       const cleared = { ...parameter };
 
       delete cleared.value;
+      delete cleared.matchMode;
       // `status` es derivado y el cliente HTTP ya lo quita al persistir; se
       // borra también aquí para que lo que devuelve esta función sea
       // exactamente lo que se va a guardar.

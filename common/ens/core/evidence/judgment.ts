@@ -3,6 +3,9 @@ import {
   ENSControlParameter,
   ENSParameterColumn,
 } from '../../configuration/types';
+import { compileParameterPattern } from '../../configuration/services/parameter-pattern';
+import { supportsParameterPattern } from '../../configuration/services/parameter-input';
+import { validateParameterValue } from '../../configuration/services/parameter-value-validator';
 import { ENSNormalizedEvent } from '../data-source/types';
 import {
   getEventFieldValue,
@@ -500,6 +503,8 @@ type ENSParameterReference =
   | {
       kind: 'LISTA';
       values: string[];
+      // Set by a parameter in regex mode: replaces the comparison with `values`.
+      matches?: (value: string) => boolean;
       // Qué se compara realmente: la lista entera o una columna suya. Va en la
       // referencia para que el motivo que lee el auditor lo diga.
       description: string;
@@ -641,6 +646,36 @@ const resolveParameterReference = (
       kind: 'SIN_PARAMETRO',
       reason: `El parámetro ${parameterLabel} está sin configurar.`,
     };
+  }
+
+  if (parameter.matchMode === 'regex') {
+    const verdict = validateParameterValue(parameter, parameter.value);
+    if (
+      !LIST_PRIMITIVES.includes(judgment.primitive) ||
+      judgment.parameterColumn ||
+      judgment.toleranceParameterId ||
+      !supportsParameterPattern(parameter) ||
+      !verdict.valid
+    ) {
+      return {
+        kind: 'SIN_PARAMETRO',
+        reason: `El parámetro ${parameterLabel} no contiene una expresión regular utilizable: ${verdict.reason ?? 'el juicio no admite patrones'}.`,
+      };
+    }
+    try {
+      const pattern = compileParameterPattern(parameter.value);
+      return {
+        kind: 'LISTA',
+        values: [],
+        matches: value => pattern.matches(value),
+        description: `la expresión regular '${String(parameter.value)}' del parámetro ${parameterLabel} (coincidencia completa)`,
+      };
+    } catch (error) {
+      return {
+        kind: 'SIN_PARAMETRO',
+        reason: `Expresión regular inválida en ${parameterLabel}: ${String(error)}`,
+      };
+    }
   }
 
   // El margen solo significa algo sumado a un número o a un plazo. Declararlo en
@@ -1528,9 +1563,9 @@ export const judgeEvidence = (
 
     offenders = observedFacts.filter(
       fact =>
-        normalizedReference.includes(
-          compare(fact.text)
-        ) !== mustBeInList
+        (reference.matches
+          ? reference.matches(fact.text)
+          : normalizedReference.includes(compare(fact.text))) !== mustBeInList
     );
 
     breachMotive = mustBeInList

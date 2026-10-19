@@ -6,6 +6,7 @@ import type {
   ENSControlConfiguration,
   ENSCustomTemplate,
   ENSLevel,
+  ENSMatchMode,
   ENSSystemType,
 } from '../types';
 import { ENS_CUSTOM_TEMPLATE_KEYS, ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
@@ -21,7 +22,7 @@ import {
 import {
   getAgentSystemType,
   getEffectiveTemplate,
-  getInheritedValue,
+  getInheritedSetting,
   resolveControlConfigurationWithOrigins,
   toTemplateModel,
 } from './configuration-resolver';
@@ -35,6 +36,21 @@ const clone = cloneDocument;
 
 const sameValue = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
+const sameMode = (left: ENSMatchMode | undefined, right: ENSMatchMode | undefined): boolean =>
+  (left === 'regex') === (right === 'regex');
+
+// Only `regex` is stored: absent means exact.
+const setMode = (modes: Record<string, ENSMatchMode>, parameterId: string, mode: ENSMatchMode | undefined) => {
+  if (mode === 'regex') modes[parameterId] = 'regex';
+  else delete modes[parameterId];
+};
+
+type ENSControlEntry = {
+  templateId?: string;
+  parameters?: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
+};
 
 // The stored type changes only through its own actions: it decides which built-in template applies.
 const withProfile = (
@@ -59,35 +75,35 @@ const withProfile = (
 const withControlEntry = (
   profile: ENSAgentProfile,
   controlId: string,
-  update: (entry: { templateId?: string; parameters?: Record<string, ENSAgentParameterValue> }) => {
-    templateId?: string;
-    parameters?: Record<string, ENSAgentParameterValue>;
-  }
+  update: (entry: ENSControlEntry) => ENSControlEntry
 ): ENSAgentProfile => {
   const controls = { ...(profile.controls || {}) };
   const entry = update({ ...(controls[controlId] || {}) });
   if (entry.parameters && !Object.keys(entry.parameters).length) delete entry.parameters;
+  if (entry.matchModes && !Object.keys(entry.matchModes).length) delete entry.matchModes;
   if (entry.templateId === undefined) delete entry.templateId;
   if (Object.keys(entry).length) controls[controlId] = entry;
   else delete controls[controlId];
   return { ...profile, controls };
 };
 
-// A value equal to the inherited one is not stored, so it keeps following its source.
+// A value equal to the inherited one, in the same mode, is not stored, so it keeps following its source.
 export const setAgentParameterValue = (
   configuration: ENSConfigurationVersion,
   agentId: string,
   controlId: string,
   parameterId: string,
   value: ENSAgentParameterValue | undefined,
-  agent?: ENSDetectableAgent
+  agent?: ENSDetectableAgent,
+  matchMode?: ENSMatchMode
 ): ENSConfigurationVersion => {
   if (!isAgentLevelParameter(controlId, parameterId)) {
     throw new Error(`${controlId} ${parameterId} es un ajuste común del control: no admite valor por agente.`);
   }
 
-  const inherited = getInheritedValue(configuration, agentId, controlId, parameterId);
-  const remove = value === undefined || isEmptyParameterValue(value) || sameValue(value, inherited);
+  const inherited = getInheritedSetting(configuration, agentId, controlId, parameterId);
+  const remove =
+    value === undefined || isEmptyParameterValue(value) || (sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode));
 
   return withProfile(
     configuration,
@@ -95,9 +111,15 @@ export const setAgentParameterValue = (
     current =>
       withControlEntry(current, controlId, entry => {
         const parameters = { ...(entry.parameters || {}) };
-        if (remove) delete parameters[parameterId];
-        else parameters[parameterId] = value as ENSAgentParameterValue;
-        return { ...entry, parameters };
+        const matchModes = { ...(entry.matchModes || {}) };
+        if (remove) {
+          delete parameters[parameterId];
+          delete matchModes[parameterId];
+        } else {
+          parameters[parameterId] = value as ENSAgentParameterValue;
+          setMode(matchModes, parameterId, matchMode);
+        }
+        return { ...entry, parameters, matchModes };
       }),
     agent
   );
@@ -108,7 +130,7 @@ export const clearAgentControlOverrides = (
   agentId: string,
   controlId: string
 ): ENSConfigurationVersion =>
-  withProfile(configuration, agentId, current => withControlEntry(current, controlId, entry => ({ ...entry, parameters: {} })));
+  withProfile(configuration, agentId, current => withControlEntry(current, controlId, entry => ({ ...entry, parameters: {}, matchModes: {} })));
 
 export const setControlTemplateAssignment = (
   configuration: ENSConfigurationVersion,
@@ -159,9 +181,11 @@ export const previewConfigurationChange = (
         const right = resolveControlConfigurationWithOrigins(after, control.controlId, agentId);
         control.parameters.forEach(parameter => {
           if (!isAgentLevelParameter(control.controlId, parameter.id)) return;
-          const was = left?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-          const is = right?.configuration.parameters.find(item => item.id === parameter.id)?.value;
-          if (sameValue(was, is)) return;
+          const before = left?.configuration.parameters.find(item => item.id === parameter.id);
+          const after = right?.configuration.parameters.find(item => item.id === parameter.id);
+          const was = before?.value;
+          const is = after?.value;
+          if (sameValue(was, is) && sameMode(before?.matchMode, after?.matchMode)) return;
           result.changes.push(`${control.controlId} ${parameter.id}`);
           if (parameter.required && !isEmptyParameterValue(was) && isEmptyParameterValue(is)) {
             result.leftEmpty.push(`${control.controlId} ${parameter.id}`);
@@ -251,6 +275,7 @@ export interface ENSTemplateInput {
   description?: string;
   systemType?: ENSSystemType;
   values: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
 }
 
 const controlFor = (configuration: ENSConfigurationVersion, controlId: string): ENSControlConfiguration | undefined =>
@@ -269,11 +294,14 @@ const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplat
   if (duplicated) throw new Error(`Ya hay una plantilla «${name}» en ${input.controlId}.`);
 
   const values: Record<string, ENSAgentParameterValue> = {};
+  const matchModes: Record<string, ENSMatchMode> = {};
   Object.entries(input.values || {}).forEach(([parameterId, value]) => {
     if (value === undefined || isEmptyParameterValue(value)) return;
-    const issue = describeAgentLevelValueIssue(control, parameterId, value);
+    const matchMode = input.matchModes?.[parameterId];
+    const issue = describeAgentLevelValueIssue(control, parameterId, value, matchMode);
     if (issue) throw new Error(`${issue.message}.`);
     values[parameterId] = value;
+    setMode(matchModes, parameterId, matchMode);
   });
 
   return {
@@ -283,6 +311,7 @@ const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplat
     ...(input.description && input.description.trim() ? { description: input.description.trim() } : {}),
     ...(input.systemType ? { systemType: input.systemType } : {}),
     values,
+    ...(Object.keys(matchModes).length ? { matchModes } : {}),
   };
 };
 
@@ -314,6 +343,7 @@ export const duplicateControlTemplate = (
     description: source.description,
     systemType: source.systemType,
     values: clone(source.values),
+    matchModes: clone(source.matchModes || {}),
   });
 };
 
@@ -334,6 +364,7 @@ export const updateControlTemplate = (
     description: 'description' in patch ? patch.description : current.description,
     systemType: 'systemType' in patch ? patch.systemType : current.systemType,
     values: patch.values ?? current.values,
+    matchModes: 'matchModes' in patch ? patch.matchModes : current.matchModes,
   };
   const unknown = Object.fromEntries(Object.entries(current).filter(([key]) => !ENS_CUSTOM_TEMPLATE_KEYS.includes(key)));
   next.templates![index] = { ...unknown, ...cleanTemplate(next, merged, templateId) };
@@ -569,6 +600,10 @@ export const removeAgentEntry = (
       delete entry.parameters[parameterId];
       if (!Object.keys(entry.parameters).length) delete entry.parameters;
     }
+    if (entry?.matchModes) {
+      delete entry.matchModes[parameterId];
+      if (!Object.keys(entry.matchModes).length) delete entry.matchModes;
+    }
     if (entry && !Object.keys(entry).length) delete controls[controlId];
   }
 
@@ -612,7 +647,8 @@ export const describeAgentEntryRemoval = (
         .filter(([parameter]) => !parameterId || parameter === parameterId)
         .forEach(([parameter, value]) => {
           const name = configuration.controls.find(control => control.controlId === id)?.parameters.find(item => item.id === parameter)?.label;
-          lines.push(`${id} ${name ? `«${name}»` : parameter}: ${describeValue(value)}`);
+          const regex = entry?.matchModes?.[parameter] === 'regex' ? 'expresión regular ' : '';
+          lines.push(`${id} ${name ? `«${name}»` : parameter}: ${regex}${describeValue(value)}`);
         });
       if (!parameterId && !options.overridesOnly && !Object.keys(parameters).length && typeof entry?.templateId !== 'string') lines.push(`${id}: sin valores`);
     });
@@ -626,8 +662,10 @@ export const describeAgentValueSave = (
   agentId: string,
   controlId: string,
   parameterId: string,
-  value: ENSAgentParameterValue | undefined
+  value: ENSAgentParameterValue | undefined,
+  matchMode?: ENSMatchMode
 ): 'quitar' | 'igual' | 'propio' => {
   if (value === undefined || isEmptyParameterValue(value)) return 'quitar';
-  return sameValue(value, getInheritedValue(configuration, agentId, controlId, parameterId)) ? 'igual' : 'propio';
+  const inherited = getInheritedSetting(configuration, agentId, controlId, parameterId);
+  return sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode) ? 'igual' : 'propio';
 };

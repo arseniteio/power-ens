@@ -15,10 +15,17 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
 // quitar el valor propio de un agente es BORRAR la clave.
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
+// How a list value is compared: absent means exact, the 1.1.0 and 1.2.0 behaviour.
+export type ENSMatchMode = 'exact' | 'regex';
+
+export const ENS_MATCH_MODES: ENSMatchMode[] = ['exact', 'regex'];
+
 export interface ENSAgentControlOverrides {
   // Absent: the built-in template of the agent's type; ENS_NO_TEMPLATE: no template, common values.
   templateId?: string;
   parameters?: Record<string, ENSAgentParameterValue>;
+  // Mode of an override in `parameters`; it never applies to a value from another level.
+  matchModes?: Record<string, ENSMatchMode>;
 }
 
 export const ENS_NO_TEMPLATE = 'none';
@@ -30,6 +37,7 @@ export interface ENSCustomTemplate {
   description?: string;
   systemType?: ENSSystemType;
   values: Record<string, ENSAgentParameterValue>;
+  matchModes?: Record<string, ENSMatchMode>;
 }
 
 export interface ENSAgentProfile {
@@ -65,8 +73,19 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
   isStringArray(value);
 
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
-const CONTROL_KEYS = ['templateId', 'parameters'];
-export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values'];
+const CONTROL_KEYS = ['templateId', 'parameters', 'matchModes'];
+export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values', 'matchModes'];
+
+export const isMatchMode = (value: unknown): value is ENSMatchMode => ENS_MATCH_MODES.includes(value as ENSMatchMode);
+
+// Fatal like an invalid `value`: a pattern read with the wrong mode would be judged as a literal name.
+const validateMatchModesShape = (value: unknown, path: string): string[] => {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return [`${path} must be an object keyed by parameter id.`];
+  return Object.entries(value)
+    .filter(([, mode]) => !isMatchMode(mode))
+    .map(([parameterId]) => `${path}.${parameterId} must be "exact" or "regex".`);
+};
 
 // ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
 // se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
@@ -154,6 +173,8 @@ export const validateAgentsConfigurationShape = (
         errors.push(`${cat}.templateId must be a non-empty string (to go back to the built-in template of the type, remove the key).`);
       }
 
+      errors.push(...validateMatchModesShape(control.matchModes, `${cat}.matchModes`));
+
       if (control.parameters === undefined) {
         return;
       }
@@ -210,6 +231,8 @@ export const validateCustomTemplatesShape = (
         errors.push(`${at}.${key} must be a string.`);
       }
     });
+
+    errors.push(...validateMatchModesShape(template.matchModes, `${at}.matchModes`));
 
     if (!isRecord(template.values)) {
       errors.push(`${at}.values must be an object keyed by parameter id.`);

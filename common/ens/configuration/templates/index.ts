@@ -1,6 +1,7 @@
 import type {
   ENSAgentParameterValue,
   ENSCustomTemplate,
+  ENSMatchMode,
   ENSSystemType,
 } from '../../../agent-configuration';
 import { ENS_NO_TEMPLATE } from '../../../agent-configuration';
@@ -33,6 +34,8 @@ export interface ENSControlTemplate {
   description?: string;
   systemType?: ENSSystemType;
   values: Record<string, ENSAgentParameterValue>;
+  // Built-ins have none: their values are exact.
+  matchModes?: Record<string, ENSMatchMode>;
   builtin: boolean;
   // Built-in applied to agents of `systemType` that have no template assigned in the control.
   typeDefault: boolean;
@@ -106,6 +109,7 @@ const toControlTemplate = (template: ENSCustomTemplate): ENSControlTemplate => (
   ...(template.description ? { description: template.description } : {}),
   ...(template.systemType ? { systemType: template.systemType } : {}),
   values: template.values || {},
+  ...(template.matchModes ? { matchModes: template.matchModes } : {}),
   builtin: false,
   typeDefault: false,
 });

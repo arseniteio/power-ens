@@ -7,7 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
-import { validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
+import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -253,6 +253,10 @@ const validateParameter = (
 
   if (typeof value.required !== 'boolean') {
     errors.push(`${path}.required must be a boolean.`);
+  }
+
+  if (value.matchMode !== undefined && !isAllowedString(value.matchMode, ENS_MATCH_MODES)) {
+    errors.push(`${path}.matchMode is invalid.`);
   }
 
   if (

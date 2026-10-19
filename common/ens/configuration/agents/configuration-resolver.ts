@@ -5,6 +5,7 @@ import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSControlParameter,
+  ENSMatchMode,
   ENSSystemType,
 } from '../types';
 import { ENS_NO_TEMPLATE, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
@@ -13,6 +14,7 @@ import {
   toParameterTableRows,
   toTableRowCells,
 } from '../services/parameter-value-validator';
+import { withMatchMode } from '../services/parameter-pattern';
 import { getENSCatalogControl } from '../../catalog';
 import type { ENSControlDefinition } from '../../catalog/types';
 import { ENSControlTemplate, findControlTemplate, getTypeDefaultTemplate } from '../templates';
@@ -86,19 +88,26 @@ export const getEffectiveTemplate = (
   return effectiveTemplateOf(model, profileOf(model, agentId), controlId);
 };
 
+export interface ENSAgentLevelValue {
+  value: ENSAgentParameterValue;
+  origin: ENSResolvedValueOrigin;
+  // The mode stored with this value at its level; absent is exact.
+  matchMode?: ENSMatchMode;
+}
+
 const agentLevelValueOf = (
   configuration: ENSResolvable,
   profile: ENSAgentProfile | undefined,
   controlId: string,
   parameterId: string,
   includeOverride: boolean
-): { value: ENSAgentParameterValue; origin: ENSResolvedValueOrigin } | undefined => {
+): ENSAgentLevelValue | undefined => {
   if (!isAgentLevelParameter(controlId, parameterId)) {
     return undefined;
   }
-  const overrides = profile?.controls?.[controlId]?.parameters;
-  if (includeOverride && hasOwn(overrides, parameterId)) {
-    return { value: overrides![parameterId], origin: { source: 'agent' } };
+  const entry = profile?.controls?.[controlId];
+  if (includeOverride && hasOwn(entry?.parameters, parameterId)) {
+    return { value: entry!.parameters![parameterId], origin: { source: 'agent' }, ...modeOf(entry!.matchModes, parameterId) };
   }
   const effective = effectiveTemplateOf(configuration, profile, controlId);
   const template = effective.template;
@@ -106,9 +115,13 @@ const agentLevelValueOf = (
     ? {
         value: template.values[parameterId],
         origin: { source: 'template', templateId: template.id, templateName: template.name, via: effective.via as 'assigned' | 'type' },
+        ...modeOf(template.matchModes, parameterId),
       }
     : undefined;
 };
+
+const modeOf = (modes: Record<string, ENSMatchMode> | undefined, parameterId: string): { matchMode?: ENSMatchMode } =>
+  modes?.[parameterId] === 'regex' ? { matchMode: 'regex' } : {};
 
 // The agent-level value (override or template), without falling back to the common value.
 export const getAgentLevelValue = (
@@ -116,24 +129,33 @@ export const getAgentLevelValue = (
   agentId: string,
   controlId: string,
   parameterId: string
-): { value: ENSAgentParameterValue; origin: ENSResolvedValueOrigin } | undefined => {
+): ENSAgentLevelValue | undefined => {
   const model = toTemplateModel(configuration);
   return agentLevelValueOf(model, profileOf(model, agentId), controlId, parameterId, true);
 };
 
-// What the agent would get without its override: template value, or the common value.
+// What the agent would get without its override: template value, or the common value, each with its own mode.
+export const getInheritedSetting = (
+  configuration: ENSResolvable,
+  agentId: string,
+  controlId: string,
+  parameterId: string
+): { value?: ENSAgentParameterValue; matchMode?: ENSMatchMode } => {
+  const model = toTemplateModel(configuration);
+  const agentLevel = agentLevelValueOf(model, profileOf(model, agentId), controlId, parameterId, false);
+  if (agentLevel) {
+    return { value: agentLevel.value, ...(agentLevel.matchMode ? { matchMode: agentLevel.matchMode } : {}) };
+  }
+  const common = model.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId);
+  return { value: common?.value, ...(common?.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}) };
+};
+
 export const getInheritedValue = (
   configuration: ENSResolvable,
   agentId: string,
   controlId: string,
   parameterId: string
-): ENSAgentParameterValue | undefined => {
-  const model = toTemplateModel(configuration);
-  return (
-    agentLevelValueOf(model, profileOf(model, agentId), controlId, parameterId, false)?.value ??
-    model.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId)?.value
-  );
-};
+): ENSAgentParameterValue | undefined => getInheritedSetting(configuration, agentId, controlId, parameterId).value;
 
 const isManagerRow = (agentId?: string): boolean =>
   agentId === undefined || normalizeAgentId(agentId) === ENS_MANAGER_AGENT;
@@ -252,7 +274,7 @@ const resolveInModel = (
 
     changed = true;
     origins[parameter.id] = agentValue.origin;
-    return { ...parameter, value: agentValue.value };
+    return withMatchMode({ ...parameter, value: agentValue.value }, agentValue.matchMode);
   });
 
   return {

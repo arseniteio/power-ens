@@ -3,6 +3,9 @@ import {
   ENSParameterColumn,
   ENSParameterValueVerdict,
 } from '../types';
+import { ENS_MATCH_MODES } from '../../../agent-configuration';
+import { compileParameterPattern } from './parameter-pattern';
+import { supportsParameterPattern } from './parameter-input';
 
 // Criterio de validez de un VALOR de parámetro, por tipo.
 //
@@ -20,7 +23,7 @@ import {
 //     agregado por control, y el formulario necesita el motivo campo a campo.
 //
 // Así que el criterio vive aquí, en funciones puras sin estado, y lo consumen
-// los dos. Este módulo importa solo de `../types` (regla del ciclo TDZ).
+// los dos. Este módulo importa solo de `../types` y de módulos hoja (regla del ciclo TDZ).
 //
 // Contrato: esta función juzga un valor PRESENTE. La ausencia de valor no es un
 // valor inválido —es "sin configurar"— y la decide `hasValue` en el
@@ -1443,6 +1446,23 @@ export const validateParameterValue = (
   parameter: ENSControlParameter,
   value: ENSControlParameter['value']
 ): ENSParameterValueVerdict => {
+  if (parameter.matchMode !== undefined && !ENS_MATCH_MODES.includes(parameter.matchMode)) {
+    return invalido('El modo de comparación debe ser texto exacto o expresión regular');
+  }
+
+  // Before the empty check: choosing «Expresión regular» means a pattern has to be written.
+  if (parameter.matchMode === 'regex') {
+    if (!supportsParameterPattern(parameter)) {
+      return invalido('Este parámetro no admite expresiones regulares');
+    }
+    try {
+      compileParameterPattern(value);
+      return VALIDO;
+    } catch (error) {
+      return invalido(`Expresión regular inválida: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   if (isEmptyParameterValue(value)) {
     return VALIDO;
   }

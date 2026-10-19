@@ -1,4 +1,4 @@
-import type { ENSAgentsConfiguration, ENSCustomTemplate } from '../../../agent-configuration';
+import type { ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
 
 export type {
   ENSAgentControlOverrides,
@@ -6,6 +6,7 @@ export type {
   ENSAgentProfile,
   ENSAgentsConfiguration,
   ENSCustomTemplate,
+  ENSMatchMode,
   ENSSystemType,
 } from '../../../agent-configuration';
 
@@ -124,6 +125,8 @@ export interface ENSControlParameter {
   levels: ENSLevel[];
   requirements: string[];
   type: ENSParameterType;
+  // Mode of `value`, stored beside it; the value stays text or a list, so its type in the index does not change.
+  matchMode?: ENSMatchMode;
   example?: string;
   // Opciones admitidas para `type: 'select'`. Declararlas hace dos cosas a la
   // vez, y las dos tienen que ir juntas: el formulario pinta un desplegable
