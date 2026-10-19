@@ -9,7 +9,8 @@ Lo que se prueba:
   - no inventa: rechaza un control no sembrado, un parámetro que no existe, un
     parámetro de organización por agente y un valor con forma imposible, sin
     escribir nada;
-  - dry-run por defecto.
+  - dry-run por defecto;
+  - el modo «Expresión regular» (`matchMode`) en la organización y en un agente.
 
     python3 test_set_parameters.py
 
@@ -35,6 +36,7 @@ CONTROL = {
         {"id": "P-04", "value": ["admin"]},
         {"id": "P-07"},
         {"id": "P-11", "value": ["sudo"]},
+        {"id": "P-03"},
     ],
 }
 
@@ -215,6 +217,44 @@ def main():
             version = estado["version"]
             r = ejecuta(url, tmp, contenido, "--apply")
             comprueba("template · refuses " + nombre, r.returncode == 1 and motivo in r.stderr and estado["version"] == version, r.stderr)
+
+        # --- 1.3.0: «Expresión regular» travels with the value
+        reinicia(agentes)
+        r = ejecuta(url, tmp, {"op.acc.1": {"P-04": {"value": "^(admin|guest)$", "matchMode": "regex"}}}, "--apply")
+        params = {x["id"]: x for x in estado["doc"]["configuration"]["controls"][0]["parameters"]}
+        comprueba("regex · common value stored with its mode",
+                  r.returncode == 0 and params["P-04"].get("value") == "^(admin|guest)$" and params["P-04"].get("matchMode") == "regex", r.stdout + r.stderr)
+        comprueba("regex · the plan says it is a pattern", "->  regex ^(admin|guest)$" in r.stdout, r.stdout)
+        r = ejecuta(url, tmp, {"op.acc.1": {"P-04": ["admin"]}}, "--apply")
+        params = {x["id"]: x for x in estado["doc"]["configuration"]["controls"][0]["parameters"]}
+        comprueba("regex · a plain value is exact and removes the mode",
+                  r.returncode == 0 and params["P-04"].get("value") == ["admin"] and "matchMode" not in params["P-04"], json.dumps(params["P-04"]))
+        ejecuta(url, tmp, {"op.acc.1": {"P-04": {"value": "^a$", "matchMode": "regex"}}}, "--apply")
+        r = ejecuta(url, tmp, {"op.acc.1": {"P-04": None}}, "--apply")
+        params = {x["id"]: x for x in estado["doc"]["configuration"]["controls"][0]["parameters"]}
+        comprueba("regex · clearing the value clears its mode", r.returncode == 0 and "value" not in params["P-04"] and "matchMode" not in params["P-04"], json.dumps(params["P-04"]))
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-03": {"value": "^svc_.*$", "matchMode": "regex"}}}}}, "--apply")
+        entry = estado["doc"]["configuration"]["agents"]["028"]["controls"]["op.acc.1"]
+        comprueba("regex · an override stored with its mode, the rest kept",
+                  r.returncode == 0 and entry["parameters"]["P-03"] == "^svc_.*$" and entry["matchModes"] == {"P-03": "regex"} and entry["parameters"]["P-07"] == ["a | b | c"], json.dumps(entry))
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-03": {"value": ["svc_a"], "matchMode": "exact"}}}}}, "--apply")
+        entry = estado["doc"]["configuration"]["agents"]["028"]["controls"]["op.acc.1"]
+        comprueba("regex · an exact override removes the mode", r.returncode == 0 and entry["parameters"]["P-03"] == ["svc_a"] and "matchModes" not in entry, json.dumps(entry))
+        ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-03": {"value": "^svc_.*$", "matchMode": "regex"}}}}}, "--apply")
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"P-03": None}}}}, "--apply")
+        entry = estado["doc"]["configuration"]["agents"]["028"]["controls"]["op.acc.1"]
+        comprueba("regex · removing the override removes its mode", r.returncode == 0 and "P-03" not in entry["parameters"] and "matchModes" not in entry, json.dumps(entry))
+        for nombre, contenido, motivo in [
+            ("a parameter without the mode", {"op.acc.1": {"P-11": {"value": "^s.*$", "matchMode": "regex"}}}, "no admite expresión regular"),
+            ("a list in regex mode", {"agents": {"028": {"op.acc.1": {"P-03": {"value": ["a"], "matchMode": "regex"}}}}}, "en modo regex el valor es una expresión regular"),
+            ("a pattern over 512 characters", {"op.acc.1": {"P-04": {"value": "a" * 513, "matchMode": "regex"}}}, "hasta 512 caracteres"),
+            ("an unknown mode", {"op.acc.1": {"P-04": {"value": "^a$", "matchMode": "glob"}}}, 'matchMode es "exact" o "regex"'),
+            ("a mode without value", {"op.acc.1": {"P-04": {"matchMode": "regex"}}}, '{"value": …, "matchMode"'),
+        ]:
+            reinicia(agentes)
+            version = estado["version"]
+            r = ejecuta(url, tmp, contenido, "--apply")
+            comprueba("regex · refuses " + nombre, r.returncode == 1 and motivo in r.stderr and estado["version"] == version, r.stderr)
 
         for nombre, contenido, motivo in [
             ("rechaza un parámetro de organización por agente", {"agents": {"028": {"op.acc.1": {"P-04": ["x"]}}}}, "parámetro de organización"),

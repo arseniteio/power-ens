@@ -20,6 +20,8 @@ import {
   validateCustomTemplatesShape,
 } from '../common/agent-configuration';
 import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
+import { supportsParameterPattern } from '../common/ens/configuration/services/parameter-input';
+import { MAX_PARAMETER_PATTERN_LENGTH } from '../common/ens/configuration/services/parameter-pattern';
 import { validateENSConfigurationStructure as validate120 } from './fixtures/configuration-structure-validator-1.2.0';
 import { checkAgentsConfigurationKeys as checkKeys120 } from './fixtures/agent-configuration-1.2.0';
 
@@ -185,6 +187,20 @@ console.log('6. Validators');
   const templateIssues = validateCustomTemplates(bad);
   check('a template pattern on an unsupported parameter is an error', templateIssues.some(issue => issue.severity === 'error' && /no admite expresiones regulares/.test(issue.message)), templateIssues);
   check('a template mode without value is a warning', templateIssues.some(issue => issue.severity === 'warning' && /sin valor en la plantilla/.test(issue.message)), templateIssues);
+}
+
+console.log('7. set-parameters.py');
+{
+  const script = readFileSync(`${__dirname}/../config/set-parameters.py`, 'utf8');
+  const start = script.indexOf('{', script.indexOf('PATTERN_PARAMETERS = '));
+  let fromScript: any;
+  try { fromScript = JSON.parse(script.slice(start, script.indexOf('\n}', start) + 2)); } catch (error) { fromScript = undefined; }
+  const fromPlugin: Record<string, string[]> = {};
+  defaultENSConfigurationTemplate.controls.forEach(control => control.parameters.filter(supportsParameterPattern).forEach(parameter => {
+    (fromPlugin[control.controlId] = fromPlugin[control.controlId] || []).push(parameter.id);
+  }));
+  check('it knows the same parameters with the regex mode', JSON.stringify(fromScript) === JSON.stringify(fromPlugin), [fromScript, fromPlugin]);
+  check('and the same pattern length', script.includes(`MAX_PATTERN_LENGTH = ${MAX_PARAMETER_PATTERN_LENGTH}`));
 }
 
 if (failures.length) {

@@ -147,6 +147,18 @@ def main():
                                 "P-04": ["admin", "operador"],
                                 "P-09": None}, str(valores()))
 
+        # --- a pattern keeps its mode
+        with_pattern = json.loads(json.dumps(CONFIGURADO))
+        with_pattern["parameters"][1].update(value="^svc_.*$", matchMode="regex")
+        estado["doc"] = {"configuration": {"controls": [with_pattern]}, "updatedAt": ""}
+        siembra(url, bloque_path, "--apply")
+        siembra(url, bloque_path, "--apply")
+        p04 = next(p for p in estado["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-04")
+        comprueba("merge · keeps the pattern AND its mode after two seeds",
+                  p04.get("value") == "^svc_.*$" and p04.get("matchMode") == "regex", str(p04))
+        p01 = next(p for p in estado["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-01")
+        comprueba("merge · a value without mode stays without mode", "matchMode" not in p01, str(p01))
+
         # --- dry-run: no escribe
         estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
                          "updatedAt": ""}

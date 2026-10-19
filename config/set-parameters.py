@@ -85,6 +85,24 @@ de serie de su tipo y valor común del control. Un documento sin la clave
 escribir; si tiene plantillas o tipos guardados por la 1.2.0, no admite
 `template` hasta guardar un cambio desde Configuración (el plugin lo convierte).
 
+EXPRESIÓN REGULAR (plugin 1.3.0). En los parámetros cuyo juicio compara una
+lista plana (op.acc.1 P-03 y P-04, op.acc.4 P-05, op.acc.6 P-08 y P-11), un
+valor puede ser una expresión regular RE2, sin barras, que se compara con el
+valor completo. Se declara con un objeto `value` + `matchMode`, igual en la
+organización que en un agente:
+
+    {
+      "op.acc.1": { "P-04": { "value": "^(admin|guest)$", "matchMode": "regex" } },
+      "agents": {
+        "001": { "op.acc.1": { "P-03": { "value": "^svc_.*$", "matchMode": "regex" } } }
+      }
+    }
+
+Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor
+quita también su modo. Se comprueban el modo, el parámetro y la longitud (512
+caracteres como mucho); la sintaxis RE2 la comprueba
+`npx --yes tsx config/validate-configuration.ts` sobre el documento escrito.
+
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
 `wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
 en un fichero local `active-antes-<fecha>.json`. La herramienta dice dónde.
@@ -217,6 +235,15 @@ BUILTIN_TEMPLATES = {
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"
 
+# Parameters with the «Expresión regular» mode; tests/parameter-match-mode-levels.test.ts checks it against the plugin.
+PATTERN_PARAMETERS = {
+    "op.acc.1": ["P-03", "P-04"],
+    "op.acc.4": ["P-05"],
+    "op.acc.6": ["P-08", "P-11"]
+}
+MAX_PATTERN_LENGTH = 512
+ENTRY_KEYS = {"value", "matchMode"}
+
 
 def needs_conversion(agents):
     # Profiles the plugin's 1.2.0 conversion would change: their resolution needs it before any 1.3.0 key.
@@ -234,6 +261,41 @@ def valor_valido(v):
     if isinstance(v, (int, float)):
         return v == v and v not in (float("inf"), float("-inf"))
     return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
+
+def unwrap(entry):
+    """(value, mode, problem) of a file entry: a plain value is exact, an object carries `value` and `matchMode`."""
+    if not isinstance(entry, dict):
+        return entry, "exact", None
+    if set(entry) - ENTRY_KEYS or "value" not in entry:
+        return None, None, 'tiene un valor que no es texto, número, booleano ni lista de textos (con modo: {"value": …, "matchMode": "exact" | "regex"})'
+    mode = entry.get("matchMode", "exact")
+    if mode not in ("exact", "regex"):
+        return None, None, 'matchMode es "exact" o "regex", no %s' % json.dumps(mode, ensure_ascii=False)
+    return entry["value"], mode, None
+
+
+def entry_problem(control_id, pid, entry):
+    value, mode, problem = unwrap(entry)
+    if problem:
+        return problem
+    if vacio(value):
+        return None
+    if not valor_valido(value):
+        return "tiene un valor que no es texto, número, booleano ni lista de textos"
+    if mode == "regex":
+        if pid not in PATTERN_PARAMETERS.get(control_id, []):
+            return "no admite expresión regular (la admiten: %s)" % "; ".join(
+                "%s %s" % (c, ", ".join(ps)) for c, ps in PATTERN_PARAMETERS.items())
+        if not isinstance(value, str):
+            return "en modo regex el valor es una expresión regular (texto)"
+        if len(value) > MAX_PATTERN_LENGTH:
+            return "la expresión regular admite hasta %d caracteres" % MAX_PATTERN_LENGTH
+    return None
+
+
+def shown(value, mode):
+    return ("regex " if mode == "regex" else "") + corto(value)
 
 
 agentes_doc = config.get("agents") or {}
@@ -263,8 +325,8 @@ for control_id, valores in deseado.items():
         if pid not in declarados:
             errores.append("%s no declara el parámetro %s (declara: %s)"
                            % (control_id, pid, ", ".join(sorted(declarados))))
-        elif not vacio(v) and not valor_valido(v):
-            errores.append("%s %s tiene un valor que no es texto, número, booleano ni lista de textos" % (control_id, pid))
+        elif entry_problem(control_id, pid, v):
+            errores.append("%s %s %s" % (control_id, pid, entry_problem(control_id, pid, v)))
 
 clasificacion = clases() if por_agente else {}
 if por_agente and clasificacion is None:
@@ -302,7 +364,7 @@ for agente, controles in por_agente.items():
             if pid == TEMPLATE_KEY:
                 continue
             # Quitar se admite siempre: también un valor que no se aplica.
-            if vacio(v):
+            if not unwrap(v)[2] and vacio(unwrap(v)[0]):
                 continue
             clase = clasificacion.get(control_id, {}).get(pid)
             if control_id not in por_id:
@@ -312,9 +374,8 @@ for agente, controles in por_agente.items():
             elif clase not in ("system", "platform"):
                 errores.append("agente %s: %s %s es un parámetro de organización (vale para todas las máquinas)"
                                % (aid, control_id, pid))
-            elif not valor_valido(v):
-                errores.append("agente %s: %s %s tiene un valor que no es texto, número, booleano ni lista de textos"
-                               % (aid, control_id, pid))
+            elif entry_problem(control_id, pid, v):
+                errores.append("agente %s: %s %s %s" % (aid, control_id, pid, entry_problem(control_id, pid, v)))
 
 if errores:
     for e in errores:
@@ -327,6 +388,10 @@ def corto(v):
     return (t[:70] + "…") if len(t) > 70 else t
 
 
+def stored_mode(mode):
+    return "regex" if mode == "regex" else "exact"
+
+
 # --- el plan ----------------------------------------------------------------
 cambios = 0
 
@@ -335,21 +400,27 @@ for control_id, valores in sorted(deseado.items()):
     for par in por_id[control_id]["parameters"]:
         if par["id"] not in valores:
             continue
-        nuevo = valores[par["id"]]
+        nuevo, new_mode, _ = unwrap(valores[par["id"]])
         viejo = par.get("value")
+        old_mode = stored_mode(par.get("matchMode"))
         if vacio(nuevo):
             if "value" not in par:
                 print("   %-6s sin valor: nada que quitar" % par["id"])
                 continue
             del par["value"]
-            print("   %-6s %s  ->  (sin valor)" % (par["id"], corto(viejo)))
+            par.pop("matchMode", None)
+            print("   %-6s %s  ->  (sin valor)" % (par["id"], shown(viejo, old_mode)))
             cambios += 1
             continue
-        if viejo == nuevo:
+        if viejo == nuevo and old_mode == new_mode:
             print("   %-6s sin cambio" % par["id"])
             continue
-        print("   %-6s %s  ->  %s" % (par["id"], corto(viejo) if viejo not in (None, "") else "(vacío)", corto(nuevo)))
+        print("   %-6s %s  ->  %s" % (par["id"], shown(viejo, old_mode) if viejo not in (None, "") else "(vacío)", shown(nuevo, new_mode)))
         par["value"] = nuevo
+        if new_mode == "regex":
+            par["matchMode"] = "regex"
+        else:
+            par.pop("matchMode", None)
         cambios += 1
 
 for agente, controles in sorted(por_agente.items()):
@@ -360,6 +431,7 @@ for agente, controles in sorted(por_agente.items()):
     for control_id, valores in sorted((controles or {}).items()):
         entrada = dict(propios.get(control_id) or {})
         parametros = dict(entrada.get("parameters") or {})
+        modes = dict(entrada.get("matchModes") or {})
         if TEMPLATE_KEY in (valores or {}):
             new_id = None if vacio(valores[TEMPLATE_KEY]) else valores[TEMPLATE_KEY]
             old_id = entrada.get("templateId")
@@ -372,28 +444,39 @@ for agente, controles in sorted(por_agente.items()):
                 else:
                     entrada.pop("templateId", None)
                 cambios += 1
-        for pid, nuevo in sorted((valores or {}).items()):
+        for pid, entry in sorted((valores or {}).items()):
             if pid == TEMPLATE_KEY:
                 continue
+            nuevo, new_mode, _ = unwrap(entry)
             viejo = parametros.get(pid)
+            old_mode = stored_mode(modes.get(pid))
             if vacio(nuevo):
-                if pid not in parametros:
+                if pid not in parametros and pid not in modes:
                     print("   %s %-6s sin valor propio: nada que quitar" % (control_id, pid))
                     continue
-                del parametros[pid]
-                print("   %s %-6s %s  ->  (hereda)" % (control_id, pid, corto(viejo)))
-            elif viejo == nuevo:
+                parametros.pop(pid, None)
+                modes.pop(pid, None)
+                print("   %s %-6s %s  ->  (hereda)" % (control_id, pid, shown(viejo, old_mode)))
+            elif viejo == nuevo and old_mode == new_mode:
                 print("   %s %-6s sin cambio" % (control_id, pid))
                 continue
             else:
                 parametros[pid] = nuevo
-                print("   %s %-6s %s  ->  %s" % (control_id, pid, corto(viejo) if viejo is not None else "(hereda)", corto(nuevo)))
+                if new_mode == "regex":
+                    modes[pid] = "regex"
+                else:
+                    modes.pop(pid, None)
+                print("   %s %-6s %s  ->  %s" % (control_id, pid, shown(viejo, old_mode) if viejo is not None else "(hereda)", shown(nuevo, new_mode)))
             cambios += 1
         # Other keys stored next to `parameters` (`templateId`, or a later version's) are kept.
         if parametros:
             entrada["parameters"] = parametros
         else:
             entrada.pop("parameters", None)
+        if modes:
+            entrada["matchModes"] = modes
+        else:
+            entrada.pop("matchModes", None)
         if entrada:
             propios[control_id] = entrada
         else:

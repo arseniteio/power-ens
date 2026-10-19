@@ -10,7 +10,8 @@ digan lo contrario. Y la UI no deja dar de alta un control que no esté ya ahí
 
 Idempotente: si el control ya estaba, FUSIONA. Conserva el valor de cada
 parámetro que ya tuviera uno y añade los que falten. Los valores que el auditor
-puso desde la UI no se tocan.
+puso desde la UI no se tocan, y un valor en modo «Expresión regular» conserva su
+`matchMode`.
 
 Por qué fusiona y no sustituye: sustituir descarta los valores que el
 responsable ya ha declarado, de modo que una segunda ejecución vaciaría la
@@ -207,11 +208,18 @@ if anterior and not args.sustituir:
         if tiene_valor(x.get("value"))
     }
     ids_previos = {x.get("id") for x in anterior.get("parameters", [])}
+    previous_modes = {
+        x.get("id"): x.get("matchMode") for x in anterior.get("parameters", [])
+        if x.get("matchMode") in ("exact", "regex")
+    }
 
     for parametro in parametros:
         pid = parametro.get("id")
         if pid in valores_previos:
             parametro["value"] = valores_previos[pid]
+            # A pattern without its mode would be read as a literal name.
+            if pid in previous_modes:
+                parametro["matchMode"] = previous_modes[pid]
             conservados.append(pid)
         elif pid not in ids_previos:
             nuevos.append(pid)

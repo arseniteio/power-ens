@@ -13,7 +13,8 @@ pasa igual con el cambio y sin él). Para eso copia `public/` a un temporal,
 deja al lado un `kibana-services` de mentira —de la versión integrada; el
 arnés no lo necesita— y lanza un arnés con bun.
 
-Requiere un runtime capaz de ejecutar TypeScript: bun o deno.
+Requiere un runtime capaz de ejecutar TypeScript: bun, deno o npx tsx, y las
+dependencias de package.json instaladas con yarn.
 Sin dependencias de Python más allá de la stdlib.
 """
 import json
@@ -40,6 +41,9 @@ def busca_runtime():
     for binario, argumentos in candidatos:
         if binario and os.path.exists(binario):
             return [binario] + argumentos
+
+    if shutil.which("npx"):
+        return [shutil.which("npx"), "--yes", "tsx"]
 
     return None
 
@@ -179,6 +183,9 @@ def prepara(tmp):
     # configuration, ens, public, repo y la carpeta temporal.
     with open(os.path.join(tmp, "kibana-services.ts"), "w", encoding="utf-8") as f:
         f.write("export const getHttp = () => { throw new Error('stub'); };\n")
+
+    # The validator imports re2js: the real package, from the repository's yarn install.
+    shutil.copytree(os.path.join(RAIZ, "node_modules", "re2js"), os.path.join(tmp, "node_modules", "re2js"))
 
     arnes = os.path.join(tmp, "arnes.ts")
     with open(arnes, "w", encoding="utf-8") as f:

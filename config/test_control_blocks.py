@@ -21,7 +21,8 @@ se comprueba además que el TypeScript que se compila dice lo mismo.
 Ejecuta el TypeScript de verdad (el validador y el modelo del desplegable), no
 una copia del criterio en Python: una copia pasaría igual con el cambio y sin él.
 
-Requiere un runtime capaz de ejecutar TypeScript: bun o deno.
+Requiere un runtime capaz de ejecutar TypeScript: bun, deno o npx tsx, y las
+dependencias de package.json instaladas con yarn.
 Sin dependencias de Python más allá de la stdlib.
 """
 import json
@@ -48,6 +49,9 @@ def busca_runtime():
     for binario, argumentos in candidatos:
         if binario and os.path.exists(binario):
             return [binario] + argumentos
+
+    if shutil.which("npx"):
+        return [shutil.which("npx"), "--yes", "tsx"]
 
     return None
 
@@ -137,7 +141,14 @@ const salida = casos.map((caso) => {
 
     const renderer = elemento.type.name;
     const fila = elemento.type(elemento.props);
-    const campo = fila.props.children;
+    // The list renderer wraps its field (paste handler): find the field inside the row.
+    const findInput = (node) => {
+      if (!node) return undefined;
+      if (Array.isArray(node)) return node.map(findInput).find(Boolean);
+      if (['EuiFieldText', 'EuiFieldNumber', 'EuiSelect', 'EuiComboBox'].includes(node.type?.euiName)) return node;
+      return findInput(node.props?.children);
+    };
+    const campo = findInput(fila);
 
     if (caso.selecciona !== undefined && campo.props.onChange) {
       campo.props.onChange({ target: { value: caso.selecciona } });
@@ -299,7 +310,7 @@ writeFileSync(`${process.argv[process.argv.length - 1]}.salida.json`, JSON.strin
 """
 
 
-# Stubs de React y EUI. No se instala nada: los renderers son funciones que
+# Stubs de React y EUI. No se instalan React ni EUI: los renderers son funciones que
 # devuelven JSX, así que con un `createElement` que devuelve `{type, props}` el
 # árbol pintado se puede leer como datos. Lo que se comprueba es qué renderer
 # elige el factory y qué opciones ofrece el campo, no cómo se ve.
@@ -315,6 +326,7 @@ const React = { createElement: crea, Fragment: 'Fragment' };
 module.exports = React;
 module.exports.default = React;
 module.exports.createElement = crea;
+module.exports.useState = initial => [initial, () => {}];
 """
 
 JSX_RUNTIME_STUB = r"""
@@ -364,6 +376,8 @@ def prepara(tmp):
             "export const getHttp = () => { throw new Error('stub'); };\n")
 
     modulos = os.path.join(tmp, "node_modules")
+    # The validator imports re2js: the real package, from the repository's yarn install.
+    shutil.copytree(os.path.join(RAIZ, "node_modules", "re2js"), os.path.join(modulos, "re2js"))
 
     escribe(os.path.join(modulos, "react", "package.json"), json.dumps({
         "name": "react", "version": "0.0.0-stub", "main": "index.js",
