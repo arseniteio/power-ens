@@ -4936,4 +4936,328 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     auditQuestion:
       '¿Se acredita: vigencia de las certificaciones de producto (r4)?',
   },
+  // mp.com.4. Born DRAFT without a collector (wave C, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112300-112399.
+  {
+    id: 'EV-01',
+    controlId: 'mp.com.4',
+    title: 'Clasificación de los flujos por segmento de origen y destino',
+    description:
+      'Enriquecimiento de cada evento de red con el segmento de origen y de destino según el mapa de P-01. Es la base de todo el control: permite razonar sobre segmentos en lugar de sobre direcciones, que es como está formulado el requisito.',
+    requirements: ['mp.com.4.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: clasificación de los flujos por segmento de origen y destino?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.com.4',
+    title: 'Fugas de segmentación: flujos entre segmentos no autorizados',
+    description:
+      'Detección de comunicaciones entre segmentos que no figuran en la matriz de P-02. Es la verificación del efecto de la segmentación: no comprueba si existe la VLAN, comprueba si el tráfico se comporta como si la hubiera, que es lo que el requisito persigue.',
+    requirements: ['mp.com.4.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: fugas de segmentación: flujos entre segmentos no autorizados?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.com.4',
+    title: 'Equipos con presencia en más de un segmento',
+    description:
+      'Detección de sistemas con interfaces en segmentos distintos, que constituyen un puente entre ellos y pueden anular la separación sin que ninguna regla lo autorice. Un servidor con dos tarjetas en VLAN distintas es una pasarela no declarada.',
+    requirements: ['mp.com.4.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: equipos con presencia en más de un segmento?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.com.4',
+    title: 'Separación efectiva de las comunicaciones inalámbricas',
+    description:
+      'Verificación de que el tráfico originado en los rangos inalámbricos de P-04 permanece en su segmento y solo alcanza lo autorizado. mp.com.4.2 es un requisito específico y taxativo sobre las inalámbricas.',
+    requirements: ['mp.com.4.2'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: separación efectiva de las comunicaciones inalámbricas?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.com.4',
+    title: 'Registro del tráfico en los puntos de interconexión (R4)',
+    description:
+      'Ingesta de los registros de los elementos que controlan los puntos de interconexión de P-05, con las conexiones aceptadas y denegadas entre segmentos. R4 remite expresamente a mp.com.1, de modo que cada punto de interconexión hereda las exigencias del perímetro.',
+    requirements: ['mp.com.4.r4.1', 'mp.com.4.r4.2'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: registro del tráfico en los puntos de interconexión (r4)?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.com.4',
+    title: 'Control de entrada de usuarios a cada segmento (R4)',
+    description:
+      'Verificación de que la asignación de segmento a cada usuario se corresponde con su identidad según los criterios de P-06. mp.com.4.r4.1 exige control de entrada de los usuarios que llegan a cada segmento, no solo control del tráfico.',
+    requirements: ['mp.com.4.r4.1'],
+    levels: ['ALTO'],
+    category: 'MONITORING',
+    criticality: 'MEDIUM',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: control de entrada de usuarios a cada segmento (r4)?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.com.4',
+    title: 'Modalidad de segmentación implementada (R1, R2, R3)',
+    description:
+      'Verificación de la forma de segmentación declarada en P-03: existencia y configuración de VLAN con su etiquetado, túneles VPN establecidos, o separación física efectiva. Incluye la comprobación de admisibilidad para la categoría del sistema.',
+    requirements: ['mp.com.4.r1.1', 'mp.com.4.r2.1', 'mp.com.4.r3.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: modalidad de segmentación implementada (r1, r2, r3)?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.com.4',
+    title: 'Segregación mínima en usuarios, servicios y administración',
+    description:
+      'Verificación de que existen al menos los tres segmentos que exige mp.com.4.r1.2 —usuarios, servicios y administración— y de que los equipos están en el que les corresponde por su función.',
+    requirements: ['mp.com.4.r1.2'],
+    levels: ['MEDIO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: segregación mínima en usuarios, servicios y administración?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'mp.com.4',
+    title: 'Propagación de incidentes entre segmentos',
+    description:
+      'Verificación del propósito declarado del control: que los incidentes queden encapsulados en su segmento. Detección de actividad maliciosa que se propaga de un segmento a otro, lo que evidencia que la segmentación no está acotando la propagación.',
+    requirements: ['mp.com.4.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: propagación de incidentes entre segmentos?',
+  },
+  {
+    id: 'EV-10',
+    controlId: 'mp.com.4',
+    title: 'Estado y vigencia de la matriz de flujos',
+    description:
+      'Flujos autorizados en P-02 sin tráfico observado —candidatos a retirada— y flujos observados que no estaban previstos, como soporte a la revisión periódica de P-07.',
+    requirements: ['mp.com.4.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: estado y vigencia de la matriz de flujos?',
+  },
+  // mp.sw.2. Born DRAFT without a collector (wave A, owner decision 19/10/2026): every evidence listens only to `evidence_state`
+  // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112400-112499.
+  {
+    id: 'EV-01',
+    controlId: 'mp.sw.2',
+    title: 'Detección de puestas en servicio de aplicaciones',
+    description:
+      'Identificación del momento en que una aplicación o una nueva versión entra en producción, a partir de los cambios en el inventario de software de los sistemas de P-01. Es el disparador de todas las demás comprobaciones del control.',
+    requirements: [],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: detección de puestas en servicio de aplicaciones?',
+  },
+  {
+    id: 'EV-02',
+    controlId: 'mp.sw.2',
+    title: 'Existencia de aceptación previa a la puesta en servicio',
+    description:
+      'Verificación de que cada puesta en servicio detectada en EV-01 estuvo precedida de un acta de aceptación registrada en P-07. El enunciado del control es expreso: la comprobación se hace ANTES de pasar a producción.',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: existencia de aceptación previa a la puesta en servicio?',
+  },
+  {
+    id: 'EV-03',
+    controlId: 'mp.sw.2',
+    title: 'Diferencial de seguridad del entorno antes y después del despliegue',
+    description:
+      'Comparación del estado de seguridad de los sistemas afectados en la ventana previa y posterior a la puesta en servicio según P-04: porcentaje de cumplimiento SCA, puertos abiertos, servicios en ejecución y vulnerabilidades detectadas. Es la verificación directa de mp.sw.2.1 b).',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: diferencial de seguridad del entorno antes y después del despliegue?',
+  },
+  {
+    id: 'EV-04',
+    controlId: 'mp.sw.2',
+    title: 'Exposición introducida por la aplicación',
+    description:
+      'Puertos y servicios que aparecen tras el despliegue, contrastados con los previstos para la aplicación en P-06. Un puerto nuevo no declarado amplía el perímetro de exposición sin que nadie lo haya autorizado.',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: exposición introducida por la aplicación?',
+  },
+  {
+    id: 'EV-05',
+    controlId: 'mp.sw.2',
+    title: 'Vulnerabilidades introducidas con la aplicación',
+    description:
+      'Vulnerabilidades conocidas que aparecen en el inventario tras el despliegue, atribuibles a la aplicación o a sus componentes de terceros. Es la forma más concreta de deterioro de seguridad que mp.sw.2.1 b) pretende evitar.',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: vulnerabilidades introducidas con la aplicación?',
+  },
+  {
+    id: 'EV-06',
+    controlId: 'mp.sw.2',
+    title: 'Verificación automática de los criterios de aceptación',
+    description:
+      'Comprobación de los criterios de P-02 que son técnicamente verificables: ausencia de vulnerabilidades por encima del umbral, configuración criptográfica conforme, registro de actividad activo, autenticación según lo exigido.',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: verificación automática de los criterios de aceptación?',
+  },
+  {
+    id: 'EV-07',
+    controlId: 'mp.sw.2',
+    title: 'Trazabilidad del paso por preproducción (R1)',
+    description:
+      'Verificación de que la versión desplegada en producción estuvo previamente instalada en el entorno de preproducción emparejado en P-03. R1 es obligatorio desde categoría MEDIA.',
+    requirements: ['mp.sw.2.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'API', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: trazabilidad del paso por preproducción (r1)?',
+  },
+  {
+    id: 'EV-08',
+    controlId: 'mp.sw.2',
+    title: 'Aislamiento efectivo del entorno de preproducción (R1)',
+    description:
+      'Verificación de que el entorno de preproducción está realmente aislado: sin rutas hacia producción, sin acceso a datos reales, con credenciales propias. R1 exige expresamente «entorno aislado», y un preproducción conectado a producción no lo es.',
+    requirements: ['mp.sw.2.r1.1'],
+    levels: ['MEDIO', 'ALTO'],
+    category: 'CONFIGURATION',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: aislamiento efectivo del entorno de preproducción (r1)?',
+  },
+  {
+    id: 'EV-09',
+    controlId: 'mp.sw.2',
+    title: 'Estabilidad del servicio tras la puesta en servicio',
+    description:
+      'Detección de degradación funcional o de seguridad en la ventana posterior al despliegue: errores en volumen anómalo, caídas de servicio, fallos de autenticación nuevos. Da soporte objetivo a la comprobación de «correcto funcionamiento» del enunciado.',
+    requirements: ['mp.sw.2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: estabilidad del servicio tras la puesta en servicio?',
+  },
+  {
+    id: 'EV-10',
+    controlId: 'mp.sw.2',
+    title: 'Seguimiento de hallazgos de auditoría de código (R2)',
+    description:
+      'Si existe auditoría de código fuente conforme a P-08: registro de su realización y seguimiento del cierre de los hallazgos, cruzándolos con las vulnerabilidades observadas en producción.',
+    requirements: ['mp.sw.2.r2.1'],
+    levels: ['BAJO', 'MEDIO', 'ALTO'],
+    category: 'MONITORING',
+    criticality: 'HIGH',
+    sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON'],
+    expectedEventTypes: ['evidence_state'],
+    relatedRules: [],
+    auditQuestion:
+      '¿Se acredita: seguimiento de hallazgos de auditoría de código (r2)?',
+  },
 ];

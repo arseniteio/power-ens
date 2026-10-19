@@ -408,4 +408,26 @@ export const ensRequirementsFile = {
     'Productos certificados conforme a op.pl.5 - Se emplearán productos certificados conforme a lo establecido en [op.pl.5].',
   'mp.com.3.r5.1':
     'Cifradores conformes con la guía CCN-STIC - Refuerzo R5 – Cifradores: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.',
+  'mp.com.4.1':
+    'Tráfico segregado: cada equipo accede solo a lo que necesita - El tráfico por la red se segregará para que cada equipo solamente tenga acceso a la información que necesita.',
+  'mp.com.4.2':
+    'Comunicaciones inalámbricas en un segmento separado - Si se emplean comunicaciones inalámbricas, será en un segmento separado.',
+  'mp.com.4.r1.1':
+    'Segmentos implementados con VLAN - Los segmentos de red se implementarán por medio de redes de área local virtuales (Virtual Local Area Network, VLAN).',
+  'mp.com.4.r1.2':
+    'Subredes separadas de usuarios, servicios y administración - La red que conforma el sistema deberá segregarse en distintas subredes contemplando como mínimo: • Usuarios. • Servicios. • Administración.',
+  'mp.com.4.r2.1':
+    'Segmentos implementados con redes privadas virtuales - Los segmentos de red se implementarán por medio de redes privadas virtuales (Virtual Private Network, VPN).',
+  'mp.com.4.r3.1':
+    'Segmentos implementados con medios físicos separados - Los segmentos de red se implementarán con medios físicos separados.',
+  'mp.com.4.r4.1':
+    'Control de entrada de usuarios y de información en cada segmento - Control de entrada de los usuarios que llegan a cada segmento y control de entrada y salida de la información disponible en cada segmento.',
+  'mp.com.4.r4.2':
+    'Punto de interconexión asegurado, mantenido y monitorizado - El punto de interconexión estará particularmente asegurado, mantenido y monitorizado, (como en [mp.com.1]).',
+  'mp.sw.2.1':
+    'Criterios de aceptación cumplidos sin deteriorar otros componentes - Se comprobará que: a) Se cumplen los criterios de aceptación en materia de seguridad. b) No se deteriora la seguridad de otros componentes del servicio.',
+  'mp.sw.2.r1.1':
+    'Pruebas en un entorno aislado de preproducción - Las pruebas se realizarán en un entorno aislado (pre-producción).',
+  'mp.sw.2.r2.1':
+    'Auditoría del código fuente - Refuerzo R2 – Inspección de código fuente: Se realizará una auditoría de código fuente.',
 };

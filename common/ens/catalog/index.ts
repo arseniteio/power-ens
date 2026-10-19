@@ -5,10 +5,12 @@ export * from './support/provenance';
 export * from './support/template-correspondence';
 export * from './mp-com-1';
 export * from './mp-com-3';
+export * from './mp-com-4';
 export * from './mp-eq-2';
 export * from './mp-eq-3';
 export * from './mp-eq-4';
 export * from './mp-info-6';
+export * from './mp-sw-2';
 export * from './op-acc-1';
 export * from './op-acc-2';
 export * from './op-acc-3';
@@ -36,10 +38,12 @@ import { ENSControlDefinition } from './types';
 import { compareControlsByAnnex } from './support/order';
 import { mpCom1CatalogDefinition } from './mp-com-1';
 import { mpCom3CatalogDefinition } from './mp-com-3';
+import { mpCom4CatalogDefinition } from './mp-com-4';
 import { mpEq2CatalogDefinition } from './mp-eq-2';
 import { mpEq3CatalogDefinition } from './mp-eq-3';
 import { mpEq4CatalogDefinition } from './mp-eq-4';
 import { mpInfo6CatalogDefinition } from './mp-info-6';
+import { mpSw2CatalogDefinition } from './mp-sw-2';
 import { opAcc1CatalogDefinition } from './op-acc-1';
 import { opAcc2CatalogDefinition } from './op-acc-2';
 import { opAcc3CatalogDefinition } from './op-acc-3';
@@ -66,10 +70,12 @@ import { opNub1CatalogDefinition } from './op-nub-1';
 export const ENSCatalog: ENSControlDefinition[] = [
   mpCom1CatalogDefinition,
   mpCom3CatalogDefinition,
+  mpCom4CatalogDefinition,
   mpEq2CatalogDefinition,
   mpEq3CatalogDefinition,
   mpEq4CatalogDefinition,
   mpInfo6CatalogDefinition,
+  mpSw2CatalogDefinition,
   opAcc1CatalogDefinition,
   opAcc2CatalogDefinition,
   opAcc3CatalogDefinition,

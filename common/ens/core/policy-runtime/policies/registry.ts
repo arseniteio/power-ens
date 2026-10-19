@@ -11,6 +11,10 @@ import {
 } from './mp-com-3.policy';
 
 import {
+  mpCom4PolicyDefinition,
+} from './mp-com-4.policy';
+
+import {
   mpEq2PolicyDefinition,
 } from './mp-eq-2.policy';
 
@@ -25,6 +29,10 @@ import {
 import {
   mpInfo6PolicyDefinition,
 } from './mp-info-6.policy';
+
+import {
+  mpSw2PolicyDefinition,
+} from './mp-sw-2.policy';
 
 import {
   opAcc1PolicyDefinition,
@@ -118,10 +126,12 @@ const policyDefinitions:
   ENSPolicyDefinition[] = [
     mpCom1PolicyDefinition,
     mpCom3PolicyDefinition,
+    mpCom4PolicyDefinition,
     mpEq2PolicyDefinition,
     mpEq3PolicyDefinition,
     mpEq4PolicyDefinition,
     mpInfo6PolicyDefinition,
+    mpSw2PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,
     opAcc3PolicyDefinition,

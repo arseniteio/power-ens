@@ -4,10 +4,12 @@ import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/ty
 
 import { buildMpCom1ReportModel } from './mp-com-1-report-model';
 import { buildMpCom3ReportModel } from './mp-com-3-report-model';
+import { buildMpCom4ReportModel } from './mp-com-4-report-model';
 import { buildMpEq2ReportModel } from './mp-eq-2-report-model';
 import { buildMpEq3ReportModel } from './mp-eq-3-report-model';
 import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
 import { buildMpInfo6ReportModel } from './report-model';
+import { buildMpSw2ReportModel } from './mp-sw-2-report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
 import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
@@ -84,6 +86,11 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     build: buildMpCom3ReportModel,
   },
   {
+    controlId: 'mp.com.4',
+    name: 'mp.com.4 - Separación de flujos de información en la red',
+    build: buildMpCom4ReportModel,
+  },
+  {
     controlId: 'mp.eq.2',
     name: 'mp.eq.2 - Bloqueo de puesto de trabajo',
     build: buildMpEq2ReportModel,
@@ -102,6 +109,11 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     controlId: 'mp.info.6',
     name: 'mp.info.6 - Copias de seguridad',
     build: buildMpInfo6ReportModel,
+  },
+  {
+    controlId: 'mp.sw.2',
+    name: 'mp.sw.2 - Aceptación y puesta en servicio',
+    build: buildMpSw2ReportModel,
   },
   {
     controlId: 'op.acc.1',

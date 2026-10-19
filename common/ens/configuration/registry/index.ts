@@ -2,10 +2,12 @@ import { ENSControlConfiguration } from '../types';
 import { compareENSControlIdsByAnnex } from '../../catalog';
 import { mpCom1Configuration } from '../data/mp-com-1-parameters';
 import { mpCom3Configuration } from '../data/mp-com-3-parameters';
+import { mpCom4Configuration } from '../data/mp-com-4-parameters';
 import { mpEq2Configuration } from '../data/mp-eq-2-parameters';
 import { mpEq3Configuration } from '../data/mp-eq-3-parameters';
 import { mpEq4Configuration } from '../data/mp-eq-4-parameters';
 import { mpInfo6Configuration } from '../data/mp-info-6-parameters';
+import { mpSw2Configuration } from '../data/mp-sw-2-parameters';
 import { opAcc1Configuration } from '../data/op-acc-1-parameters';
 import { opAcc2Configuration } from '../data/op-acc-2-parameters';
 import { opAcc3Configuration } from '../data/op-acc-3-parameters';
@@ -32,10 +34,12 @@ import { opNub1Configuration } from '../data/op-nub-1-parameters';
 export const ENSConfigurationRegistry: ENSControlConfiguration[] = [
   mpCom1Configuration,
   mpCom3Configuration,
+  mpCom4Configuration,
   mpEq2Configuration,
   mpEq3Configuration,
   mpEq4Configuration,
   mpInfo6Configuration,
+  mpSw2Configuration,
   opAcc1Configuration,
   opAcc2Configuration,
   opAcc3Configuration,
