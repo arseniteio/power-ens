@@ -132,7 +132,7 @@ console.log('3. Stored type');
   const manualDoc = base({ agents: { '103': { typeOverride: 'linux' } } });
   check('pending: an agent with a manual type is not asked to store the detected one', actions.pendingDetectedTypes(manualDoc, entries).map(entry => entry.agentId).join() === '101');
   const stored = actions.saveDetectedTypes(doc, actions.pendingDetectedTypes(doc, entries));
-  check('saving stores the type and its evidence', stored.agents!['103'].detectedType === 'windows' && /windows/.test(stored.agents!['103'].detectedBy || ''));
+  check('saving stores the type and its evidence', stored.agents!['103'].detectedType === 'windows' && /Windows/.test(stored.agents!['103'].detectedBy || ''));
   check('and with it the built-in of the type applies', value(doc, 'op.acc.1', '103', 'P-11') === undefined && JSON.stringify(value(stored, 'op.acc.1', '103', 'P-11')) === '["Administrators"]');
   const manual = actions.setAgentTypeOverride(stored, '101', 'zimbra-ldap');
   check('a manual type keeps the detected one and switches the built-in', manual.agents!['101'].typeOverride === 'zimbra-ldap' && manual.agents!['101'].detectedType === 'linux' && value(manual, 'op.acc.1', '101', 'P-01') === 'LDAP');
@@ -170,7 +170,7 @@ console.log('5. Removals and missing controls');
   check('remove an orphan control', !actions.removeAgentEntry(doc, '102', 'op.nub.1').agents!['102'].controls!['op.nub.1']);
   check('remove a profile saved by name', !actions.removeAgentEntry(doc, 'srvWeb').agents!.srvWeb);
   const lines = actions.describeAgentEntryRemoval(doc, '102');
-  check('what is lost, line by line, with the assignment', lines.includes('op.acc.1: plantilla «Linux»') && lines.includes('op.acc.1 P-07: a | b | c') && lines.includes('op.nub.1 P-01: x'), lines);
+  check('what is lost, line by line, with the assignment and parameter names', lines.includes('op.acc.1: plantilla «Linux»') && lines.includes('op.acc.1 «Lista de usuarios autorizados»: a | b | c') && lines.includes('op.nub.1 P-01: x'), lines);
   const added = actions.addMissingControls(doc, ['op.cont.2', 'op.acc.1']);
   check('add missing: exactly the seed block, nothing else touched', JSON.stringify(added.added) === '["op.cont.2"]' && JSON.stringify(added.configuration.controls.find((control: any) => control.controlId === 'op.cont.2')) === JSON.stringify(blocks['op.cont.2']) &&
     JSON.stringify(added.configuration.agents) === JSON.stringify(doc.agents));

@@ -17,7 +17,7 @@ import {
 export interface ENSAgentsData {
   // Scope agents (with the manager when a control is measured there).
   scopeAgents: ENSAgentScope[];
-  // The whole inventory: the migration to systems also recognises machines named outside the scope.
+  // The whole inventory: the distribution by agents also recognises machines named outside the scope.
   inventory: ENSAgentScope[];
   facts: Record<string, ENSAgentPlatformFacts>;
   loading: boolean;
@@ -35,7 +35,7 @@ export interface ENSAgentRow {
 const reason = (error: unknown): string =>
   error instanceof Error && error.message.trim() ? error.message.trim() : String(error || 'error desconocido');
 
-// Once per screen: the inventory and the facts that reveal the system type (two aggregations, no documents).
+// Two aggregations and no documents: cheap enough to load once per tab.
 export const useAgentsData = (): ENSAgentsData => {
   const [data, setData] = useState<ENSAgentsData>(() => ({
     scopeAgents: getActiveENSScopeAgents(),
@@ -58,7 +58,7 @@ export const useAgentsData = (): ENSAgentsData => {
       if (!alive) return;
       const errors: string[] = [];
       if (inventory.error) errors.push(`Inventario de agentes: ${inventory.error}`);
-      if (facts.error) errors.push(`Hechos para detectar el tipo de sistema: ${facts.error}`);
+      if (facts.error) errors.push(`Datos para detectar el tipo de sistema: ${facts.error}`);
       setData(previous => ({
         ...previous,
         inventory: inventory.value && inventory.value.length ? inventory.value : previous.inventory,
@@ -76,7 +76,7 @@ export const useAgentsData = (): ENSAgentsData => {
   return data;
 };
 
-// Scope agents plus stored profiles of machines out of the scope, so nothing stored is hidden.
+// Stored profiles of machines out of the scope are kept as rows, so nothing stored is hidden.
 export const buildAgentRows = (configuration: ENSConfigurationVersion, data: ENSAgentsData): ENSAgentRow[] => {
   const byId = new Map<string, ENSAgentRow>();
   const fromInventory = new Map(data.inventory.map(agent => [normalizeAgentId(agent.id), agent]));

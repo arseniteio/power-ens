@@ -11,38 +11,49 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
+import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
 import { ENSControlTemplate, getControlTemplates } from '../../../../common/ens/configuration/templates';
+import { getEffectiveTemplate } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import {
+  ENSAgentChangePreview,
   ENSTemplateInput,
   createControlTemplate,
   deleteControlTemplate,
   duplicateControlTemplate,
   getTemplateUsage,
+  previewConfigurationChange,
   updateControlTemplate,
 } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
+import { ChangePreviewModal } from './change-preview-modal';
 import { ConfirmModal, errorMessage } from './confirm-modal';
+import { plural } from './labels';
 import { ENSTemplateEditorMode, TemplateEditorModal, templateParameters } from './template-editor-modal';
+import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 
 interface ControlTemplatesPanelProps {
   configuration: ENSConfigurationVersion;
   control: ENSControlConfiguration;
+  rows: ENSAgentRow[];
   onConfigurationSaved: () => void;
 }
 
 type Editor = { mode: ENSTemplateEditorMode; template?: ENSControlTemplate } | undefined;
+type TemplateEdit = Omit<ENSTemplateInput, 'controlId'>;
 
 const TYPE_DEFAULT = '';
 
-// «Plantillas»: built-in ones (read-only, duplicated to customise) and custom ones (create, edit, delete).
-export const ControlTemplatesPanel = ({ configuration, control, onConfigurationSaved }: ControlTemplatesPanelProps) => {
+export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigurationSaved }: ControlTemplatesPanelProps) => {
   const controlId = control.controlId;
   const templates = getControlTemplates(configuration, controlId);
   const total = templateParameters(control).length;
+  const labels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
   const [editor, setEditor] = useState<Editor>();
+  // An edit of a template in use waits here for its preview to be confirmed.
+  const [pendingEdit, setPendingEdit] = useState<{ template: ENSControlTemplate; input: TemplateEdit; previews: ENSAgentChangePreview[] } | undefined>();
   const [removal, setRemoval] = useState<ENSControlTemplate | undefined>();
   const [reassignTo, setReassignTo] = useState<string>(TYPE_DEFAULT);
   const [notice, setNotice] = useState<{ color: 'success' | 'danger'; text: string } | undefined>();
@@ -62,40 +73,66 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
   };
 
   const duplicate = async (template: ENSControlTemplate) => {
-    let created = '';
-    const failure = await save(latest => {
-      const result = duplicateControlTemplate(latest, controlId, template.id);
-      created = result.template.name;
-      return result.configuration;
-    }, `${controlId}: plantilla «${template.name}» duplicada.`);
+    const name = duplicateControlTemplate(configuration, controlId, template.id).template.name;
+    const failure = await save(
+      latest => duplicateControlTemplate(latest, controlId, template.id, name).configuration,
+      `${controlId}: plantilla «${name}» creada a partir de «${template.name}».`
+    );
     if (failure) setNotice({ color: 'danger', text: failure });
-    else if (created) setNotice({ color: 'success', text: `${controlId}: plantilla «${created}» creada a partir de «${template.name}».` });
   };
 
-  const saveEditor = async (input: Omit<ENSTemplateInput, 'controlId'>) => {
+  const usage = (template: ENSControlTemplate) => getTemplateUsage(configuration, controlId, template.id);
+  const byType = (template: ENSControlTemplate) =>
+    rows.filter(row => {
+      const effective = getEffectiveTemplate(configuration, row.id, controlId);
+      return row.inScope && effective.via === 'type' && effective.template?.id === template.id;
+    }).length;
+
+  const saveEditor = async (input: TemplateEdit) => {
     const current = editor?.template;
-    const failure = current && editor?.mode === 'edit'
-      ? await save(latest => updateControlTemplate(latest, current.id, input), `${controlId}: plantilla «${input.name}» guardada.`)
-      : await save(latest => createControlTemplate(latest, { ...input, controlId }).configuration, `${controlId}: plantilla «${input.name}» creada.`);
+    if (current && editor?.mode === 'edit') {
+      const users = usage(current);
+      if (users.length) {
+        try {
+          const next = updateControlTemplate(configuration, current.id, input);
+          setPendingEdit({ template: current, input, previews: previewConfigurationChange(configuration, next, users, [controlId]) });
+          setEditor(undefined);
+          return undefined;
+        } catch (failure) {
+          return errorMessage(failure);
+        }
+      }
+      const failure = await save(latest => updateControlTemplate(latest, current.id, input), `${controlId}: plantilla «${input.name}» guardada.`);
+      if (!failure) setEditor(undefined);
+      return failure;
+    }
+    const failure = await save(latest => createControlTemplate(latest, { ...input, controlId }).configuration, `${controlId}: plantilla «${input.name}» creada.`);
     if (!failure) setEditor(undefined);
     return failure;
   };
 
-  const usage = (template: ENSControlTemplate) => getTemplateUsage(configuration, controlId, template.id);
+  const confirmEdit = async () => {
+    if (!pendingEdit) return undefined;
+    const { template, input } = pendingEdit;
+    const failure = await save(latest => updateControlTemplate(latest, template.id, input), `${controlId}: plantilla «${input.name}» guardada.`);
+    if (!failure) setPendingEdit(undefined);
+    return failure;
+  };
 
   const confirmRemoval = async () => {
     if (!removal) return undefined;
     const users = usage(removal);
     const target = reassignTo === TYPE_DEFAULT ? undefined : reassignTo;
+    const destination = target === undefined ? 'la de serie de su tipo' : target === ENS_NO_TEMPLATE ? 'sin plantilla' : `«${templates.find(item => item.id === target)?.name || target}»`;
     const failure = await save(
       latest => deleteControlTemplate(latest, removal.id, users.length ? { templateId: target } : undefined),
-      `${controlId}: plantilla «${removal.name}» borrada${users.length ? `; ${users.join(', ')} pasan a ${target === undefined ? 'la de serie de su tipo' : target === ENS_NO_TEMPLATE ? 'sin plantilla' : `«${templates.find(item => item.id === target)?.name || target}»`}` : ''}.`
+      `${controlId}: plantilla «${removal.name}» borrada${users.length ? `; ${users.join(', ')} pasan a ${destination}` : ''}.`
     );
     if (!failure) setRemoval(undefined);
     return failure;
   };
 
-  const columns = [
+  const columns: EuiBasicTableColumn<ENSControlTemplate>[] = [
     {
       field: 'name',
       name: 'Plantilla',
@@ -119,10 +156,12 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
     },
     {
       field: 'id',
-      name: 'Asignada a',
+      name: 'Agentes',
       render: (_id: string, template: ENSControlTemplate) => {
-        const users = usage(template);
-        return users.length ? `${users.length} agente(s)` : template.typeDefault ? 'por tipo' : '—';
+        const assigned = usage(template).length;
+        const typed = byType(template);
+        const parts = [assigned ? `${plural(assigned, 'asignado', 'asignados')}` : '', typed ? `${typed} por su tipo` : ''].filter(Boolean);
+        return parts.length ? parts.join(' · ') : '—';
       },
     },
     {
@@ -151,10 +190,7 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
         <h3>Plantillas</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>
-          Conjuntos de valores con nombre para los parámetros por sistema y por plataforma. La de serie de cada tipo
-          se aplica a los agentes de ese tipo sin plantilla asignada. Las de serie no se editan: se duplican.
-        </p>
+        <p>Valores con nombre por tipo de sistema. Las de serie se duplican para cambiarlas.</p>
       </EuiText>
       <EuiSpacer size='s' />
 
@@ -165,7 +201,7 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
         </>
       )}
 
-      <EuiBasicTable items={templates} itemId='id' columns={columns as any} noItemsMessage='Este control no tiene plantillas.' />
+      <EuiBasicTable items={templates} itemId='id' columns={columns} noItemsMessage='Este control no tiene plantillas.' />
       <EuiSpacer size='s' />
       <EuiButton size='s' iconType='plusInCircle' onClick={() => setEditor({ mode: 'create' })}>
         Crear plantilla
@@ -176,9 +212,25 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
           mode={editor.mode}
           control={control}
           template={editor.template}
-          usage={editor.template ? usage(editor.template) : []}
+          usage={editor.template ? usage(editor.template).map(id => labels[id] || id) : []}
           onCancel={() => setEditor(undefined)}
           onSave={saveEditor}
+        />
+      )}
+
+      {pendingEdit && (
+        <ChangePreviewModal
+          title={`Guardar «${pendingEdit.input.name}»: cambia ${plural(pendingEdit.previews.length, 'agente', 'agentes')}`}
+          confirmLabel='Guardar plantilla'
+          intro='La plantilla está asignada a estos agentes; sus ajustes propios siguen ganando.'
+          configuration={configuration}
+          agentLabels={labels}
+          previews={pendingEdit.previews}
+          onCancel={() => {
+            setEditor({ mode: 'edit', template: { ...pendingEdit.template, ...pendingEdit.input } as ENSControlTemplate });
+            setPendingEdit(undefined);
+          }}
+          onConfirm={confirmEdit}
         />
       )}
 
@@ -193,7 +245,7 @@ export const ControlTemplatesPanel = ({ configuration, control, onConfigurationS
         >
           <EuiText size='s'>
             {removalUsers.length ? (
-              <p>Está asignada a {removalUsers.length} agente(s): {removalUsers.join(', ')}. Antes de borrarla se les asigna otra.</p>
+              <p>Está asignada a {plural(removalUsers.length, 'agente', 'agentes')}: {removalUsers.map(id => labels[id] || id).join(', ')}. Antes de borrarla se les asigna otra.</p>
             ) : (
               <p>No está asignada a ningún agente.</p>
             )}

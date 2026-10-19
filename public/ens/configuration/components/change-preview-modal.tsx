@@ -1,27 +1,30 @@
 import React from 'react';
 import { EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
 
+import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import type {
   ENSAgentChangePreview,
   ENSAssignmentPreview,
 } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { ConfirmModal } from './confirm-modal';
+import { parameterLabel } from './labels';
 
 interface ChangePreviewModalProps {
   title: string;
   confirmLabel: string;
   intro: string;
+  configuration: ENSConfigurationVersion;
+  // «101 · web01»; the bare id when unknown.
+  agentLabels?: Record<string, string>;
   previews: (ENSAgentChangePreview & Partial<ENSAssignmentPreview>)[];
   onCancel: () => void;
   onConfirm: () => Promise<string | undefined>;
 }
 
-const list = (items: string[], empty: string) => (items.length ? items.join(', ') : empty);
-
-// Before a change that alters effective values: per agent, what changes. A required value left empty or a template
-// for another system type asks to type «aplicar».
-export const ChangePreviewModal = ({ title, confirmLabel, intro, previews, onCancel, onConfirm }: ChangePreviewModalProps) => {
+// Typing «aplicar» is required only when a required value is lost or the template is for another type.
+export const ChangePreviewModal = ({ title, confirmLabel, intro, configuration, agentLabels = {}, previews, onCancel, onConfirm }: ChangePreviewModalProps) => {
   const warned = previews.some(preview => preview.leftEmpty.length > 0 || preview.mismatch);
+  const names = (keys: string[], empty: string) => (keys.length ? keys.map(key => parameterLabel(configuration, key)).join(', ') : empty);
 
   return (
     <ConfirmModal
@@ -40,17 +43,17 @@ export const ChangePreviewModal = ({ title, confirmLabel, intro, previews, onCan
         <React.Fragment key={preview.agentId}>
           <EuiSpacer size='m' />
           <EuiText size='s'>
-            <h4>Agente {preview.agentId}</h4>
+            <h4>Agente {agentLabels[preview.agentId] || preview.agentId}</h4>
           </EuiText>
           {preview.mismatch && <EuiCallOut color='warning' iconType='alert' size='s' title={`Tipo distinto: ${preview.mismatch}`} />}
           {preview.leftEmpty.length > 0 && (
-            <EuiCallOut color='warning' iconType='alert' size='s' title={`Se quedan sin valor parámetros obligatorios: ${preview.leftEmpty.join(', ')}`} />
+            <EuiCallOut color='warning' iconType='alert' size='s' title={`Se quedan sin valor parámetros obligatorios: ${names(preview.leftEmpty, '')}`} />
           )}
           <EuiText size='xs'>
             <ul>
               {preview.from !== undefined && <li>Plantilla: {preview.from} → {preview.to}.</li>}
-              <li>Cambia el valor de {preview.changes.length} parámetro(s): {list(preview.changes, 'ninguno')}.</li>
-              {preview.ownWins !== undefined && <li>Siguen ganando sus ajustes propios: {list(preview.ownWins, 'ninguno')}.</li>}
+              <li>Cambia el valor de {preview.changes.length} parámetro(s): {names(preview.changes, 'ninguno')}.</li>
+              {preview.ownWins !== undefined && <li>Siguen ganando sus ajustes propios: {names(preview.ownWins, 'ninguno')}.</li>}
             </ul>
           </EuiText>
         </React.Fragment>

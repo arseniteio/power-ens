@@ -78,14 +78,14 @@ const WINDOWS = { platform: 'windows', name: 'Microsoft Windows Server 2022 Stan
 
     console.log('3. Regla');
     const m = detectAgentSystem({ id: '000' });
-    comprueba('000 → Manager', m.type === 'manager' && /000/.test(m.evidence), m);
+    comprueba('000 → Manager', m.type === 'manager' && /manager de Wazuh/.test(m.evidence), m);
     const w = detectAgentSystem({ id: '102', os: WINDOWS });
-    comprueba('windows → Windows, por el inventario', w.type === 'windows' && w.source === 'inventario' && /os\.platform = windows/.test(w.evidence), w);
+    comprueba('windows → Windows, por el inventario', w.type === 'windows' && w.source === 'inventario' && /inventario de agentes \(Windows\)/.test(w.evidence), w);
     const l = detectAgentSystem({ id: '101', os: UBUNTU }, f['101']);
     comprueba('Ubuntu con hechos de directorio → LDAP (Zimbra), por los hechos', l.type === 'zimbra-ldap' && l.source === 'hechos', l);
     comprueba('la evidencia cuenta también los planos compuestos', /13\.580/.test(l.evidence), l.evidence);
     const u = detectAgentSystem({ id: '104', os: { platform: 'ubuntu' } }, f['104']);
-    comprueba('Ubuntu sin directorio → Linux', u.type === 'linux' && /os\.platform = ubuntu/.test(u.evidence), u);
+    comprueba('Ubuntu sin directorio → Linux', u.type === 'linux' && /inventario de agentes \(Ubuntu\)/.test(u.evidence), u);
     comprueba('origen pbs → propone Copias con PBS', u.addons.length === 1 && u.addons[0].templateId === 'pbs-backup', u.addons);
     comprueba('mp.info.6 proposes «Copias con PBS»; other controls nothing', proposedTemplates('mp.info.6', u).join(',') === 'pbs-backup' && proposedTemplates('op.acc.1', u).length === 0);
     const n = detectAgentSystem({ id: '103' });

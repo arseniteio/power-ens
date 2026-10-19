@@ -10,10 +10,11 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
+import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
 import { getAgentSystemType } from '../../../../common/ens/configuration/agents/configuration-resolver';
-import { ENS_SYSTEM_TYPE_LABELS, normalizeAgentId } from '../../../../common/agent-configuration';
+import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, normalizeAgentId } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import type { ENSAgentScope } from '../../../../common/ens/core/scope/types';
 import {
@@ -37,6 +38,7 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ConfirmModal, errorMessage } from './confirm-modal';
 import { DetectedTypesCallout } from './detected-types-callout';
+import { agentStatusLabel, agentTypeLabel } from './labels';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { ENSAgentRow, agentRowLabel, buildAgentRows, useAgentsData } from './use-agents-data';
 
@@ -50,8 +52,7 @@ interface AgentsTabProps {
 
 type Notice = { color: 'success' | 'danger' | 'warning'; text: string } | undefined;
 
-// «Agentes»: scope agents with their detected type, the templates they use and their completeness; profiles of
-// machines out of the scope are listed too, so nothing stored is hidden.
+// Profiles of machines out of the scope are listed too, so nothing stored is hidden.
 export const AgentsTab = ({
   configuration,
   target,
@@ -61,7 +62,7 @@ export const AgentsTab = ({
 }: AgentsTabProps) => {
   const data = useAgentsData();
   const [confirmMigration, setConfirmMigration] = useState(false);
-  // Quitar un perfil o un control enteros: primero, lo que se pierde.
+  // A whole profile or control is removed only after showing what is lost.
   const [removal, setRemoval] = useState<ENSEntryRemoval | undefined>();
   const [notice, setNotice] = useState<Notice>();
 
@@ -78,7 +79,7 @@ export const AgentsTab = ({
   const errors = issues.filter(issue => issue.severity === 'error');
   const warnings = issues.filter(issue => issue.severity === 'warning');
 
-  // Una vez por documento, no en cada clic.
+  // Once per document, not on every click.
   const completeness = useMemo(() => {
     const byId = new Map<string, ReturnType<typeof getAgentCompleteness>>();
     rows.forEach(row => {
@@ -133,8 +134,7 @@ export const AgentsTab = ({
     }
   };
 
-  // Un valor suelto se quita directamente; un perfil o un control enteros,
-  // tras enseñar lo que se pierde.
+  // A single value goes directly; a whole profile or control after its preview.
   const askRemoval = (agentKey: string, controlId?: string, parameterId?: string) => {
     if (parameterId) {
       removeOrphan(agentKey, controlId, parameterId);
@@ -175,7 +175,7 @@ export const AgentsTab = ({
     );
   }
 
-  const columns = [
+  const columns: EuiBasicTableColumn<ENSAgentRow>[] = [
     {
       field: 'id',
       name: 'Agente',
@@ -189,14 +189,13 @@ export const AgentsTab = ({
       field: 'detection',
       name: 'Tipo',
       render: (_detection: ENSSystemDetection, row: ENSAgentRow) => {
-        const effective = effectiveSystemType(row.detection, configuration.agents?.[row.id]);
+        const profile = configuration.agents?.[row.id];
+        const type = agentTypeLabel(profile, row.detection, data.loading);
         return (
           <div>
-            <EuiBadge color={effective.type ? (effective.manual ? 'accent' : 'hollow') : 'warning'}>
-              {effective.type ? ENS_SYSTEM_TYPE_LABELS[effective.type] : 'Sin detectar'}
-            </EuiBadge>
+            <EuiBadge color={type.color}>{type.text}</EuiBadge>
             <EuiText size='xs' color='subdued'>
-              <p>{data.loading && !effective.manual ? 'detectando…' : effective.description}</p>
+              <p>{data.loading && !type.stored ? 'Detectando…' : effectiveSystemType(row.detection, profile).description}</p>
             </EuiText>
           </div>
         );
@@ -207,13 +206,13 @@ export const AgentsTab = ({
       name: 'Plantillas',
       render: (_agent: ENSAgentScope, row: ENSAgentRow) => {
         const controls = configuration.agents?.[row.id]?.controls || {};
-        const assigned = Object.values(controls).filter(entry => typeof entry?.templateId === 'string').length;
+        const assigned = Object.values(controls).filter(entry => typeof entry?.templateId === 'string' && entry.templateId !== ENS_NO_TEMPLATE).length;
         const type = getAgentSystemType(configuration.agents?.[row.id]);
         return (
           <EuiText size='xs'>
             <p>
-              {assigned ? `${assigned} control(es) con plantilla asignada` : 'ninguna asignada'}
-              {type ? `; el resto, la de serie de ${ENS_SYSTEM_TYPE_LABELS[type]}` : '; sin tipo guardado: valores comunes'}
+              {assigned ? `${assigned} control(es) con plantilla asignada` : 'Ninguna asignada'}
+              {type ? `; el resto, la de serie de ${ENS_SYSTEM_TYPE_LABELS[type]}` : '; el resto, valores comunes hasta guardar su tipo'}
             </p>
           </EuiText>
         );
@@ -239,7 +238,7 @@ export const AgentsTab = ({
       name: 'Estado',
       render: (agent: ENSAgentScope, row: ENSAgentRow) =>
         row.inScope ? (
-          <EuiText size='xs'><p>{agent.status || '—'}</p></EuiText>
+          <EuiText size='xs'><p>{agentStatusLabel(agent.status)}</p></EuiText>
         ) : (
           <EuiBadge color='default'>fuera del alcance</EuiBadge>
         ),
@@ -254,10 +253,7 @@ export const AgentsTab = ({
         <h3>Agentes del alcance</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>
-          El tipo se detecta del inventario (Windows, Linux), del id 000 (el manager) y de los hechos del recolector
-          LDAP; se corrige dentro de cada agente. El alcance se define en initial-setup.
-        </p>
+        <p>El tipo de cada agente se detecta solo y se corrige en su página; el alcance se define en la configuración inicial.</p>
       </EuiText>
 
       <EuiSpacer size='m' />
@@ -266,7 +262,7 @@ export const AgentsTab = ({
 
       {data.errors.map(error => (
         <React.Fragment key={error}>
-          <EuiCallOut color='warning' iconType='alert' size='s' title='Detección incompleta'>
+          <EuiCallOut color='warning' iconType='alert' size='s' title='No se pudo leer todo'>
             <p>{error}</p>
           </EuiCallOut>
           <EuiSpacer size='s' />
@@ -404,7 +400,7 @@ export const AgentsTab = ({
 
       {warnings.length > 0 && (
         <>
-          <EuiCallOut color='primary' iconType='iInCircle' size='s' title='Claves que esta versión no conoce (se ignoran)'>
+          <EuiCallOut color='primary' iconType='iInCircle' size='s' title='Datos de otra versión del plugin (se ignoran)'>
             <ul>
               {warnings.map((issue, index) => <li key={`${index}-${issue.agentId}`}>{issue.message}</li>)}
             </ul>
@@ -416,7 +412,7 @@ export const AgentsTab = ({
       <EuiBasicTable
         items={rows}
         itemId='id'
-        columns={columns as any}
+        columns={columns}
         loading={data.loading}
         noItemsMessage='No hay agentes en el alcance.'
       />

@@ -26,6 +26,7 @@ import {
   toTemplateModel,
 } from './configuration-resolver';
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
+import { getAgentControls } from './agent-controls';
 import { describeAgentLevelValueIssue } from './agent-configuration-validator';
 import type { ENSDetectableAgent, ENSSystemDetection } from './system-detection';
 import { cloneDocument, mergeAliases, profileIdentity } from './profile-identity';
@@ -515,6 +516,27 @@ export const getAgentCompleteness = (
   return result;
 };
 
+// Per control and parameter, how many agents lack a required value: a control is not complete while one does.
+export const getAgentGaps = (
+  configuration: ENSConfigurationVersion,
+  agents: { agentId: string; type?: ENSSystemType }[],
+  getLevel: (controlId: string) => ENSLevel
+): Record<string, Record<string, number>> => {
+  const gaps: Record<string, Record<string, number>> = {};
+  agents.forEach(({ agentId, type }) => {
+    getAgentControls(configuration, agentId, type, getLevel)
+      .filter(control => control.measured)
+      .forEach(control => {
+        getAgentCompleteness(configuration, agentId, [{ controlId: control.controlId, level: control.level }]).missingRequired.forEach(key => {
+          const parameterId = key.split(' ')[1];
+          gaps[control.controlId] = gaps[control.controlId] || {};
+          gaps[control.controlId][parameterId] = (gaps[control.controlId][parameterId] || 0) + 1;
+        });
+      });
+  });
+  return gaps;
+};
+
 // --- removals -----------------------------------------------------------------
 
 // `agentKey` is the key as stored, not normalised: a profile saved under a name must be removable.
@@ -565,7 +587,8 @@ export const describeAgentEntryRemoval = (
   configuration: ENSConfigurationVersion,
   agentKey: string,
   controlId?: string,
-  parameterId?: string
+  parameterId?: string,
+  options: { overridesOnly?: boolean } = {}
 ): string[] => {
   const profile: any = configuration.agents?.[agentKey];
   if (!profile) return [];
@@ -582,13 +605,16 @@ export const describeAgentEntryRemoval = (
     .filter(([id]) => !controlId || id === controlId)
     .forEach(([id, entry]) => {
       const parameters: Record<string, unknown> = entry?.parameters || {};
-      if (!parameterId && typeof entry?.templateId === 'string') {
+      if (!parameterId && !options.overridesOnly && typeof entry?.templateId === 'string') {
         lines.push(`${id}: plantilla ${describeTemplateChoice(configuration, id, entry.templateId)}`);
       }
       Object.entries(parameters)
         .filter(([parameter]) => !parameterId || parameter === parameterId)
-        .forEach(([parameter, value]) => lines.push(`${id} ${parameter}: ${describeValue(value)}`));
-      if (!parameterId && !Object.keys(parameters).length && typeof entry?.templateId !== 'string') lines.push(`${id}: sin valores`);
+        .forEach(([parameter, value]) => {
+          const name = configuration.controls.find(control => control.controlId === id)?.parameters.find(item => item.id === parameter)?.label;
+          lines.push(`${id} ${name ? `«${name}»` : parameter}: ${describeValue(value)}`);
+        });
+      if (!parameterId && !options.overridesOnly && !Object.keys(parameters).length && typeof entry?.templateId !== 'string') lines.push(`${id}: sin valores`);
     });
 
   return lines;

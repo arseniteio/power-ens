@@ -69,6 +69,7 @@ import { AgentParameterRow, valueRows } from './agent-parameter-row';
 import { ChangePreviewModal } from './change-preview-modal';
 import { ConfirmModal, errorMessage } from './confirm-modal';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
+import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 
 interface AgentConfigurationPageProps {
@@ -102,8 +103,6 @@ interface PendingChange {
   reason: string;
 }
 
-// One agent: its type, other names and, control by control, the template it uses and its own settings, with the
-// level each value comes from.
 export const AgentConfigurationPage = ({
   configuration,
   row,
@@ -129,6 +128,7 @@ export const AgentConfigurationPage = ({
   const orphans = issues.filter(issue => issue.kind === 'huerfano');
   const otherIssues = issues.filter(issue => issue.kind !== 'huerfano' && issue.severity === 'error');
   const typePending = !loading && pendingDetectedTypes(configuration, [{ agentId, agent: row.agent, detection: row.detection }]).length > 0;
+  const typeLabel = agentTypeLabel(profile, row.detection, loading);
 
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<PendingChange | undefined>();
@@ -250,13 +250,15 @@ export const AgentConfigurationPage = ({
       text: storedType && !profile?.typeOverride
         ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}`
         : row.detection.type
-        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]}`
+        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]} (sin guardar)`
         : 'Sin detectar (elegir uno)',
     },
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
   ];
 
-  const fromDetail = Boolean(parseConfigurationBack(useRouterSearch()));
+  // From the control detail, its own «Volver al detalle» replaces this one only on the detail's agent.
+  const search = useRouterSearch();
+  const fromDetail = Boolean(parseConfigurationBack(search)) && search.agentId === agentId;
 
   return (
     <EuiPanel paddingSize='l'>
@@ -277,7 +279,7 @@ export const AgentConfigurationPage = ({
         <p>
           {row.inScope ? 'En el alcance ENS.' : 'Fuera del alcance ENS: sus ajustes se conservan pero no se evalúan.'}
           {row.agent.os?.name ? ` ${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}.` : ''}
-          {` ${completeness.withValue} de ${completeness.total} parámetros por sistema y por plataforma con valor, ${completeness.ownValues} propios.`}
+          {` ${completeness.withValue} de ${completeness.total} parámetros de este agente con valor; ${completeness.ownValues} ajustes propios.`}
         </p>
       </EuiText>
 
@@ -354,7 +356,7 @@ export const AgentConfigurationPage = ({
 
       <EuiFlexGroup gutterSize='l' wrap>
         <EuiFlexItem style={{ minWidth: 280 }}>
-          <EuiFormRow label='Tipo de sistema' helpText={loading && !effective.manual ? 'detectando…' : effective.description}>
+          <EuiFormRow label='Tipo de sistema' helpText={loading && !effective.manual ? 'Detectando…' : effective.description}>
             <EuiSelect
               options={typeOptions}
               value={profile?.typeOverride || ''}
@@ -368,7 +370,7 @@ export const AgentConfigurationPage = ({
                 <p>
                   {storedType
                     ? `Guardado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}; detectado ahora: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type!]}.`
-                    : 'Tipo detectado sin guardar: la plantilla de serie de su tipo no se aplica hasta guardarlo.'}
+                    : `${typeLabel.text}: la plantilla de serie de su tipo se aplica al guardar el tipo.`}
                 </p>
               </EuiText>
               <EuiButton size='s' isDisabled={saving} onClick={saveDetected}>
@@ -411,6 +413,8 @@ export const AgentConfigurationPage = ({
           title={pending.title}
           confirmLabel={pending.confirmLabel}
           intro={pending.intro}
+          configuration={configuration}
+          agentLabels={{ [agentId]: label }}
           previews={pending.previews}
           onCancel={() => setPending(undefined)}
           onConfirm={confirmPending}
@@ -437,9 +441,7 @@ export const AgentConfigurationPage = ({
           <EuiText size='s'>
             <p>Vuelven a heredar de su plantilla o del valor común:</p>
             <ul>
-              {describeAgentEntryRemoval(configuration, agentId, clearing)
-                .filter(line => !/: plantilla /.test(line))
-                .map(line => <li key={line}>{line}</li>)}
+              {describeAgentEntryRemoval(configuration, agentId, clearing, undefined, { overridesOnly: true }).map(line => <li key={line}>{line}</li>)}
             </ul>
             <p>La versión anterior queda en el historial.</p>
           </EuiText>
@@ -452,7 +454,7 @@ export const AgentConfigurationPage = ({
         <h3>Controles</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>Por control: la plantilla que usa y sus ajustes propios. Cada valor dice de qué nivel sale.</p>
+        <p>Por control: su plantilla y sus ajustes propios, con el origen de cada valor.</p>
       </EuiText>
 
       <EuiSpacer size='m' />
@@ -475,6 +477,8 @@ export const AgentConfigurationPage = ({
         const proposals = proposedTemplates(control.controlId, row.detection);
         const templateLabel = current.template
           ? `${current.template.name}${current.via === 'type' ? ' (de serie)' : ''}`
+          : assigned === undefined && !typeLabel.stored
+          ? 'tipo sin guardar: valores comunes'
           : 'sin plantilla';
 
         return (
@@ -498,10 +502,10 @@ export const AgentConfigurationPage = ({
                     <EuiSelect
                       compressed
                       options={[
-                        { value: BY_TYPE, text: `La de serie de su tipo${typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
+                        { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? ' (tipo sin guardar)' : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
                         ...templates.map(template => ({
                           value: template.id,
-                          text: `${template.name}${template.builtin ? ' (de serie)' : ''}${proposals.includes(template.id) ? ' (propuesta por sus hechos)' : ''}`,
+                          text: `${template.name}${template.builtin ? ' (de serie)' : ''}${proposals.includes(template.id) ? ' (propuesta por sus datos)' : ''}`,
                         })),
                         { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
                         ...(assigned && assigned !== ENS_NO_TEMPLATE && !templates.some(template => template.id === assigned)
@@ -555,7 +559,7 @@ export const AgentConfigurationPage = ({
                     effectiveRows={union && (agentId === ENS_MANAGER_AGENT || control.controlId === 'mp.info.6') ? valueRows(parameter, parameter.value) : undefined}
                     note={
                       contribution
-                        ? 'Describe máquinas: en la fila del manager (y, para el alcance de mp.info.6, en todas) se evalúan juntas las filas comunes y las de cada agente. Aquí se declaran solo las de este agente.'
+                        ? 'Aquí, solo las filas de este agente; se evalúan junto con las comunes y las de los demás agentes.'
                         : undefined
                     }
                     applicable={parameter.levels.includes(control.level)}

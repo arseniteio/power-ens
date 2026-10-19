@@ -46,8 +46,7 @@ interface AgentParameterRowProps {
   onDone?: () => void;
 }
 
-// Where the value comes from, said explicitly: the level of the resolution chain.
-export const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): string => {
+const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): string => {
   if (origin.source === 'agent') return 'ajuste propio de este agente';
   if (origin.source === 'template') {
     const name = origin.templateName || origin.templateId;
@@ -156,7 +155,7 @@ export const AgentParameterRow = ({
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiBadge color='hollow'>{parameterClass === 'system' ? 'por sistema' : 'por plataforma'}</EuiBadge>
+            <EuiBadge color='hollow'>{parameterClass === 'system' ? 'propio de cada agente' : 'de la plataforma'}</EuiBadge>
           </EuiFlexItem>
           {parameter.required && applicable && (
             <EuiFlexItem grow={false}>

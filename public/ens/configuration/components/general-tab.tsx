@@ -9,19 +9,14 @@ import {
 
 import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import { GlobalConfigurationPanel } from './global-configuration-panel';
+import { scopeModeLabel } from './labels';
 
 interface GeneralTabProps {
   configuration: ENSConfigurationVersion;
   onConfigurationSaved: () => void;
 }
 
-const MODES: Record<string, string> = {
-  global: 'todos los agentes del inventario',
-  agent: 'los agentes de la lista',
-  group: 'los agentes de los grupos',
-};
-
-// «General»: ENS level, T and D levels and the rest of the global settings; the ENS scope, read-only.
+// The scope is read-only here: only the initial setup changes which agents are evaluated.
 export const GeneralTab = ({ configuration, onConfigurationSaved }: GeneralTabProps) => {
   const scope = configuration.scope;
   return (
@@ -35,15 +30,15 @@ export const GeneralTab = ({ configuration, onConfigurationSaved }: GeneralTabPr
           <h3>Alcance ENS</h3>
         </EuiTitle>
         <EuiText size='s' color='subdued'>
-          <p>Qué agentes se evalúan. Solo lectura: se define en initial-setup.</p>
+          <p>Solo lectura: se define en la configuración inicial.</p>
         </EuiText>
         <EuiSpacer size='s' />
         <EuiDescriptionList
           compressed
           listItems={[
-            { title: 'Modo', description: `${scope.mode}: ${MODES[scope.mode] || scope.mode}` },
-            { title: 'Grupos', description: scope.groupIds.length ? scope.groupIds.join(', ') : '—' },
-            { title: 'Agentes', description: scope.agentIds.length ? scope.agentIds.join(', ') : '—' },
+            { title: 'Agentes evaluados', description: scopeModeLabel(scope.mode) },
+            ...(scope.mode === 'group' ? [{ title: 'Grupos', description: scope.groupIds.join(', ') || '—' }] : []),
+            ...(scope.mode === 'agent' ? [{ title: 'Agentes', description: scope.agentIds.join(', ') || '—' }] : []),
           ]}
         />
       </EuiPanel>

@@ -26,7 +26,7 @@ import type {
   ENSSystemType,
 } from '../../../../common/ens/configuration/types';
 import { ENS_SYSTEM_TYPES, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
-import type { ENSControlTemplate } from '../../../../common/ens/configuration/templates';
+import { ENSControlTemplate, describeTemplate } from '../../../../common/ens/configuration/templates';
 import type { ENSTemplateInput } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { getParameterClass, isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { isEmptyParameterValue } from '../../../../common/ens/configuration/services/parameter-value-validator';
@@ -39,7 +39,7 @@ interface TemplateEditorModalProps {
   mode: ENSTemplateEditorMode;
   control: ENSControlConfiguration;
   template?: ENSControlTemplate;
-  // Agents that have this template assigned.
+  // Labels of the agents that have it assigned.
   usage: string[];
   onCancel: () => void;
   // Returns the error to show, or nothing.
@@ -101,12 +101,12 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
         )}
         {usage.length > 0 && (
           <EuiText size='s' color='subdued'>
-            <p>Asignada a {usage.length} agente(s): {usage.join(', ')}. Lo que se guarde aquí les cambia el valor.</p>
+            <p>Asignada a {usage.length} agente(s): {usage.join(', ')}.</p>
           </EuiText>
         )}
         {readOnly ? (
           <EuiText size='s'>
-            {template?.description && <p>{template.description}</p>}
+            {template && describeTemplate(template) && <p>{describeTemplate(template)}</p>}
             {template?.systemType && <p>Tipo de sistema: {ENS_SYSTEM_TYPE_LABELS[template.systemType]}</p>}
             {template?.sources && template.sources.length > 0 && <p>Origen de los valores: {template.sources.join('; ')}.</p>}
           </EuiText>
@@ -129,10 +129,6 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
         )}
 
         <EuiSpacer size='m' />
-        <EuiText size='s' color='subdued'>
-          <p>Un parámetro sin valor en la plantilla toma el valor común del control.</p>
-        </EuiText>
-        <EuiSpacer size='s' />
 
         {templateParameters(control).map(parameter => {
           const value = values[parameter.id];
@@ -145,11 +141,11 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
                     <EuiText size='s'><strong>{parameter.id} · {parameter.label}</strong></EuiText>
                   </EuiFlexItem>
                   <EuiFlexItem grow={false}>
-                    <EuiBadge color='hollow'>{getParameterClass(control.controlId, parameter.id) === 'system' ? 'por sistema' : 'por plataforma'}</EuiBadge>
+                    <EuiBadge color='hollow'>{getParameterClass(control.controlId, parameter.id) === 'system' ? 'propio de cada agente' : 'de la plataforma'}</EuiBadge>
                   </EuiFlexItem>
                   {empty && (
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color='default'>sin valor: valor común</EuiBadge>
+                      <EuiBadge color='default'>sin valor: toma el valor común</EuiBadge>
                     </EuiFlexItem>
                   )}
                 </EuiFlexGroup>

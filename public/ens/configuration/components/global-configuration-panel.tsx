@@ -357,8 +357,8 @@ export const GlobalConfigurationPanel = ({
       </EuiFormRow>
 
       <EuiFormRow
-        label='Alcance'
-        helpText='Sistemas, servicios o activos incluidos en la evaluación.'
+        label='Descripción del alcance (informes)'
+        helpText='Texto que describe en los informes los sistemas, servicios o activos evaluados.'
         fullWidth
       >
         <EuiFieldText

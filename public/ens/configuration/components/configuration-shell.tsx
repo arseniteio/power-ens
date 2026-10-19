@@ -14,7 +14,6 @@ import {
   EuiSpacer,
   EuiTab,
   EuiTabs,
-  EuiText,
   EuiTitle,
 } from '@elastic/eui';
 
@@ -40,18 +39,16 @@ import {
 } from '../../../routing/configuration-link';
 
 import { errorMessage } from './confirm-modal';
+import { lifecycleLabel } from './labels';
 import { ControlsTab } from './controls-tab';
 import { AgentsTab } from './agents-tab';
 import { GeneralTab } from './general-tab';
 
-// Configuración in three tabs: «Controles», «Agentes» and «General». The URL decides what is shown
-// (`configControl`, `configAgent`, `configParam`, `configView`), so the control detail links here and «back» works.
+// The URL decides what is shown, so the control detail links here and the browser's «back» works.
 export const ConfigurationShell = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
-  // Abierta desde el Detalle del control («Configurar este control» o un
-  // parámetro de una no conformidad): la vuelta a ese mismo detalle, con su
-  // control y su máquina (siguen en la URL).
+  // Opened from the control detail: the way back keeps its control and machine, still in the URL.
   const vuelta = parseConfigurationBack(search);
   const setSearch = useSetRouterSearch();
 
@@ -75,9 +72,7 @@ export const ConfigurationShell = () => {
       [configurationRevision]
     );
 
-  // El nivel contra el que se validan los parámetros de UN control es el mismo
-  // con el que lo evalúa el motor: el global, salvo que el control se rija por
-  // el nivel de una dimensión (op.exp.8 y la Trazabilidad).
+  // The level the engine evaluates each control with: the global one, or its dimension's (T, D).
   const getControlActiveLevel =
     useCallback(
       (controlId: string): ENSLevel =>
@@ -122,18 +117,11 @@ export const ConfigurationShell = () => {
           <h2>Configuración ENS</h2>
         </EuiTitle>
 
-        <EuiText color='subdued'>
-          <p>
-            El valor que se aplica a un agente: su ajuste propio; si no, el de la plantilla asignada en el control;
-            sin plantilla asignada, el de la plantilla de serie de su tipo; si no, el valor común del control.
-          </p>
-        </EuiText>
-
-        <EuiSpacer size='m' />
+        <EuiSpacer size='s' />
 
         <EuiBadge color='hollow'>
-          Estado global:{' '}
-          {activeConfiguration.status}
+          Estado de la configuración:{' '}
+          {lifecycleLabel(activeConfiguration.status)}
         </EuiBadge>
 
         <EuiSpacer size='m' />
@@ -142,7 +130,7 @@ export const ConfigurationShell = () => {
           <>
             <EuiCallOut color='primary' iconType='iInCircle' title='Configuración de la 1.2.0 convertida a plantillas por control'>
               <p>{summarizeTemplateMigration(pendingMigration)}</p>
-              <p>Los valores de cada agente no cambian. Se guarda con el próximo cambio; la versión anterior queda en el historial.</p>
+              <p>Los valores de cada agente no cambian. Se guarda con el próximo cambio.</p>
               {migrationError && <p>{migrationError}</p>}
               <EuiButton size='s' onClick={saveMigration}>
                 Guardar la conversión

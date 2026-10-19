@@ -71,22 +71,22 @@ export const detectAgentSystem = (
   const origins = facts?.backupOrigins || {};
 
   if (origins.pbs) {
-    addons.push({ templateId: 'pbs-backup', evidence: `${miles(origins.pbs)} hechos de mp.info.6 con data.origen = pbs en 30 días` });
+    addons.push({ templateId: 'pbs-backup', evidence: `${miles(origins.pbs)} datos de copias con PBS en 30 días` });
   }
 
   if (origins['zimbra-ne']) {
-    addons.push({ templateId: 'zimbra-ne-backup', evidence: `${miles(origins['zimbra-ne'])} hechos de mp.info.6 con data.origen = zimbra-ne en 30 días` });
+    addons.push({ templateId: 'zimbra-ne-backup', evidence: `${miles(origins['zimbra-ne'])} datos de copias con Zimbra NE en 30 días` });
   }
 
   if (normalizeAgentId(agent.id) === ENS_MANAGER_ID) {
-    return { type: 'manager', source: 'id', evidence: 'el id 000, que en Wazuh es siempre el manager', addons };
+    return { type: 'manager', source: 'id', evidence: 'ser el manager de Wazuh', addons };
   }
 
   const platform = String(agent.os?.platform || '').trim().toLowerCase();
   const uname = String(agent.os?.uname || '').trim();
 
   if (platform === 'windows') {
-    return { type: 'windows', source: 'inventario', evidence: 'os.platform = windows en el inventario de agentes', addons };
+    return { type: 'windows', source: 'inventario', evidence: 'el inventario de agentes (Windows)', addons };
   }
 
   const directory = factsWithPlane(facts?.planes, 'directorio');
@@ -95,21 +95,21 @@ export const detectAgentSystem = (
     return {
       type: 'zimbra-ldap',
       source: 'hechos',
-      evidence: `${miles(directory)} hechos del recolector LDAP (data.plano = directorio) en 30 días`,
+      evidence: `${miles(directory)} datos del directorio LDAP en 30 días`,
       addons,
     };
   }
 
   if (LINUX_PLATFORMS.includes(platform)) {
-    return { type: 'linux', source: 'inventario', evidence: `os.platform = ${platform} en el inventario de agentes`, addons };
+    return { type: 'linux', source: 'inventario', evidence: `el inventario de agentes (${platform.charAt(0).toUpperCase()}${platform.slice(1)})`, addons };
   }
 
   if (/^linux\b/i.test(uname)) {
-    return { type: 'linux', source: 'inventario', evidence: 'os.uname empieza por «Linux» en el inventario de agentes', addons };
+    return { type: 'linux', source: 'inventario', evidence: 'el inventario de agentes (Linux)', addons };
   }
 
   if (platform) {
-    return { type: undefined, source: 'ninguna', evidence: `os.platform = ${platform}: no es un tipo previsto; se elige a mano`, addons };
+    return { type: undefined, source: 'ninguna', evidence: `el sistema «${platform}» no es un tipo previsto; se elige a mano`, addons };
   }
 
   return {

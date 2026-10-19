@@ -42,10 +42,10 @@ export const getAgentControls = (
         measured: onPlane && collected,
         reason: !onPlane
           ? manager
-            ? 'se mide en las máquinas, no en el manager'
-            : 'se mide en el manager: las filas de este agente se juntan en la fila del manager'
+            ? 'se evalúa en los agentes, no en el manager'
+            : 'se evalúa en el manager, con las filas de todos'
           : !collected
-          ? 'sin recolector en esta plataforma: el motor lo sigue evaluando y, sin hechos, no lo da por demostrado'
+          ? 'sin recolector para su sistema'
           : undefined,
       };
     });

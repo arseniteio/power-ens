@@ -22,9 +22,9 @@ import { ControlConfigurationResolver } from './control-configuration-resolver';
 import { ControlConfigurationReset } from './control-configuration-reset';
 import { ControlTemplatesPanel } from './control-templates-panel';
 import { ControlAssignmentPanel } from './control-assignment-panel';
-import { buildAgentRows, useAgentsData } from './use-agents-data';
+import { ENSAgentsData, buildAgentRows } from './use-agents-data';
 
-// Common parameters of a control, in its order: the «Ajustes comunes» and the only ones its state is judged on.
+// Only common parameters judge the common state: agent-level ones are judged per agent.
 export const commonParameterIds = (control: ENSControlConfiguration): string[] =>
   control.parameters
     .filter(parameter => {
@@ -43,21 +43,23 @@ interface ControlPageProps {
   control: ENSControlConfiguration;
   activeLevel: ENSLevel;
   focusParameterId?: string;
+  data: ENSAgentsData;
   onNavigate: (target: Partial<ENSConfigurationTarget>) => void;
   onConfigurationSaved: () => void;
 }
 
-// One control: «Ajustes comunes», «Plantillas» and «Asignación».
 export const ControlPage = ({
   configuration,
   control,
   activeLevel,
   focusParameterId,
+  data,
   onNavigate,
   onConfigurationSaved,
 }: ControlPageProps) => {
-  const fromDetail = Boolean(parseConfigurationBack(useRouterSearch()));
-  const data = useAgentsData();
+  // From the control detail, its own «Volver al detalle» replaces this one only on that same control.
+  const back = parseConfigurationBack(useRouterSearch());
+  const fromDetail = back?.controlId === control.controlId;
   const rows = buildAgentRows(configuration, data);
   const withTemplates = hasTemplateParameters(control.controlId);
 
@@ -96,8 +98,8 @@ export const ControlPage = ({
         onConfigurationSaved={onConfigurationSaved}
         parameterIds={commonParameterIds(control)}
         secondaryParameterIds={control.parameters.filter(parameter => isAgentLevelParameter(control.controlId, parameter.id)).map(parameter => parameter.id)}
-        secondaryTitle='Valor común de los parámetros por sistema y por plataforma'
-        secondaryDescription='Lo toma un agente sin ajuste propio ni plantilla que fije el parámetro.'
+        secondaryTitle='Valor común de los parámetros que cambian por agente'
+        secondaryDescription='Lo toma un agente sin ajuste propio ni plantilla que lo fije.'
         focusParameterId={focusParameterId}
       />
 
@@ -105,7 +107,7 @@ export const ControlPage = ({
 
       {withTemplates ? (
         <>
-          <ControlTemplatesPanel configuration={configuration} control={control} onConfigurationSaved={onConfigurationSaved} />
+          <ControlTemplatesPanel configuration={configuration} control={control} rows={rows} onConfigurationSaved={onConfigurationSaved} />
           <EuiHorizontalRule />
           <ControlAssignmentPanel
             configuration={configuration}
@@ -118,13 +120,13 @@ export const ControlPage = ({
           />
           {data.errors.map(error => (
             <EuiText key={error} size='xs' color='subdued'>
-              <p>Detección incompleta: {error}</p>
+              <p>No se pudo leer: {error}</p>
             </EuiText>
           ))}
         </>
       ) : (
         <EuiText size='s' color='subdued'>
-          <p>Este control solo tiene ajustes comunes: no tiene plantillas ni asignación por agente.</p>
+          <p>Este control solo tiene ajustes comunes.</p>
         </EuiText>
       )}
 

@@ -1,13 +1,4 @@
-// Link that opens Configuración on a tab, a control, an agent and a parameter:
-//
-//   ?tabView=configuration&configControl=op.acc.1                    → Controles, the control
-//   ?tabView=configuration&configControl=op.acc.1&configParam=P-04   → … and the parameter
-//   ?tabView=configuration&configAgent=024                           → Agentes, the agent
-//   ?tabView=configuration&configAgent=024&configControl=op.acc.1&configParam=P-07
-//                                                                    → … its control and parameter
-//   ?tabView=configuration&configView=agentes | general              → the Agentes list or General
-//
-// `configView=sistemas` (1.2.0 links) still opens Agentes. Without React, to be tested.
+// Without React, so the links (guide 09 §10) are tested; `configView=sistemas` keeps 1.2.0 links working.
 import { withRouterSearch } from './router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 

@@ -12,16 +12,14 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
+import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
-import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
+import { ENS_NO_TEMPLATE } from '../../../../common/agent-configuration';
 import { getControlTemplates } from '../../../../common/ens/configuration/templates';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { getAgentMeasurementPlane, getControlMeasurementPlanes } from '../../../../common/ens/core/scope/measurement-planes';
-import {
-  getAgentSystemType,
-  getEffectiveTemplate,
-} from '../../../../common/ens/configuration/agents/configuration-resolver';
+import { getEffectiveTemplate } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import { proposedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
 import {
   ENSAssignmentPreview,
@@ -35,6 +33,7 @@ import type { ENSConfigurationTarget } from '../../../routing/configuration-link
 import { ChangePreviewModal } from './change-preview-modal';
 import { errorMessage } from './confirm-modal';
 import { DetectedTypesCallout } from './detected-types-callout';
+import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 
 interface ControlAssignmentPanelProps {
@@ -50,17 +49,13 @@ interface ControlAssignmentPanelProps {
 // Select value for «no assignment: the built-in of its type».
 const BY_TYPE = '__type';
 
-export const describeEffectiveTemplate = (
-  configuration: ENSConfigurationVersion,
-  agentId: string,
-  controlId: string
-): string => {
-  const effective = getEffectiveTemplate(configuration, agentId, controlId);
+const describeEffectiveTemplate = (configuration: ENSConfigurationVersion, row: ENSAgentRow, controlId: string): string => {
+  const effective = getEffectiveTemplate(configuration, row.id, controlId);
   if (effective.template) return `${effective.template.name}${effective.via === 'type' ? ' (de serie, por su tipo)' : ''}`;
-  return effective.assignedId === ENS_NO_TEMPLATE ? 'Sin plantilla (valores comunes)' : 'Ninguna: valores comunes';
+  if (effective.assignedId === ENS_NO_TEMPLATE) return 'Sin plantilla (valores comunes)';
+  return agentTypeLabel(configuration.agents?.[row.id], row.detection).stored ? 'Ninguna: valores comunes' : 'Ninguna hasta guardar su tipo: valores comunes';
 };
 
-// «Asignación»: agent | type | template | own settings, with bulk assignment after a preview.
 export const ControlAssignmentPanel = ({
   configuration,
   controlId,
@@ -123,7 +118,9 @@ export const ControlAssignmentPanel = ({
     }
   };
 
-  const columns = [
+  const labels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
+
+  const columns: EuiBasicTableColumn<ENSAgentRow>[] = [
     {
       field: 'id',
       name: 'Agente',
@@ -137,14 +134,8 @@ export const ControlAssignmentPanel = ({
       field: 'detection',
       name: 'Tipo',
       render: (_detection: unknown, row: ENSAgentRow) => {
-        const type = getAgentSystemType(configuration.agents?.[row.id]);
-        return type ? (
-          <EuiBadge color='hollow'>{ENS_SYSTEM_TYPE_LABELS[type]}</EuiBadge>
-        ) : (
-          <EuiText size='xs' color='subdued'>
-            <p>{row.detection.type ? `sin guardar (detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]})` : 'sin tipo'}</p>
-          </EuiText>
-        );
+        const type = agentTypeLabel(configuration.agents?.[row.id], row.detection, loading);
+        return <EuiBadge color={type.color}>{type.text}</EuiBadge>;
       },
     },
     {
@@ -155,15 +146,15 @@ export const ControlAssignmentPanel = ({
         const measured = planes.includes(getAgentMeasurementPlane(row.id));
         return (
           <div>
-            <EuiText size='xs'><p>{describeEffectiveTemplate(configuration, row.id, controlId)}</p></EuiText>
+            <EuiText size='xs'><p>{describeEffectiveTemplate(configuration, row, controlId)}</p></EuiText>
             {proposals.length > 0 && (
               <EuiText size='xs' color='subdued'>
-                <p>propuesta por sus hechos: {proposals.map(id => `«${templates.find(item => item.id === id)?.name || id}»`).join(', ')}</p>
+                <p>Propuesta por sus datos: {proposals.map(id => `«${templates.find(item => item.id === id)?.name || id}»`).join(', ')}</p>
               </EuiText>
             )}
             {!measured && (
               <EuiText size='xs' color='subdued'>
-                <p>{planes.includes('manager') ? 'se mide en el manager: sus filas se juntan en la del manager' : 'no se mide en el manager'}</p>
+                <p>{planes.includes('manager') ? 'Se evalúa en el manager, con las filas de todos los agentes.' : 'No se evalúa en el manager.'}</p>
               </EuiText>
             )}
           </div>
@@ -179,7 +170,7 @@ export const ControlAssignmentPanel = ({
         return (
           <EuiText size='xs'>
             <p>
-              {own ? `${own} propio(s)` : 'ninguno'}
+              {own ? `${own} propio(s)` : 'Ninguno'}
               {required.length ? ` · ${required.length} obligatorio(s) sin valor` : ''}
               {!row.inScope ? ' · fuera del alcance' : ''}
             </p>
@@ -195,10 +186,7 @@ export const ControlAssignmentPanel = ({
         <h3>Asignación</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>
-          El valor de cada agente: su ajuste propio; si no, el de la plantilla asignada; sin plantilla asignada, el de
-          la plantilla de serie de su tipo; si no, el valor común del control.
-        </p>
+        <p>Plantilla y ajustes propios de cada agente en este control.</p>
       </EuiText>
       <EuiSpacer size='s' />
 
@@ -238,7 +226,7 @@ export const ControlAssignmentPanel = ({
         key={tableKey}
         items={rows}
         itemId='id'
-        columns={columns as any}
+        columns={columns}
         loading={loading}
         isSelectable
         selection={{ onSelectionChange: (items: ENSAgentRow[]) => setSelectedIds(items.map(item => item.id)) }}
@@ -250,6 +238,8 @@ export const ControlAssignmentPanel = ({
           title={`Asignar ${describeTemplateChoice(configuration, controlId, preview.templateId)} en ${controlId} a ${preview.previews.length} agente(s)`}
           confirmLabel='Asignar'
           intro='Los ajustes propios siguen ganando.'
+          configuration={configuration}
+          agentLabels={labels}
           previews={preview.previews}
           onCancel={() => setPreview(undefined)}
           onConfirm={apply}
