@@ -1,36 +1,4 @@
-/**
- * Registro de modelos de informe por control.
- *
- * POR QUÉ EXISTE ESTE FICHERO. Hasta ahora la pantalla de Informes elegía el
- * modelo con una cadena de ternarios cuya RAMA POR DEFECTO era mp.info.6:
- *
- *     controlId === 'op.acc.2' ? buildOpAcc2ReportModel(result)
- *   : controlId === 'op.acc.1' ? buildOpAcc1ReportModel(result)
- *   : buildMpInfo6ReportModel(result);          // <- cualquier otro control
- *
- * Un control nuevo se registra bien en `data/`, sale en la lista con su nombre
- * y su nivel correctos, y al abrir su informe generaba el de las copias de
- * seguridad: los requisitos de mp.info.6, sus evidencias y sus campos, bajo la
- * cabecera del control nuevo. No rompía nada visible; producía un documento
- * PLAUSIBLE Y EQUIVOCADO, y ese documento va firmado ante un auditor. Es el
- * mismo género de fallo que el principio rector prohíbe en el semáforo: sin
- * dato que signifique algo, no se afirma nada.
- *
- * El registro devuelve `undefined` para lo no registrado y la pantalla lo dice
- * con todas las letras. Misma convención que `core/evidence/registry.ts`,
- * `core/policy-runtime/policies/registry.ts` y `configuration/registry/`:
- * definiciones en una lista, mapa por `controlId`, `get…` que devuelve
- * `undefined`, y `getRegistered…` para que se pueda auditar el registro entero.
- *
- * AL AÑADIR UN CONTROL: una entrada aquí, con su `name` (es el título del
- * informe en pantalla y el encabezado del PDF) y su `build`. Si se olvida, no
- * se genera el informe de otro: sale un aviso nombrando al control, y
- * `tests/check-consistency.py` (comprobación 8) y
- * `tests/report-by-control.test.ts` fallan.
- *
- * Tipos desde el fichero, nunca desde el barrel `../core`: por ahí vuelve el
- * ciclo transitivo del TDZ de Settings.
- */
+/** Report model registry by control. There is no default model: a control without one has no report (`undefined`), never another control's. */
 import { compareENSIds } from '../control-filter/prefix';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
@@ -76,9 +44,6 @@ export interface ENSReportField {
   producerGaps: string[];
 }
 
-// La forma común de los tres modelos (`MPInfo6ReportModel`, `OpAcc1ReportModel`
-// y `OpAcc2ReportModel` son idénticos campo a campo). Es lo único que la
-// pantalla consume, así que es lo único que el registro promete.
 export interface ENSReportModel {
   controlId: string;
   status: ENSReportFieldStatus;
@@ -92,10 +57,6 @@ export interface ENSReportModel {
 export interface ENSReportModelDefinition {
   controlId: string;
 
-  // Título del informe en pantalla y encabezado del PDF. Vivía en un
-  // `CONTROL_META` aparte, un segundo mapa por control que había que acordarse
-  // de tocar además del selector de modelo; dos sitios que mantener para un
-  // solo hecho son dos sitios que se olvidan por separado.
   name: string;
 
   build: (
@@ -103,11 +64,6 @@ export interface ENSReportModelDefinition {
     panorama?: ENSComplianceResult[]
   ) => ENSReportModel;
 
-  // El informe necesita el resultado de TODOS los controles, no solo el suyo
-  // (op.mon.2, el sistema de métricas: su informe es el cuadro de mando). La
-  // pantalla lee entonces los hechos de todos los controles, con el mismo tope
-  // y el mismo orden que el panel, y pasa a `build` el resultado de cada uno
-  // como `panorama`.
   usesAllControls?: boolean;
 }
 
@@ -230,9 +186,7 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
   },
 ];
 
-// Exportada para que las dos guardas de abajo las pueda ejercitar una prueba
-// con su propia lista: una guarda que ningún fixture ejecuta no es una guarda,
-// es un comentario con `throw`.
+// Exported so tests can exercise the guards below with their own list.
 export const buildENSReportModelRegistry = (
   definitions: ENSReportModelDefinition[]
 ): Map<string, ENSReportModelDefinition> => {
@@ -243,13 +197,13 @@ export const buildENSReportModelRegistry = (
 
     if (!controlId) {
       throw new Error(
-        `Modelo de informe «${definition.name}» sin controlId válido.`
+        `Report model "${definition.name}" has no valid controlId.`
       );
     }
 
     if (registry.has(controlId)) {
       throw new Error(
-        `Modelo de informe duplicado para el control ${controlId}.`
+        `Duplicate report model for control ${controlId}.`
       );
     }
 
@@ -263,8 +217,7 @@ const reportModelRegistry = buildENSReportModelRegistry(
   reportModelDefinitions
 );
 
-// `undefined` para un control sin modelo registrado. NUNCA un modelo de
-// repuesto: el repuesto sería el informe de otro control.
+// `undefined` for a control without a registered model; never a fallback model.
 export const getENSReportModelDefinition = (
   controlId: string
 ): ENSReportModelDefinition | undefined =>
@@ -273,9 +226,6 @@ export const getENSReportModelDefinition = (
 export const getRegisteredENSReportControls = (): string[] =>
   Array.from(reportModelRegistry.keys()).sort(compareENSIds);
 
-// El modelo ya construido, o `undefined` si el control no tiene modelo. Quien
-// llame tiene que tratar el `undefined`; no hay forma de recibir por descuido
-// el modelo de otro control.
 export const buildENSReportModel = (
   controlId: string,
   result: ENSComplianceResult | undefined,
@@ -283,9 +233,7 @@ export const buildENSReportModel = (
 ): ENSReportModel | undefined =>
   getENSReportModelDefinition(controlId)?.build(result, panorama);
 
-// Cuáles de estos controles NO tienen modelo de informe. Es lo que convierte el
-// olvido en algo visible: la pantalla lo usa para nombrarlos arriba del todo, y
-// las pruebas para exigir que la lista esté vacía.
+// Which controls have no report model: it makes the omission visible.
 export const listENSControlsWithoutReportModel = (
   controlIds: string[]
 ): string[] =>

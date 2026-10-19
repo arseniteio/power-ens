@@ -14,9 +14,7 @@ import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { canExportReport, reportViewState } from './report-view-state';
 import { describeParameterForMachine } from '../controls/parameter-origins';
-// Del fichero de tipos, nunca del barrel `../core`: `import type` se borra
-// entero al compilar y no añade ninguna arista al grafo de módulos (ahí vive el
-// ciclo transitivo del TDZ de `Settings`).
+// Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type {
   ENSComplianceResult,
   ENSRequirementResult,
@@ -56,41 +54,20 @@ const fmt = (iso) => {
   return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-// Longitud máxima de las observaciones en la tabla. El texto completo queda al
-// expandir la fila y en el PDF.
+// Maximum length of observations in the table; the full text is in the expanded row and the PDF.
 const OBSERVATION_PREVIEW_LENGTH = 90;
 
-const COLOR_SECUNDARIO_PDF = '#69707d';
+const PDF_SECONDARY_COLOR = '#69707d';
 
-// Por qué no se ha podido demostrar un requisito. Mismo vocabulario que la
-// ficha del control (`controls/control-detail`): la etiqueta que lee el auditor
-// en las dos pantallas tiene que ser literalmente la misma cadena.
-const ETIQUETA_DE_CAUSA: Record<string, string> = {
+// Same vocabulary as the control detail: the cause label must be the same string on both screens.
+const CAUSE_LABEL: Record<string, string> = {
   CATALOG: 'catálogo',
   CONFIGURATION: 'sin configurar',
   COLLECTION: 'sin recogida',
   EVIDENCE: 'evidencia insuficiente',
 };
 
-// El título del informe y el selector de modelo viven en `./registry`, que
-// devuelve `undefined` para un control sin modelo en vez de fabricarle el de
-// otro. Ver la cabecera de ese fichero.
-
-// Subcomponente: informe completo de UN control. Los hooks viven aquí (no
-// pueden ir en bucle), así que la lista renderiza uno por control.
-//
-// Recibe la definición de informe YA RESUELTA, y por eso solo se monta para
-// controles que tienen modelo: quien decide es el componente de la lista. Así
-// no hay ninguna rama condicional por encima de los hooks y, de paso, un control
-// sin modelo no lanza la consulta a OpenSearch que no va a poder usar.
-// El resultado de TODOS los controles para el informe que lo pide
-// (`usesAllControls`, op.mon.2). Lo pide `<ControlReportWithPanorama>` al
-// servidor aparte: el veredicto del control sigue saliendo de la evaluación de
-// ESE control, igual que en el detalle, y no del conjunto.
 interface ENSReportPanorama {
-  // `undefined` mientras la evaluación está en curso (el informe enseña que
-  // carga, nunca SIN_DATOS de relleno) o ha fallado (SIN_DATOS con su aviso).
-  // Nunca un panorama de otra máquina.
   results?: ENSComplianceResult[];
   loading: boolean;
   error?: Error;
@@ -122,37 +99,33 @@ const ControlReport = ({
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  // El resultado del control lo calcula el servidor con TODOS sus hechos de la
-  // ventana (hasta 1.1.0, los 10.000 más recientes, evaluados en el navegador).
-  const evaluacion = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
+  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
     include: 'control',
     controlId,
     agentId,
   });
-  const { error } = evaluacion;
-  const complianceResult = evaluacion.data?.result;
-  const ensLevel = evaluacion.data?.meta?.level || activeConfiguration.global.ensLevel;
-  // Un informe solo se pinta (y se exporta) con un resultado real de ESTA
-  // selección: mientras llega, ni NO_EVALUABLE ni N/A de relleno; y si llega
-  // sin resultado para esta máquina, se dice que no se mide aquí y por qué.
-  const maquina = agentId ? evaluacion.data?.meta?.scope?.find(agent => agent.id === agentId) : undefined;
-  const vista = reportViewState({
+  const { error } = evaluation;
+  const complianceResult = evaluation.data?.result;
+  const ensLevel = evaluation.data?.meta?.level || activeConfiguration.global.ensLevel;
+  // A report is drawn and exported only with a real result for THIS selection: no filler while loading.
+  const machine = agentId ? evaluation.data?.meta?.scope?.find(agent => agent.id === agentId) : undefined;
+  const view = reportViewState({
     controlId,
     agentId,
-    agentLabel: agentId ? (maquina?.name ? `${agentId} · ${maquina.name}` : agentId) : undefined,
+    agentLabel: agentId ? (machine?.name ? `${agentId} · ${machine.name}` : agentId) : undefined,
     error,
-    hasData: Boolean(evaluacion.data),
+    hasData: Boolean(evaluation.data),
     hasResult: Boolean(complianceResult),
     usesPanorama: Boolean(panorama),
     panoramaLoading: Boolean(panorama?.loading),
     notMeasured: () => {
-      const catalogo = getENSCatalogControl(controlId);
-      return catalogo && agentId
-        ? describeNotMeasuredOnAgent(catalogo, agentId, maquina?.name, getActiveControlConfiguration(controlId, agentId))
+      const catalog = getENSCatalogControl(controlId);
+      return catalog && agentId
+        ? describeNotMeasuredOnAgent(catalog, agentId, machine?.name, getActiveControlConfiguration(controlId, agentId))
         : undefined;
     },
   });
-  const exportable = canExportReport(vista);
+  const exportable = canExportReport(view);
 
   const panoramaResults = panorama?.results;
 
@@ -161,31 +134,25 @@ const ControlReport = ({
     [definition, complianceResult, panoramaResults],
   );
 
-  // `?? null` y no solo el ternario: un control sin medir se publica SIN
-  // número, así que `score` puede venir `undefined`, y `undefined !== null` es
-  // cierto — el informe imprimiría "undefined%" donde debe poner N/A.
-  const motorScore = complianceResult ? complianceResult.score ?? null : null;
-  const motorCoverage = complianceResult ? complianceResult.coverage : null;
-  const motorLevel = complianceResult?.level || ensLevel;
-  const motorEvaluatedAt = complianceResult?.evaluatedAt || '-';
+  // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
+  const engineScore = complianceResult ? complianceResult.score ?? null : null;
+  const engineCoverage = complianceResult ? complianceResult.coverage : null;
+  const engineLevel = complianceResult?.level || ensLevel;
+  const engineEvaluatedAt = complianceResult?.evaluatedAt || '-';
 
-  // El par diagnóstico: el porcentaje divide por los APLICABLES, y cuántos de
-  // ellos se han llegado a demostrar es otro número. «60 %, 5 de 8 demostrados»
-  // y «60 %, 8 de 8» son dos máquinas muy distintas con el mismo porcentaje.
-  const motorApplicable = complianceResult?.applicableRequirements ?? null;
-  const motorMeasured = complianceResult?.measuredRequirements ?? null;
+  const engineApplicable = complianceResult?.applicableRequirements ?? null;
+  const engineMeasured = complianceResult?.measuredRequirements ?? null;
 
-  const estado = complianceResult?.status || 'NO_EVALUABLE';
+  const statusValue = complianceResult?.status || 'NO_EVALUABLE';
 
-  // Un color, tres consumidores. `EuiHealth` acepta 'subdued'; `EuiStat`, no.
-  const semaforo =
-    estado === 'CUMPLE'
+  const trafficLight =
+    statusValue === 'CUMPLE'
       ? { health: 'success', stat: 'success', pdf: '#4caf50' }
-      : estado === 'PARCIAL'
+      : statusValue === 'PARCIAL'
       ? { health: 'warning', stat: 'warning', pdf: '#f5a700' }
-      : estado === 'NO_CUMPLE'
+      : statusValue === 'NO_CUMPLE'
       ? { health: 'danger', stat: 'danger', pdf: '#e53935' }
-      : { health: 'subdued', stat: 'default', pdf: COLOR_SECUNDARIO_PDF };
+      : { health: 'subdued', stat: 'default', pdf: PDF_SECONDARY_COLOR };
 
   const evidenceResults = complianceResult?.evidences || [];
   const requirementResults = complianceResult?.requirements || [];
@@ -196,28 +163,22 @@ const ControlReport = ({
     evidence => evidence.agentName || evidence.agentId,
   );
 
-  const agente = agentId
+  const agentValue = agentId
     ? (evidenceAgent?.agentName || evidenceAgent?.agentId || `Agente ${agentId}`)
     : 'Todos los agentes';
 
   const formatPercent = (value) => (value !== null ? value + '%' : 'N/A');
 
-  const demostradosTexto =
-    motorApplicable === null
+  const provenText =
+    engineApplicable === null
       ? 'N/A'
-      : `${motorMeasured ?? 0}/${motorApplicable}`;
+      : `${engineMeasured ?? 0}/${engineApplicable}`;
 
-  // Las filas y los colores viven en `./report-rows`, fuera del componente: es
-  // lo único de esta pantalla que se puede probar sin React ni EUI, y era justo
-  // donde estaba el fallo de la columna «Evidencia».
   const rows: ENSReportRow[] = buildENSReportRows(reportModel);
 
-  // MEDIDO / NO EVIDENCIADO. El veredicto es el mismo a propósito —lo no
-  // demostrado cuenta en contra—, así que la distinción no puede salir del
-  // estado: sale de `evidenced` y, cuando falta prueba, de la `cause` de sus no
-  // conformidades. Una se corrige en la máquina; la otra, habilitando la prueba.
-  const causasDeRequisito = (requirementId: string): string[] => {
-    const causas: string[] = [];
+  // MEDIDO and NO EVIDENCIADO share the verdict on purpose (unproven counts against): the distinction comes from `evidenced` and the cause of the non-conformities, not from the status.
+  const requirementCauses = (requirementId: string): string[] => {
+    const causes: string[] = [];
 
     nonConformities.forEach(nonConformity => {
       if (
@@ -228,51 +189,46 @@ const ControlReport = ({
         return;
       }
 
-      const etiqueta =
-        ETIQUETA_DE_CAUSA[nonConformity.cause] || nonConformity.cause;
+      const label =
+        CAUSE_LABEL[nonConformity.cause] || nonConformity.cause;
 
-      if (causas.indexOf(etiqueta) < 0) {
-        causas.push(etiqueta);
+      if (causes.indexOf(label) < 0) {
+        causes.push(label);
       }
     });
 
-    return causas;
+    return causes;
   };
 
-  // La etiqueta sale de `./report-rows` (`ensRequirementProofLabel`), donde se
-  // puede probar: acreditado documentalmente, medido o no evidenciado.
-  const etiquetaDePrueba = (requirement: ENSRequirementResult): string =>
+  const testLabel = (requirement: ENSRequirementResult): string =>
     ensRequirementProofLabel(
       requirement,
-      causasDeRequisito(requirement.id)
+      requirementCauses(requirement.id)
     );
 
-  // De la evidencia al evento crudo: regla, id del evento y cuándo se vio. Es
-  // el tramo de la cadena que el informe no llevaba, y sin él el auditor se
-  // queda en «EV-03» sin poder ir a mirarlo.
-  const trazaDeEvidencias = (evidenceIds: string[]): string[] =>
+  const evidenceTrace = (evidenceIds: string[]): string[] =>
     (evidenceIds || []).map(id => {
       const evidence = evidenceResults.find(item => item.id === id);
 
-      const partes = [
+      const parts = [
         evidence?.resolvedRuleId ? `regla ${evidence.resolvedRuleId}` : null,
         evidence?.resolvedEventId ? `evento ${evidence.resolvedEventId}` : null,
         evidence?.lastSeen ? fmt(evidence.lastSeen) : null,
       ].filter(Boolean);
 
-      return `${id} · ${partes.length > 0 ? partes.join(' · ') : 'sin evento'}`;
+      return `${id} · ${parts.length > 0 ? parts.join(' · ') : 'sin evento'}`;
     });
 
   const requirementRows = requirementResults.map(requirement => ({
     id: requirement.id,
     title: requirement.title,
     status: requirement.status,
-    prueba: etiquetaDePrueba(requirement),
+    prueba: testLabel(requirement),
     level: requirement.level.join(', ') || '-',
     evidences: (requirement.evidenceIds || []).join(', ') || '-',
     observationList: requirement.observations || [],
     observations: (requirement.observations || []).join(' · '),
-    traza: trazaDeEvidencias(requirement.evidenceIds || []),
+    traza: evidenceTrace(requirement.evidenceIds || []),
   }));
 
   const formatParameterValue = (value, matchMode?: string) => {
@@ -295,9 +251,6 @@ const ControlReport = ({
     return String(value);
   };
 
-  // El valor es el que aplicó el motor a ESTA vista (la fila de la máquina,
-  // con su configuración resuelta); el origen lo dice el resolutor de
-  // Configuración: propio de la máquina, de una plantilla o de la organización.
   const parameterRows = parameterResults.map(parameter => ({
     parametro: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
@@ -305,10 +258,6 @@ const ControlReport = ({
     origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
     required: parameter.required ? 'Sí' : 'No',
     requirements: parameter.requirements.join(', ') || '-',
-    // Solo en los dos estados en los que el motor aplica de verdad el
-    // tratamiento por defecto —los mismos que `unusableParametersFor` del
-    // motor—. En un CONFIGURED no se aplica, y en un NOT_APPLICABLE no falta
-    // nada: «Si falta» bajo un parámetro que no aplica es sencillamente falso.
     ifNotConfigured:
       parameter.status === 'NOT_CONFIGURED' || parameter.status === 'INVALID'
         ? parameter.ifNotConfigured || ''
@@ -331,9 +280,9 @@ const ControlReport = ({
       ? '#e53935'
       : status === 'NOT_CONFIGURED'
       ? '#f5a700'
-      : COLOR_SECUNDARIO_PDF;
+      : PDF_SECONDARY_COLOR;
 
-  const tieneDetalle = (item: { observations: string; traza: string[] }) =>
+  const hasDetail = (item: { observations: string; traza: string[] }) =>
     (item.observations || '').length > OBSERVATION_PREVIEW_LENGTH ||
     item.traza.length > 0;
 
@@ -353,8 +302,6 @@ const ControlReport = ({
       width: '90px',
     },
     {
-      // Veredicto arriba, prueba debajo. La misma columna sostiene las dos
-      // capas: qué se ha decidido y sobre qué base.
       field: 'status',
       name: 'Estado',
       width: '190px',
@@ -394,7 +341,7 @@ const ControlReport = ({
       width: '40px',
       isExpander: true,
       render: (item: { id: string; observations: string; traza: string[] }) =>
-        tieneDetalle(item) ? (
+        hasDetail(item) ? (
           <EuiButtonIcon
             onClick={() => toggleRequirementDetail(item.id)}
             aria-label={
@@ -414,11 +361,8 @@ const ControlReport = ({
     (acc: Record<string, React.ReactNode>, id) => {
       const row = requirementRows.find(item => item.id === id);
 
-      // `tieneDetalle` además de encontrar la fila: es la misma condición que
-      // decide si se pinta el botón de expandir, y sin ella un id que se quedó
-      // en `expandedReqIds` abre un panel vacío que ya no tiene botón con el
-      // que volver a cerrarse.
-      if (row && tieneDetalle(row)) {
+      // `hasDetail` is the condition that renders the expand button; without it an id left in expandedReqIds opens an empty panel.
+      if (row && hasDetail(row)) {
         acc[id] = (
           <EuiText size='xs'>
             {row.observationList.length > 0 ? (
@@ -436,8 +380,8 @@ const ControlReport = ({
               <>
                 <strong>Trazabilidad</strong>
                 <ul>
-                  {row.traza.map((linea, index) => (
-                    <li key={index}>{linea}</li>
+                  {row.traza.map((line, index) => (
+                    <li key={index}>{line}</li>
                   ))}
                 </ul>
               </>
@@ -455,13 +399,9 @@ const ControlReport = ({
     {
       field: 'parametro',
       name: 'Parámetro',
-      // «Si falta» vivía dentro de la columna «Estado», que mide 210 px: el
-      // texto se partía en tiras de dos palabras y estiraba la fila hasta
-      // media pantalla. Aquí tiene ancho, y además se lee pegado al parámetro
-      // que le falta, que es de lo que habla.
-      render: (parametro: string, item: { ifNotConfigured: string }) => (
+      render: (parameter: string, item: { ifNotConfigured: string }) => (
         <>
-          <EuiText size='xs'>{parametro}</EuiText>
+          <EuiText size='xs'>{parameter}</EuiText>
           {item.ifNotConfigured ? (
             <EuiText size='xs' color='subdued'>
               Si falta: {item.ifNotConfigured}
@@ -513,24 +453,14 @@ const ControlReport = ({
     {
       field: 'valor',
       name: 'Valor',
-      // El hallazgo arriba y, debajo y en gris, contra qué se comparó.
-      //
-      // Y PLEGADO, con el mismo panel que el motivo. Un valor de mp.info.6
-      // llega a ser «Retención configurada: SIN_DATOS · Consolidación por
-      // agente: wazuh-real (024)=NO_EVALUABLE, … · 2026-08-02T23:30:02.722+0000
-      // · control_state · …» repetido seis veces. Escrito entero en la celda no
-      // solo era ilegible: sus marcas de tiempo son introzables, así que el
-      // navegador le robaba el ancho a la columna «Evidencia» hasta dejarla
-      // escribiendo «E V - 0 1» en vertical. Plegarlo devuelve el ancho a la
-      // tabla y el texto completo sigue a un clic.
-      render: (valor: string, item: ENSReportRow) => (
+      render: (value: string, item: ENSReportRow) => (
         <>
           <MotiveCell
-            lineas={valor
+            lineas={value
               .split(' · ')
-              .map(texto => texto.trim())
+              .map(text => text.trim())
               .filter(Boolean)
-              .map(texto => ({ texto }))}
+              .map(text => ({ texto: text }))}
             titulo={item.campo}
           />
           {item.contexto ? (
@@ -542,18 +472,15 @@ const ControlReport = ({
       ),
     },
     {
-      // El nombre del campo sale de `./report-rows`, donde se construye la
-      // fila. Aquí decía `'ev'`, una clave que la fila no tuvo nunca, y la
-      // insignia salía vacía en los informes de los tres controles.
       field: ENS_REPORT_EVIDENCE_FIELD,
       name: 'Evidencia',
       width: '190px',
-      render: (evidencia: string, item: ENSReportRow) => (
+      render: (evidence: string, item: ENSReportRow) => (
         <>
           <EuiBadge color={ensReportStatusBadgeColor(item.estado)}>
             {item.estado}
           </EuiBadge>
-          <EuiText size='xs'>{evidencia}</EuiText>
+          <EuiText size='xs'>{evidence}</EuiText>
           {item.datosPendientes ? (
             <EuiText size='xs' color='subdued'>
               {item.datosPendientes}
@@ -564,12 +491,11 @@ const ControlReport = ({
     },
   ];
 
-  const exportarPDF = () => {
-    // Un informe firmado sin el resultado de esta selección no se emite, ni
-    // uno que recopila todos los controles mientras su panorama no ha vuelto.
+  const exportPdf = () => {
+    // A signed report is not issued without the result of this selection.
     if (!exportable || !complianceResult) return;
     const now = new Date();
-    const fechaEmision = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const issueDate = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     const docDefinition = {
       pageSize: 'A4',
@@ -590,15 +516,15 @@ const ControlReport = ({
           columns: [
             { width: '50%', stack: [
               { text: 'Activo evaluado', style: 'metaLabel' },
-              { text: agente, style: 'metaValue' },
+              { text: agentValue, style: 'metaValue' },
               { text: 'Periodo evaluado', style: 'metaLabel' },
               { text: evaluationPeriodText, style: 'metaValue' },
             ]},
             { width: '50%', stack: [
               { text: 'Fecha de emision', style: 'metaLabel' },
-              { text: fechaEmision, style: 'metaValue' },
+              { text: issueDate, style: 'metaValue' },
               { text: 'Estado del control', style: 'metaLabel' },
-              { text: estado, style: 'metaValue', color: semaforo.pdf, bold: true },
+              { text: statusValue, style: 'metaValue', color: trafficLight.pdf, bold: true },
             ]},
           ],
           margin: [0, 0, 0, 16],
@@ -617,26 +543,23 @@ const ControlReport = ({
                 { text: 'Requisitos demostrados', style: 'th' },
               ],
               [
-                { text: String(motorLevel), style: 'scoreCell', color: '#006bb4' },
-                { text: formatPercent(motorScore), style: 'scoreCell', color: semaforo.pdf },
+                { text: String(engineLevel), style: 'scoreCell', color: '#006bb4' },
+                { text: formatPercent(engineScore), style: 'scoreCell', color: trafficLight.pdf },
                 {
-                  text: formatPercent(motorCoverage),
+                  text: formatPercent(engineCoverage),
                   style: 'scoreCell',
-                  color: motorCoverage === null ? COLOR_SECUNDARIO_PDF : '#006bb4',
+                  color: engineCoverage === null ? PDF_SECONDARY_COLOR : '#006bb4',
                 },
                 {
-                  text: demostradosTexto,
+                  text: provenText,
                   style: 'scoreCell',
-                  // `> 0` y no solo la igualdad: un control en borrador no tiene
-                  // requisitos aplicables, y «0/0» cumple la igualdad. Pintarlo
-                  // verde en el documento que se firma es afirmar que está todo
-                  // demostrado justo donde no se ha medido nada.
+                  // `> 0` as well as equality: a draft control has no applicable requirements and 0/0 would paint it green in the signed document.
                   color:
-                    motorApplicable !== null &&
-                    motorApplicable > 0 &&
-                    motorMeasured === motorApplicable
+                    engineApplicable !== null &&
+                    engineApplicable > 0 &&
+                    engineMeasured === engineApplicable
                       ? '#4caf50'
-                      : COLOR_SECUNDARIO_PDF,
+                      : PDF_SECONDARY_COLOR,
                 },
               ],
             ],
@@ -649,10 +572,7 @@ const ControlReport = ({
         {
           table: {
             headerRows: 1,
-            // Ancho fijo para «Evidencia» y no `'auto'`: la celda es la lista de
-            // evidencias, y con `'auto'` pdfMake le daba a la columna el ancho
-            // del renglón sin partir —hasta ocho identificadores— y
-            // estrangulaba «Valor».
+            // Fixed width for 'Evidencia', not 'auto': pdfMake would size it to the unbroken line and squeeze 'Valor'.
             widths: ['38%', '*', '18%'],
             body: [
               [
@@ -686,13 +606,7 @@ const ControlReport = ({
         {
           table: {
             headerRows: 1,
-            // «Estado» con ancho FIJO, no `'auto'`. Desde que la celda lleva la
-            // línea de prueba debajo del veredicto, su renglón más largo es
-            // «No evidenciado · evidencia insuficiente» (~175 pt), y `'auto'`
-            // se lo daría entero sin partir: entre las tres columnas `'auto'`
-            // se comerían 315 de los 515 pt de la caja y estrangularían la
-            // descripción, que es la que ahora carga además la trazabilidad.
-            // Es el mismo fallo que ya se corrigió en la tabla de campos.
+            // 'Estado' has a fixed width: 'auto' would not wrap its longest line.
             widths: ['auto', '*', 'auto', 105],
             body: [
               [
@@ -715,10 +629,6 @@ const ControlReport = ({
                 },
                 { text: requirement.level, style: 'td' },
                 {
-                  // El veredicto y, debajo, si está medido o no evidenciado con
-                  // su causa. El documento firmado no puede fundir las dos: un
-                  // requisito que no se ha podido demostrar y uno que falla
-                  // medido restan igual y se arreglan al revés.
                   style: 'td',
                   text: [
                     {
@@ -727,7 +637,7 @@ const ControlReport = ({
                       bold: true,
                     },
                     ...(requirement.prueba
-                      ? [{ text: `\n${requirement.prueba}`, color: COLOR_SECUNDARIO_PDF }]
+                      ? [{ text: `\n${requirement.prueba}`, color: PDF_SECONDARY_COLOR }]
                       : []),
                   ],
                 },
@@ -769,7 +679,7 @@ const ControlReport = ({
                       ? [
                           {
                             text: `\nSi falta: ${parameter.ifNotConfigured}`,
-                            color: COLOR_SECUNDARIO_PDF,
+                            color: PDF_SECONDARY_COLOR,
                           },
                         ]
                       : []),
@@ -795,15 +705,14 @@ const ControlReport = ({
       defaultStyle: { fontSize: 10 },
     };
 
-    const nombre = 'Informe_ENS_' + controlId + '_' + (agentId ? agente.replace(/[^a-zA-Z0-9]/g, '_') : 'general') + '.pdf';
-    (pdfMake as any).createPdf(docDefinition).download(nombre);
+    const name = 'Informe_ENS_' + controlId + '_' + (agentId ? agentValue.replace(/[^a-zA-Z0-9]/g, '_') : 'general') + '.pdf';
+    (pdfMake as any).createPdf(docDefinition).download(name);
   };
 
-  // Sin la evaluación de ahora, ni informe ni PDF: «Reintentar» la vuelve a pedir.
   if (error) {
     return (
       <>
-        <FactsReadErrorCallOut error={error} onRetry={evaluacion.retry} />
+        <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
         <EuiSpacer size='m' />
         <EuiButton iconType='download' size='s' fill isDisabled>
           Exportar PDF
@@ -812,13 +721,13 @@ const ControlReport = ({
     );
   }
 
-  if (vista.kind === 'not-measured') {
+  if (view.kind === 'not-measured') {
     return (
       <>
-        <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
-        <EuiCallOut size='s' color='primary' iconType='iInCircle' title={vista.title}>
+        <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
+        <EuiCallOut size='s' color='primary' iconType='iInCircle' title={view.title}>
           <EuiText size='xs'>
-            <p>{vista.text}</p>
+            <p>{view.text}</p>
             <p>Sin resultado en esta selección no hay informe que exportar.</p>
           </EuiText>
         </EuiCallOut>
@@ -830,12 +739,12 @@ const ControlReport = ({
     );
   }
 
-  if (vista.kind === 'loading' || vista.kind === 'panorama-loading') {
+  if (view.kind === 'loading' || view.kind === 'panorama-loading') {
     return (
       <>
         <EvaluationLoading
           message={
-            vista.kind === 'loading'
+            view.kind === 'loading'
               ? 'Evaluando el control en el servidor con todos los hechos de la ventana…'
               : 'Evaluando todos los controles para el panorama del informe (grado de implantación, controles no evaluables, art. 32)…'
           }
@@ -847,14 +756,9 @@ const ControlReport = ({
     );
   }
 
-  // Sin panel propio: el informe se renderiza ya dentro de la sección plegable
-  // de su control, que es la que pone el marco.
   return (
     <>
-      {/* Sin título: el del control ya está en la cabecera del acordeón que
-          envuelve este informe. `definition.name` encabeza el PDF, que sí sale
-          suelto del contexto de la pantalla. */}
-      <EvaluationStatusLine meta={evaluacion.data?.meta} refreshing={evaluacion.isRefreshing} onRetry={evaluacion.retry} />
+      <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
       {panorama?.meta ? (
         <EvaluationStatusLine label='Panorama de todos los controles' meta={panorama.meta} refreshing={panorama.refreshing} onRetry={panorama.retry} />
       ) : null}
@@ -887,14 +791,14 @@ const ControlReport = ({
         <EuiFlexItem>
           <EuiText size='xs' color='subdued'>
             <p>
-              {agente} · periodo {evaluationPeriodText} · evaluado{' '}
-              {fmt(motorEvaluatedAt)}
+              {agentValue} · periodo {evaluationPeriodText} · evaluado{' '}
+              {fmt(engineEvaluatedAt)}
             </p>
           </EuiText>
         </EuiFlexItem>
 
         <EuiFlexItem grow={false}>
-          <EuiHealth color={semaforo.health}>{estado}</EuiHealth>
+          <EuiHealth color={trafficLight.health}>{statusValue}</EuiHealth>
         </EuiFlexItem>
       </EuiFlexGroup>
 
@@ -902,27 +806,27 @@ const ControlReport = ({
 
       <EuiFlexGroup gutterSize='l'>
         <EuiFlexItem>
-          <EuiStat title={String(motorLevel)} description='Nivel ENS' />
+          <EuiStat title={String(engineLevel)} description='Nivel ENS' />
         </EuiFlexItem>
 
         <EuiFlexItem>
           <EuiStat
-            title={formatPercent(motorScore)}
+            title={formatPercent(engineScore)}
             description='Cumplimiento'
-            titleColor={semaforo.stat}
+            titleColor={trafficLight.stat}
           />
         </EuiFlexItem>
 
         <EuiFlexItem>
           <EuiStat
-            title={formatPercent(motorCoverage)}
+            title={formatPercent(engineCoverage)}
             description='Cobertura'
           />
         </EuiFlexItem>
 
         <EuiFlexItem>
           <EuiStat
-            title={demostradosTexto}
+            title={provenText}
             description='Requisitos demostrados'
           />
         </EuiFlexItem>
@@ -936,10 +840,6 @@ const ControlReport = ({
 
       <EuiSpacer size='s' />
 
-      {/* ANCHO FIJO. Con el reparto automático del navegador, la celda de
-          «Valor» —que puede traer marcas de tiempo sin punto de corte— se
-          quedaba el ancho de la fila y estrangulaba «Evidencia» hasta
-          escribirla letra a letra en vertical. */}
       <EuiBasicTable items={rows} columns={columns} tableLayout='fixed' />
 
       <EuiSpacer size='l' />
@@ -975,18 +875,14 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <EuiButton iconType='download' size='s' fill onClick={exportarPDF} isDisabled={!exportable}>
+      <EuiButton iconType='download' size='s' fill onClick={exportPdf} isDisabled={!exportable}>
         Exportar PDF
       </EuiButton>
     </>
   );
 };
 
-// El informe de un control que recopila el de TODOS (`usesAllControls`,
-// op.mon.2). Lanza una SEGUNDA consulta, con el filtro y el tope del panel, solo
-// para calcular el resultado de cada control; el del propio control sigue
-// saliendo de la consulta de sus hechos dentro de `<ControlReport>`, como en el
-// detalle. Los demás informes no pasan por aquí y no cambian.
+// A report that gathers all controls (`usesAllControls`, op.mon.2) issues a SECOND query only to compute each control's result.
 const ControlReportWithPanorama = ({
   controlId,
   definition,
@@ -996,19 +892,15 @@ const ControlReportWithPanorama = ({
 }) => {
   const { agentId } = useRouterSearch();
 
-  // El panorama (el resultado de todos los controles) lo calcula el servidor
-  // con todos los hechos de la ventana: ya no hay tope ni hechos recortados.
-  // El hook no devuelve nunca el de otra máquina como si fuera de esta: con
-  // otra clave, `data` vuelve a estar vacío hasta que llega el suyo (lo que
-  // antes resolvía `panorama-vigente.ts` para `useEsSearch`).
-  const evaluacion = useEnsEvaluation<{ results: ENSComplianceResult[]; meta?: ENSEvaluationMeta }>({
+  // The overview result is computed by the server with all facts of the window; the hook never returns another machine's.
+  const evaluation = useEnsEvaluation<{ results: ENSComplianceResult[]; meta?: ENSEvaluationMeta }>({
     include: 'results',
     agentId,
   });
-  const { error } = evaluacion;
-  const vigente = {
-    valor: evaluacion.data ? { results: evaluacion.data.results } : undefined,
-    cargando: !evaluacion.data && !error,
+  const { error } = evaluation;
+  const valid = {
+    valor: evaluation.data ? { results: evaluation.data.results } : undefined,
+    cargando: !evaluation.data && !error,
   };
 
   return (
@@ -1016,20 +908,17 @@ const ControlReportWithPanorama = ({
       controlId={controlId}
       definition={definition}
       panorama={{
-        results: vigente.valor?.results,
-        loading: vigente.cargando,
+        results: valid.valor?.results,
+        loading: valid.cargando,
         error,
-        meta: evaluacion.data?.meta,
-        refreshing: evaluacion.isRefreshing,
-        retry: evaluacion.retry,
+        meta: evaluation.data?.meta,
+        refreshing: evaluation.isRefreshing,
+        retry: evaluation.retry,
       }}
     />
   );
 };
 
-// Un control en la lista de informes. Todo sale del catálogo estático, sin
-// consultar a OpenSearch: es lo que permite listar los controles sin evaluar
-// ninguno.
 interface ControlReportEntry {
   controlId: string;
   title: string;
@@ -1037,19 +926,11 @@ interface ControlReportEntry {
   requirementCount: number;
   evidenceCount: number;
 
-  // Identificadores por los que responde al filtro: el del control y los de sus
-  // requisitos, del mismo espacio jerárquico (`op.acc.1`, `op.acc.1.2`).
   filterableIds: string[];
 
-  // El modelo de informe del control, o `undefined` si todavía no tiene. Se
-  // resuelve AQUÍ, en la lista, y no dentro de `<ControlReport>`: así el
-  // componente que sí genera informe solo se monta cuando hay modelo.
   reportModelDefinition?: ENSReportModelDefinition;
 }
 
-// Cabecera plegable de un control. NO lleva semáforo a propósito: el estado sale
-// de evaluar, y evaluar es lo que se aplaza hasta que la sección se abre. El
-// estado consolidado de un vistazo está en la pestaña Controles.
 const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
   <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
     <EuiFlexItem grow={false}>
@@ -1079,10 +960,8 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
   </EuiFlexGroup>
 );
 
-// Un control sin modelo de informe no estrena el de otro: el selector caía por
-// defecto en mp.info.6 y producía un documento plausible y equivocado, listo
-// para firmar. Aquí no se genera nada.
-const ControlSinModeloDeInforme = ({
+// A control without a report model never borrows another's: the selector used to default to mp.info.6 and produced a plausible, wrong document.
+const ControlWithoutReportModel = ({
   entry,
 }: {
   entry: ControlReportEntry;
@@ -1102,7 +981,6 @@ const ControlSinModeloDeInforme = ({
   </EuiCallOut>
 );
 
-// Componente público: filtro por prefijo + un informe plegable por control.
 export const ReportsENS = () => {
   const [prefix, setPrefix] = React.useState<string>('');
 
@@ -1110,7 +988,6 @@ export const ReportsENS = () => {
     Record<string, boolean | undefined>
   >({});
 
-  // Cambiar el filtro devuelve las secciones a su estado por defecto.
   const applyPrefix = (value: string) => {
     setPrefix(value);
     setOpenControlIds({});
@@ -1133,10 +1010,8 @@ export const ReportsENS = () => {
     [],
   );
 
-  // Los controles del catálogo a los que les falta el modelo de informe. Se
-  // nombran arriba del todo y SIN filtrar: el olvido tiene que verse al entrar
-  // en la pantalla, no solo si a alguien se le ocurre desplegar ese control.
-  const sinModeloDeInforme = React.useMemo(
+  // Controls missing a report model are named at the top, unfiltered: the omission must be visible.
+  const withoutReportModel = React.useMemo(
     () =>
       listENSControlsWithoutReportModel(
         entries.map(entry => entry.controlId),
@@ -1249,9 +1124,6 @@ export const ReportsENS = () => {
           )}
         </EuiFlexGroup>
 
-        {/* Los informes que el filtro deja fuera se nombran uno a uno: son
-            pocos por definición y decir cuáles evita que un control con
-            hallazgos desaparezca sin más de la pantalla. */}
         {filtered.isActive && filtered.hidden.length > 0 && (
           <>
             <EuiSpacer size='s' />
@@ -1264,17 +1136,14 @@ export const ReportsENS = () => {
           </>
         )}
 
-        {/* Al margen del filtro: qué controles del catálogo no tienen todavía
-            modelo de informe. Antes este olvido no tenía síntoma —el control
-            abría el informe de mp.info.6 y parecía completo—. */}
-        {sinModeloDeInforme.length > 0 && (
+        {withoutReportModel.length > 0 && (
           <>
             <EuiSpacer size='s' />
             <EuiCallOut
               size='s'
               color='warning'
               iconType='alert'
-              title={`Sin modelo de informe: ${sinModeloDeInforme.join(', ')}`}
+              title={`Sin modelo de informe: ${withoutReportModel.join(', ')}`}
             />
           </>
         )}
@@ -1312,10 +1181,7 @@ export const ReportsENS = () => {
                 }
                 paddingSize='m'
               >
-                {/* Montado SOLO cuando la sección está abierta. Cada
-                    `<ControlReport>` pide la evaluación de su control al
-                    servidor: cerrado no pide nada. Y solo si el control TIENE
-                    modelo: sin modelo no hay informe de repuesto. */}
+                {/* Mounted ONLY while the section is open: each `<ControlReport>` requests its control's evaluation. Without a model there is no fallback report. */}
                 {isOpen(entry.controlId) ? (
                   entry.reportModelDefinition ? (
                     entry.reportModelDefinition.usesAllControls ? (
@@ -1330,7 +1196,7 @@ export const ReportsENS = () => {
                       />
                     )
                   ) : (
-                    <ControlSinModeloDeInforme entry={entry} />
+                    <ControlWithoutReportModel entry={entry} />
                   )
                 ) : null}
               </EuiAccordion>

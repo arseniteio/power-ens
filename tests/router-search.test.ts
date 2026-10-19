@@ -25,7 +25,7 @@ comprueba('volver del detalle: fuera el control, el resto se queda', withRouterS
   // Desde 1.2.0 el control abierto ES el de la URL (sin estado local): volver
   // es quitarlo de ella.
   const volver = controles.match(/onBack=\{\(\) => ([^\n]*)\}/)?.[1] || '';
-  comprueba('«Volver» quita el control de la URL', /cambiaUrl\(\{ control: undefined \}\)/.test(volver) && !/setSelectedControl/.test(controles), volver);
+  comprueba('«Volver» quita el control de la URL', /updateUrl\(\{ control: undefined \}\)/.test(volver) && !/setSelectedControl/.test(controles), volver);
 }
 
 console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

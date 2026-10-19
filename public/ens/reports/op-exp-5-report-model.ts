@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.5 (Gestión de cambios).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.5: translates the engine result into report fields. */
 export const buildOpExp5ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp5ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp5ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.5.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cambios detectados en el período  ·  fuente: auditd, apt/dpkg, puertos y hardware (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.5.campo2',
     'Cambios detectados en el período',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Conciliación cambio real frente a cambio autorizado  ·  fuente: registro TSV de peticiones (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.5.campo3',
     'Conciliación cambio real frente a cambio autorizado',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Calidad de las peticiones de cambio  ·  fuente: registro TSV de peticiones (EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.5.campo4',
     'Calidad de las peticiones de cambio',
     evidenceStatus('EV-03'),
@@ -141,8 +132,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Cambios de riesgo ALTO y aprobación del RSI  ·  fuente: registro TSV + cambios reales (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.5.campo5',
     'Cambios de riesgo ALTO y aprobación del RSI',
     evidenceStatus('EV-04'),
@@ -151,8 +141,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Paso por preproducción  ·  sin fuente: exige cruzar dos máquinas (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.5.campo6',
     'Paso por preproducción',
     evidenceStatus('EV-05'),
@@ -161,8 +150,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Actualización documental tras el cambio  ·  fuente: fechas de modificación de los documentos (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.5.campo7',
     'Actualización documental tras el cambio',
     evidenceStatus('EV-06'),
@@ -171,8 +159,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Estabilidad del servicio tras los cambios  ·  fuente: systemctl --failed (EV-07)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.5.campo8',
     'Estabilidad del servicio tras los cambios',
     evidenceStatus('EV-07'),
@@ -181,8 +168,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Fallos detectados y su comunicación (R1)  ·  fuente: systemctl --failed; la comunicación no es observable (EV-08)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.5.campo9',
     'Fallos detectados y su comunicación (R1)',
     level === 'ALTO'
@@ -193,8 +179,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Puntos de reversión previos a cada cambio (R1)  ·  fuente: snapshots LVM/ZFS/Btrfs (EV-09)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.5.campo10',
     'Puntos de reversión previos a cada cambio (R1)',
     level === 'ALTO'
@@ -205,8 +190,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Valoración de impacto en seguridad de los cambios (R1)  ·  fuente: registro TSV de peticiones (EV-03)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.5.campo11',
     'Valoración de impacto en seguridad de los cambios (R1)',
     level === 'ALTO'
@@ -217,8 +201,7 @@ export const buildOpExp5ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Puntuación de cumplimiento op.exp.5  ·  fuente: Motor ENSFácil
-  const campo12 = field(
+  const field12 = field(
     'op.exp.5.campo12',
     'Puntuación de cumplimiento op.exp.5',
     asStatus(result?.status),
@@ -241,18 +224,18 @@ export const buildOpExp5ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
     ],
   };
 };

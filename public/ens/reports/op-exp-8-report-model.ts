@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.8 (Registro de la actividad).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.8: translates the engine result into report fields. */
 export const buildOpExp8ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp8ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp8ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.8.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cobertura del registro en servidores  ·  fuente: Estado de agentes (EV-02)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.8.campo2',
     'Cobertura del registro en servidores',
     evidenceStatus('EV-02'),
@@ -121,8 +114,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Volumen y composición del registro  ·  fuente: Log Collection (EV-01)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.8.campo3',
     'Volumen y composición del registro',
     evidenceStatus('EV-01'),
@@ -131,8 +123,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Continuidad del registro y lagunas detectadas  ·  fuente: ENSFácil (EV-04)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.8.campo4',
     'Continuidad del registro y lagunas detectadas',
     evidenceStatus('EV-04'),
@@ -141,8 +132,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Suficiencia de los campos del registro de auditoría  ·  fuente: ENSFácil (EV-03)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.8.campo5',
     'Suficiencia de los campos del registro de auditoría',
     evidenceStatus('EV-03'),
@@ -151,8 +141,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Revisiones periódicas realizadas (R1)  ·  fuente: ENSFácil (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.8.campo6',
     'Revisiones periódicas realizadas (R1)',
     evidenceStatus('EV-05'),
@@ -161,8 +150,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Sincronización de relojes (R2)  ·  fuente: SCA + Log (EV-06)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.8.campo7',
     'Sincronización de relojes (R2)',
     evidenceStatus('EV-06'),
@@ -171,8 +159,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Retención de registros (R3)  ·  fuente: ENSFácil + Indexer (EV-07)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.8.campo8',
     'Retención de registros (R3)',
     evidenceStatus('EV-07'),
@@ -181,8 +168,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Accesos a los registros (R4)  ·  fuente: Indexer audit (EV-08)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.8.campo9',
     'Accesos a los registros (R4)',
     evidenceStatus('EV-08'),
@@ -191,8 +177,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Copias de seguridad de los registros (R4)  ·  fuente: ENSFácil + Indexer (EV-09)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.8.campo10',
     'Copias de seguridad de los registros (R4)',
     evidenceStatus('EV-09'),
@@ -201,8 +186,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Capacidad de análisis desplegada (R5)  ·  fuente: Correlación + ATT&CK (EV-10)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.8.campo11',
     'Capacidad de análisis desplegada (R5)',
     level === 'ALTO'
@@ -213,8 +197,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Recolección, correlación y respuesta automática (R5)  ·  fuente: Wazuh completo (EV-11, EV-12)
-  const campo12 = field(
+  const field12 = field(
     'op.exp.8.campo12',
     'Recolección, correlación y respuesta automática (R5)',
     level === 'ALTO'
@@ -225,8 +208,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Integridad del propio sistema de registro  ·  fuente: FIM + Log (EV-13)
-  const campo13 = field(
+  const field13 = field(
     'op.exp.8.campo13',
     'Integridad del propio sistema de registro',
     evidenceStatus('EV-13'),
@@ -235,8 +217,7 @@ export const buildOpExp8ReportModel = (
     evidenceObservations('EV-13'),
   );
 
-  // Puntuación de cumplimiento op.exp.8  ·  fuente: Motor ENSFácil
-  const campo14 = field(
+  const field14 = field(
     'op.exp.8.campo14',
     'Puntuación de cumplimiento op.exp.8',
     asStatus(result?.status),
@@ -259,20 +240,20 @@ export const buildOpExp8ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
-      campo13,
-      campo14,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
+      field13,
+      field14,
     ],
   };
 };

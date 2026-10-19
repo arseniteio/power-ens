@@ -1,12 +1,6 @@
 import { ENSFACIL_APP_TITLE, ENSFACIL_PLUGIN_ID } from '../common/constants';
 
-// Tarjeta de ENSFácil en la portada de OpenSearch Dashboards (/app/home,
-// sección «Manage your data»). La portada de Wazuh (wz-home) construye sus
-// tarjetas con una lista fija dentro del plugin de Wazuh y no ofrece ningún
-// punto de extensión: allí ENSFácil solo aparece en el menú lateral.
-//
-// El plugin `home` es opcional y su tipo se declara aquí, sin importarlo: el
-// plugin solo depende del núcleo (tests/standalone-imports.test.ts).
+// ENSFácil card on the OpenSearch Dashboards home (/app/home, 'Manage your data'). Wazuh's home builds a fixed list of cards and offers no extension point, so there ENSFácil only appears in the menu.
 export interface HomeFeatureCatalogueEntry {
   id: string;
   title: string;
@@ -35,9 +29,7 @@ export const buildHomeCard = (icon: string): HomeFeatureCatalogueEntry => ({
   category: 'admin',
 });
 
-// Registra la tarjeta si el dashboard trae el plugin `home`. Sin él, o si el
-// registro falla (id repetido), el plugin sigue cargando: la tarjeta es un
-// acceso más, no una dependencia.
+// Registers the card if the dashboard has the `home` plugin. Without it, or if registration fails (repeated id), the plugin still loads: the card is an extra entry, not a dependency.
 export const registerHomeCard = (home: HomeSetupLike | undefined, icon: string): boolean => {
   if (!home?.featureCatalogue) return false;
   try {

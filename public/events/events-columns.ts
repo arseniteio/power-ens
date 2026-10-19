@@ -1,6 +1,4 @@
-// Columnas y filtros fijos de la pestaña Eventos: los mismos que la tabla de
-// Wazuh a la que sustituye (hechos ENS de las máquinas del alcance). Sin
-// React: lo prueba tests/events-columns.test.ts.
+// Fixed columns and filters of the Eventos tab, the same as the Wazuh table it replaces. No React: tested in tests/events-columns.test.ts.
 import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import { buildRawFactsFilters } from '../search/raw-facts-filters';
 
@@ -26,27 +24,21 @@ export const ENS_EVENT_COLUMNS: ENSEventColumn[] = [
   { id: 'rule.id', label: 'Regla', initialWidth: 90 },
 ];
 
-// Los de toda vista de hechos crudos: con una máquina elegida, solo los suyos.
 export const buildEventsFilters = (agents: ENSAgentScope[], agentId?: string): unknown[] =>
   buildRawFactsFilters(agents, agentId);
 
-export const getField = (source: any, ruta: string): string => {
-  const valor = ruta.split('.').reduce((o, k) => (o == null ? undefined : o[k]), source);
-  if (valor == null) return '';
-  return Array.isArray(valor) ? valor.join(', ') : String(valor);
+export const getField = (source: any, route: string): string => {
+  const value = route.split('.').reduce((o, k) => (o == null ? undefined : o[k]), source);
+  if (value == null) return '';
+  return Array.isArray(value) ? value.join(', ') : String(value);
 };
 
-// OpenSearch no sirve más allá de from + size = index.max_result_window, que
-// por defecto es 10.000 (la plantilla de Wazuh no lo cambia). Con más hechos
-// la tabla dice el total y deja recorrer los 10.000 más recientes; pedir más
-// allá devolvería un error en lugar de una página.
+// OpenSearch serves nothing beyond from + size = index.max_result_window (10,000 by default): with more facts the table shows the total and lets the user page through the latest 10,000.
 export const ENS_EVENTS_MAX_WINDOW = 10000;
 
 export const navigableEventRows = (total: number): number =>
   Number.isFinite(total) && total > 0 ? Math.min(total, ENS_EVENTS_MAX_WINDOW) : 0;
 
-// La página elegida vale para los filtros con los que se eligió (`key`, su
-// JSON). Con otros filtros es la primera desde el mismo render: así no se
-// pide la página vieja con los filtros nuevos, que puede no existir.
+// The chosen page is valid for the filters it was chosen with (`key`, their JSON); with other filters it is the first page from the same render, so the old page is never requested with new filters.
 export const pageIndexFor = (page: { key: string; index: number }, key: string): number =>
   page.key === key ? page.index : 0;

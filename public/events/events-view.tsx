@@ -1,7 +1,4 @@
-// Pestaña Eventos: los hechos ENS de las máquinas del alcance, los más
-// recientes primero, con la barra de búsqueda y las fechas del dashboard.
-// Una página de la tabla es una búsqueda (`from`/`size`); el botón de la
-// primera columna de cada fila abre el documento entero.
+// Eventos tab: the ENS facts of the scope machines, latest first, with the dashboard search bar and dates. A table page is one search (`from`/`size`).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EuiButtonIcon,
@@ -30,48 +27,44 @@ import {
   pageIndexFor,
 } from './events-columns';
 
-const TAMANOS = [25, 50, 100];
-const TAMANO_INICIAL = 50;
+const PAGE_SIZES = [25, 50, 100];
+const INITIAL_PAGE_SIZE = 50;
 
-// Fuera del componente: las columnas no cambian y la cuadrícula no tiene que
-// recalcularlas en cada render.
-const COLUMNAS = ENS_EVENT_COLUMNS.map(c => ({
+// Outside the component: columns do not change and the grid need not recalculate them on every render.
+const COLUMNS = ENS_EVENT_COLUMNS.map(c => ({
   id: c.id,
   displayAsText: c.label,
   initialWidth: c.initialWidth,
 }));
-const TODAS = ENS_EVENT_COLUMNS.map(c => c.id);
-// Sin ordenar desde la tabla: el orden es el de la búsqueda (los más
-// recientes primero) y un orden por columna solo ordenaría la página.
-const BARRA_DE_LA_TABLA = { showSortSelector: false };
+const ALL = ENS_EVENT_COLUMNS.map(c => c.id);
+// No sorting from the table: the order is the search's (latest first); a column sort would only sort the page.
+const TABLE_TOOLBAR = { showSortSelector: false };
 
-const numero = (n: number): string => n.toLocaleString('es-ES');
+const number = (n: number): string => n.toLocaleString('es-ES');
 
-const fecha = (valor: string): string => {
-  if (!valor) return '';
-  const instante = new Date(valor);
-  return isNaN(instante.getTime()) ? valor : instante.toLocaleString('es-ES');
+const date = (value: string): string => {
+  if (!value) return '';
+  const instant = new Date(value);
+  return isNaN(instant.getTime()) ? value : instant.toLocaleString('es-ES');
 };
 
-const recuento = (total: number, isLoading: boolean, hayResultados: boolean): string => {
-  if (isLoading && !hayResultados) return 'Buscando hechos…';
+const count = (total: number, isLoading: boolean, hasResults: boolean): string => {
+  if (isLoading && !hasResults) return 'Buscando hechos…';
   if (total > ENS_EVENTS_MAX_WINDOW) {
-    return `${numero(total)} hechos; la tabla recorre los ${numero(ENS_EVENTS_MAX_WINDOW)} más recientes.`;
+    return `${number(total)} hechos; la tabla recorre los ${number(ENS_EVENTS_MAX_WINDOW)} más recientes.`;
   }
-  return `${numero(total)} ${total === 1 ? 'hecho' : 'hechos'}`;
+  return `${number(total)} ${total === 1 ? 'hecho' : 'hechos'}`;
 };
 
-// Cabecera de la columna del botón que abre el documento: sin texto a la
-// vista, con nombre para el lector de pantalla.
-const CabeceraDocumento = () => (
+const DocumentHeader = () => (
   <EuiScreenReaderOnly>
     <span>Documento del hecho</span>
   </EuiScreenReaderOnly>
 );
 
-const Documento = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
+const EventDocument = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
   const s = hit?._source || {};
-  const resumen = [fecha(getField(s, 'timestamp')), getField(s, 'agent.name'), getField(s, 'rule.description')]
+  const summary = [date(getField(s, 'timestamp')), getField(s, 'agent.name'), getField(s, 'rule.description')]
     .filter(Boolean)
     .join(' · ');
 
@@ -81,11 +74,11 @@ const Documento = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
         <EuiTitle size="m">
           <h2 id="ens-hecho-titulo">Hecho</h2>
         </EuiTitle>
-        {resumen && (
+        {summary && (
           <>
             <EuiSpacer size="s" />
             <EuiText size="s" color="subdued">
-              <p>{resumen}</p>
+              <p>{summary}</p>
             </EuiText>
           </>
         )}
@@ -99,83 +92,72 @@ const Documento = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
   );
 };
 
-const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
+const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
   const { agentId } = useRouterSearch();
-  // Deterministas (alcance, máquina) más los de la barra, memorizados en su
-  // hook: el mismo JSON entre renders, y `useEsSearch` no vuelve a buscar.
-  const filtros = [...buildEventsFilters(getActiveENSScopeAgents(), agentId), ...barFilters];
-  const clave = JSON.stringify(filtros);
+  // Deterministic filters (scope, machine) plus the bar's, memoised in their hook: the same JSON across renders, so `useEsSearch` does not search again.
+  const filters = [...buildEventsFilters(getActiveENSScopeAgents(), agentId), ...barFilters];
+  const key = JSON.stringify(filters);
 
-  const [tamano, setTamano] = useState(TAMANO_INICIAL);
-  const [pagina, setPagina] = useState({ key: clave, index: 0 });
-  // Con otros filtros, la primera página desde este mismo render: no se pide
-  // la página vieja con los filtros nuevos. El efecto solo lo deja guardado.
-  const pageIndex = pageIndexFor(pagina, clave);
+  const [pageSize, setPageSize] = useState(INITIAL_PAGE_SIZE);
+  const [pageNumber, setPageNumber] = useState({ key: key, index: 0 });
+  const pageIndex = pageIndexFor(pageNumber, key);
   useEffect(() => {
-    setPagina(p => (p.key === clave ? p : { key: clave, index: 0 }));
-  }, [clave]);
+    setPageNumber(p => (p.key === key ? p : { key: key, index: 0 }));
+  }, [key]);
 
-  const [visibles, setVisibles] = useState<string[]>(TODAS);
-  const [abierto, setAbierto] = useState<any>();
+  const [visibleItems, setVisible] = useState<string[]>(ALL);
+  const [isOpen, setIsOpen] = useState<any>();
 
-  // Con tope: los más recientes primero (tests/query-order.test.ts). El
-  // `refreshKey` de la barra hace que «Actualizar» vuelva a buscar aunque el
-  // rango sea absoluto y los filtros no cambien.
   const { esResults, isLoading, error } = useEsSearch({
-    preAppliedFilters: filtros,
-    size: tamano,
-    from: pageIndex * tamano,
+    preAppliedFilters: filters,
+    size: pageSize,
+    from: pageIndex * pageSize,
     sorting: [{ timestamp: { order: 'desc' } }],
     refreshKey,
   });
 
   const hits: any[] = useMemo(() => esResults?.hits?.hits || [], [esResults]);
   const total = Number(esResults?.hits?.total?.value ?? esResults?.hits?.total ?? 0) || 0;
-  const inicio = pageIndex * tamano;
+  const start = pageIndex * pageSize;
 
-  // Estables mientras no cambien las filas: la cuadrícula los trata como
-  // componentes y una función nueva en cada render volvería a montar las celdas.
-  const celda = useCallback(
+  // Stable while the rows do not change: the grid treats them as components and a new function per render would remount the cells.
+  const cell = useCallback(
     ({ rowIndex, columnId }: { rowIndex: number; columnId: string }) => {
-      const valor = getField(hits[rowIndex - inicio]?._source, columnId);
-      return columnId === 'timestamp' ? fecha(valor) : valor;
+      const value = getField(hits[rowIndex - start]?._source, columnId);
+      return columnId === 'timestamp' ? date(value) : value;
     },
-    [hits, inicio]
+    [hits, start]
   );
-  const botonDocumento = useCallback(
+  const documentButton = useCallback(
     ({ rowIndex }: { rowIndex: number }) => {
-      const hit = hits[rowIndex - inicio];
+      const hit = hits[rowIndex - start];
       if (!hit) return null;
       return (
         <EuiButtonIcon
           iconType="inspect"
           color="text"
-          aria-label={`Ver el documento del hecho del ${fecha(getField(hit._source, 'timestamp'))}`}
-          onClick={() => setAbierto(hit)}
+          aria-label={`Ver el documento del hecho del ${date(getField(hit._source, 'timestamp'))}`}
+          onClick={() => setIsOpen(hit)}
         />
       );
     },
-    [hits, inicio]
+    [hits, start]
   );
-  // Una columna de control, fuera de las que el usuario oculta: el documento
-  // se puede abrir con cualquier selección de columnas.
-  const columnasDeControl = useMemo(
-    () => [{ id: 'documento', width: 40, headerCellRender: CabeceraDocumento, rowCellRender: botonDocumento }],
-    [botonDocumento]
+  const controlColumns = useMemo(
+    () => [{ id: 'documento', width: 40, headerCellRender: DocumentHeader, rowCellRender: documentButton }],
+    [documentButton]
   );
 
-  const cambiaPagina = useCallback((index: number) => setPagina({ key: clave, index }), [clave]);
-  const cambiaTamano = useCallback(
-    (nuevo: number) => {
-      setTamano(nuevo);
-      setPagina({ key: clave, index: 0 });
+  const changePage = useCallback((index: number) => setPageNumber({ key: key, index }), [key]);
+  const changePageSize = useCallback(
+    (newItem: number) => {
+      setPageSize(newItem);
+      setPageNumber({ key: key, index: 0 });
     },
-    [clave]
+    [key]
   );
 
-  // Si la búsqueda de los filtros de ahora falla, lo que queda en `esResults`
-  // es de la búsqueda anterior: ni la tabla ni el recuento se enseñan como si
-  // fueran de ahora. Vuelven con la primera búsqueda que salga bien.
+  // If the search for the current filters fails, `esResults` holds the previous search: neither the table nor the count is shown as current. They return with the first successful search.
   if (error) {
     return (
       <>
@@ -184,7 +166,7 @@ const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey
           <p>{String((error as any)?.message || error)}</p>
           <p>Pulsa «Actualizar» en la barra para volver a intentarlo.</p>
         </EuiCallOut>
-        {abierto && <Documento hit={abierto} onClose={() => setAbierto(undefined)} />}
+        {isOpen && <EventDocument hit={isOpen} onClose={() => setIsOpen(undefined)} />}
       </>
     );
   }
@@ -193,7 +175,7 @@ const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey
     <>
       <EuiText size="s">
         <p>
-          <strong>{recuento(total, isLoading, hits.length > 0)}</strong>
+          <strong>{count(total, isLoading, hits.length > 0)}</strong>
         </p>
       </EuiText>
       <EuiSpacer size="s" />
@@ -202,19 +184,19 @@ const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey
         {isLoading && <EuiProgress size="xs" color="accent" position="absolute" />}
         <EuiDataGrid
           aria-label="Hechos ENS"
-          columns={COLUMNAS}
-          columnVisibility={{ visibleColumns: visibles, setVisibleColumns: setVisibles }}
-          leadingControlColumns={columnasDeControl}
+          columns={COLUMNS}
+          columnVisibility={{ visibleColumns: visibleItems, setVisibleColumns: setVisible }}
+          leadingControlColumns={controlColumns}
           rowCount={navigableEventRows(total)}
-          renderCellValue={celda}
-          toolbarVisibility={BARRA_DE_LA_TABLA}
+          renderCellValue={cell}
+          toolbarVisibility={TABLE_TOOLBAR}
           gridStyle={{ fontSize: 's', cellPadding: 's', border: 'horizontal', header: 'underline' }}
           pagination={{
             pageIndex,
-            pageSize: tamano,
-            pageSizeOptions: TAMANOS,
-            onChangePage: cambiaPagina,
-            onChangeItemsPerPage: cambiaTamano,
+            pageSize: pageSize,
+            pageSizeOptions: PAGE_SIZES,
+            onChangePage: changePage,
+            onChangeItemsPerPage: changePageSize,
           }}
         />
       </div>
@@ -228,17 +210,17 @@ const Eventos = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey
         </>
       )}
 
-      {abierto && <Documento hit={abierto} onClose={() => setAbierto(undefined)} />}
+      {isOpen && <EventDocument hit={isOpen} onClose={() => setIsOpen(undefined)} />}
     </>
   );
 };
 
 export const EventsView = () => {
-  const barra = useAlertsSearchBar();
+  const bar = useAlertsSearchBar();
 
   return (
-    <AlertsSearchFrame barra={barra}>
-      <Eventos barFilters={barra.filters} refreshKey={barra.refreshKey} />
+    <AlertsSearchFrame barra={bar}>
+      <EventsScreen barFilters={bar.filters} refreshKey={bar.refreshKey} />
     </AlertsSearchFrame>
   );
 };

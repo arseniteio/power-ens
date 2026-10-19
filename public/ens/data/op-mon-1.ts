@@ -55,7 +55,6 @@ export const opMon1Control: ENSControl = {
       title: 'Procedimientos de respuesta a las alertas (R2)',
       description:
         'Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.',
-      // Documental: P-05 o P-ATT. EV-06 es un dato del informe.
       evidences: [],
       active: false,
     },

@@ -73,15 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.1 (Inventario de activos).
- *
- * Sigue la hoja "Informe ENSFácil" de la plantilla del auditor. Cada campo
- * enseña lo que el motor ha OBSERVADO —los atributos del hecho que decidió su
- * evidencia— y lo que la organización ha DECLARADO en la pantalla, por
- * separado: el informe tiene que distinguir la parte automatizada de la que
- * depende del cliente, que es donde suelen aparecer los hallazgos.
- */
+/** Report model of op.exp.1: translates the engine result into report fields. */
 export const buildOpExp1ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp1ReportModel => {
@@ -102,8 +94,6 @@ export const buildOpExp1ReportModel = (
   const evidenceObservations = (evidenceId: string): string[] =>
     evidences.get(evidenceId)?.observations || [];
 
-  // Atributos del hecho que decidió la evidencia, en el orden pedido. Lo que el
-  // hecho no trae no se inventa: se omite.
   const observed = (evidenceId: string, fields: string[]): string => {
     const attributes = evidences.get(evidenceId)?.resolvedAttributes || {};
 
@@ -121,18 +111,18 @@ export const buildOpExp1ReportModel = (
   const declared = (parameterId: string): string =>
     `${parameterId}: ${formatValue(parameterValue(parameterId))}`;
 
-  const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
+  const ALL = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'];
 
-  const campo1 = field(
+  const field1 = field(
     'op.exp.1.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    TODAS,
-    TODAS.flatMap(evidenceObservations),
+    ALL,
+    ALL.flatMap(evidenceObservations),
   );
 
-  const campo2 = field(
+  const field2 = field(
     'op.exp.1.campo2',
     'Inventario consolidado de activos',
     evidenceStatus('EV-01'),
@@ -152,7 +142,6 @@ export const buildOpExp1ReportModel = (
     ['EV-01', 'EV-02', 'EV-03'],
     [
       `Red: ${observed('EV-03', ['direcciones', 'servicios'])}`,
-      // Solo en un servidor de directorio: lo que acredita su naturaleza.
       `Directorio: ${observed('EV-03', [
         'directorio_paquete',
         'directorio_version',
@@ -166,7 +155,7 @@ export const buildOpExp1ReportModel = (
     ],
   );
 
-  const campo3 = field(
+  const field3 = field(
     'op.exp.1.campo3',
     'Cobertura del inventario',
     evidenceStatus('EV-07'),
@@ -175,7 +164,7 @@ export const buildOpExp1ReportModel = (
     [`Taxonomía: ${declared('P-03')}`, ...evidenceObservations('EV-07')],
   );
 
-  const campo4 = field(
+  const field4 = field(
     'op.exp.1.campo4',
     'Relación de componentes software',
     evidenceStatus('EV-02'),
@@ -195,7 +184,7 @@ export const buildOpExp1ReportModel = (
     ],
   );
 
-  const campo5 = field(
+  const field5 = field(
     'op.exp.1.campo5',
     'Estado de monitorización de los equipos',
     evidenceStatus('EV-04'),
@@ -208,7 +197,7 @@ export const buildOpExp1ReportModel = (
     ],
   );
 
-  const campo6 = field(
+  const field6 = field(
     'op.exp.1.campo6',
     'Activos no inventariados detectados',
     evidenceStatus('EV-05'),
@@ -217,7 +206,7 @@ export const buildOpExp1ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  const campo7 = field(
+  const field7 = field(
     'op.exp.1.campo7',
     'Cambios en el inventario durante el período',
     evidenceStatus('EV-06'),
@@ -226,7 +215,7 @@ export const buildOpExp1ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  const campo8 = field(
+  const field8 = field(
     'op.exp.1.campo8',
     'Activos sin agente — inventario declarado',
     parameterValue('P-02') === undefined ? 'SIN_DATOS' : evidenceStatus('EV-05'),
@@ -237,7 +226,7 @@ export const buildOpExp1ReportModel = (
     ],
   );
 
-  const campo9 = field(
+  const field9 = field(
     'op.exp.1.campo9',
     'Activos críticos',
     'NO_APLICA',
@@ -246,7 +235,7 @@ export const buildOpExp1ReportModel = (
     ['Refuerzo R3: no exigible en ninguna categoría.'],
   );
 
-  const campo10 = field(
+  const field10 = field(
     'op.exp.1.campo10',
     'Estado de la revisión periódica del inventario',
     evidenceStatus('EV-06'),
@@ -255,12 +244,12 @@ export const buildOpExp1ReportModel = (
     [`Plazo: ${declared('P-04')} días`, ...evidenceObservations('EV-06')],
   );
 
-  const campo11 = field(
+  const field11 = field(
     'op.exp.1.campo11',
     'Puntuación de cumplimiento op.exp.1',
     asStatus(result?.status),
     formatValue(result?.score),
-    TODAS,
+    ALL,
     [
       'Solo puntúa op.exp.1.1. Los refuerzos R1 a R4 no son exigibles en ninguna categoría.',
     ],
@@ -280,17 +269,17 @@ export const buildOpExp1ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
     ],
   };
 };

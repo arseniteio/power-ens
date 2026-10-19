@@ -1,10 +1,9 @@
-// Las pestañas de la app, con los mismos ids y nombres que la versión
-// integrada: los enlaces con `tabView=` siguen valiendo.
+// App tabs, with the same ids and names as the integrated version: links with `tabView=` keep working.
 
 export interface ENSTab {
   id: string;
   name: string;
-  // Configuración se carga sola; las demás esperan a configuración y alcance.
+  // Configuración loads on its own; the others wait for configuration and scope.
   withBootstrap: boolean;
 }
 
@@ -15,8 +14,6 @@ export const ENS_CONTROL_DETAIL_TAB_ID = 'plugins';
 
 export const ENS_TABS: ENSTab[] = [
   { id: 'dashboard', name: 'Panel', withBootstrap: true },
-  // Desde 1.2.0: máquinas × controles, frescura de la recogida, resumen por
-  // máquina, cola de trabajo y tendencia (`public/ens/overview`).
   { id: ENS_OVERVIEW_TAB_ID, name: 'Vista general', withBootstrap: true },
   { id: 'configuration', name: 'Configuración', withBootstrap: false },
   { id: ENS_REQUIREMENTS_TAB_ID, name: 'Controles', withBootstrap: true },

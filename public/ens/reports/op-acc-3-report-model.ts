@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.acc.3 (Segregación de funciones y tareas).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.acc.3: translates the engine result into report fields. */
 export const buildOpAcc3ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc3ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpAcc3ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.acc.3.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Cuentas con funciones incompatibles detectadas  ·  fuente: Correlación (EV-01, EV-02)
-  const campo2 = field(
+  const field2 = field(
     'op.acc.3.campo2',
     'Cuentas con funciones incompatibles detectadas',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Tareas críticas y concurrencia verificada  ·  fuente: Correlación (EV-03)
-  const campo3 = field(
+  const field3 = field(
     'op.acc.3.campo3',
     'Tareas críticas y concurrencia verificada',
     evidenceStatus('EV-03'),
@@ -131,8 +123,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Inventario de acciones por cuenta y función  ·  fuente: Log Collection (EV-06)
-  const campo4 = field(
+  const field4 = field(
     'op.acc.3.campo4',
     'Inventario de acciones por cuenta y función',
     evidenceStatus('EV-06'),
@@ -141,8 +132,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Segregación configuración / mantenimiento (R1)  ·  fuente: Correlación (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.acc.3.campo5',
     'Segregación configuración / mantenimiento (R1)',
     level === 'ALTO'
@@ -153,8 +143,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Cuentas de auditoría — separación funcional (R1)  ·  fuente: Correlación (EV-05)
-  const campo6 = field(
+  const field6 = field(
     'op.acc.3.campo6',
     'Cuentas de auditoría — separación funcional (R1)',
     level === 'ALTO'
@@ -165,8 +154,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Accesos a la información de seguridad (R3)  ·  fuente: FIM + Log (EV-07)
-  const campo7 = field(
+  const field7 = field(
     'op.acc.3.campo7',
     'Accesos a la información de seguridad (R3)',
     evidenceStatus('EV-07'),
@@ -175,8 +163,7 @@ export const buildOpAcc3ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Puntuación de cumplimiento op.acc.3  ·  fuente: Motor ENSFácil
-  const campo8 = field(
+  const field8 = field(
     'op.acc.3.campo8',
     'Puntuación de cumplimiento op.acc.3',
     asStatus(result?.status),
@@ -199,14 +186,14 @@ export const buildOpAcc3ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
     ],
   };
 };

@@ -1,5 +1,4 @@
-// The value a machine was evaluated with and where it comes from, for the control detail and the reports, from the
-// configuration resolver. Without a machine, the common view. Without React (`tests/configure-links.test.ts`).
+// The value a machine was evaluated with and its origin, from the configuration resolver. Without a machine, the aggregate view.
 import { resolveControlConfigurationWithOrigins } from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSResolvedValueOrigin } from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSConfigurationVersion, ENSMatchMode } from '../../../common/ens/configuration/types';
@@ -21,13 +20,13 @@ export const summarizeParameterValue = (value: unknown): { text: string; empty: 
     return { text: 'sin valor', empty: true };
   }
   if (Array.isArray(value)) {
-    const filas = value.map(v => String(v));
-    const texto = filas.join('; ');
-    const cabecera = `${filas.length} fila${filas.length === 1 ? '' : 's'}: `;
-    return { text: cabecera + (texto.length > MAX ? `${texto.slice(0, MAX).trimEnd()}…` : texto), empty: false };
+    const rows = value.map(v => String(v));
+    const text = rows.join('; ');
+    const header = `${rows.length} fila${rows.length === 1 ? '' : 's'}: `;
+    return { text: header + (text.length > MAX ? `${text.slice(0, MAX).trimEnd()}…` : text), empty: false };
   }
-  const texto = String(value);
-  return { text: texto.length > MAX ? `${texto.slice(0, MAX).trimEnd()}…` : texto, empty: false };
+  const text = String(value);
+  return { text: text.length > MAX ? `${text.slice(0, MAX).trimEnd()}…` : text, empty: false };
 };
 
 export const describeValueOrigin = (origin: ENSResolvedValueOrigin | undefined, empty: boolean): string => {
@@ -48,27 +47,26 @@ export const describeParameterForMachine = (
   agentId: string | undefined,
   parameterId: string
 ): ENSParameterForMachine | undefined => {
-  const resuelto = resolveControlConfigurationWithOrigins(configuration, controlId, agentId);
-  const parametro = resuelto?.configuration.parameters.find(p => p.id === parameterId);
-  if (!resuelto || !parametro) return undefined;
-  const { text, empty } = summarizeParameterValue(parametro.value);
-  const origin = resuelto.origins[parameterId];
-  // Sin máquina, la vista de conjunto consolida filas evaluadas cada una con SU
-  // valor: si alguna máquina tiene uno propio o de plantilla, se dice.
-  const conValorPropio =
+  const resolved = resolveControlConfigurationWithOrigins(configuration, controlId, agentId);
+  const parameter = resolved?.configuration.parameters.find(p => p.id === parameterId);
+  if (!resolved || !parameter) return undefined;
+  const { text, empty } = summarizeParameterValue(parameter.value);
+  const origin = resolved.origins[parameterId];
+  // Without a machine the aggregate view consolidates rows each evaluated with its own value.
+  const withOwnValue =
     agentId === undefined && origin?.source !== 'union'
       ? Object.keys(configuration.agents || {}).filter(id => {
-          const fuente = resolveControlConfigurationWithOrigins(configuration, controlId, id)?.origins[parameterId]?.source;
-          return fuente === 'agent' || fuente === 'template';
+          const source = resolveControlConfigurationWithOrigins(configuration, controlId, id)?.origins[parameterId]?.source;
+          return source === 'agent' || source === 'template';
         })
       : [];
   return {
     id: parameterId,
-    label: parametro.label || parametro.name,
-    value: parametro.matchMode === 'regex' && !empty ? `Expresión regular: ${text}` : text,
+    label: parameter.label || parameter.name,
+    value: parameter.matchMode === 'regex' && !empty ? `Expresión regular: ${text}` : text,
     empty,
-    origin: conValorPropio.length
-      ? `varía por máquina: ${conValorPropio.join(', ')} con ajuste propio o plantilla; aquí, el valor común`
+    origin: withOwnValue.length
+      ? `varía por máquina: ${withOwnValue.join(', ')} con ajuste propio o plantilla; aquí, el valor común`
       : describeValueOrigin(origin, empty),
     source: origin?.source,
     ...(parametro.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}),

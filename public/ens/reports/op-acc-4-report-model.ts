@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.acc.4 (Proceso de gestión de derechos de acceso).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.acc.4: translates the engine result into report fields. */
 export const buildOpAcc4ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc4ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpAcc4ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.acc.4.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Verificación de denegación por defecto  ·  fuente: SCA (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.acc.4.campo2',
     'Verificación de denegación por defecto',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Privilegios no autorizados detectados  ·  fuente: SCA + Log (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.acc.4.campo3',
     'Privilegios no autorizados detectados',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Cuentas con privilegios excesivos  ·  fuente: SCA (EV-08)
-  const campo4 = field(
+  const field4 = field(
     'op.acc.4.campo4',
     'Cuentas con privilegios excesivos',
     evidenceStatus('EV-08'),
@@ -141,8 +132,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Cambios en grupos privilegiados  ·  fuente: Log Collection (EV-03)
-  const campo5 = field(
+  const field5 = field(
     'op.acc.4.campo5',
     'Cambios en grupos privilegiados',
     evidenceStatus('EV-03'),
@@ -151,8 +141,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Cambios de permisos por cuenta no competente  ·  fuente: Log Collection (EV-04)
-  const campo6 = field(
+  const field6 = field(
     'op.acc.4.campo6',
     'Cambios de permisos por cuenta no competente',
     evidenceStatus('EV-04'),
@@ -161,8 +150,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Estado de la revisión periódica de permisos  ·  fuente: ENSFácil (EV-05)
-  const campo7 = field(
+  const field7 = field(
     'op.acc.4.campo7',
     'Estado de la revisión periódica de permisos',
     evidenceStatus('EV-05'),
@@ -171,8 +159,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Accesos remotos en el período  ·  fuente: Log Collection (EV-06)
-  const campo8 = field(
+  const field8 = field(
     'op.acc.4.campo8',
     'Accesos remotos en el período',
     evidenceStatus('EV-06'),
@@ -181,8 +168,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Accesos a recursos de necesidad de conocer  ·  fuente: Log Collection (EV-07)
-  const campo9 = field(
+  const field9 = field(
     'op.acc.4.campo9',
     'Accesos a recursos de necesidad de conocer',
     evidenceStatus('EV-07'),
@@ -191,8 +177,7 @@ export const buildOpAcc4ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Puntuación de cumplimiento op.acc.4  ·  fuente: Motor ENSFácil
-  const campo10 = field(
+  const field10 = field(
     'op.acc.4.campo10',
     'Puntuación de cumplimiento op.acc.4',
     asStatus(result?.status),
@@ -215,16 +200,16 @@ export const buildOpAcc4ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
     ],
   };
 };

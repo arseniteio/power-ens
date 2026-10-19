@@ -1,25 +1,21 @@
-// Sustituye a «Explore agent» de Wazuh: elige una máquina del alcance ENS o
-// todas. Solo toca `agentId` en la URL, que es lo que leen las pantallas.
-//
-// Una máquina de la URL que no está en el alcance se dice (y se puede quitar):
-// antes el selector se quedaba en blanco y todo salía «sin datos».
+// Replaces Wazuh's 'Explore agent': picks a machine of the ENS scope, or all. It only touches `agentId` in the URL, which the screens read.
 import React from 'react';
 import { EuiButton, EuiCallOut, EuiFormRow, EuiSpacer, EuiSuperSelect, EuiHealth } from '@elastic/eui';
 import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { describeAgentOutOfScope, isAgentInScope, normalizeAgentIdForScope } from './agent-in-scope';
 
-const TODAS = '__todas__';
+const ALL = '__todas__';
 
 export const MachineSelector = () => {
   const { agentId } = useRouterSearch();
-  const cambia = useSetRouterSearch();
-  const agentes = getActiveENSScopeAgents();
-  const fuera = Boolean(agentId) && !isAgentInScope(agentId, agentes);
+  const changes = useSetRouterSearch();
+  const agents = getActiveENSScopeAgents();
+  const outside = Boolean(agentId) && !isAgentInScope(agentId, agents);
 
-  const opciones = [
-    { value: TODAS, inputDisplay: 'Todas las máquinas' },
-    ...agentes.map(a => ({
+  const options = [
+    { value: ALL, inputDisplay: 'Todas las máquinas' },
+    ...agents.map(a => ({
       value: a.id,
       inputDisplay: (
         <EuiHealth color={a.status === 'active' ? 'success' : 'subdued'}>
@@ -27,7 +23,7 @@ export const MachineSelector = () => {
         </EuiHealth>
       ),
     })),
-    ...(fuera
+    ...(outside
       ? [
           {
             value: agentId as string,
@@ -42,17 +38,17 @@ export const MachineSelector = () => {
       <EuiFormRow label="Máquina" display="columnCompressed">
         <EuiSuperSelect
           compressed
-          options={opciones}
-          valueOfSelected={agentId ? (fuera ? agentId : normalizeAgentIdForScope(agentId)) : TODAS}
-          onChange={valor => cambia({ agentId: valor === TODAS ? undefined : valor })}
+          options={options}
+          valueOfSelected={agentId ? (outside ? agentId : normalizeAgentIdForScope(agentId)) : ALL}
+          onChange={value => changes({ agentId: value === ALL ? undefined : value })}
         />
       </EuiFormRow>
-      {fuera && (
+      {outside && (
         <>
           <EuiSpacer size="s" />
           <EuiCallOut size="s" color="warning" iconType="alert" title={`${agentId} no está en el alcance ENS`}>
             <p>{describeAgentOutOfScope(agentId as string)}</p>
-            <EuiButton size="s" onClick={() => cambia({ agentId: undefined })}>
+            <EuiButton size="s" onClick={() => changes({ agentId: undefined })}>
               Quitar la máquina y ver todas
             </EuiButton>
           </EuiCallOut>

@@ -73,17 +73,9 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.3 (Gestión de la configuración de seguridad).
- *
- * Los campos salen de la hoja "Informe ENSFácil" de la plantilla. Lo que se
- * acredita aquí no es un estado sino una CONTINUIDAD, y el control remite a
- * otros cuatro (op.exp.2, op.acc.4, op.exp.4, op.exp.7): los campos cuya fuente
- * no está en la máquina lo dicen en `producerGaps` en vez de rellenarse.
- */
+/** Report model of op.exp.3: translates the engine result into report fields. */
 
-// Evidencias sin hecho en la máquina y qué falta para que lo tengan.
-const SIN_FUENTE: Record<string, string> = {
+const NO_SOURCE: Record<string, string> = {
   'EV-01':
     'La serie de resultados SCA vive en el manager: falta una integración que la emita por agente.',
   'EV-05':
@@ -96,7 +88,7 @@ const SIN_FUENTE: Record<string, string> = {
     'Las regresiones se calculan sobre la serie de resultados SCA del manager, que el agente no tiene.',
 };
 
-const TODAS = [
+const ALL = [
   'EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06',
   'EV-07', 'EV-08', 'EV-09', 'EV-10', 'EV-11',
 ];
@@ -123,22 +115,20 @@ export const buildOpExp3ReportModel = (
 
   const gaps = (...evidenceIds: string[]): string[] =>
     evidenceIds
-      .filter(evidenceId => SIN_FUENTE[evidenceId])
-      .map(evidenceId => `${evidenceId}: ${SIN_FUENTE[evidenceId]}`);
+      .filter(evidenceId => NO_SOURCE[evidenceId])
+      .map(evidenceId => `${evidenceId}: ${NO_SOURCE[evidenceId]}`);
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.3.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
     formatValue(result?.status),
-    TODAS,
+    ALL,
     [],
-    gaps(...TODAS),
+    gaps(...ALL),
   );
 
-  // Continuidad del cumplimiento de la línea base  ·  fuente: SCA (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.3.campo2',
     'Continuidad del cumplimiento de la línea base',
     evidenceStatus('EV-01'),
@@ -148,8 +138,7 @@ export const buildOpExp3ReportModel = (
     gaps('EV-01'),
   );
 
-  // Regresiones de configuración detectadas  ·  fuente: SCA (EV-10)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.3.campo3',
     'Regresiones de configuración detectadas',
     evidenceStatus('EV-10'),
@@ -159,8 +148,7 @@ export const buildOpExp3ReportModel = (
     gaps('EV-10'),
   );
 
-  // Ediciones de la configuración de seguridad  ·  fuente: auditd (EV-02)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.3.campo4',
     'Ediciones de la configuración de seguridad',
     evidenceStatus('EV-02'),
@@ -169,8 +157,7 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Trazabilidad de cambios frente a autorización  ·  fuente: ITSM (EV-05)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.3.campo5',
     'Trazabilidad de cambios frente a autorización',
     evidenceStatus('EV-05'),
@@ -180,8 +167,7 @@ export const buildOpExp3ReportModel = (
     gaps('EV-05'),
   );
 
-  // Reacción ante vulnerabilidades  ·  fuente: op.exp.4 (EV-06)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.3.campo6',
     'Reacción ante vulnerabilidades',
     evidenceStatus('EV-06'),
@@ -191,8 +177,7 @@ export const buildOpExp3ReportModel = (
     gaps('EV-06'),
   );
 
-  // Reacción ante incidentes  ·  fuente: op.exp.7 (EV-07)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.3.campo7',
     'Reacción ante incidentes',
     evidenceStatus('EV-07'),
@@ -202,8 +187,7 @@ export const buildOpExp3ReportModel = (
     gaps('EV-07'),
   );
 
-  // Elementos no autorizados en el sistema  ·  fuente: dpkg / apt (EV-03)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.3.campo8',
     'Elementos no autorizados en el sistema',
     evidenceStatus('EV-03'),
@@ -212,8 +196,7 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Servicios fuera de la lista autorizada  ·  fuente: systemd / ss (EV-04)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.3.campo9',
     'Servicios fuera de la lista autorizada',
     evidenceStatus('EV-04'),
@@ -222,8 +205,7 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Verificaciones periódicas de la configuración  ·  fuente: registro (EV-11)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.3.campo10',
     'Verificaciones periódicas de la configuración',
     evidenceStatus('EV-11'),
@@ -232,8 +214,7 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Concentración de la administración (R2)  ·  fuente: auditd (EV-08)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.3.campo11',
     'Concentración de la administración (R2)',
     evidenceStatus('EV-08'),
@@ -242,8 +223,7 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Copias de seguridad de la configuración (R3)  ·  fuente: disco (EV-09)
-  const campo12 = field(
+  const field12 = field(
     'op.exp.3.campo12',
     'Copias de seguridad de la configuración (R3)',
     evidenceStatus('EV-09'),
@@ -252,18 +232,17 @@ export const buildOpExp3ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Puntuación de cumplimiento op.exp.3  ·  fuente: Motor ENSFácil
-  const campo13 = field(
+  const field13 = field(
     'op.exp.3.campo13',
     'Puntuación de cumplimiento op.exp.3',
     asStatus(result?.status),
     formatValue(result?.status),
-    TODAS,
+    ALL,
     [
       'Bloques: base (BAJO, MEDIO, ALTO), R1 (MEDIO y ALTO), R2 y R3 (solo ALTO). R4 y R5 no son exigibles en ninguna categoría.',
       'Remisiones: op.exp.3.1 y .2 → op.exp.2; op.exp.3.3 → op.acc.4; op.exp.3.4 → op.exp.4; op.exp.3.5 → op.exp.7.',
     ],
-    gaps(...TODAS),
+    gaps(...ALL),
   );
 
   return {
@@ -280,19 +259,19 @@ export const buildOpExp3ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
-      campo13,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
+      field13,
     ],
   };
 };

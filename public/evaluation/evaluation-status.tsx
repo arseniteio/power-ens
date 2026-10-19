@@ -1,25 +1,18 @@
-// Lo que enseñan las pantallas mientras llega la evaluación y cuando lo que se
-// ve es algo guardado que el servidor está recalculando.
 import React from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiCallOut, EuiText } from '@elastic/eui';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import type { ENSEvaluationMeta } from '../../common/ens/evaluation/types';
 
-// La primera evaluación del día lee la ventana entera en el servidor (en el
-// laboratorio, 20-30 s): decirlo evita que se recargue la página, que la
-// empezaría de nuevo.
+// The first evaluation of the day reads the whole window on the server (20-30 s): saying so avoids a page reload, which would restart it.
 export const EvaluationLoading = ({ message }: { message: string }) => (
   <LoadingSpinner message={`${message} La primera vez puede tardar hasta un minuto.`} />
 );
 
-const hora = (iso?: string) => {
+const hour = (iso?: string) => {
   const d = iso ? new Date(iso) : undefined;
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleString('es-ES') : undefined;
 };
 
-// «Calculado el …» y, si se está recalculando, «Actualizando…». Si el
-// refresco en segundo plano falló, el motivo, a la vista y con «Reintentar»:
-// lo que se enseña es el último resultado bueno.
 export const EvaluationStatusLine = ({
   meta,
   refreshing,
@@ -29,20 +22,18 @@ export const EvaluationStatusLine = ({
   meta?: ENSEvaluationMeta;
   refreshing?: boolean;
   onRetry?: () => void;
-  // De qué es la línea, si hay más de una (el panorama de un informe).
   label?: string;
 }) => {
   if (!meta) return null;
   if (meta.refreshError) {
-    // Mientras se reintenta, se dice: el botón no se queda sin respuesta.
-    const reintentando = Boolean(refreshing);
+    const retrying = Boolean(refreshing);
     return (
       <EuiCallOut
         size="s"
         color="warning"
-        iconType={reintentando ? 'clock' : 'alert'}
+        iconType={retrying ? 'clock' : 'alert'}
         title={
-          reintentando
+          retrying
             ? `${label ? `${label}: r` : 'R'}eintentando la actualización…`
             : label
             ? `${label}: no se pudo actualizar`
@@ -50,10 +41,10 @@ export const EvaluationStatusLine = ({
         }
       >
         <p>
-          {meta.refreshError.message} (a las {hora(meta.refreshError.at) || '—'}). Se muestra el resultado calculado el{' '}
-          {hora(meta.computedAt) || '—'}.
+          {meta.refreshError.message} (a las {hour(meta.refreshError.at) || '—'}). Se muestra el resultado calculado el{' '}
+          {hour(meta.computedAt) || '—'}.
         </p>
-        {onRetry && !reintentando ? (
+        {onRetry && !retrying ? (
           <EuiButtonEmpty size="xs" iconType="refresh" onClick={onRetry}>
             Reintentar
           </EuiButtonEmpty>
@@ -61,14 +52,14 @@ export const EvaluationStatusLine = ({
       </EuiCallOut>
     );
   }
-  const actualizando = Boolean(meta.refreshing || refreshing);
+  const updating = Boolean(meta.refreshing || refreshing);
   return (
     <EuiText size="xs" color="subdued">
       <p>
         {label ? `${label}: ` : ''}
-        {actualizando ? 'Resultado calculado el' : 'Resultado al día, comprobado el'} {hora(meta.computedAt) || hora(meta.evaluatedAt) || '—'} con
+        {updating ? 'Resultado calculado el' : 'Resultado al día, comprobado el'} {hour(meta.computedAt) || hour(meta.evaluatedAt) || '—'} con
         todos los hechos de la ventana.{' '}
-        {actualizando ? (
+        {updating ? (
           <EuiBadge color="warning" iconType="clock">
             {meta.pending
               ? `Calculando: ${meta.pending.total - meta.pending.rows} de ${meta.pending.total} filas listas…`

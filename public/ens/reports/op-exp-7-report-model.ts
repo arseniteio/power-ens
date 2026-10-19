@@ -73,12 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Modelo de informe de op.exp.7 (Gestión de incidentes).
- * Generado desde la hoja "Informe ENSFácil" del Excel.
- * Los parametros mostrados en cada campo se eligen a partir de la
- * descripcion del campo en el Excel.
- */
+/** Report model of op.exp.7: translates the engine result into report fields. */
 export const buildOpExp7ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpExp7ReportModel => {
@@ -101,8 +96,7 @@ export const buildOpExp7ReportModel = (
 
   const level = (result?.level || '').toUpperCase();
 
-  // Estado del control (semáforo ENS)  ·  fuente: Correlación automática
-  const campo1 = field(
+  const field1 = field(
     'op.exp.7.campo1',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -111,8 +105,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Volumen y clasificación de alertas  ·  fuente: Log Collection (EV-01)
-  const campo2 = field(
+  const field2 = field(
     'op.exp.7.campo2',
     'Volumen y clasificación de alertas',
     evidenceStatus('EV-01'),
@@ -121,8 +114,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Conciliación alerta — incidente gestionado  ·  fuente: ENSFácil + ITSM (EV-02)
-  const campo3 = field(
+  const field3 = field(
     'op.exp.7.campo3',
     'Conciliación alerta — incidente gestionado',
     evidenceStatus('EV-02'),
@@ -131,8 +123,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Tiempos de respuesta (MTTD y MTTR)  ·  fuente: ENSFácil + ITSM (EV-03)
-  const campo4 = field(
+  const field4 = field(
     'op.exp.7.campo4',
     'Tiempos de respuesta (MTTD y MTTR)',
     evidenceStatus('EV-03'),
@@ -141,8 +132,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Escalado y comunicación a responsables  ·  fuente: ENSFácil + ITSM (EV-04)
-  const campo5 = field(
+  const field5 = field(
     'op.exp.7.campo5',
     'Escalado y comunicación a responsables',
     evidenceStatus('EV-04'),
@@ -151,8 +141,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Incidentes con afectación a datos personales  ·  fuente: ENSFácil (EV-07)
-  const campo6 = field(
+  const field6 = field(
     'op.exp.7.campo6',
     'Incidentes con afectación a datos personales',
     evidenceStatus('EV-07'),
@@ -161,8 +150,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Preservación de evidencias  ·  fuente: Log + ENSFácil (EV-05)
-  const campo7 = field(
+  const field7 = field(
     'op.exp.7.campo7',
     'Preservación de evidencias',
     evidenceStatus('EV-05'),
@@ -171,8 +159,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Medidas urgentes de contención aplicadas  ·  fuente: Active Response (EV-06)
-  const campo8 = field(
+  const field8 = field(
     'op.exp.7.campo8',
     'Medidas urgentes de contención aplicadas',
     evidenceStatus('EV-06'),
@@ -181,8 +168,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Notificación al CCN-CERT (R1)  ·  fuente: ENSFácil (EV-08)
-  const campo9 = field(
+  const field9 = field(
     'op.exp.7.campo9',
     'Notificación al CCN-CERT (R1)',
     evidenceStatus('EV-08'),
@@ -191,8 +177,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Reconfiguración dinámica ejercitada (R3)  ·  fuente: Log + FIM (EV-09)
-  const campo10 = field(
+  const field10 = field(
     'op.exp.7.campo10',
     'Reconfiguración dinámica ejercitada (R3)',
     level === 'ALTO'
@@ -203,8 +188,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Incorporación de avisos del CCN-CERT (R3)  ·  fuente: CDB lists + Log (EV-10)
-  const campo11 = field(
+  const field11 = field(
     'op.exp.7.campo11',
     'Incorporación de avisos del CCN-CERT (R3)',
     level === 'ALTO'
@@ -215,8 +199,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Medidas de mejora derivadas de incidentes  ·  fuente: ENSFácil + ITSM (EV-12)
-  const campo12 = field(
+  const field12 = field(
     'op.exp.7.campo12',
     'Medidas de mejora derivadas de incidentes',
     evidenceStatus('EV-12'),
@@ -225,8 +208,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-12'),
   );
 
-  // Respuesta automatizada y detección de anomalías (R4)  ·  fuente: Correlación + Active Response (EV-11)
-  const campo13 = field(
+  const field13 = field(
     'op.exp.7.campo13',
     'Respuesta automatizada y detección de anomalías (R4)',
     evidenceStatus('EV-11'),
@@ -235,8 +217,7 @@ export const buildOpExp7ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Puntuación de cumplimiento op.exp.7  ·  fuente: Motor ENSFácil
-  const campo14 = field(
+  const field14 = field(
     'op.exp.7.campo14',
     'Puntuación de cumplimiento op.exp.7',
     asStatus(result?.status),
@@ -259,20 +240,20 @@ export const buildOpExp7ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      campo1,
-      campo2,
-      campo3,
-      campo4,
-      campo5,
-      campo6,
-      campo7,
-      campo8,
-      campo9,
-      campo10,
-      campo11,
-      campo12,
-      campo13,
-      campo14,
+      field1,
+      field2,
+      field3,
+      field4,
+      field5,
+      field6,
+      field7,
+      field8,
+      field9,
+      field10,
+      field11,
+      field12,
+      field13,
+      field14,
     ],
   };
 };

@@ -104,7 +104,7 @@ setServices({ http: { get: async (p: string, o: any) => { pedidas.push({ path: p
       for (const c of m[1].matchAll(/(?:^|,)\s*(\w+)\s*(?=[:,]|$)/g)) if (c[1] !== 'enabled') enviados.add(c[1]);
     }
   }
-  comprueba('el gancho separa `enabled` de lo que manda', /const \{ enabled = true, \.\.\.pedido \} = params;/.test(lee('public/evaluation/use-evaluation.ts')));
+  comprueba('el gancho separa `enabled` de lo que manda', /const \{ enabled = true, \.\.\.requested \} = params;/.test(lee('public/evaluation/use-evaluation.ts')));
   comprueba('se encuentran las peticiones de las pantallas (con timelineControls)', llamadas >= 7 && enviados.has('timelineControls') && enviados.has('include'), { llamadas, enviados: [...enviados] });
   const params = { include: 'summary' as const, timelineDays: 30, timelineControls: true, agentId: '101', controlId: 'op.exp.3' };
   await fetchEvaluation(params, undefined, { retryRefresh: true });

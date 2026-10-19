@@ -73,16 +73,7 @@ const field = (
   producerGaps,
 });
 
-/**
- * Construye el modelo de informe de op.acc.1 (Identificación) a partir del
- * resultado de cumplimiento del motor ENSFácil. Sigue el mismo patrón que
- * buildMpInfo6ReportModel: traduce el estado de cada evidencia (EV-01..08)
- * resuelta por el motor a los campos del informe definidos en el Excel.
- *
- * Los 10 campos provienen de la hoja "Informe ENSFácil" de la plantilla
- * op.acc.1. Cuando no hay eventos, cada campo cae a NO_EVALUABLE/SIN_DATOS
- * de forma coherente (nunca CUMPLE falso).
- */
+/** Report model of op.acc.1: translates the engine result into report fields. */
 export const buildOpAcc1ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc1ReportModel => {
@@ -123,13 +114,11 @@ export const buildOpAcc1ReportModel = (
     return evidence?.agentName || evidence?.agentId || '';
   };
 
-  // Detecta parámetros base sin configurar (P-01/P-02 => control no evaluable).
   const missingCoreParams: string[] = [];
   if (!parameterConfigured('P-01')) missingCoreParams.push('P-01');
   if (!parameterConfigured('P-02')) missingCoreParams.push('P-02');
 
-  // Campo 1 — Estado del control (semáforo ENS). Fuente: EV-01 a EV-08.
-  const estadoControl = field(
+  const controlStatus = field(
     'op.acc.1.estado',
     'Estado del control (semáforo ENS)',
     asStatus(result?.status),
@@ -145,8 +134,7 @@ export const buildOpAcc1ReportModel = (
     missingCoreParams,
   );
 
-  // Campo 2 — Inventario de cuentas activas. Fuente: EV-01.
-  const inventario = field(
+  const inventory = field(
     'op.acc.1.inventario',
     'Inventario de cuentas activas',
     evidenceStatus('EV-01'),
@@ -162,8 +150,7 @@ export const buildOpAcc1ReportModel = (
     parameterConfigured('P-01') ? [] : ['P-01'],
   );
 
-  // Campo 3 — Cuentas genéricas o compartidas detectadas. Fuente: EV-03.
-  const genericas = field(
+  const generic = field(
     'op.acc.1.genericas',
     'Cuentas genéricas o compartidas detectadas',
     evidenceStatus('EV-03'),
@@ -173,8 +160,7 @@ export const buildOpAcc1ReportModel = (
     parameterConfigured('P-04') ? [] : ['P-04'],
   );
 
-  // Campo 4 — Cuentas con acceso multi-rol sin identificador diferenciado. EV-06.
-  const multiRol = field(
+  const multiRole = field(
     'op.acc.1.multirol',
     'Cuentas con acceso multi-rol sin identificador diferenciado',
     evidenceStatus('EV-06'),
@@ -183,8 +169,7 @@ export const buildOpAcc1ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Campo 5 — Cuentas de servicio con acceso interactivo. Fuente: EV-05.
-  const servicioInteractivo = field(
+  const interactiveService = field(
     'op.acc.1.servicio',
     'Cuentas de servicio con acceso interactivo',
     evidenceStatus('EV-05'),
@@ -196,8 +181,7 @@ export const buildOpAcc1ReportModel = (
     parameterConfigured('P-03') ? [] : ['P-03'],
   );
 
-  // Campo 6 — Cuentas activas de usuarios con baja registrada. Fuente: EV-04.
-  const bajasActivas = field(
+  const activeTerminatedAccounts = field(
     'op.acc.1.bajas',
     'Cuentas activas de usuarios con baja registrada',
     evidenceStatus('EV-04'),
@@ -210,8 +194,7 @@ export const buildOpAcc1ReportModel = (
     parameterConfigured('P-05') ? [] : ['P-05'],
   );
 
-  // Campo 7 — Modificaciones de cuentas en el período. Fuente: EV-02.
-  const modificaciones = field(
+  const modifications = field(
     'op.acc.1.modificaciones',
     'Modificaciones de cuentas en el período',
     evidenceStatus('EV-02'),
@@ -220,8 +203,7 @@ export const buildOpAcc1ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Campo 8 — Eliminaciones prematuras (retención incumplida). Fuente: EV-08.
-  const eliminaciones = field(
+  const deletions = field(
     'op.acc.1.eliminaciones',
     'Eliminaciones prematuras (retención incumplida)',
     evidenceStatus('EV-08'),
@@ -233,23 +215,20 @@ export const buildOpAcc1ReportModel = (
     parameterConfigured('P-06') ? [] : ['P-06'],
   );
 
-  // Campo 9 — Lista de usuarios autorizados — estado (Refuerzo R1). EV-07.
-  // Solo aplica a MEDIO/ALTO. En BAJO se marca NO_APLICA.
   const level = (result?.level || '').toUpperCase();
-  const r1Aplica = level === 'MEDIO' || level === 'ALTO';
-  const listaAutorizados = field(
+  const r1Applies = level === 'MEDIO' || level === 'ALTO';
+  const authorizedList = field(
     'op.acc.1.autorizados',
     'Lista de usuarios autorizados — estado (Refuerzo R1)',
-    r1Aplica ? evidenceStatus('EV-07') : 'NO_APLICA',
-    r1Aplica
+    r1Applies ? evidenceStatus('EV-07') : 'NO_APLICA',
+    r1Applies
       ? `Lista maestra (P-07): ${formatValue(parameterValue('P-07'))}`
       : 'Refuerzo R1 no exigible en nivel BAJO',
     ['EV-07'],
-    r1Aplica ? evidenceObservations('EV-07') : ['Aplica solo a MEDIO/ALTO'],
-    r1Aplica && !parameterConfigured('P-07') ? ['P-07'] : [],
+    r1Applies ? evidenceObservations('EV-07') : ['Aplica solo a MEDIO/ALTO'],
+    r1Applies && !parameterConfigured('P-07') ? ['P-07'] : [],
   );
 
-  // Campo 10 — Puntuación de cumplimiento op.acc.1. Fuente: Motor ENSFácil.
   const missingParams = (result?.parameters || [])
     .filter(parameter => {
       const value = parameter.value;
@@ -260,7 +239,7 @@ export const buildOpAcc1ReportModel = (
     })
     .map(parameter => parameter.id);
 
-  const puntuacion = field(
+  const score = field(
     'op.acc.1.puntuacion',
     'Puntuación de cumplimiento op.acc.1',
     asStatus(result?.status),
@@ -296,16 +275,16 @@ export const buildOpAcc1ReportModel = (
     evaluatedAt: result?.evaluatedAt,
 
     fields: [
-      estadoControl,
-      inventario,
-      genericas,
-      multiRol,
-      servicioInteractivo,
-      bajasActivas,
-      modificaciones,
-      eliminaciones,
-      listaAutorizados,
-      puntuacion,
+      controlStatus,
+      inventory,
+      generic,
+      multiRole,
+      interactiveService,
+      activeTerminatedAccounts,
+      modifications,
+      deletions,
+      authorizedList,
+      score,
     ],
   };
 };
