@@ -1,36 +1,4 @@
-/**
- * El registro de modelos de informe por control.
- *
- *     ~/.bun/bin/bun run tests/report-by-control.test.ts
- *
- * Mismo montaje que `prefix-filter.test.ts`: TypeScript suelto con su propio
- * comprobador, sin `package.json` ni `tsconfig`. Hace falta un runtime que
- * ejecute TypeScript resolviendo imports sin extensión (`bun`, probado con
- * 1.3.14).
- *
- * QUÉ SE PRUEBA Y POR QUÉ EXISTE ESTE FICHERO. La pantalla de Informes elegía
- * el modelo con una cadena de ternarios cuya RAMA POR DEFECTO era mp.info.6:
- * un control que no estuviera contemplado explícitamente —y ninguno de los que
- * están por llegar lo está— se registraba bien en `data/`, salía en la lista
- * con su nombre y su nivel correctos, y al abrir su informe generaba el de las
- * copias de seguridad, con los requisitos y las evidencias de mp.info.6 bajo su
- * propia cabecera. No rompía nada visible: producía un documento PLAUSIBLE Y
- * EQUIVOCADO, y ese documento va firmado ante un auditor.
- *
- * La comprobación que fija el arreglo es la del bloque 3: un control sin modelo
- * devuelve `undefined`, y lo que devuelve NO es el modelo de mp.info.6. Con el
- * código anterior las dos fallan; la segunda es la que distingue «no hay
- * informe» de «hay informe, y es el de otro».
- *
- * Todas las afirmaciones son sobre la ESTRUCTURA —qué controles responden, qué
- * `controlId` y qué identificadores de campo trae el modelo construido—, nunca
- * sobre el texto de un mensaje. Los identificadores de campo son el
- * discriminador fuerte entre modelos: mp.info.6 los numera `REP-0x` y los dos
- * op.acc.* los nombran `<control>.<campo>`, así que un modelo cambiado por otro
- * se ve sin mirar ningún literal de la interfaz.
- *
- * Imports desde el FICHERO, nunca desde un barrel de alto nivel.
- */
+/** Registry of report models per control. */
 import {
   buildENSReportModel,
   buildENSReportModelRegistry,
@@ -41,33 +9,30 @@ import {
 import type { ENSReportModelDefinition } from '../public/ens/reports/registry';
 import { ENSControls } from '../public/ens/data';
 
-// El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const lanza = (accion: () => unknown): boolean => {
+const throws = (action: () => unknown): boolean => {
   try {
-    accion();
+    action();
 
     return false;
   } catch (error) {
@@ -75,234 +40,173 @@ const lanza = (accion: () => unknown): boolean => {
   }
 };
 
-// --- fixtures --------------------------------------------------------------
+const CONTROL_WITHOUT_MODEL = 'ens.control.sin.modelo';
 
-// Un control que NO existe en el producto, y que NUNCA va a existir.
-//
-// Aquí ponía `op.acc.3`, elegido porque era el siguiente control que iba a
-// llegar. Llegó —el 06/08, generado del Excel y con su modelo de informe— y
-// estas cuatro comprobaciones se pusieron rojas sin que nada estuviera mal:
-// el papel de «control sin modelo» se lo había dado a un control real que
-// acabó teniéndolo. Una prueba que caduca cuando el producto avanza no
-// protege nada, molesta.
-//
-// El identificador es sintético a propósito: ningún control del ENS se llama
-// así, así que el papel no se lo puede quitar nadie.
-const CONTROL_SIN_MODELO = 'ens.control.sin.modelo';
+const resultWithoutEvidences = undefined;
 
-// Resultado del motor con la forma que devuelve `getENSComplianceResultByControl`
-// cuando todavía no ha llegado ninguna evidencia: es el estado REAL de un
-// control recién desplegado, que es justo cuando alguien abriría su informe por
-// primera vez. Los tres builders lo aceptan y ninguno necesita más para
-// producir su lista de campos.
-const resultadoSinEvidencias = undefined;
-
-const definicionRegistrada = (
+const registeredDefinition = (
   controlId: string
 ): ENSReportModelDefinition => {
-  const definicion = getENSReportModelDefinition(controlId);
+  const definition = getENSReportModelDefinition(controlId);
 
-  if (!definicion) {
-    throw new Error(`fixture rota: ${controlId} debería estar registrado`);
+  if (!definition) {
+    throw new Error(`broken fixture: ${controlId} should be registered`);
   }
 
-  return definicion;
+  return definition;
 };
 
-// --- 1. el registro responde por los controles que tienen modelo ------------
-
 {
-  bloque('1. El registro responde por los controles registrados');
+  section('1. The registry answers for the registered controls');
 
-  const registrados = getRegisteredENSReportControls();
+  const registered2 = getRegisteredENSReportControls();
 
-  // op.acc.3 y op.acc.4 entraron el 06/08 en `status: 'DRAFT'`: no emiten
-  // evidencia todavía y quedan fuera del índice, pero SÍ tienen que tener
-  // modelo de informe. Un control que se ve en la pantalla y al abrir su
-  // informe recibe el de otro es el defecto que este fichero vigila, y no
-  // depende de que el control esté activo.
-  comprueba(
-    'registro · están los veintitrés controles del catálogo, y solo esos',
-    registrados.join(',') ===
+  check(
+    'registry · the twenty-three catalog controls are there, and only those',
+    registered2.join(',') ===
       'mp.info.6,op.acc.1,op.acc.2,op.acc.3,op.acc.4,' +
       'op.acc.5,op.acc.6,op.cont.2,op.cont.3,op.exp.1,op.exp.2,op.exp.3,op.exp.4,' +
       'op.exp.5,op.exp.6,op.exp.7,op.exp.8,op.exp.9,op.exp.10,op.mon.1,op.mon.2,op.mon.3,op.nub.1',
-    registrados.join(',')
+    registered2.join(',')
   );
 
-  for (const controlId of registrados) {
-    const definicion = definicionRegistrada(controlId);
+  for (const controlId of registered2) {
+    const definition = registeredDefinition(controlId);
 
-    comprueba(
-      `registro · ${controlId} se devuelve a sí mismo, no a otro`,
-      definicion.controlId === controlId,
-      definicion.controlId
+    check(
+      `registry · ${controlId} returns itself, not another`,
+      definition.controlId === controlId,
+      definition.controlId
     );
 
-    // El título es lo que encabeza el informe en pantalla y el PDF. Que empiece
-    // por el identificador del control es lo que impide que un copiar-pegar
-    // deje a un control con el encabezado de otro: es el mismo error del
-    // modelo, pero en la portada del documento firmado.
-    comprueba(
-      `registro · el título de ${controlId} empieza por su identificador`,
-      definicion.name.startsWith(`${controlId} `),
-      definicion.name
+    check(
+      `registry · ${controlId}'s title starts with its identifier`,
+      definition.name.startsWith(`${controlId} `),
+      definition.name
     );
   }
 }
 
-// --- 2. el modelo construido es el del control pedido -----------------------
-
 {
-  bloque('2. El modelo construido es el del control pedido');
+  section('2. The built model is the requested control\'s');
 
   for (const controlId of getRegisteredENSReportControls()) {
-    const modelo = buildENSReportModel(controlId, resultadoSinEvidencias);
+    const model = buildENSReportModel(controlId, resultWithoutEvidences);
 
-    comprueba(
-      `modelo · ${controlId} construye modelo`,
-      modelo !== undefined
+    check(
+      `model · ${controlId} builds a model`,
+      model !== undefined
     );
 
-    comprueba(
-      `modelo · el modelo de ${controlId} se declara de ${controlId}`,
-      modelo?.controlId === controlId,
-      String(modelo?.controlId)
+    check(
+      `model · ${controlId}'s model is declared of ${controlId}`,
+      model?.controlId === controlId,
+      String(model?.controlId)
     );
 
-    comprueba(
-      `modelo · ${controlId} trae campos propios`,
-      (modelo?.fields.length || 0) > 0,
-      String(modelo?.fields.length)
+    check(
+      `model · ${controlId} brings its own fields`,
+      (model?.fields.length || 0) > 0,
+      String(model?.fields.length)
     );
   }
 
-  // Y los tres modelos son DISTINTOS entre sí. Sin esta comprobación, un
-  // registro que devolviera siempre el mismo builder pasaría las de arriba
-  // salvo la del `controlId`, que los tres builders rellenan a mano.
-  const camposDe = (controlId: string): string =>
-    (buildENSReportModel(controlId, resultadoSinEvidencias)?.fields || [])
+  const fieldsOf = (controlId: string): string =>
+    (buildENSReportModel(controlId, resultWithoutEvidences)?.fields || [])
       .map(campo => campo.id)
       .join(',');
 
-  const juegos = new Set([
-    camposDe('mp.info.6'),
-    camposDe('op.acc.1'),
-    camposDe('op.acc.2'),
+  const sets = new Set([
+    fieldsOf('mp.info.6'),
+    fieldsOf('op.acc.1'),
+    fieldsOf('op.acc.2'),
   ]);
 
-  comprueba(
-    'modelo · los tres controles producen juegos de campos distintos',
-    juegos.size === 3,
-    `${juegos.size} juego(s) distintos de 3`
+  check(
+    'model · the three controls produce different field sets',
+    sets.size === 3,
+    `${sets.size} juego(s) distintos de 3`
   );
 }
 
-// --- 3. un control sin modelo NO recibe el de otro --------------------------
-//
-// Es el bloque que fija el arreglo. Con la cadena de ternarios anterior las
-// tres comprobaciones fallan: la primera y la segunda porque se devolvía un
-// modelo, y la tercera porque el modelo devuelto era EXACTAMENTE el de
-// mp.info.6.
-
 {
-  bloque('3. Un control sin modelo no recibe el de otro');
+  section('3. A control without a model does not receive another\'s');
 
-  comprueba(
-    'sin modelo · el registro devuelve undefined, no un modelo de repuesto',
-    getENSReportModelDefinition(CONTROL_SIN_MODELO) === undefined,
-    String(getENSReportModelDefinition(CONTROL_SIN_MODELO)?.controlId)
+  check(
+    'no model · the registry returns undefined, not a spare model',
+    getENSReportModelDefinition(CONTROL_WITHOUT_MODEL) === undefined,
+    String(getENSReportModelDefinition(CONTROL_WITHOUT_MODEL)?.controlId)
   );
 
-  const modeloAjeno = buildENSReportModel(
-    CONTROL_SIN_MODELO,
-    resultadoSinEvidencias
+  const foreignModel = buildENSReportModel(
+    CONTROL_WITHOUT_MODEL,
+    resultWithoutEvidences
   );
 
-  comprueba(
-    'sin modelo · construir el informe devuelve undefined',
-    modeloAjeno === undefined,
-    String(modeloAjeno?.controlId)
+  check(
+    'no model · building the report returns undefined',
+    foreignModel === undefined,
+    String(foreignModel?.controlId)
   );
 
-  // La comprobación que separa «no hay informe» de «hay informe, y es el de
-  // las copias de seguridad»: antes las dos cosas eran el mismo objeto.
-  const modeloMpInfo6 = buildENSReportModel(
+  const mpInfo6Model = buildENSReportModel(
     'mp.info.6',
-    resultadoSinEvidencias
+    resultWithoutEvidences
   );
 
-  comprueba(
-    'sin modelo · lo devuelto NO es el modelo de mp.info.6',
-    JSON.stringify(modeloAjeno ?? null) !==
-      JSON.stringify(modeloMpInfo6 ?? null),
+  check(
+    'no model · what is returned is NOT mp.info.6\'s model',
+    JSON.stringify(foreignModel ?? null) !==
+      JSON.stringify(mpInfo6Model ?? null),
     'un control sin modelo estaba recibiendo el informe de mp.info.6'
   );
 
-  // Control negativo del propio comparador de arriba: si comparase mal, esta
-  // línea también pasaría, y no pasa.
-  comprueba(
-    'sin modelo · el comparador sí ve iguales dos modelos de mp.info.6',
-    JSON.stringify(modeloMpInfo6 ?? null) ===
+  check(
+    'no model · the comparator does see two mp.info.6 models as equal',
+    JSON.stringify(mpInfo6Model ?? null) ===
       JSON.stringify(
-        buildENSReportModel('mp.info.6', resultadoSinEvidencias) ?? null
+        buildENSReportModel('mp.info.6', resultWithoutEvidences) ?? null
       )
   );
 }
 
-// --- 4. todo control de la pantalla de Informes tiene modelo ----------------
-//
-// `ENSControls` es literalmente la lista que la pestaña Informes recorre para
-// pintar una sección por control. Cruzarla con el registro es la comprobación
-// que se dispara sola el día que entre un control sin su modelo. El 06/08
-// entraron dos —op.acc.3 y op.acc.4— y no saltó: el generador los registra.
-
 {
-  bloque('4. Todo control listado en Informes tiene modelo');
+  section('4. Every control listed in Reports has a model');
 
-  const delCatalogo = ENSControls.map(control => control.id);
+  const fromCatalog = ENSControls.map(control => control.id);
 
-  comprueba(
-    'catálogo · la lista de la pantalla no está vacía',
-    delCatalogo.length > 0,
-    String(delCatalogo.length)
+  check(
+    'catalog · the screen list is not empty',
+    fromCatalog.length > 0,
+    String(fromCatalog.length)
   );
 
-  const sinModelo = listENSControlsWithoutReportModel(delCatalogo);
+  const withoutModel = listENSControlsWithoutReportModel(fromCatalog);
 
-  comprueba(
-    'catálogo · ningún control listado se queda sin modelo de informe',
-    sinModelo.length === 0,
-    sinModelo.join(', ')
+  check(
+    'catalog · no listed control is left without a report model',
+    withoutModel.length === 0,
+    withoutModel.join(', ')
   );
 
-  // Control negativo del ayudante: un `[]` verde arriba no puede venir de una
-  // función que devuelva `[]` siempre. Se le pasan los dos controles que entran
-  // mañana y tiene que nombrarlos a los dos, y solo a los dos.
-  //
-  // La lista de partida son los controles REGISTRADOS, no los del catálogo: así
-  // esta comprobación mueve un solo eje —añadir dos controles sin modelo— y no
-  // se contamina con el resultado de la de arriba.
-  const conLosQueVienen = listENSControlsWithoutReportModel([
+  const withIncoming = listENSControlsWithoutReportModel([
     ...getRegisteredENSReportControls(),
-    CONTROL_SIN_MODELO,
-    `${CONTROL_SIN_MODELO}.2`,
+    CONTROL_WITHOUT_MODEL,
+    `${CONTROL_WITHOUT_MODEL}.2`,
   ]);
 
-  comprueba(
-    'catálogo · el ayudante sí nombra a los controles que no tienen modelo',
-    conLosQueVienen.join(',') ===
-      `${CONTROL_SIN_MODELO},${CONTROL_SIN_MODELO}.2`,
-    conLosQueVienen.join(',')
+  check(
+    'catalog · the helper does name the controls without a model',
+    withIncoming.join(',') ===
+      `${CONTROL_WITHOUT_MODEL},${CONTROL_WITHOUT_MODEL}.2`,
+    withIncoming.join(',')
   );
 }
 
-// --- 5. las guardas del registro ------------------------------------------
-
 {
-  bloque('5. Las guardas del registro');
+  section('5. Registry guards');
 
-  const definicion = (
+  const definition = (
     controlId: string
   ): ENSReportModelDefinition => ({
     controlId,
@@ -317,40 +221,38 @@ const definicionRegistrada = (
     }),
   });
 
-  comprueba(
-    'guarda · una lista sana no lanza',
-    !lanza(() =>
+  check(
+    'guard · a healthy list does not throw',
+    !throws(() =>
       buildENSReportModelRegistry([
-        definicion(CONTROL_SIN_MODELO),
-        definicion('op.acc.4'),
+        definition(CONTROL_WITHOUT_MODEL),
+        definition('op.acc.4'),
       ])
     )
   );
 
-  comprueba(
-    'guarda · dos modelos para el mismo control lanzan',
-    lanza(() =>
+  check(
+    'guard · two models for the same control throw',
+    throws(() =>
       buildENSReportModelRegistry([
-        definicion(CONTROL_SIN_MODELO),
-        definicion(CONTROL_SIN_MODELO),
+        definition(CONTROL_WITHOUT_MODEL),
+        definition(CONTROL_WITHOUT_MODEL),
       ])
     )
   );
 
-  comprueba(
-    'guarda · un modelo sin controlId lanza',
-    lanza(() => buildENSReportModelRegistry([definicion('   ')]))
+  check(
+    'guard · a model without controlId throws',
+    throws(() => buildENSReportModelRegistry([definition('   ')]))
   );
 }
-
-// --- resultado --------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length > 0) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  · ${fallo}`));
+if (failures.length > 0) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  · ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

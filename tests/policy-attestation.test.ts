@@ -1,30 +1,4 @@
-/**
- * Acreditado documentalmente por la POLICY: `attested` en `ENSPolicyDecision`.
- *
- *     npx --yes tsx tests/policy-attestation.test.ts
- *
- * POR QUÉ EXISTE. `P-ATT` acredita con un documento, pero solo en requisitos
- * sin ninguna evidencia y SIN CADUCIDAD: un plan de continuidad de 2019 con su
- * enlace acreditaría hoy. op.nub.1, op.cont.2 y op.mon.1 R2 necesitan juzgar
- * tablas declaradas en pantalla CON SU VIGENCIA (contratos, certificaciones,
- * planes, formación) sin presentarlas como medidas. Eso lo decide la policy y
- * lo marca con `attested` (decisión 1 del responsable, 09/10/2026).
- *
- * Lo que se prueba, con su reversión al lado:
- *
- *   1. una decisión CUMPLE con `attested` cumple MARCADA como documental;
- *   2. UNA MEDIDA EN CONTRA MANDA SIEMPRE: una evidencia del requisito en
- *      NO_CUMPLE o PARCIAL, o una decisión de la policy en contra para el mismo
- *      requisito, deja el requisito en NO_CUMPLE y sin la marca;
- *   3. `attested` con cualquier estado que no sea CUMPLE no acredita nada;
- *   4. el motor entero (puente incluido) y la consolidación entre máquinas
- *      conservan la marca solo donde el conjunto cumple;
- *   5. el detalle del control y el informe lo dicen como «acreditado
- *      documentalmente».
- *
- * Imports desde el FICHERO, nunca desde un barrel de alto nivel (el ciclo del
- * TDZ de `Settings`).
- */
+/** Policy-level documentary attestation: `attested` in `ENSPolicyDecision`. */
 import { evaluateRequirement } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
 import { consolidateAgentComplianceResultByControl } from '../common/ens/core/compliance-state/consolidation';
@@ -48,61 +22,57 @@ import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: string = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: string = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
-
-// --- fixtures --------------------------------------------------------------
+const section = (title: string): void => console.log(`\n${title}`);
 
 const CONTROL: ENSControlDefinition = opAcc1CatalogDefinition;
 
-const requisito = (id: string) => {
-  const encontrado = CONTROL.requirements.find(item => item.id === id);
+const requirement = (id: string) => {
+  const found = CONTROL.requirements.find(item => item.id === id);
 
-  if (!encontrado) {
-    throw new Error(`fixture rota: ${id} no está en el catálogo`);
+  if (!found) {
+    throw new Error(`broken fixture: ${id} is not in the catalog`);
   }
 
-  return encontrado;
+  return found;
 };
 
-const evidencia = (id: string, status: ENSComplianceStatus, observations: string[] = []): ENSEvidenceResolved => {
-  const definicion = getEvidenceDefinitions('op.acc.1').find(item => item.id === id);
+const evidence = (id: string, status: ENSComplianceStatus, observations: string[] = []): ENSEvidenceResolved => {
+  const definition = getEvidenceDefinitions('op.acc.1').find(item => item.id === id);
 
-  if (!definicion) {
+  if (!definition) {
     throw new Error(`fixture rota: ${id}`);
   }
 
-  return { ...definicion, status, observations } as ENSEvidenceResolved;
+  return { ...definition, status, observations } as ENSEvidenceResolved;
 };
 
 const decision = (
-  requisitoId: string,
+  requirementId: string,
   status: ENSComplianceStatus,
   extra: Partial<ENSPolicyDecision> = {}
 ): ENSPolicyDecision => ({
   policyId: 'prueba',
-  requirementId: requisitoId,
+  requirementId: requirementId,
   status,
   parameterIds: [],
   evidenceIds: [],
   eventIds: [],
   runtimeVariables: [],
   trace: {
-    ruleId: requisitoId,
+    ruleId: requirementId,
     ruleType: 'MAX_AGE',
     expression: 'prueba',
     expected: 'prueba',
@@ -113,302 +83,274 @@ const decision = (
   ...extra,
 });
 
-// op.acc.1.2 se demuestra con EV-05 y EV-06: un requisito CON evidencias, que es
-// justo donde `P-ATT` no puede entrar y `attested` sí.
 const REQ = 'op.acc.1.2';
 
-const juzga = (
-  evidencias: ENSEvidenceResolved[],
-  decisiones: ENSPolicyDecision[],
-  requisitoId: string = REQ,
+const judges = (
+  evidences: ENSEvidenceResolved[],
+  decisions: ENSPolicyDecision[],
+  requirementId: string = REQ,
   estadoControl: ENSControlDefinition['status'] = 'ACTIVE',
-  nivel: 'BAJO' | 'MEDIO' | 'ALTO' = 'MEDIO'
-) => evaluateRequirement(requisito(requisitoId), nivel, evidencias, false, decisiones, estadoControl);
+  level: 'BAJO' | 'MEDIO' | 'ALTO' = 'MEDIO'
+) => evaluateRequirement(requirement(requirementId), level, evidences, false, decisions, estadoControl);
 
-const ACREDITA = decision(REQ, 'CUMPLE', { attested: true });
+const ACCREDITS = decision(REQ, 'CUMPLE', { attested: true });
 
-// --- 1. la declaración acredita, marcada ----------------------------------
-
-bloque('1. Una decisión CUMPLE con `attested` cumple marcada como documental');
+section('1. A CUMPLE decision with `attested` complies marked as documentary');
 
 {
-  const r = juzga([evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'NO_EVALUABLE')], [ACREDITA]);
+  const r = judges([evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'NO_EVALUABLE')], [ACCREDITS]);
 
-  comprueba('CUMPLE', r.status === 'CUMPLE', r.status);
-  comprueba('marcado como acreditado documentalmente', r.attested === true, String(r.attested));
-  comprueba('demostrado (con la prueba que el ENS pide)', r.evidenced === true, String(r.evidenced));
-  comprueba('con su puntuación', r.score === 100, String(r.score));
-  comprueba(
-    'el motivo dice que es documental y lleva la declaración',
+  check('CUMPLE', r.status === 'CUMPLE', r.status);
+  check('marked as documentarily accredited', r.attested === true, String(r.attested));
+  check('proven (with the proof the ENS asks for)', r.evidenced === true, String(r.evidenced));
+  check('with its score', r.score === 100, String(r.score));
+  check(
+    'the motive says it is documentary and carries the declaration',
     (r.observations[0] || '').startsWith('Acreditado documentalmente: ') &&
       (r.observations[0] || '').includes('Plan de continuidad v4'),
     r.observations[0]
   );
-  comprueba('conserva las evidencias del catálogo', r.evidenceIds.join(',') === 'EV-05,EV-06', r.evidenceIds.join(','));
+  check('keeps the catalog\'s evidences', r.evidenceIds.join(',') === 'EV-05,EV-06', r.evidenceIds.join(','));
 
-  // La reversión: la MISMA decisión sin la marca es una medida de la policy.
-  const sinMarca = juzga([evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'NO_EVALUABLE')], [decision(REQ, 'CUMPLE')]);
+  const withoutMark = judges([evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'NO_EVALUABLE')], [decision(REQ, 'CUMPLE')]);
 
-  comprueba(
-    'la reversión: sin `attested`, cumple como medido y sin la marca',
-    sinMarca.status === 'CUMPLE' && sinMarca.attested !== true,
-    `${sinMarca.status} attested=${sinMarca.attested}`
+  check(
+    'the reversal: without `attested`, it complies as measured and without the mark',
+    withoutMark.status === 'CUMPLE' && withoutMark.attested !== true,
+    `${withoutMark.status} attested=${withoutMark.attested}`
   );
 
-  // Un motivo que ya lo dice no se duplica.
-  const yaLoDice = juzga([], [decision(REQ, 'CUMPLE', { attested: true, reason: 'Acreditado documentalmente: contrato vigente' })]);
+  const alreadySaysIt = judges([], [decision(REQ, 'CUMPLE', { attested: true, reason: 'Acreditado documentalmente: contrato vigente' })]);
 
-  comprueba(
-    'un motivo que ya empieza por «Acreditado documentalmente» no se duplica',
-    yaLoDice.observations[0] === 'Acreditado documentalmente: contrato vigente',
-    yaLoDice.observations[0]
+  check(
+    'a motive that already starts with «Acreditado documentalmente» is not duplicated',
+    alreadySaysIt.observations[0] === 'Acreditado documentalmente: contrato vigente',
+    alreadySaysIt.observations[0]
   );
 
-  // Un requisito SIN evidencias (op.acc.1.5) también se puede acreditar por la
-  // policy: es el caso de las tablas con vigencia que P-ATT no vigila.
-  const sinEvidencias = juzga([], [decision('op.acc.1.5', 'CUMPLE', { attested: true })], 'op.acc.1.5');
+  const withoutEvidences = judges([], [decision('op.acc.1.5', 'CUMPLE', { attested: true })], 'op.acc.1.5');
 
-  comprueba(
-    'en un requisito sin evidencias también acredita',
-    sinEvidencias.status === 'CUMPLE' && sinEvidencias.attested === true,
-    `${sinEvidencias.status} attested=${sinEvidencias.attested}`
+  check(
+    'in a requirement without evidences it also accredits',
+    withoutEvidences.status === 'CUMPLE' && withoutEvidences.attested === true,
+    `${withoutEvidences.status} attested=${withoutEvidences.attested}`
   );
 }
 
-// --- 1 bis. lo que queda sin medir se dice ---------------------------------
-
-bloque('1 bis. Acreditado, pero lo que queda sin medir se dice');
+section('1 bis. Accredited, but what remains unmeasured is stated');
 
 {
-  const sinMedir = { ...evidencia('EV-06', 'NO_EVALUABLE', ['no ha llegado nada del recolector']), gapCause: 'COLLECTION' as const };
-  const r = juzga([evidencia('EV-05', 'CUMPLE'), sinMedir], [ACREDITA]);
+  const unmeasured = { ...evidence('EV-06', 'NO_EVALUABLE', ['no ha llegado nada del recolector']), gapCause: 'COLLECTION' as const };
+  const r = judges([evidence('EV-05', 'CUMPLE'), unmeasured], [ACCREDITS]);
 
-  comprueba(
-    'la primera observación sigue siendo la acreditación',
+  check(
+    'the first observation is still the accreditation',
     (r.observations[0] || '').startsWith('Acreditado documentalmente: '),
     r.observations[0]
   );
-  comprueba(
-    'y detrás, la evidencia sin medir con su causa',
+  check(
+    'and after it, the unmeasured evidence with its cause',
     r.observations.includes('EV-06 sin medir (sin recogida)'),
     r.observations.join(' | ')
   );
-  comprueba(
-    'la que sí se midió no se nombra como sin medir',
+  check(
+    'the one that was measured is not named as unmeasured',
     !r.observations.some(o => o.startsWith('EV-05 sin medir')),
     r.observations.join(' | ')
   );
 
-  // Sin causa declarada, se dice igual, sin paréntesis.
-  const sinCausa = juzga([evidencia('EV-05', 'NO_EVALUABLE')], [ACREDITA]);
+  const withoutCause = judges([evidence('EV-05', 'NO_EVALUABLE')], [ACCREDITS]);
 
-  comprueba(
-    'sin causa declarada: «EV-05 sin medir»',
-    sinCausa.observations.includes('EV-05 sin medir'),
-    sinCausa.observations.join(' | ')
+  check(
+    'without a declared cause: «EV-05 sin medir»',
+    withoutCause.observations.includes('EV-05 sin medir'),
+    withoutCause.observations.join(' | ')
   );
 }
 
-// --- 2. una medida en contra manda ------------------------------------------
-
-bloque('2. Una medida en contra manda siempre sobre la acreditación');
+section('2. A measurement against always prevails over the accreditation');
 
 {
-  const casos: [string, ENSEvidenceResolved[], ENSPolicyDecision[]][] = [
-    ['una evidencia del requisito en NO_CUMPLE', [evidencia('EV-05', 'NO_CUMPLE', ['cuenta genérica «admin» activa']), evidencia('EV-06', 'CUMPLE')], [ACREDITA]],
-    ['una evidencia del requisito en PARCIAL', [evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'PARCIAL')], [ACREDITA]],
+  const cases: [string, ENSEvidenceResolved[], ENSPolicyDecision[]][] = [
+    ['una evidencia del requisito en NO_CUMPLE', [evidence('EV-05', 'NO_CUMPLE', ['cuenta genérica «admin» activa']), evidence('EV-06', 'CUMPLE')], [ACCREDITS]],
+    ['una evidencia del requisito en PARCIAL', [evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'PARCIAL')], [ACCREDITS]],
     [
       'una evidencia que nombra la decisión, aunque no sea del requisito',
-      [evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'CUMPLE'), evidencia('EV-07', 'NO_CUMPLE')],
+      [evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'CUMPLE'), evidence('EV-07', 'NO_CUMPLE')],
       [decision(REQ, 'CUMPLE', { attested: true, evidenceIds: ['EV-07'] })],
     ],
     [
       'otra decisión de la policy en contra para el mismo requisito',
-      [evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'CUMPLE')],
-      [ACREDITA, decision(REQ, 'NO_CUMPLE', { evidenceIds: ['EV-06'], reason: 'EV-06: sin MFA en 2 cuentas' })],
+      [evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'CUMPLE')],
+      [ACCREDITS, decision(REQ, 'NO_CUMPLE', { evidenceIds: ['EV-06'], reason: 'EV-06: sin MFA en 2 cuentas' })],
     ],
   ];
 
-  for (const [nombre, evidencias, decisiones] of casos) {
-    const r = juzga(evidencias, decisiones);
+  for (const [name, evidences, decisions] of cases) {
+    const r = judges(evidences, decisions);
 
-    comprueba(
-      `${nombre}: NO_CUMPLE y sin la marca`,
+    check(
+      `${name}: NO_CUMPLE and without the mark`,
       r.status === 'NO_CUMPLE' && r.attested !== true,
       `${r.status} attested=${r.attested}`
     );
 
-    comprueba(`${nombre}: cuenta como medido, no como hueco`, r.evidenced === true, String(r.evidenced));
+    check(`${name}: counts as measured, not as a gap`, r.evidenced === true, String(r.evidenced));
 
-    comprueba(
-      `${nombre}: el motivo dice que manda la medida`,
+    check(
+      `${name}: the motive says the measurement prevails`,
       r.observations.some(o => o.startsWith('La medida manda sobre la acreditación documental')),
       r.observations.join(' | ')
     );
   }
 
-  const conMotivo = juzga([evidencia('EV-05', 'NO_CUMPLE', ['cuenta genérica «admin» activa']), evidencia('EV-06', 'CUMPLE')], [ACREDITA]);
+  const withMotive = judges([evidence('EV-05', 'NO_CUMPLE', ['cuenta genérica «admin» activa']), evidence('EV-06', 'CUMPLE')], [ACCREDITS]);
 
-  comprueba(
-    'y conserva el motivo de la evidencia que falla',
-    conMotivo.observations.includes('cuenta genérica «admin» activa'),
-    conMotivo.observations.join(' | ')
+  check(
+    'and keeps the motive of the failing evidence',
+    withMotive.observations.includes('cuenta genérica «admin» activa'),
+    withMotive.observations.join(' | ')
   );
 
-  // Las reversiones: lo que NO es una medida en contra no lo impide.
-  const hueco = juzga([evidencia('EV-05', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')], [ACREDITA]);
+  const gap = judges([evidence('EV-05', 'NO_EVALUABLE'), evidence('EV-06', 'NO_EVALUABLE')], [ACCREDITS]);
 
-  comprueba(
-    'la reversión: evidencias sin medir (NO_EVALUABLE) no lo impiden',
-    hueco.status === 'CUMPLE' && hueco.attested === true,
-    `${hueco.status} attested=${hueco.attested}`
+  check(
+    'the reversal: unmeasured evidences (NO_EVALUABLE) do not prevent it',
+    gap.status === 'CUMPLE' && gap.attested === true,
+    `${gap.status} attested=${gap.attested}`
   );
 
-  const otroRequisito = juzga(
-    [evidencia('EV-05', 'CUMPLE'), evidencia('EV-06', 'CUMPLE'), evidencia('EV-04', 'NO_CUMPLE')],
-    [ACREDITA, decision('op.acc.1.4', 'NO_CUMPLE', { evidenceIds: ['EV-04'] })]
+  const otherRequirement = judges(
+    [evidence('EV-05', 'CUMPLE'), evidence('EV-06', 'CUMPLE'), evidence('EV-04', 'NO_CUMPLE')],
+    [ACCREDITS, decision('op.acc.1.4', 'NO_CUMPLE', { evidenceIds: ['EV-04'] })]
   );
 
-  comprueba(
-    'la reversión: una medida en contra de OTRO requisito no lo impide',
-    otroRequisito.status === 'CUMPLE' && otroRequisito.attested === true,
-    `${otroRequisito.status} attested=${otroRequisito.attested}`
+  check(
+    'the reversal: a measurement against ANOTHER requirement does not prevent it',
+    otherRequirement.status === 'CUMPLE' && otherRequirement.attested === true,
+    `${otherRequirement.status} attested=${otherRequirement.attested}`
   );
 }
 
-// --- 3. solo con CUMPLE --------------------------------------------------
-
-bloque('3. `attested` con otro estado no acredita nada');
+section('3. `attested` with another state accredits nothing');
 
 {
-  const noCumple = juzga([], [decision(REQ, 'NO_CUMPLE', { attested: true, reason: 'plan caducado el 2025-03-01' })]);
+  const nonCompliant = judges([], [decision(REQ, 'NO_CUMPLE', { attested: true, reason: 'plan caducado el 2025-03-01' })]);
 
-  comprueba(
-    'NO_CUMPLE + attested → NO_CUMPLE sin la marca (un plan caducado es un incumplimiento corriente)',
-    noCumple.status === 'NO_CUMPLE' && noCumple.attested !== true && noCumple.evidenced === true,
-    `${noCumple.status} attested=${noCumple.attested} evidenced=${noCumple.evidenced}`
+  check(
+    'NO_CUMPLE + attested → NO_CUMPLE without the mark (an expired plan is an ordinary breach)',
+    nonCompliant.status === 'NO_CUMPLE' && nonCompliant.attested !== true && nonCompliant.evidenced === true,
+    `${nonCompliant.status} attested=${nonCompliant.attested} evidenced=${nonCompliant.evidenced}`
   );
 
-  const noEvaluable = juzga([], [decision(REQ, 'NO_EVALUABLE', { attested: true, cause: 'CONFIGURATION' })]);
+  const noEvaluable = judges([], [decision(REQ, 'NO_EVALUABLE', { attested: true, cause: 'CONFIGURATION' })]);
 
-  comprueba(
-    'NO_EVALUABLE + attested → NO_CUMPLE no evidenciado, sin la marca',
+  check(
+    'NO_EVALUABLE + attested → NO_CUMPLE not evidenced, without the mark',
     noEvaluable.status === 'NO_CUMPLE' && noEvaluable.attested !== true && noEvaluable.evidenced === false,
     `${noEvaluable.status} attested=${noEvaluable.attested} evidenced=${noEvaluable.evidenced}`
   );
 
-  const noAplica = juzga([], [decision(REQ, 'NO_APLICA', { attested: true })]);
+  const notApplicable = judges([], [decision(REQ, 'NO_APLICA', { attested: true })]);
 
-  comprueba(
-    'NO_APLICA + attested → NO_APLICA, fuera del denominador',
-    noAplica.status === 'NO_APLICA' && noAplica.applicable === false && noAplica.attested !== true,
-    `${noAplica.status} attested=${noAplica.attested}`
+  check(
+    'NO_APLICA + attested → NO_APLICA, outside the denominator',
+    notApplicable.status === 'NO_APLICA' && notApplicable.applicable === false && notApplicable.attested !== true,
+    `${notApplicable.status} attested=${notApplicable.attested}`
   );
 
-  const borrador = juzga([], [ACREDITA], REQ, 'DRAFT');
+  const draft = judges([], [ACCREDITS], REQ, 'DRAFT');
 
-  comprueba(
-    'un control en DRAFT no se acredita: NO_APLICA',
-    borrador.status === 'NO_APLICA' && borrador.attested !== true,
-    `${borrador.status} attested=${borrador.attested}`
+  check(
+    'a DRAFT control is not accredited: NO_APLICA',
+    draft.status === 'NO_APLICA' && draft.attested !== true,
+    `${draft.status} attested=${draft.attested}`
   );
 
-  // op.acc.1.r1.2 rige en MEDIO y ALTO: en BAJO no aplica, se declare lo que se declare.
-  const fueraDeNivel = juzga([], [decision('op.acc.1.r1.2', 'CUMPLE', { attested: true })], 'op.acc.1.r1.2', 'ACTIVE', 'BAJO');
+  const outOfLevel = judges([], [decision('op.acc.1.r1.2', 'CUMPLE', { attested: true })], 'op.acc.1.r1.2', 'ACTIVE', 'BAJO');
 
-  comprueba(
-    'fuera de su nivel no aplica aunque la policy lo acredite',
-    fueraDeNivel.status === 'NO_APLICA' && fueraDeNivel.attested !== true,
-    `${fueraDeNivel.status} attested=${fueraDeNivel.attested}`
+  check(
+    'outside its level it does not apply even if the policy accredits it',
+    outOfLevel.status === 'NO_APLICA' && outOfLevel.attested !== true,
+    `${outOfLevel.status} attested=${outOfLevel.attested}`
   );
 }
 
-// --- 3 bis. varias decisiones para el mismo requisito -----------------------
-//
-// Una policy debería emitir una por requisito. Si emite varias, una decisión
-// anterior sin medida no puede esconder la acreditación; un NO_APLICA sigue
-// sacando el requisito del juego, y una en contra sigue mandando.
-
-bloque('3 bis. Varias decisiones para el mismo requisito');
+section('3 bis. Several decisions for the same requirement');
 
 {
-  const sinMedida = decision(REQ, 'NO_EVALUABLE', { cause: 'COLLECTION', reason: 'sin hechos del recolector' });
+  const withoutMeasure = decision(REQ, 'NO_EVALUABLE', { cause: 'COLLECTION', reason: 'sin hechos del recolector' });
 
-  const detras = juzga([], [sinMedida, ACREDITA]);
+  const behind = judges([], [withoutMeasure, ACCREDITS]);
 
-  comprueba(
-    '[NO_EVALUABLE, CUMPLE acreditado] → se lee la acreditada: CUMPLE y marcado',
-    detras.status === 'CUMPLE' && detras.attested === true,
-    `${detras.status} attested=${detras.attested}`
+  check(
+    '[NO_EVALUABLE, accredited CUMPLE] → the accredited one is read: CUMPLE and marked',
+    behind.status === 'CUMPLE' && behind.attested === true,
+    `${behind.status} attested=${behind.attested}`
   );
 
-  const delante = juzga([], [ACREDITA, sinMedida]);
+  const front = judges([], [ACCREDITS, withoutMeasure]);
 
-  comprueba(
-    '[CUMPLE acreditado, NO_EVALUABLE] → lo mismo',
-    delante.status === 'CUMPLE' && delante.attested === true,
-    `${delante.status} attested=${delante.attested}`
+  check(
+    '[accredited CUMPLE, NO_EVALUABLE] → the same',
+    front.status === 'CUMPLE' && front.attested === true,
+    `${front.status} attested=${front.attested}`
   );
 
-  const noAplica = juzga([], [decision(REQ, 'NO_APLICA', { reason: 'refuerzo no elegido' }), ACREDITA]);
+  const notApplicable = judges([], [decision(REQ, 'NO_APLICA', { reason: 'refuerzo no elegido' }), ACCREDITS]);
 
-  comprueba(
-    'la reversión · [NO_APLICA, CUMPLE acreditado] → NO_APLICA: sale del juego antes que nada',
-    noAplica.status === 'NO_APLICA' && noAplica.attested !== true,
-    `${noAplica.status} attested=${noAplica.attested}`
+  check(
+    'the reversal · [NO_APLICA, accredited CUMPLE] → NO_APLICA: it leaves the game before anything',
+    notApplicable.status === 'NO_APLICA' && notApplicable.attested !== true,
+    `${notApplicable.status} attested=${notApplicable.attested}`
   );
 
-  const enContra = juzga([], [decision(REQ, 'NO_CUMPLE', { reason: 'medida en contra' }), ACREDITA]);
+  const against = judges([], [decision(REQ, 'NO_CUMPLE', { reason: 'medida en contra' }), ACCREDITS]);
 
-  comprueba(
-    'la reversión · [NO_CUMPLE, CUMPLE acreditado] → NO_CUMPLE: la medida en contra manda',
-    enContra.status === 'NO_CUMPLE' && enContra.attested !== true,
-    `${enContra.status} attested=${enContra.attested}`
+  check(
+    'the reversal · [NO_CUMPLE, accredited CUMPLE] → NO_CUMPLE: the measurement against prevails',
+    against.status === 'NO_CUMPLE' && against.attested !== true,
+    `${against.status} attested=${against.attested}`
   );
 
-  const sinAcreditar = juzga([], [sinMedida, decision(REQ, 'CUMPLE')]);
+  const unaccredited = judges([], [withoutMeasure, decision(REQ, 'CUMPLE')]);
 
-  comprueba(
-    'la reversión · sin acreditación, manda la primera como siempre: NO_EVALUABLE → NO_CUMPLE',
-    sinAcreditar.status === 'NO_CUMPLE' && sinAcreditar.evidenced === false,
-    `${sinAcreditar.status} evidenced=${sinAcreditar.evidenced}`
+  check(
+    'the reversal · without accreditation, the first prevails as always: NO_EVALUABLE → NO_CUMPLE',
+    unaccredited.status === 'NO_CUMPLE' && unaccredited.evidenced === false,
+    `${unaccredited.status} evidenced=${unaccredited.evidenced}`
   );
 }
 
-// --- 4. el motor entero y la consolidación ---------------------------------
+section('4. The engine (with the evidence bridge) and consolidation across machines');
 
-bloque('4. El motor (con el puente de evidencias) y la consolidación entre máquinas');
-
-const runtime = (decisiones: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
+const runtime = (decisions: ENSPolicyDecision[]): ENSPolicyRuntimeResult => ({
   controlId: 'op.acc.1',
   policyId: 'prueba',
   evaluatedAt: '2026-10-09T12:00:00Z',
-  decisions: decisiones,
+  decisions: decisions,
   appliedParameters: [],
   runtimeVariables: [],
 });
 
-const TODAS = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
+const ALL_OF_THEM = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'];
 
-// La configuración COMPLETA: con un parámetro obligatorio vacío, todo requisito
-// medido sale NO_EVALUABLE y la prueba de la fuga de abajo pasaría por esa
-// razón y no por la que dice. Mismo criterio que `aggregated-overview.test.ts`.
-const valorValido = (parametro: ENSControlParameter): ENSControlParameter['value'] => {
-  if (parametro.options && parametro.options.length) {
-    return parametro.options[0];
+const validValue = (parameter: ENSControlParameter): ENSControlParameter['value'] => {
+  if (parameter.options && parameter.options.length) {
+    return parameter.options[0];
   }
 
-  switch (parametro.type) {
+  switch (parameter.type) {
     case 'number':
     case 'duration_days':
     case 'duration_hours':
-      return typeof parametro.minValue === 'number' ? Math.max(parametro.minValue, 1) : 7;
+      return typeof parameter.minValue === 'number' ? Math.max(parameter.minValue, 1) : 7;
     case 'boolean':
       return true;
     case 'list':
-      return parametro.columns && parametro.columns.length ? [parametro.example || ''] : ['valor-uno', 'valor-dos'];
+      return parameter.columns && parameter.columns.length ? [parameter.example || ''] : ['valor-uno', 'valor-dos'];
     case 'table':
-      return [parametro.example || ''];
+      return [parameter.example || ''];
     case 'path':
       return '/var/lib/ensfacil';
     case 'url':
@@ -418,175 +360,159 @@ const valorValido = (parametro: ENSControlParameter): ENSControlParameter['value
   }
 };
 
-const CONFIGURACION_COMPLETA: ENSControlConfiguration = {
+const FULL_CONFIGURATION: ENSControlConfiguration = {
   ...opAcc1Configuration,
-  parameters: opAcc1Configuration.parameters.map(parametro => ({ ...parametro, value: valorValido(parametro) })),
+  parameters: opAcc1Configuration.parameters.map(parameter => ({ ...parameter, value: validValue(parameter) })),
 };
 
-const maquina = (excepciones: Record<string, ENSComplianceStatus>, decisiones: ENSPolicyDecision[]) =>
+const machine = (exceptions: Record<string, ENSComplianceStatus>, decisions: ENSPolicyDecision[]) =>
   evaluateENSControl(
     CONTROL,
-    CONFIGURACION_COMPLETA,
+    FULL_CONFIGURATION,
     'MEDIO',
-    TODAS.map(id => evidencia(id, excepciones[id] || 'CUMPLE')),
-    runtime(decisiones),
+    ALL_OF_THEM.map(id => evidence(id, exceptions[id] || 'CUMPLE')),
+    runtime(decisions),
     []
   );
 
-const req = (resultado: ReturnType<typeof maquina> | undefined, id: string = REQ) =>
-  resultado?.requirements.find(r => r.id === id);
+const req = (result: ReturnType<typeof machine> | undefined, id: string = REQ) =>
+  result?.requirements.find(r => r.id === id);
 
 {
-  // EV-06 sin medir. La acreditación NO la rellena: un documento no mide
-  // ninguna evidencia (ver `policy-evidence-bridge.ts`).
-  const acreditada = maquina({ 'EV-06': 'NO_EVALUABLE' }, [ACREDITA]);
-  const ev06 = acreditada.evidences.find(e => e.id === 'EV-06');
+  const accredited2 = machine({ 'EV-06': 'NO_EVALUABLE' }, [ACCREDITS]);
+  const ev06 = accredited2.evidences.find(e => e.id === 'EV-06');
 
-  comprueba(
-    'motor · el requisito llega al resultado CUMPLE y marcado',
-    req(acreditada)?.status === 'CUMPLE' && req(acreditada)?.attested === true,
-    `${req(acreditada)?.status} attested=${req(acreditada)?.attested}`
+  check(
+    'engine · the requirement reaches the result as CUMPLE and marked',
+    req(accredited2)?.status === 'CUMPLE' && req(accredited2)?.attested === true,
+    `${req(accredited2)?.status} attested=${req(accredited2)?.attested}`
   );
 
-  comprueba(
-    'motor · la evidencia sin medir sigue NO_EVALUABLE: la acreditación no la mide',
+  check(
+    'engine · the unmeasured evidence stays NO_EVALUABLE: accreditation does not measure it',
     ev06?.status === 'NO_EVALUABLE',
     ev06?.status
   );
 
-  // Y no se filtra a OTRO requisito que se apoya en la misma evidencia:
-  // op.acc.1.r1.2 (EV-01 y EV-06) no puede salir CUMPLE «medido» por un
-  // documento que acredita op.acc.1.2.
-  const r12 = req(acreditada, 'op.acc.1.r1.2');
+  const r12 = req(accredited2, 'op.acc.1.r1.2');
 
-  comprueba(
-    'fixture · la configuración está completa (el eje parámetros, quieto)',
-    !acreditada.requirements.some(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')),
-    acreditada.requirements.filter(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')).map(r => r.id).join(',')
+  check(
+    'fixture · the configuration is complete (the parameters axis, still)',
+    !accredited2.requirements.some(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')),
+    accredited2.requirements.filter(r => r.observations.includes('Existen parámetros obligatorios pendientes de configuración.')).map(r => r.id).join(',')
   );
 
-  comprueba(
-    'motor · op.acc.1.r1.2, que comparte EV-06, no sale CUMPLE por la acreditación ajena',
+  check(
+    'engine · op.acc.1.r1.2, which shares EV-06, does not come out CUMPLE through the other\'s accreditation',
     r12?.status !== 'CUMPLE' && r12?.attested !== true,
     `${r12?.status} attested=${r12?.attested} evidenced=${r12?.evidenced}`
   );
 
-  // La reversión: una decisión CUMPLE SIN la marca es una medida de la policy y
-  // sí rellena la evidencia, como siempre.
-  const medidaPorPolicy = maquina({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'CUMPLE')]);
+  const measuredByPolicy = machine({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'CUMPLE')]);
 
-  comprueba(
-    'la reversión · una decisión CUMPLE sin marca sí rellena EV-06',
-    medidaPorPolicy.evidences.find(e => e.id === 'EV-06')?.status === 'CUMPLE',
-    medidaPorPolicy.evidences.find(e => e.id === 'EV-06')?.status
+  check(
+    'the reversal · a CUMPLE decision without the mark does fill EV-06',
+    measuredByPolicy.evidences.find(e => e.id === 'EV-06')?.status === 'CUMPLE',
+    measuredByPolicy.evidences.find(e => e.id === 'EV-06')?.status
   );
 
-  // Una decisión acreditada en otro estado sí alimenta el puente: no acredita
-  // nada, así que es una medida corriente.
-  const caducada = maquina({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'NO_CUMPLE', { attested: true })]);
+  const expiredOne = machine({ 'EV-06': 'NO_EVALUABLE' }, [decision(REQ, 'NO_CUMPLE', { attested: true })]);
 
-  comprueba(
-    'y una acreditada en NO_CUMPLE sí rellena EV-06 con su NO_CUMPLE',
-    caducada.evidences.find(e => e.id === 'EV-06')?.status === 'NO_CUMPLE',
-    caducada.evidences.find(e => e.id === 'EV-06')?.status
+  check(
+    'and an accredited one in NO_CUMPLE does fill EV-06 with its NO_CUMPLE',
+    expiredOne.evidences.find(e => e.id === 'EV-06')?.status === 'NO_CUMPLE',
+    expiredOne.evidences.find(e => e.id === 'EV-06')?.status
   );
 
-  // EV-05 medida en contra por el agente: el puente no la pisa y manda.
-  const medidaEnContra = maquina({ 'EV-05': 'NO_CUMPLE' }, [ACREDITA]);
+  const measuredAgainst = machine({ 'EV-05': 'NO_CUMPLE' }, [ACCREDITS]);
 
-  comprueba(
-    'motor · con EV-05 medida en NO_CUMPLE, el requisito NO_CUMPLE y sin marca',
-    req(medidaEnContra)?.status === 'NO_CUMPLE' && req(medidaEnContra)?.attested !== true,
-    `${req(medidaEnContra)?.status} attested=${req(medidaEnContra)?.attested}`
+  check(
+    'engine · with EV-05 measured NO_CUMPLE, the requirement NO_CUMPLE and without the mark',
+    req(measuredAgainst)?.status === 'NO_CUMPLE' && req(measuredAgainst)?.attested !== true,
+    `${req(measuredAgainst)?.status} attested=${req(measuredAgainst)?.attested}`
   );
 
-  comprueba(
-    'motor · y abre su no conformidad',
-    medidaEnContra.nonConformities.some(nc => nc.requirementId === REQ),
-    medidaEnContra.nonConformities.map(nc => nc.requirementId).join(',')
+  check(
+    'engine · and it opens its nonconformity',
+    measuredAgainst.nonConformities.some(nc => nc.requirementId === REQ),
+    measuredAgainst.nonConformities.map(nc => nc.requirementId).join(',')
   );
 
-  const parque = (resultados: ReturnType<typeof maquina>[]): ENSAgentComplianceState[] =>
-    resultados.map((result, indice) => ({
-      agentId: `02${indice + 1}`,
-      agentName: `CLIENTE-0${indice + 1}`,
+  const fleet = (results: ReturnType<typeof machine>[]): ENSAgentComplianceState[] =>
+    results.map((result, index) => ({
+      agentId: `02${index + 1}`,
+      agentName: `CLIENTE-0${index + 1}`,
       results: [result],
       summary: undefined as never,
     }));
 
-  const ambas = consolidateAgentComplianceResultByControl(parque([acreditada, acreditada]), 'op.acc.1');
+  const both = consolidateAgentComplianceResultByControl(fleet([accredited2, accredited2]), 'op.acc.1');
 
-  comprueba(
-    'consolidación · dos máquinas acreditadas: CUMPLE y marcado',
-    req(ambas)?.status === 'CUMPLE' && req(ambas)?.attested === true,
-    `${req(ambas)?.status} attested=${req(ambas)?.attested}`
+  check(
+    'consolidation · two accredited machines: CUMPLE and marked',
+    req(both)?.status === 'CUMPLE' && req(both)?.attested === true,
+    `${req(both)?.status} attested=${req(both)?.attested}`
   );
 
-  // La primera acredita y la segunda mide en contra: antes la marca se heredaba
-  // de la primera máquina y salía «acreditado» en un requisito que no cumple.
-  const unaEnContra = consolidateAgentComplianceResultByControl(parque([acreditada, medidaEnContra]), 'op.acc.1');
+  const oneAgainst = consolidateAgentComplianceResultByControl(fleet([accredited2, measuredAgainst]), 'op.acc.1');
 
-  comprueba(
-    'consolidación · una máquina con la medida en contra: NO_CUMPLE y sin marca',
-    req(unaEnContra)?.status === 'NO_CUMPLE' && req(unaEnContra)?.attested !== true,
-    `${req(unaEnContra)?.status} attested=${req(unaEnContra)?.attested}`
+  check(
+    'consolidation · one machine with the measurement against: NO_CUMPLE and without the mark',
+    req(oneAgainst)?.status === 'NO_CUMPLE' && req(oneAgainst)?.attested !== true,
+    `${req(oneAgainst)?.status} attested=${req(oneAgainst)?.attested}`
   );
 
-  const medida = maquina({}, [decision(REQ, 'CUMPLE')]);
-  const mixta = consolidateAgentComplianceResultByControl(parque([medida, acreditada]), 'op.acc.1');
+  const measure = machine({}, [decision(REQ, 'CUMPLE')]);
+  const mixed = consolidateAgentComplianceResultByControl(fleet([measure, accredited2]), 'op.acc.1');
 
-  comprueba(
-    'consolidación · una medida y otra acreditada: CUMPLE marcado (en parte descansa en un documento)',
-    req(mixta)?.status === 'CUMPLE' && req(mixta)?.attested === true,
-    `${req(mixta)?.status} attested=${req(mixta)?.attested}`
+  check(
+    'consolidation · one measured and one accredited: CUMPLE marked (partly rests on a document)',
+    req(mixed)?.status === 'CUMPLE' && req(mixed)?.attested === true,
+    `${req(mixed)?.status} attested=${req(mixed)?.attested}`
   );
 
-  const soloMedidas = consolidateAgentComplianceResultByControl(parque([medida, medida]), 'op.acc.1');
+  const onlyMeasures = consolidateAgentComplianceResultByControl(fleet([measure, measure]), 'op.acc.1');
 
-  comprueba(
-    'la reversión · dos máquinas medidas: CUMPLE sin marca',
-    req(soloMedidas)?.status === 'CUMPLE' && req(soloMedidas)?.attested !== true,
-    `${req(soloMedidas)?.status} attested=${req(soloMedidas)?.attested}`
+  check(
+    'the reversal · two measured machines: CUMPLE without the mark',
+    req(onlyMeasures)?.status === 'CUMPLE' && req(onlyMeasures)?.attested !== true,
+    `${req(onlyMeasures)?.status} attested=${req(onlyMeasures)?.attested}`
   );
 }
 
-// --- 5. cómo se lee en pantalla y en el informe ----------------------------
-
-bloque('5. El detalle del control y el informe lo dicen como documental');
+section('5. The control detail and the report state it as documentary');
 
 {
-  comprueba(
-    'detalle · un requisito acreditado se lee «acreditado documentalmente»',
+  check(
+    'detail · an accredited requirement reads «acreditado documentalmente»',
     compliantRequirementLabel({ attested: true }) === 'acreditado documentalmente'
   );
-  comprueba('detalle · uno medido se lee «cumple»', compliantRequirementLabel({}) === 'cumple');
+  check('detail · a measured one reads «cumple»', compliantRequirementLabel({}) === 'cumple');
 
-  comprueba(
-    'informe · un requisito acreditado: «Acreditado documentalmente»',
+  check(
+    'report · an accredited requirement: «Acreditado documentalmente»',
     ensRequirementProofLabel({ status: 'CUMPLE', attested: true, evidenced: true }) === 'Acreditado documentalmente'
   );
-  comprueba(
-    'informe · uno medido: «Medido»',
+  check(
+    'report · a measured one: «Medido»',
     ensRequirementProofLabel({ status: 'CUMPLE', evidenced: true }) === 'Medido'
   );
-  comprueba(
-    'informe · uno no demostrado: «No evidenciado» con sus causas',
+  check(
+    'report · an unproven one: «No evidenciado» with its causes',
     ensRequirementProofLabel({ status: 'NO_CUMPLE', evidenced: false }, ['Configuración']) === 'No evidenciado · Configuración'
   );
-  comprueba(
-    'informe · un NO_APLICA no lleva línea de prueba',
+  check(
+    'report · a NO_APLICA carries no proof line',
     ensRequirementProofLabel({ status: 'NO_APLICA', attested: true }) === ''
   );
 }
 
-// --- salida ----------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

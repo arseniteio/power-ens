@@ -1,27 +1,4 @@
-/**
- * La causa del hueco llega intacta: de quien la sabe, a la evidencia y al
- * requisito.
- *
- *     npx tsx tests/declared-gap-cause.test.ts
- *
- * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
- *
- * POR QUÉ. Medido con datos reales (26/09/2026), una decena de requisitos de
- * op.exp.5, 7, 8, 9 y 10 salían con causa EVIDENCE («ha llegado sin datos
- * suficientes») cuando el recolector había dicho en su `evidence_state` que lo
- * que faltaba era el registro que la organización no mantiene o las reglas de
- * auditd sin cargar: `causa=CONFIGURATION`. Y op.exp.5.3 y op.exp.6.3 salían
- * COLLECTION («no ha llegado nada») cuando lo que faltaba era P-05 sin
- * declarar. Dos fallos en el mismo sitio:
- *
- *   1. el motor ponía EVIDENCE a todo `evidence_state` NO_EVALUABLE sin leer
- *      su `causa`;
- *   2. una policy no tenía por dónde decir la causa: la evidencia que ella
- *      rellenaba se quedaba con la del modelo clásico, que no ve sus hechos.
- *
- * Una misma máquina mal configurada y un agente caído puntúan igual y se
- * arreglan en sitios distintos: la causa es la acción.
- */
+/** The gap cause reaches the evidence and the requirement intact. */
 import { opExp5CatalogDefinition } from '../common/ens/catalog/op-exp-5';
 import { opExp5Configuration } from '../common/ens/configuration/data/op-exp-5-parameters';
 import { opExp8Configuration } from '../common/ens/configuration/data/op-exp-8-parameters';
@@ -35,37 +12,33 @@ import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
+const NOW = new Date('2026-09-26T23:34:23Z');
 
-const AHORA = new Date('2026-09-26T23:34:23Z');
+let counter = 0;
 
-let contador = 0;
-
-const alerta = (control: string, agente: { id: string; name: string }, data: Record<string, unknown>) => {
-  contador += 1;
+const alert = (control: string, agent: { id: string; name: string }, data: Record<string, unknown>) => {
+  counter += 1;
 
   return {
-    _id: `alerta-${contador}`,
+    _id: `alerta-${counter}`,
     _source: {
       '@timestamp': '2026-09-26T23:26:50.000Z',
-      agent: agente,
+      agent: agent,
       rule: { id: '110950', description: control },
       data: Object.fromEntries(Object.entries({ ensfacil: control, ...data }).map(([k, v]) => [k, String(v)])),
     },
@@ -73,140 +46,129 @@ const alerta = (control: string, agente: { id: string; name: string }, data: Rec
 };
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
-const REAL = { id: '024', name: 'wazuh-real' };
+const ACTUAL = { id: '024', name: 'wazuh-real' };
 
 const decision = (
-  requisito: string,
+  requirement: string,
   estado: ENSComplianceStatus,
-  evidencias: string[],
-  causa?: ENSGapCause
+  evidences: string[],
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: 'policy.prueba',
-  requirementId: requisito,
+  requirementId: requirement,
   status: estado,
   parameterIds: [],
-  evidenceIds: evidencias,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
-  trace: { ruleId: requisito, ruleType: 'COVERAGE_REQUIRED', expression: '', expected: '', actual: estado, result: false },
+  trace: { ruleId: requirement, ruleType: 'COVERAGE_REQUIRED', expression: '', expected: '', actual: estado, result: false },
   reason: 'motivo de la policy',
-  ...(causa ? { cause: causa } : {}),
+  ...(cause ? { cause: cause } : {}),
 });
 
-// --- 1. el motor lee la causa del recolector --------------------------------
-
-bloque('1. Un evidence_state NO_EVALUABLE llega con la causa que declara el recolector');
+section('1. A NO_EVALUABLE evidence_state arrives with the cause the collector declares');
 
 {
-  // El hecho REAL del manager: no existe el registro de revisiones.
-  const eventos = normalizeWazuhAlerts([
-    alerta('op.exp.8', MANAGER, {
+  const events = normalizeWazuhAlerts([
+    alert('op.exp.8', MANAGER, {
       event: 'evidence_state', evidence_id: 'EV-05', requisito: 'op.exp.8.r1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION',
       motivo: 'no existe el registro de revisiones de los registros /etc/ensfacil/log-review-register.tsv: no consta donde anota la organizacion sus revisiones',
     }),
   ]);
-  const ev05 = resolveEvidenceForControl('op.exp.8', eventos, '000', 'MEDIO', opExp8Configuration, AHORA).find(e => e.id === 'EV-05');
-  comprueba('registro ausente, causa=CONFIGURATION → gapCause CONFIGURATION (antes EVIDENCE)', ev05?.status === 'NO_EVALUABLE' && ev05?.gapCause === 'CONFIGURATION', `${ev05?.status} ${ev05?.gapCause}`);
+  const ev05 = resolveEvidenceForControl('op.exp.8', events, '000', 'MEDIO', opExp8Configuration, NOW).find(e => e.id === 'EV-05');
+  check('absent record, cause=CONFIGURATION → gapCause CONFIGURATION (formerly EVIDENCE)', ev05?.status === 'NO_EVALUABLE' && ev05?.gapCause === 'CONFIGURATION', `${ev05?.status} ${ev05?.gapCause}`);
 
-  const leida = normalizeWazuhAlerts([
-    alerta('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'collection', motivo: 'no se puede leer' }),
+  const read = normalizeWazuhAlerts([
+    alert('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'collection', motivo: 'no se puede leer' }),
   ]);
-  comprueba(
-    'la causa se lee sin distinguir mayúsculas (collection → COLLECTION)',
-    resolveEvidenceForControl('op.exp.8', leida, '000', 'MEDIO', opExp8Configuration, AHORA).find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION'
+  check(
+    'the cause is read case-insensitively (collection → COLLECTION)',
+    resolveEvidenceForControl('op.exp.8', read, '000', 'MEDIO', opExp8Configuration, NOW).find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION'
   );
 
-  const sinCausa = normalizeWazuhAlerts([
-    alerta('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', motivo: 'algo' }),
+  const withoutCause = normalizeWazuhAlerts([
+    alert('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', motivo: 'algo' }),
   ]);
-  comprueba(
-    'sin causa declarada sigue siendo EVIDENCE: el dato llegó y no basta',
-    resolveEvidenceForControl('op.exp.8', sinCausa, '000', 'MEDIO', opExp8Configuration, AHORA).find(e => e.id === 'EV-05')?.gapCause === 'EVIDENCE'
+  check(
+    'without a declared cause it is still EVIDENCE: the data arrived and is not enough',
+    resolveEvidenceForControl('op.exp.8', withoutCause, '000', 'MEDIO', opExp8Configuration, NOW).find(e => e.id === 'EV-05')?.gapCause === 'EVIDENCE'
   );
 
-  const rara = normalizeWazuhAlerts([
-    alerta('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CATALOG', motivo: 'x' }),
+  const odd = normalizeWazuhAlerts([
+    alert('op.exp.8', MANAGER, { event: 'evidence_state', evidence_id: 'EV-05', estado: 'NO_EVALUABLE', causa: 'CATALOG', motivo: 'x' }),
   ]);
-  comprueba(
-    'CATALOG no es una causa de evidencia: se ignora (EVIDENCE)',
-    resolveEvidenceForControl('op.exp.8', rara, '000', 'MEDIO', opExp8Configuration, AHORA).find(e => e.id === 'EV-05')?.gapCause === 'EVIDENCE'
+  check(
+    'CATALOG is not an evidence cause: ignored (EVIDENCE)',
+    resolveEvidenceForControl('op.exp.8', odd, '000', 'MEDIO', opExp8Configuration, NOW).find(e => e.id === 'EV-05')?.gapCause === 'EVIDENCE'
   );
 }
 
-// --- 2. el puente lleva la causa de la policy -------------------------------
+section('2. The evidence a policy fills in carries the cause the policy declares');
 
-bloque('2. La evidencia que rellena una policy lleva la causa que la policy declara');
-
-// op.exp.5.3 en wazuh-real: EV-05 no tiene ningún hecho del modelo clásico
-// (COLLECTION) y la policy sabe que lo que falta es P-05.
-const hechos5 = normalizeWazuhAlerts([
-  alerta('op.exp.5', REAL, { event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02' }),
+const facts5 = normalizeWazuhAlerts([
+  alert('op.exp.5', ACTUAL, { event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02' }),
 ]);
-const clasicas = resolveEvidenceForControl('op.exp.5', hechos5, '024', 'MEDIO', opExp5Configuration, AHORA);
+const classic = resolveEvidenceForControl('op.exp.5', facts5, '024', 'MEDIO', opExp5Configuration, NOW);
 
 {
-  comprueba('punto de partida: el modelo clásico dice COLLECTION para EV-05', clasicas.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', clasicas.find(e => e.id === 'EV-05')?.gapCause);
+  check('starting point: the classic model says COLLECTION for EV-05', classic.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', classic.find(e => e.id === 'EV-05')?.gapCause);
 
-  const decisiones = [
+  const decisions = [
     decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION'),
     decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION'),
   ];
-  const tabla = applyPolicyDecisionsToEvidences(clasicas, decisiones, opExp5CatalogDefinition.requirements);
-  comprueba('con la causa de la policy, EV-05 sale CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause === 'CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause);
+  const tabla = applyPolicyDecisionsToEvidences(classic, decisions, opExp5CatalogDefinition.requirements);
+  check('with the policy\'s cause, EV-05 comes out CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause === 'CONFIGURATION', tabla.find(e => e.id === 'EV-05')?.gapCause);
 
-  const mixta = applyPolicyDecisionsToEvidences(
-    clasicas,
+  const mixed = applyPolicyDecisionsToEvidences(
+    classic,
     [decision('op.exp.5.1', 'NO_EVALUABLE', ['EV-01', 'EV-02'], 'EVIDENCE'), decision('op.exp.5.1', 'NO_EVALUABLE', ['EV-02'], 'CONFIGURATION')],
     opExp5CatalogDefinition.requirements
   );
-  comprueba('manda la decisión que nombra SOLO a esa evidencia', mixta.find(e => e.id === 'EV-02')?.gapCause === 'CONFIGURATION', mixta.find(e => e.id === 'EV-02')?.gapCause);
+  check('the decision that names ONLY that evidence prevails', mixed.find(e => e.id === 'EV-02')?.gapCause === 'CONFIGURATION', mixed.find(e => e.id === 'EV-02')?.gapCause);
 
-  const muda = applyPolicyDecisionsToEvidences(clasicas, [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'])], opExp5CatalogDefinition.requirements);
-  comprueba('una policy que no declara causa no cambia la que había (las de los controles anteriores)', muda.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', muda.find(e => e.id === 'EV-05')?.gapCause);
+  const silent = applyPolicyDecisionsToEvidences(classic, [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'])], opExp5CatalogDefinition.requirements);
+  check('a policy that declares no cause does not change the existing one (those of earlier controls)', silent.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', silent.find(e => e.id === 'EV-05')?.gapCause);
 
-  const nada = applyPolicyDecisionsToEvidences(clasicas, decisiones, opExp5CatalogDefinition.requirements, true);
-  comprueba('si de la máquina no ha llegado NADA del control, el hueco es de recogida (COLLECTION)', nada.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', nada.find(e => e.id === 'EV-05')?.gapCause);
+  const nothing = applyPolicyDecisionsToEvidences(classic, decisions, opExp5CatalogDefinition.requirements, true);
+  check('if NOTHING from the control has arrived from the machine, the gap is a collection one (COLLECTION)', nothing.find(e => e.id === 'EV-05')?.gapCause === 'COLLECTION', nothing.find(e => e.id === 'EV-05')?.gapCause);
 }
 
-// --- 3. y llega a la no conformidad -----------------------------------------
-
-bloque('3. La causa llega a la no conformidad del requisito');
+section('3. The cause reaches the requirement\'s nonconformity');
 
 {
-  const runtime = (decisiones: ENSPolicyDecision[]) => ({
+  const runtime = (decisions: ENSPolicyDecision[]) => ({
     controlId: 'op.exp.5',
     policyId: 'policy.prueba',
-    evaluatedAt: AHORA.toISOString(),
-    decisions: decisiones,
+    evaluatedAt: NOW.toISOString(),
+    decisions: decisions,
     appliedParameters: [],
     runtimeVariables: [],
   });
-  const decisiones = [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION')];
+  const decisions = [decision('op.exp.5.3', 'NO_EVALUABLE', ['EV-05'], 'CONFIGURATION')];
 
-  const conHechos = evaluateENSControl(opExp5CatalogDefinition, opExp5Configuration, 'MEDIO', clasicas, runtime(decisiones), hechos5);
-  const nc = conHechos.nonConformities.find(n => n.requirementId === 'op.exp.5.3');
-  comprueba('op.exp.5.3 con el recolector informando y P-05 sin declarar → NC CONFIGURATION (antes COLLECTION)', nc?.cause === 'CONFIGURATION', `${nc?.origin} ${nc?.cause}`);
+  const withFacts = evaluateENSControl(opExp5CatalogDefinition, opExp5Configuration, 'MEDIO', classic, runtime(decisions), facts5);
+  const nc = withFacts.nonConformities.find(n => n.requirementId === 'op.exp.5.3');
+  check('op.exp.5.3 with the collector reporting and P-05 undeclared → NC CONFIGURATION (formerly COLLECTION)', nc?.cause === 'CONFIGURATION', `${nc?.origin} ${nc?.cause}`);
 
-  const sinHechos = evaluateENSControl(
+  const withoutFacts = evaluateENSControl(
     opExp5CatalogDefinition,
     opExp5Configuration,
     'MEDIO',
-    resolveEvidenceForControl('op.exp.5', [], '028', 'MEDIO', opExp5Configuration, AHORA),
-    runtime(decisiones),
+    resolveEvidenceForControl('op.exp.5', [], '028', 'MEDIO', opExp5Configuration, NOW),
+    runtime(decisions),
     []
   );
-  const nc2 = sinHechos.nonConformities.find(n => n.requirementId === 'op.exp.5.3');
-  comprueba('REVERSIÓN: la misma decisión en una máquina de la que no llega nada → COLLECTION', nc2?.cause === 'COLLECTION', `${nc2?.origin} ${nc2?.cause}`);
+  const nc2 = withoutFacts.nonConformities.find(n => n.requirementId === 'op.exp.5.3');
+  check('REVERSAL: the same decision on a machine from which nothing arrives → COLLECTION', nc2?.cause === 'COLLECTION', `${nc2?.origin} ${nc2?.cause}`);
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

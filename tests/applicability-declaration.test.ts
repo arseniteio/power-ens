@@ -1,24 +1,4 @@
-/**
- * Declaración de Aplicabilidad: excluir un control entero cuando el sistema no
- * tiene aquello que el control regula.
- *
- *     docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx tests/applicability-declaration.test.ts
- *
- * POR QUÉ EXISTE ESTE FICHERO. op.acc.5 regula cómo se autentican los usuarios
- * AJENOS a la organización. En un servidor donde no se autentica nadie de fuera
- * no hay nada que medir, y el motor lo publicaba como 0 %: un incumplimiento
- * inventado que además hundía el índice global. El ENS resuelve eso con la
- * Declaración de Aplicabilidad, que excluye una medida con su justificación.
- *
- * Pero una exclusión es la forma más cómoda de esconder un incumplimiento, así
- * que este fichero prueba sobre todo LOS LÍMITES:
- *
- *   1. una declaración INCOMPLETA no excluye — sin motivo, sin referencia o sin
- *      un documento al que apuntar es una casilla marcada, no una prueba;
- *   2. una declaración NUNCA tapa lo medido — si en la máquina se ha medido o
- *      acreditado cualquier requisito del control, el sujeto existe y la
- *      exclusión queda contradicha, a la vista.
- */
+/** Applicability Declaration: exclude a whole control when the system lacks what it regulates. */
 import {
   describeDeclaration,
   isDeclarationSufficient,
@@ -39,26 +19,26 @@ import type {
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const configuracion = (filas: string[]): ENSControlConfiguration =>
+const configuration = (rows: string[]): ENSControlConfiguration =>
   ({
     ...opAcc5Configuration,
     parameters: [
@@ -78,16 +58,15 @@ const configuracion = (filas: string[]): ENSControlConfiguration =>
         evidenceIds: [],
         ruleIds: [],
         ifNotConfigured: '',
-        value: filas,
+        value: rows,
       } as unknown as ENSControlParameter,
     ],
   }) as ENSControlConfiguration;
 
-const DECLARACION_BUENA =
+const GOOD_DECLARATION =
   'El sistema no tiene usuarios externos: solo administración interna | Declaración de Aplicabilidad v2 | https://intranet/da-v2.pdf | 2026-09-01 | Responsable de Seguridad';
 
-// Lo que sale hoy en un servidor sin sujeto: nada medido, todo sin demostrar.
-const sinSujeto = (): ENSRequirementEvaluationResult[] =>
+const withoutSubject = (): ENSRequirementEvaluationResult[] =>
   evaluateRequirements(
     opAcc5CatalogDefinition.requirements,
     'MEDIO',
@@ -97,43 +76,41 @@ const sinSujeto = (): ENSRequirementEvaluationResult[] =>
     'ACTIVE'
   );
 
-const excluye = (filas: string[], base = sinSujeto()) =>
+const excludes = (rows: string[], base = withoutSubject()) =>
   applyApplicabilityDeclaration(
     base,
-    parseApplicabilityDeclaration(configuracion(filas))
+    parseApplicabilityDeclaration(configuration(rows))
   );
 
-// --- 1. sin sujeto y con declaración completa, el control no aplica ----------
-
-bloque('1. Declaración completa y nada medido: el control sale del índice');
+section('1. Complete declaration and nothing measured: the control leaves the index');
 
 {
-  const base = sinSujeto();
+  const base = withoutSubject();
 
-  comprueba(
-    'punto de partida: sin declaración, el control puntúa (y mal)',
+  check(
+    'starting point: without a declaration, the control scores (and badly)',
     evaluateControlStatus(base).applicableRequirements > 0,
     String(evaluateControlStatus(base).applicableRequirements)
   );
 
-  const excluido = excluye([DECLARACION_BUENA]);
-  const control = evaluateControlStatus(excluido);
+  const excluded = excludes([GOOD_DECLARATION]);
+  const control = evaluateControlStatus(excluded);
 
-  comprueba(
-    'todos los requisitos pasan a NO_APLICA',
-    excluido.every(r => r.status === 'NO_APLICA' && r.applicable === false),
-    excluido.map(r => r.status).join(',')
+  check(
+    'all requirements become NO_APLICA',
+    excluded.every(r => r.status === 'NO_APLICA' && r.applicable === false),
+    excluded.map(r => r.status).join(',')
   );
 
-  comprueba(
-    'el control queda NO_APLICA y SIN número, no con un 0',
+  check(
+    'the control is NO_APLICA and has NO number, not a 0',
     control.status === 'NO_APLICA' && control.score === undefined,
     `${control.status} score=${control.score}`
   );
 
-  comprueba(
-    'cada requisito dice por qué: la referencia y el motivo están a la vista',
-    excluido.every(r =>
+  check(
+    'each requirement says why: the reference and the motive are visible',
+    excluded.every(r =>
       r.observations.some(
         o =>
           o.includes('Declaración de Aplicabilidad v2') &&
@@ -142,18 +119,16 @@ bloque('1. Declaración completa y nada medido: el control sale del índice');
     )
   );
 
-  comprueba(
-    'nada queda marcado como medido ni como acreditado',
-    excluido.every(r => r.evidenced === false && r.attested !== true)
+  check(
+    'nothing is marked as measured or as accredited',
+    excluded.every(r => r.evidenced === false && r.attested !== true)
   );
 }
 
-// --- 2. una declaración incompleta no excluye nada ---------------------------
-
-bloque('2. Una declaración incompleta NO excluye');
+section('2. An incomplete declaration does NOT exclude');
 
 {
-  const casos: Array<[string, string]> = [
+  const cases: Array<[string, string]> = [
     [
       'sin enlace',
       'Sin usuarios externos | Declaración de Aplicabilidad v2 |  | 2026-09-01 | RSI',
@@ -173,30 +148,28 @@ bloque('2. Una declaración incompleta NO excluye');
     ['con texto suelto en lugar de enlace', 'Sin usuarios externos | DA v2 | está en el SharePoint | 2026-09-01 | RSI'],
   ];
 
-  for (const [nombre, fila] of casos) {
-    const resultado = excluye([fila]);
+  for (const [name, row] of cases) {
+    const result = excludes([row]);
 
-    comprueba(
-      `${nombre} → el control sigue puntuando`,
-      evaluateControlStatus(resultado).applicableRequirements > 0,
-      evaluateControlStatus(resultado).status
+    check(
+      `${name} -> the control still scores`,
+      evaluateControlStatus(result).applicableRequirements > 0,
+      evaluateControlStatus(result).status
     );
   }
 
-  comprueba(
-    'isDeclarationSufficient rechaza una declaración sin enlace utilizable',
+  check(
+    'isDeclarationSufficient rejects a declaration without a usable link',
     !isDeclarationSufficient(
-      parseApplicabilityDeclaration(configuracion([casos[1][1]]))
+      parseApplicabilityDeclaration(configuration([cases[1][1]]))
     )
   );
 }
 
-// --- 3. lo medido manda sobre la declaración ---------------------------------
-
-bloque('3. Ninguna declaración tapa lo que se ha medido');
+section('3. No declaration covers what has been measured');
 
 {
-  const medido = sinSujeto().map((r, i) =>
+  const measured = withoutSubject().map((r, i) =>
     i === 3
       ? {
           ...r,
@@ -207,80 +180,76 @@ bloque('3. Ninguna declaración tapa lo que se ha medido');
       : r
   );
 
-  const resultado = excluye([DECLARACION_BUENA], medido);
+  const result = excludes([GOOD_DECLARATION], measured);
 
-  comprueba(
-    'con un requisito medido, el control sigue en el índice',
-    evaluateControlStatus(resultado).applicableRequirements > 0
+  check(
+    'with a measured requirement, the control stays in the index',
+    evaluateControlStatus(result).applicableRequirements > 0
   );
 
-  comprueba(
-    'el requisito medido conserva su NO_CUMPLE',
-    resultado[3].status === 'NO_CUMPLE',
-    resultado[3].status
+  check(
+    'the measured requirement keeps its NO_CUMPLE',
+    result[3].status === 'NO_CUMPLE',
+    result[3].status
   );
 
-  comprueba(
-    'y se ve que lo medido contradice la exclusión',
-    resultado[3].observations.some(o => o.includes('contradice la exclusión'))
+  check(
+    'and it shows that what was measured contradicts the exclusion',
+    result[3].observations.some(o => o.includes('contradice la exclusión'))
   );
 
-  const acreditado = sinSujeto().map((r, i) =>
+  const accredited = withoutSubject().map((r, i) =>
     i === 0
       ? { ...r, status: 'CUMPLE' as const, evidenced: true, attested: true }
       : r
   );
 
-  comprueba(
-    'un requisito acreditado por documento también contradice la exclusión',
-    evaluateControlStatus(excluye([DECLARACION_BUENA], acreditado))
+  check(
+    'a requirement accredited by document also contradicts the exclusion',
+    evaluateControlStatus(excludes([GOOD_DECLARATION], accredited))
       .applicableRequirements > 0
   );
 }
 
-// --- 4. sin declaración no cambia nada ---------------------------------------
-
-bloque('4. Sin declaración, el motor no cambia');
+section('4. Without a declaration, the engine does not change');
 
 {
-  const base = sinSujeto();
-  const resultado = applyApplicabilityDeclaration(base, undefined);
+  const base = withoutSubject();
+  const result = applyApplicabilityDeclaration(base, undefined);
 
-  comprueba(
-    'devuelve los mismos estados',
-    resultado.map(r => r.status).join() === base.map(r => r.status).join()
+  check(
+    'returns the same states',
+    result.map(r => r.status).join() === base.map(r => r.status).join()
   );
 
-  comprueba(
-    'una tabla vacía tampoco excluye',
-    evaluateControlStatus(excluye([])).applicableRequirements > 0
+  check(
+    'an empty table does not exclude either',
+    evaluateControlStatus(excludes([])).applicableRequirements > 0
   );
 }
 
-// --- 5. el parámetro existe en op.acc.5 y no bloquea a nadie -----------------
-
-bloque('5. op.acc.5 declara P-DA y no es obligatorio');
+section('5. op.acc.5 declares P-DA and is not mandatory');
 
 {
   const pda = opAcc5Configuration.parameters.find(p => p.id === 'P-DA');
 
-  comprueba('op.acc.5 tiene P-DA', Boolean(pda));
-  comprueba(
-    'no es obligatorio: sin declaración el control se evalúa normal',
+  check('op.acc.5 has P-DA', Boolean(pda));
+  check(
+    'not mandatory: without a declaration the control is evaluated normally',
     pda?.required === false
   );
-  comprueba(
-    'es una tabla con motivo | referencia | enlace | fecha | responsable',
+  check(
+    'it is a table with motive | reference | link | date | owner',
     pda?.type === 'table' &&
       (pda?.columns || []).map(c => c.name).join('|') ===
         'motivo|referencia|enlace|fecha|responsable',
     (pda?.columns || []).map(c => c.name).join('|')
   );
 
-  const decl = parseApplicabilityDeclaration(configuracion([DECLARACION_BUENA]));
+  const decl = parseApplicabilityDeclaration(configuration([GOOD_DECLARATION]));
 
-  comprueba(
-    'la frase dice siempre que es una exclusión declarada',
+  check(
+    'the sentence always says it is a declared exclusion',
     Boolean(decl) &&
       describeDeclaration(decl!).startsWith(
         'Excluido por la Declaración de Aplicabilidad'
@@ -288,14 +257,12 @@ bloque('5. op.acc.5 declara P-DA y no es obligatorio');
   );
 }
 
-// --- salida ----------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

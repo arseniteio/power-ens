@@ -1,71 +1,43 @@
-/**
- * Un fallo de configuración tiene que VERSE, no quedarse cargando.
- *
- *     npx tsx tests/configuration-not-loaded.test.ts
- *
- * POR QUÉ EXISTE ESTE FICHERO. El 06/08/2026 la pantalla de ENS se quedó en
- * «Cargando configuración y alcance ENS…» para siempre, en producción. La causa
- * era un documento de configuración con columnas sin `required` booleano, y el
- * validador lo decía con el camino exacto del campo:
- *
- *     configuration.controls[3].parameters[0].columns[1].required must be a boolean
- *
- * Ese mensaje resolvía el problema en un minuto y NO LLEGÓ A LA PANTALLA. El
- * alcance se hidrata después de la configuración y solo si la configuración fue
- * bien; al fallar, se quedaba en NOT_STARTED, que era uno de los estados que
- * pintaban el spinner, y la comprobación del spinner venía ANTES que la del
- * error. La combinación «configuración en ERROR + alcance sin empezar» daba
- * carga infinita.
- *
- * Se prueban las dos mitades: que el validador detecta el documento malo con su
- * camino, y que esa combinación de estados resuelve a ERROR y no a LOADING.
- */
+/** A configuration failure must be visible, not left loading. */
 import { assertENSConfigurationVersion } from '../common/ens/configuration/services/configuration-structure-validator';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle?: unknown
+const check = (
+  name: string,
+  condition: boolean,
+  detail?: unknown
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  console.log(`  FALLA ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
-  fallos.push(nombre);
+  console.log(`  FAIL ${name}${detail !== undefined ? ` — ${String(detail)}` : ''}`);
+  failures.push(name);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- 1. el validador detecta la columna sin `required` --------------------
-
-bloque('1. Una columna sin `required` booleano no pasa, y se dice cuál');
+section('1. A column without a boolean `required` does not pass, and it says which');
 
 {
-  // Se parte de la PLANTILLA REAL del producto, que es válida por construcción,
-  // y se le injerta una tabla. Escribir la configuración a mano en la prueba no
-  // vale: el validador exige una veintena de campos y una fixture incompleta
-  // falla por los campos que faltan, no por lo que se quiere probar — que es
-  // justo lo que pasó al escribir este fichero.
-  const conTabla = (requiredDeLaSegunda: boolean | undefined) => {
+  const withTable = (requiredOfSecond: boolean | undefined) => {
     const cfg = JSON.parse(
       JSON.stringify(defaultENSConfigurationTemplate)
     );
 
-    const columnas: Record<string, unknown>[] = [
+    const columns: Record<string, unknown>[] = [
       { name: 'rol', label: 'Rol', type: 'identifier', required: true },
       { name: 'recurso', label: 'Recurso', type: 'string' },
     ];
 
-    if (requiredDeLaSegunda !== undefined) {
-      columnas[1].required = requiredDeLaSegunda;
+    if (requiredOfSecond !== undefined) {
+      columns[1].required = requiredOfSecond;
     }
 
     cfg.controls[0].parameters.push({
@@ -84,89 +56,82 @@ bloque('1. Una columna sin `required` booleano no pasa, y se dice cuál');
       ensfacilUsage: '-',
       ifNotConfigured: '-',
       value: [],
-      columns: columnas,
+      columns: columns,
     });
 
     return cfg;
   };
 
-  // Control positivo: la plantilla intacta pasa. Sin esto, un validador roto
-  // haría pasar la comprobación de abajo por el motivo equivocado.
-  let plantillaPasa = true;
-  let porQue = '';
+  let templatePasses = true;
+  let why = '';
 
   try {
     assertENSConfigurationVersion(
       JSON.parse(JSON.stringify(defaultENSConfigurationTemplate))
     );
   } catch (error) {
-    plantillaPasa = false;
-    porQue = error instanceof Error ? error.message : String(error);
+    templatePasses = false;
+    why = error instanceof Error ? error.message : String(error);
   }
 
-  comprueba(
-    'la plantilla del producto es válida (control positivo)',
-    plantillaPasa,
-    porQue
+  check(
+    'the product template is valid (positive control)',
+    templatePasses,
+    why
   );
 
-  let mensaje = '';
+  let message = '';
 
   try {
-    assertENSConfigurationVersion(conTabla(undefined));
+    assertENSConfigurationVersion(withTable(undefined));
   } catch (error) {
-    mensaje = error instanceof Error ? error.message : String(error);
+    message = error instanceof Error ? error.message : String(error);
   }
 
-  comprueba(
-    'una columna sin `required` booleano se rechaza',
-    Boolean(mensaje),
+  check(
+    'a column without a boolean `required` is rejected',
+    Boolean(message),
     'el validador la dio por buena'
   );
 
-  comprueba(
-    'y el mensaje dice EXACTAMENTE qué columna, con su camino',
-    mensaje.includes('columns[1].required'),
-    mensaje
+  check(
+    'and the message says EXACTLY which column, with its path',
+    message.includes('columns[1].required'),
+    message
   );
 
-  // La reversión: con `required` explícito, el mismo documento pasa.
-  let arregladoPasa = true;
-  let motivo = '';
+  let fixedPasses = true;
+  let motive = '';
 
   try {
-    assertENSConfigurationVersion(conTabla(false));
+    assertENSConfigurationVersion(withTable(false));
   } catch (error) {
-    arregladoPasa = false;
-    motivo = error instanceof Error ? error.message : String(error);
+    fixedPasses = false;
+    motive = error instanceof Error ? error.message : String(error);
   }
 
-  comprueba(
-    'con `required: false` explícito, el mismo documento pasa',
-    arregladoPasa,
-    motivo
+  check(
+    'with an explicit `required: false`, the same document passes',
+    fixedPasses,
+    motive
   );
 }
 
-// --- 2. ERROR gana a NOT_STARTED ------------------------------------------
-
-bloque('2. Configuración en ERROR con alcance sin empezar: se ve el error');
+section('2. Configuration in ERROR with scope not started: the error is visible');
 
 {
-  // La decisión que toma la pantalla, aislada de React: exactamente el orden de
-  // los dos `if` de `configuration/index.tsx`.
   type Estado = 'NOT_STARTED' | 'LOADING' | 'READY' | 'ERROR';
 
-  const decide = (config: Estado, alcance: Estado): string => {
-    if (config === 'ERROR' || alcance === 'ERROR') {
+  const decide = (config: Estado, scope: Estado): string => {
+    if (config === 'ERROR' || scope === 'ERROR') {
       return 'ERROR';
     }
 
     if (
       config === 'NOT_STARTED' ||
       config === 'LOADING' ||
-      alcance === 'NOT_STARTED' ||
-      alcance === 'LOADING'
+      scope === 'NOT_STARTED' ||
+      scope === 'LOADING'
     ) {
       return 'CARGANDO';
     }
@@ -174,49 +139,43 @@ bloque('2. Configuración en ERROR con alcance sin empezar: se ve el error');
     return 'CONTENIDO';
   };
 
-  // EL CASO DE PRODUCCIÓN. La configuración falló, así que el alcance nunca
-  // llegó a arrancar.
-  comprueba(
-    'config ERROR + alcance NOT_STARTED → se pinta el ERROR',
+  check(
+    'config ERROR + scope NOT_STARTED -> the ERROR is rendered',
     decide('ERROR', 'NOT_STARTED') === 'ERROR',
     decide('ERROR', 'NOT_STARTED')
   );
 
-  comprueba(
-    'config ERROR + alcance LOADING → se pinta el ERROR',
+  check(
+    'config ERROR + scope LOADING -> the ERROR is rendered',
     decide('ERROR', 'LOADING') === 'ERROR',
     decide('ERROR', 'LOADING')
   );
 
-  comprueba(
-    'y al revés: alcance ERROR con la config lista → ERROR',
+  check(
+    'and the other way round: scope ERROR with config ready -> ERROR',
     decide('READY', 'ERROR') === 'ERROR',
     decide('READY', 'ERROR')
   );
 
-  // La reversión: una carga normal SIGUE mostrando el spinner. Sin esto, poner
-  // ERROR primero podría haberse llevado por delante el estado de carga.
-  comprueba(
-    'una carga de verdad sigue mostrando el spinner',
+  check(
+    'a real load still shows the spinner',
     decide('LOADING', 'NOT_STARTED') === 'CARGANDO',
     decide('LOADING', 'NOT_STARTED')
   );
 
-  comprueba(
-    'y con todo listo se pinta el contenido',
+  check(
+    'and with everything ready the content is rendered',
     decide('READY', 'READY') === 'CONTENIDO',
     decide('READY', 'READY')
   );
 }
 
-// --- salida ---------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -1,52 +1,47 @@
-/**
- * El repo es un plugin de OpenSearch Dashboards compilable por sí solo y no
- * depende de ningún plugin de Wazuh.
- *
- *   npx --yes tsx tests/plugin-manifest.test.ts
- */
+/** The repo is a self-contained, buildable OpenSearch Dashboards plugin with no dependency on a Wazuh plugin. */
 import * as fs from 'fs';
 import * as path from 'path';
 
 declare const process: { exit(code: number): void };
 
-const raiz = path.join(__dirname, '..');
-const fallos: string[] = [];
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  console.log(`  ${condicion ? 'ok  ' : 'FALLA'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
-  if (!condicion) fallos.push(nombre);
+const root = path.join(__dirname, '..');
+const failures: string[] = [];
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  console.log(`  ${condition ? 'ok  ' : 'FAIL'} ${name}${!condition && detail !== '' ? ` — ${String(detail)}` : ''}`);
+  if (!condition) failures.push(name);
 };
-const lee = (f: string) => JSON.parse(fs.readFileSync(path.join(raiz, f), 'utf8'));
+const lee = (f: string) => JSON.parse(fs.readFileSync(path.join(root, f), 'utf8'));
 
-const manifiesto = lee('opensearch_dashboards.json');
-const paquete = lee('package.json');
+const manifest = lee('opensearch_dashboards.json');
+const pkg = lee('package.json');
 
-comprueba('id ensfacil', manifiesto.id === 'ensfacil');
-comprueba('dashboard 2.19.5', manifiesto.opensearchDashboardsVersion === '2.19.5');
-comprueba('servidor y navegador', manifiesto.server === true && manifiesto.ui === true);
-comprueba('requisitos: solo el núcleo', JSON.stringify(manifiesto.requiredPlugins) === '["data","navigation"]');
-comprueba('opcionales: seguridad y portada', JSON.stringify(manifiesto.optionalPlugins) === '["securityDashboards","home"]');
-comprueba(
-  'ningún plugin de Wazuh entre las dependencias',
-  ![...(manifiesto.requiredPlugins || []), ...(manifiesto.optionalPlugins || []), ...(manifiesto.requiredBundles || [])]
+check('id ensfacil', manifest.id === 'ensfacil');
+check('dashboard 2.19.5', manifest.opensearchDashboardsVersion === '2.19.5');
+check('server and browser', manifest.server === true && manifest.ui === true);
+check('requirements: only the core', JSON.stringify(manifest.requiredPlugins) === '["data","navigation"]');
+check('optional: security and home', JSON.stringify(manifest.optionalPlugins) === '["securityDashboards","home"]');
+check(
+  'no Wazuh plugin among the dependencies',
+  ![...(manifest.requiredPlugins || []), ...(manifest.optionalPlugins || []), ...(manifest.requiredBundles || [])]
     .some((p: string) => /wazuh/i.test(p))
 );
-comprueba('package.json se llama ensfacil', paquete.name === 'ensfacil');
-comprueba('misma versión de dashboard en package.json', paquete.opensearchDashboards?.version === '2.19.5');
-comprueba('misma versión del plugin en los dos', paquete.version === manifiesto.version);
-comprueba('pdfmake propio, 0.2.7', paquete.dependencies?.pdfmake === '0.2.7');
-comprueba('re2js propio, 2.8.6', paquete.dependencies?.re2js === '2.8.6');
+check('package.json is named ensfacil', pkg.name === 'ensfacil');
+check('same dashboard version in package.json', pkg.opensearchDashboards?.version === '2.19.5');
+check('same plugin version in both', pkg.version === manifest.version);
+check('own pdfmake, 0.2.7', pkg.dependencies?.pdfmake === '0.2.7');
+check('own re2js, 2.8.6', pkg.dependencies?.re2js === '2.8.6');
 
 for (const f of [
   'public/index.ts', 'public/plugin.ts', 'public/application.tsx', 'public/services.ts',
   'server/index.ts', 'server/plugin.ts', 'common/constants.ts',
   'public/ens/index.ts', 'public/ens-requirements.ts', 'public/assets/ens-logo.png', 'public/home-card.ts',
 ]) {
-  comprueba(`existe ${f}`, fs.existsSync(path.join(raiz, f)));
+  check(`${f} exists`, fs.existsSync(path.join(root, f)));
 }
 
 for (const f of ['dashboard/ens', 'dashboard/app-router.tsx', 'dashboard/ens-requirements.ts']) {
-  comprueba(`ya no existe ${f}`, !fs.existsSync(path.join(raiz, f)));
+  check(`${f} no longer exists`, !fs.existsSync(path.join(root, f)));
 }
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
-process.exit(fallos.length ? 1 : 0);
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
+process.exit(failures.length ? 1 : 0);

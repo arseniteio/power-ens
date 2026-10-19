@@ -1,23 +1,4 @@
-/**
- * El nivel de la dimensión de Trazabilidad (op.exp.8).
- *
- *     npx tsx tests/traceability-level.test.ts
- *
- * El Anexo II aplica op.exp.8 por el NIVEL de la Trazabilidad, no por la
- * categoría del sistema. La configuración global admite un `traceabilityLevel`
- * opcional y el catálogo de op.exp.8 declara `levelDimension: 'T'`.
- *
- * Qué se prueba:
- *   1. Sin nivel T, todo se evalúa exactamente igual que antes.
- *   2. Con T distinto del global, op.exp.8 se evalúa con T y NINGÚN otro control
- *      cambia (se compara el resultado entero, control a control).
- *   3. El validador acepta la clave ausente y un nivel; rechaza `null` y basura.
- *
- * Se prueba el MOTOR de verdad (`getENSComplianceResults`), no una réplica. El
- * motor arrastra `kibana-services`, que solo existe en el árbol del plugin
- * `main` de Wazuh; aquí se sustituye por un módulo vacío antes de cargarlo. La
- * evaluación no lo usa: solo lo importa el cliente HTTP de la configuración.
- */
+/** Level of the Traceability dimension (op.exp.8). */
 import { ENSCatalog } from '../common/ens/catalog';
 import { resolveControlLevel } from '../common/ens/core/control-level';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
@@ -32,40 +13,39 @@ import type {
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 
-// `kibana-services` de mentira, ANTES de cargar el motor.
 {
   const Module = require('module');
-  const cargar = Module._load;
+  const load = Module._load;
 
-  Module._load = function (peticion: string, ...resto: unknown[]) {
-    if (/kibana-services$/.test(peticion)) {
+  Module._load = function (request: string, ...rest: unknown[]) {
+    if (/kibana-services$/.test(request)) {
       return {};
     }
 
-    return cargar.call(this, peticion, ...resto);
+    return load.call(this, request, ...rest);
   };
 }
 
 const { getENSComplianceResults } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const AHORA = new Date('2026-09-26T12:00:00Z');
+const NOW = new Date('2026-09-26T12:00:00Z');
 
-const configuracion = (
+const configuration = (
   global: Record<string, unknown>
 ): ENSConfigurationVersion => ({
   ...defaultENSConfigurationTemplate,
@@ -78,108 +58,95 @@ const configuracion = (
   } as ENSConfigurationVersion['global'],
 });
 
-const evalua = (global: Record<string, unknown>, nivel: ENSLevel, eventos: ENSNormalizedEvent[] = []) => {
-  ensConfigurationRepository.replaceActive(configuracion(global));
+const evaluate = (global: Record<string, unknown>, level: ENSLevel, events: ENSNormalizedEvent[] = []) => {
+  ensConfigurationRepository.replaceActive(configuration(global));
 
-  return getENSComplianceResults(nivel, eventos, undefined, undefined, AHORA);
+  return getENSComplianceResults(level, events, undefined, undefined, NOW);
 };
 
-// El resultado entero, sin el instante de cálculo (`evaluatedAt`), que es lo
-// único que cambia entre dos evaluaciones idénticas.
-const huella = (valor: unknown): string =>
-  JSON.stringify(valor, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
+const fingerprint = (value: unknown): string =>
+  JSON.stringify(value, (clave, v) => (clave === 'evaluatedAt' ? undefined : v));
 
-const porControl = (resultados: ReturnType<typeof evalua>) =>
-  new Map(resultados.map(r => [r.control.id, r]));
+const byControl = (results: ReturnType<typeof evaluate>) =>
+  new Map(results.map(r => [r.control.id, r]));
 
-const requisito = (
-  resultados: ReturnType<typeof evalua>,
+const requirement = (
+  results: ReturnType<typeof evaluate>,
   control: string,
   id: string
 ) =>
-  porControl(resultados)
+  byControl(results)
     .get(control)
     ?.requirements.find(r => r.id === id);
 
-// ---------------------------------------------------------------------------
-
-bloque('1. La resolución del nivel por control');
+section('1. Level resolution per control');
 
 const opExp8 = ENSCatalog.find(c => c.id === 'op.exp.8');
-const otros = ENSCatalog.filter(c => c.id !== 'op.exp.8');
+const others = ENSCatalog.filter(c => c.id !== 'op.exp.8');
 
-comprueba('op.exp.8 declara que se rige por la Trazabilidad', opExp8?.levelDimension === 'T');
-// Solo la Trazabilidad: op.cont.2 y op.cont.3 se rigen por la Disponibilidad
-// (`availability-level.test.ts`), y eso no es asunto de esta prueba.
-comprueba(
-  'ningún otro control se rige por la Trazabilidad',
-  otros.every(c => c.levelDimension !== 'T'),
-  otros.filter(c => c.levelDimension === 'T').map(c => c.id).join(', ')
+check('op.exp.8 declares it is governed by Traceability', opExp8?.levelDimension === 'T');
+check(
+  'no other control is governed by Traceability',
+  others.every(c => c.levelDimension !== 'T'),
+  others.filter(c => c.levelDimension === 'T').map(c => c.id).join(', ')
 );
-comprueba(
-  'sin nivel T, op.exp.8 usa el global',
+check(
+  'without a T level, op.exp.8 uses the global one',
   resolveControlLevel({ levelDimension: 'T' }, 'ALTO', { ensLevel: 'ALTO' }) === 'ALTO'
 );
-comprueba(
-  'con nivel T, op.exp.8 usa T',
+check(
+  'with a T level, op.exp.8 uses T',
   resolveControlLevel({ levelDimension: 'T' }, 'ALTO', { ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }) === 'BAJO'
 );
-comprueba(
-  'un control sin dimensión ignora T',
+check(
+  'a control without a dimension ignores T',
   resolveControlLevel({}, 'MEDIO', { ensLevel: 'MEDIO', traceabilityLevel: 'ALTO' }) === 'MEDIO'
 );
 
-bloque('2. El motor: sin T nada cambia; con T solo cambia op.exp.8');
+section('2. The engine: without T nothing changes; with T only op.exp.8 changes');
 
 for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
-  const base = evalua({ ensLevel: global }, global);
+  const base = evaluate({ ensLevel: global }, global);
 
-  // Declarar T igual al global no puede cambiar nada.
-  const igual = evalua({ ensLevel: global, traceabilityLevel: global }, global);
+  const same = evaluate({ ensLevel: global, traceabilityLevel: global }, global);
 
-  comprueba(
-    `${global} · T igual al global da el mismo resultado en todos los controles`,
-    huella(base) === huella(igual)
+  check(
+    `${global} · T equal to the global gives the same result in all controls`,
+    fingerprint(base) === fingerprint(same)
   );
 
   for (const t of (['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]).filter(l => l !== global)) {
-    const conT = evalua({ ensLevel: global, traceabilityLevel: t }, global);
-    const antes = porControl(base);
-    const despues = porControl(conT);
+    const withT = evaluate({ ensLevel: global, traceabilityLevel: t }, global);
+    const antes = byControl(base);
+    const after = byControl(withT);
 
-    comprueba(
-      `${global} con T=${t} · op.exp.8 se evalúa con ${t}`,
-      despues.get('op.exp.8')?.level === t,
-      despues.get('op.exp.8')?.level
+    check(
+      `${global} with T=${t} · op.exp.8 is evaluated with ${t}`,
+      after.get('op.exp.8')?.level === t,
+      after.get('op.exp.8')?.level
     );
 
-    const cambiados = Array.from(antes.keys()).filter(
-      id => id !== 'op.exp.8' && huella(antes.get(id)) !== huella(despues.get(id))
+    const changed = Array.from(antes.keys()).filter(
+      id => id !== 'op.exp.8' && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
     );
 
-    comprueba(
-      `${global} con T=${t} · ningún otro control cambia`,
-      cambiados.length === 0,
-      cambiados.join(', ')
+    check(
+      `${global} with T=${t} · no other control changes`,
+      changed.length === 0,
+      changed.join(', ')
     );
   }
 }
 
-// Lo que el cambio de nivel mueve de verdad: lo exigible. Con global ALTO y T
-// BAJO, las evidencias de R5 no aplican; con global BAJO y T ALTO, sí. Se mira
-// la evidencia y, si el control está activo, también el requisito.
-const evidencia = (
-  resultados: ReturnType<typeof evalua>,
+const evidence = (
+  results: ReturnType<typeof evaluate>,
   id: string
 ) =>
-  porControl(resultados)
+  byControl(results)
     .get('op.exp.8')
     ?.evidences.find(e => e.id === id)?.status;
 
-// El latido del recolector del MANAGER: sin él, la policy de op.exp.8 trata la
-// fila como la de un servidor corriente y R5 (que es del plano central) no
-// aplicaría en ningún nivel.
-const LATIDO_MANAGER: ENSNormalizedEvent[] = [
+const MANAGER_HEARTBEAT: ENSNormalizedEvent[] = [
   {
     id: 'latido-000',
     agentId: '000',
@@ -192,59 +159,57 @@ const LATIDO_MANAGER: ENSNormalizedEvent[] = [
   },
 ];
 
-const altoConTBajo = evalua({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO', LATIDO_MANAGER);
-const bajoConTAlto = evalua({ ensLevel: 'BAJO', traceabilityLevel: 'ALTO' }, 'BAJO', LATIDO_MANAGER);
-const bajoSinT = evalua({ ensLevel: 'BAJO' }, 'BAJO', LATIDO_MANAGER);
+const highWithLowT = evaluate({ ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, 'ALTO', MANAGER_HEARTBEAT);
+const lowWithHighT = evaluate({ ensLevel: 'BAJO', traceabilityLevel: 'ALTO' }, 'BAJO', MANAGER_HEARTBEAT);
+const lowWithoutT = evaluate({ ensLevel: 'BAJO' }, 'BAJO', MANAGER_HEARTBEAT);
 
-comprueba(
-  'categoría ALTA con T BAJA · EV-11 (R5) NO_APLICA',
-  evidencia(altoConTBajo, 'EV-11') === 'NO_APLICA',
-  evidencia(altoConTBajo, 'EV-11')
+check(
+  'category ALTA with T BAJA · EV-11 (R5) NO_APLICA',
+  evidence(highWithLowT, 'EV-11') === 'NO_APLICA',
+  evidence(highWithLowT, 'EV-11')
 );
-comprueba(
-  'categoría BÁSICA con T ALTA · EV-11 (R5) se exige',
-  evidencia(bajoConTAlto, 'EV-11') !== 'NO_APLICA',
-  evidencia(bajoConTAlto, 'EV-11')
+check(
+  'category BÁSICA with T ALTA · EV-11 (R5) is required',
+  evidence(lowWithHighT, 'EV-11') !== 'NO_APLICA',
+  evidence(lowWithHighT, 'EV-11')
 );
-comprueba(
-  'y sin T, en BÁSICA, no se exige (el comportamiento de antes)',
-  evidencia(bajoSinT, 'EV-11') === 'NO_APLICA',
-  evidencia(bajoSinT, 'EV-11')
+check(
+  'and without T, at BÁSICA, it is not required (the previous behaviour)',
+  evidence(lowWithoutT, 'EV-11') === 'NO_APLICA',
+  evidence(lowWithoutT, 'EV-11')
 );
 
 if (opExp8?.status === 'ACTIVE') {
-  comprueba(
-    'ACTIVE · categoría BÁSICA con T ALTA · op.exp.8.r5.2 se exige',
-    requisito(bajoConTAlto, 'op.exp.8', 'op.exp.8.r5.2')?.status !== 'NO_APLICA'
+  check(
+    'ACTIVE · category BÁSICA with T ALTA · op.exp.8.r5.2 is required',
+    requirement(lowWithHighT, 'op.exp.8', 'op.exp.8.r5.2')?.status !== 'NO_APLICA'
   );
-  comprueba(
-    'ACTIVE · categoría ALTA con T BAJA · op.exp.8.r5.2 NO_APLICA',
-    requisito(altoConTBajo, 'op.exp.8', 'op.exp.8.r5.2')?.status === 'NO_APLICA'
+  check(
+    'ACTIVE · category ALTA with T BAJA · op.exp.8.r5.2 NO_APLICA',
+    requirement(highWithLowT, 'op.exp.8', 'op.exp.8.r5.2')?.status === 'NO_APLICA'
   );
 }
 
-bloque('3. El validador de la configuración global');
+section('3. The global configuration validator');
 
-const valida = (global: Record<string, unknown>) =>
-  validateENSConfigurationStructure(configuracion(global));
+const valid = (global: Record<string, unknown>) =>
+  validateENSConfigurationStructure(configuration(global));
 
-const sinT = configuracion({});
-delete (sinT.global as { traceabilityLevel?: unknown }).traceabilityLevel;
+const withoutT = configuration({});
+delete (withoutT.global as { traceabilityLevel?: unknown }).traceabilityLevel;
 
-comprueba('la clave ausente es válida', validateENSConfigurationStructure(sinT).valid, validateENSConfigurationStructure(sinT).errors.join('; '));
-comprueba('un nivel es válido', valida({ traceabilityLevel: 'ALTO' }).valid);
-comprueba('null NO es válido', !valida({ traceabilityLevel: null }).valid);
-comprueba('una cadena vacía NO es válida', !valida({ traceabilityLevel: '' }).valid);
-comprueba('un valor fuera de BAJO/MEDIO/ALTO NO es válido', !valida({ traceabilityLevel: 'MEDIA' }).valid);
-
-// ---------------------------------------------------------------------------
+check('the missing key is valid', validateENSConfigurationStructure(withoutT).valid, validateENSConfigurationStructure(withoutT).errors.join('; '));
+check('a level is valid', valid({ traceabilityLevel: 'ALTO' }).valid);
+check('null is NOT valid', !valid({ traceabilityLevel: null }).valid);
+check('an empty string is NOT valid', !valid({ traceabilityLevel: '' }).valid);
+check('a value outside BAJO/MEDIO/ALTO is NOT valid', !valid({ traceabilityLevel: 'MEDIA' }).valid);
 
 ensConfigurationRepository.reset();
 
-if (fallos.length) {
-  console.log(`\n${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`\n${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('\nTodo correcto.');
+console.log('\nALL OK');

@@ -1,3 +1,5 @@
+/** Parameter patterns. */
+
 import assert from 'node:assert/strict';
 import { compileParameterPattern } from '../common/ens/configuration/services/parameter-pattern';
 import {
@@ -91,7 +93,6 @@ assert(
   )
 );
 
-// Saving and reloading keeps the pattern a pattern; clearing removes its mode too (re-seeding: test_inject_control.py).
 const saved = applyENSControlParameterValues(configured(regex), {
   [regex.name]: '^svc_.*$',
 });
@@ -198,7 +199,6 @@ assert.equal(
   evaluate({ ...account, value: ['admin.*'] }, 'admin.*').status,
   'NO_CUMPLE'
 );
-// A classic backtracking pattern runs in linear time.
 assert.equal(
   compileParameterPattern('(a+)+$').matches('a'.repeat(20000) + '!'),
   false

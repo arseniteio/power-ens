@@ -1,24 +1,4 @@
-/**
- * op.cont.2 · el juicio del plan de continuidad.
- *
- *     npx tsx tests/op-cont-2-judgment.test.ts
- *
- * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
- *
- * Qué se prueba. op.cont.2 es un control de DOCUMENTO sin runbook ni reglas:
- * todo lo que decide son tablas de la pantalla con su vigencia, juzgadas contra
- * la fecha de la evaluación, y lo que cumple sale ACREDITADO DOCUMENTALMENTE.
- * Se rige por el nivel de Disponibilidad y solo en ALTO. Cada caso mueve UN eje
- * y lleva al lado la REVERSIÓN: la misma tabla con otra fecha, u otro `now`,
- * cambia el veredicto.
- *
- * No hay hechos: ninguna máquina emite nada de op.cont.2, así que lo que no se
- * puede acreditar es de CONFIGURACIÓN, nunca de RECOGIDA, también por el motor
- * entero (bloque 7).
- *
- * El motor arrastra `kibana-services`, que solo existe en el árbol del plugin
- * `main` de Wazuh; aquí se sustituye por un módulo vacío antes de cargarlo.
- */
+/** op.cont.2: judgment of the continuity plan. */
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ENSCatalog } from '../common/ens/catalog';
@@ -46,60 +26,50 @@ declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-// `kibana-services` de mentira, ANTES de cargar el motor.
 {
   const Module = require('module');
-  const cargar = Module._load;
+  const load = Module._load;
 
-  Module._load = function (peticion: string, ...resto: unknown[]) {
-    if (/kibana-services$/.test(peticion)) {
+  Module._load = function (request: string, ...rest: unknown[]) {
+    if (/kibana-services$/.test(request)) {
       return {};
     }
 
-    return cargar.call(this, peticion, ...resto);
+    return load.call(this, request, ...rest);
   };
 }
 
 const { getENSComplianceResults, getENSComplianceState } = require('../common/ens/core/ens-engine') as typeof import('../common/ens/core/ens-engine');
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- la configuración --------------------------------------------------------
+const NOW = new Date('2026-10-09T12:00:00Z');
 
-const AHORA = new Date('2026-10-09T12:00:00Z');
+type Values = Record<string, string[] | string | undefined>;
 
-type Valores = Record<string, string[] | string | undefined>;
-
-const configuracion = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (values: Values): ENSControlConfiguration => ({
   ...opCont2Configuration,
   parameters: opCont2Configuration.parameters.map(p => {
-    const { value: _anterior, ...sinValor } = p;
+    const { value: _anterior, ...withoutValue } = p;
 
-    // Un parámetro vacío es la clave `value` AUSENTE, nunca `null`.
-    return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
+    return values[p.id] === undefined ? withoutValue : { ...withoutValue, value: values[p.id] };
   }),
 });
 
-// Lo que declararía una organización con D en ALTO y todo en orden el
-// 09/10/2026: la versión vigente del plan (y la anterior, que se conserva), dos
-// servicios esenciales, dos funciones (una sin suplente), dos medios
-// alternativos contratados y la formación de las tres personas.
-const BASE: Valores = {
+const BASE: Values = {
   'P-01': [
     'Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad',
     'Plan de Continuidad del Servicio | v2.1 | 2024-03-10 | Comité de Seguridad | Responsable de Seguridad',
@@ -123,38 +93,33 @@ const BASE: Valores = {
   'P-08': '12',
 };
 
-const con = (cambios: Valores): Valores => ({ ...BASE, ...cambios });
+const withIt = (changesList: Values): Values => ({ ...BASE, ...changesList });
 
 const BASE_REQ = ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.3', 'op.cont.2.4', 'op.cont.2.5'];
 
-// El camino del motor para UN control sin hechos, pieza a pieza: evidencias,
-// policy, puente, requisitos y, con `motor()`, el resultado entero con la misma
-// expectativa de hechos que le da `ens-engine.ts`.
-const evalua = (valores: Valores = BASE, nivel: ENSLevel = 'ALTO', ahora: Date = AHORA, tocaTabla?: (t: ENSEvidenceResolved[]) => ENSEvidenceResolved[]) => {
-  const cfg = configuracion(valores);
-  const evidencias = resolveEvidenceForControl('op.cont.2', [], '000', nivel, cfg, ahora);
-  const contexto = buildPolicyContext(opCont2CatalogDefinition, cfg, nivel, [], evidencias, ahora);
-  const { decisions, runtimeVariables } = opCont2PolicyDefinition.evaluator!(contexto);
-  // Sin hechos, «no ha llegado nada» solo cuenta si el control esperaba hechos
-  // (`nadaRecibido` del motor): op.cont.2 no los espera.
-  const puenteada = applyPolicyDecisionsToEvidences(evidencias, decisions, opCont2CatalogDefinition.requirements, controlExpectsFacts('op.cont.2'));
-  const tabla = tocaTabla ? tocaTabla(puenteada) : puenteada;
-  const requisito = (id: string) =>
-    evaluateRequirement(opCont2CatalogDefinition.requirements.find(q => q.id === id)!, nivel, tabla, false, decisions, 'ACTIVE');
-  const evidencia = (id: string) => tabla.find(e => e.id === id);
-  const motivo = (req: string) => decisions.find(d => d.requirementId === req && d.trace.ruleId === req)?.reason || '';
-  const deEvidencia = (req: string, ev: string) => decisions.find(d => d.trace.ruleId === `${req}/${ev}`);
-  const variable = (nombre: string) => runtimeVariables.find(v => v.name === nombre);
+const evaluate = (values: Values = BASE, level: ENSLevel = 'ALTO', now: Date = NOW, touchesTable?: (t: ENSEvidenceResolved[]) => ENSEvidenceResolved[]) => {
+  const cfg = configuration(values);
+  const evidences = resolveEvidenceForControl('op.cont.2', [], '000', level, cfg, now);
+  const context = buildPolicyContext(opCont2CatalogDefinition, cfg, level, [], evidences, now);
+  const { decisions, runtimeVariables } = opCont2PolicyDefinition.evaluator!(context);
+  const bridged = applyPolicyDecisionsToEvidences(evidences, decisions, opCont2CatalogDefinition.requirements, controlExpectsFacts('op.cont.2'));
+  const tabla = touchesTable ? touchesTable(bridged) : bridged;
+  const requirement = (id: string) =>
+    evaluateRequirement(opCont2CatalogDefinition.requirements.find(q => q.id === id)!, level, tabla, false, decisions, 'ACTIVE');
+  const evidence = (id: string) => tabla.find(e => e.id === id);
+  const motive = (req: string) => decisions.find(d => d.requirementId === req && d.trace.ruleId === req)?.reason || '';
+  const ofEvidence = (req: string, ev: string) => decisions.find(d => d.trace.ruleId === `${req}/${ev}`);
+  const variable = (name: string) => runtimeVariables.find(v => v.name === name);
   const motor = () =>
     evaluateENSControl(
       opCont2CatalogDefinition,
       cfg,
-      nivel,
-      evidencias,
+      level,
+      evidences,
       {
         controlId: 'op.cont.2',
         policyId: opCont2PolicyDefinition.id,
-        evaluatedAt: ahora.toISOString(),
+        evaluatedAt: now.toISOString(),
         decisions,
         appliedParameters: [],
         runtimeVariables,
@@ -163,43 +128,41 @@ const evalua = (valores: Valores = BASE, nivel: ENSLevel = 'ALTO', ahora: Date =
       controlExpectsFacts('op.cont.2')
     );
 
-  return { decisions, runtimeVariables, requisito, evidencia, motivo, deEvidencia, variable, motor };
+  return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, deEvidencia: ofEvidence, variable, motor };
 };
 
-const todos = (r: ReturnType<typeof evalua>, cumple: (id: string) => boolean): string[] => BASE_REQ.filter(id => !cumple(id));
+const all = (r: ReturnType<typeof evaluate>, complies: (id: string) => boolean): string[] => BASE_REQ.filter(id => !complies(id));
 
-// --- 1. catálogo ------------------------------------------------------------
-
-bloque('1. Catálogo: Disponibilidad, solo ALTO, sin hechos y sin runbook');
+section('1. Catalog: Availability, ALTO only, no facts and no runbook');
 
 {
-  const niveles = (id: string) => opCont2CatalogDefinition.requirements.find(r => r.id === id)!.applicability.levels.join(',');
+  const levels = (id: string) => opCont2CatalogDefinition.requirements.find(r => r.id === id)!.applicability.levels.join(',');
 
-  comprueba('se rige por la Disponibilidad (levelDimension D)', opCont2CatalogDefinition.levelDimension === 'D');
-  comprueba('se evalúa solo en la fila del manager (control de la organización)', JSON.stringify(opCont2CatalogDefinition.measurementPlanes) === '["manager"]');
-  comprueba('el control está ACTIVE', opCont2CatalogDefinition.status === 'ACTIVE', opCont2CatalogDefinition.status);
-  comprueba('los cinco requisitos base solo en ALTO', BASE_REQ.every(id => niveles(id) === 'ALTO'));
-  comprueba('R1 y R2 definidos, sin niveles', niveles('op.cont.2.r1.1') === '' && niveles('op.cont.2.r2.1') === '');
-  comprueba(
-    'los cinco se apoyan en EV-01 (el plan); 2.3 en EV-04 y 2.4 en EV-06; 2.5 tiene evidencia',
+  check('governed by Availability (levelDimension D)', opCont2CatalogDefinition.levelDimension === 'D');
+  check('evaluated only in the manager row (organization control)', JSON.stringify(opCont2CatalogDefinition.measurementPlanes) === '["manager"]');
+  check('the control is ACTIVE', opCont2CatalogDefinition.status === 'ACTIVE', opCont2CatalogDefinition.status);
+  check('the five base requirements only at ALTO', BASE_REQ.every(id => levels(id) === 'ALTO'));
+  check('R1 and R2 defined, without levels', levels('op.cont.2.r1.1') === '' && levels('op.cont.2.r2.1') === '');
+  check(
+    'the five rest on EV-01 (the plan); 2.3 on EV-04 and 2.4 on EV-06; 2.5 has evidence',
     BASE_REQ.every(id => opCont2CatalogDefinition.requirements.find(r => r.id === id)!.evidenceIds[0] === 'EV-01') &&
       opCont2CatalogDefinition.requirements.find(r => r.id === 'op.cont.2.3')!.evidenceIds.join(',') === 'EV-01,EV-04' &&
       opCont2CatalogDefinition.requirements.find(r => r.id === 'op.cont.2.4')!.evidenceIds.join(',') === 'EV-01,EV-06' &&
       opCont2CatalogDefinition.requirements.find(r => r.id === 'op.cont.2.5')!.evidenceIds.join(',') === 'EV-01'
   );
-  comprueba(
-    'ninguna evidencia escucha un evento, tiene origen ni acredita reglas',
+  check(
+    'no evidence listens to an event, has an origin or accredits rules',
     getEvidenceDefinitions('op.cont.2').length === 8 &&
       getEvidenceDefinitions('op.cont.2').every(e => !e.expectedEventTypes.length && !e.sourceTypes.length && !e.relatedRules.length && !e.judgment)
   );
-  comprueba('op.cont.2 no espera hechos', controlExpectsFacts('op.cont.2') === false);
-  comprueba(
-    'y es el único: todos los demás controles del catálogo esperan hechos',
+  check('op.cont.2 does not wait for facts', controlExpectsFacts('op.cont.2') === false);
+  check(
+    'and it is the only one: all other catalog controls wait for facts',
     ENSCatalog.filter(c => c.id !== 'op.cont.2').every(c => controlExpectsFacts(c.id)),
     ENSCatalog.filter(c => c.id !== 'op.cont.2' && !controlExpectsFacts(c.id)).map(c => c.id).join(', ')
   );
-  comprueba(
-    'la policy declara los mismos niveles y evidencias que el catálogo',
+  check(
+    'the policy declares the same levels and evidences as the catalog',
     opCont2PolicyDefinition.requirements.length === opCont2CatalogDefinition.requirements.length &&
       opCont2PolicyDefinition.requirements.every(r => {
         const c = opCont2CatalogDefinition.requirements.find(q => q.id === r.requirementId)!;
@@ -207,13 +170,13 @@ bloque('1. Catálogo: Disponibilidad, solo ALTO, sin hechos y sin runbook');
         return r.levels.join(',') === c.applicability.levels.join(',') && r.evidenceIds.join(',') === c.evidenceIds.join(',');
       })
   );
-  comprueba('sin P-ATT: una atestación no caduca', !opCont2Configuration.parameters.some(p => p.id === 'P-ATT'));
-  comprueba(
-    'obligatorios solo P-01 y P-08',
+  check('without P-ATT: an attestation does not expire', !opCont2Configuration.parameters.some(p => p.id === 'P-ATT'));
+  check(
+    'mandatory only P-01 and P-08',
     opCont2Configuration.parameters.filter(p => p.required).map(p => p.id).join(',') === 'P-01,P-08'
   );
-  comprueba(
-    'las fechas son columnas date (las mismas que valida la pantalla)',
+  check(
+    'dates are date columns (the same the screen validates)',
     ['P-01:fecha_de_aprobacion', 'P-04:vigencia', 'P-05:fecha', 'P-05:vigencia'].every(par => {
       const [id, col] = par.split(':');
 
@@ -221,408 +184,390 @@ bloque('1. Catálogo: Disponibilidad, solo ALTO, sin hechos y sin runbook');
     })
   );
 
-  const sinRunbook = JSON.parse(readFileSync(join(__dirname, 'controls-without-runbook.json'), 'utf-8'));
-  const bloqueJson = JSON.parse(readFileSync(join(__dirname, '..', 'config', 'op-cont-2-control-block.json'), 'utf-8'));
+  const withoutRunbook = JSON.parse(readFileSync(join(__dirname, 'controls-without-runbook.json'), 'utf-8'));
+  const jsonBlock = JSON.parse(readFileSync(join(__dirname, '..', 'config', 'op-cont-2-control-block.json'), 'utf-8'));
 
-  comprueba('declarado sin runbook, con motivo', typeof sinRunbook['op.cont.2'] === 'string' && sinRunbook['op.cont.2'].length > 20);
-  comprueba('el bloque de config/ es el TS, tal cual', JSON.stringify(bloqueJson) === JSON.stringify(opCont2Configuration));
+  check('declared without a runbook, with a motive', typeof withoutRunbook['op.cont.2'] === 'string' && withoutRunbook['op.cont.2'].length > 20);
+  check('the config/ block is the TS, as is', JSON.stringify(jsonBlock) === JSON.stringify(opCont2Configuration));
 }
 
-// --- 2. verde ---------------------------------------------------------------
-
-bloque('2. Verde: todo declarado y en vigor el 09/10/2026, D en ALTO');
+section('2. Green: everything declared and in force on 09/10/2026, D at ALTO');
 
 {
-  const r = evalua();
+  const r = evaluate();
 
-  comprueba(
-    'los cinco requisitos CUMPLE, acreditados documentalmente y demostrados',
-    todos(r, id => r.requisito(id).status === 'CUMPLE' && r.requisito(id).attested === true && r.requisito(id).evidenced === true).length === 0,
-    todos(r, id => r.requisito(id).status === 'CUMPLE' && r.requisito(id).attested === true).join(', ')
+  check(
+    'the five requirements CUMPLE, documentarily accredited and proven',
+    all(r, id => r.requisito(id).status === 'CUMPLE' && r.requisito(id).attested === true && r.requisito(id).evidenced === true).length === 0,
+    all(r, id => r.requisito(id).status === 'CUMPLE' && r.requisito(id).attested === true).join(', ')
   );
-  comprueba(
-    'y su observación empieza por «Acreditado documentalmente»',
+  check(
+    'and their observation starts with «Acreditado documentalmente»',
     BASE_REQ.every(id => r.requisito(id).observations[0].startsWith('Acreditado documentalmente')),
     r.requisito('op.cont.2.1').observations[0]
   );
-  comprueba(
-    'EV-01: el plan v3.0 del 15/01 vence el 15/01/2027 con P-08 = 12 (la v2.1 de 2024 no cuenta)',
+  check(
+    'EV-01: the v3.0 plan of 15/01 expires on 15/01/2027 with P-08 = 12 (the 2024 v2.1 does not count)',
     r.evidencia('EV-01')?.status === 'CUMPLE' && /v3\.0, aprobado el 2026-01-15 por Comité de Seguridad: vigente hasta el 2027-01-15/.test(r.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
     r.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
-  comprueba(
-    'la evidencia dice que es una declaración, no una medida',
+  check(
+    'the evidence says it is a declaration, not a measurement',
     (r.evidencia('EV-01')?.observations || []).some(o => /Declaración de la pantalla, no medida/.test(o)),
     (r.evidencia('EV-01')?.observations || []).join(' | ')
   );
-  comprueba(
-    'EV-04: los dos contratos en vigor, con los días que quedan',
+  check(
+    'EV-04: both contracts in force, with the days left',
     r.evidencia('EV-04')?.status === 'CUMPLE' && /CT-2025-014 con Proveedor X, hasta el 2027-06-30/.test(r.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
     r.deEvidencia('op.cont.2.3', 'EV-04')?.reason
   );
-  comprueba(
-    'EV-06: las tres personas de P-03 (el «-» no es un suplente) con formación vigente',
+  check(
+    'EV-06: the three people of P-03 (the «-» is not a deputy) with current training',
     r.evidencia('EV-06')?.status === 'CUMPLE' && /Las 3 persona\(s\) del plan/.test(r.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
     r.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
-  comprueba(
-    'EV-02, EV-03, EV-05, EV-07 y EV-08: NO_APLICA, dato del informe',
+  check(
+    'EV-02, EV-03, EV-05, EV-07 and EV-08: NO_APLICA, report datum',
     ['EV-02', 'EV-03', 'EV-05', 'EV-07', 'EV-08'].every(
       id => r.evidencia(id)?.status === 'NO_APLICA' && (r.evidencia(id)?.observations || []).some(o => /Dato del informe, sin veredicto/.test(o))
     ),
     ['EV-02', 'EV-03', 'EV-05', 'EV-07', 'EV-08'].map(id => `${id}=${r.evidencia(id)?.status}`).join(' ')
   );
-  comprueba('R1 y R2 NO_APLICA', r.requisito('op.cont.2.r1.1').status === 'NO_APLICA' && r.requisito('op.cont.2.r2.1').status === 'NO_APLICA');
-  comprueba('la variable del plan lleva su último día de vigencia', r.variable('plan_vigente_hasta')?.value === '2027-01-15', r.variable('plan_vigente_hasta')?.value);
+  check('R1 and R2 NO_APLICA', r.requisito('op.cont.2.r1.1').status === 'NO_APLICA' && r.requisito('op.cont.2.r2.1').status === 'NO_APLICA');
+  check('the plan variable carries its last day of validity', r.variable('plan_vigente_hasta')?.value === '2027-01-15', r.variable('plan_vigente_hasta')?.value);
 
-  const resultado = r.motor();
+  const result = r.motor();
 
-  comprueba('el control CUMPLE al 100 %', resultado.status === 'CUMPLE' && resultado.score === 100, `${resultado.status} ${resultado.score}`);
-  comprueba('sin no conformidades', resultado.nonConformities.length === 0, resultado.nonConformities.map(nc => nc.id).join(', '));
-  comprueba(
-    'los valores de BASE son válidos para el validador de la pantalla',
-    configuracion(BASE).parameters.filter(p => p.value !== undefined).every(p => validateParameterValue(p, p.value).valid),
-    configuracion(BASE).parameters.filter(p => p.value !== undefined && !validateParameterValue(p, p.value).valid).map(p => `${p.id}: ${validateParameterValue(p, p.value).reason}`).join('; ')
+  check('the control CUMPLE at 100 %', result.status === 'CUMPLE' && result.score === 100, `${result.status} ${result.score}`);
+  check('no nonconformities', result.nonConformities.length === 0, result.nonConformities.map(nc => nc.id).join(', '));
+  check(
+    'the BASE values are valid for the screen\'s validator',
+    configuration(BASE).parameters.filter(p => p.value !== undefined).every(p => validateParameterValue(p, p.value).valid),
+    configuration(BASE).parameters.filter(p => p.value !== undefined && !validateParameterValue(p, p.value).valid).map(p => `${p.id}: ${validateParameterValue(p, p.value).reason}`).join('; ')
   );
 
-  const informe = buildOpCont2ReportModel(resultado);
-  const campo = (id: string) => informe.fields.find(f => f.id === `op.cont.2.${id}`);
+  const report = buildOpCont2ReportModel(result);
+  const campo = (id: string) => report.fields.find(f => f.id === `op.cont.2.${id}`);
 
-  comprueba('el informe tiene los doce campos de la plantilla', informe.fields.length === 12, informe.fields.length);
-  comprueba('informe · plan vigente hasta el 2027-01-15, DOCUMENTO APORTADO', /DOCUMENTO APORTADO.*2027-01-15/.test(campo('campo2')?.value || ''), campo('campo2')?.value);
-  comprueba('informe · los servicios esenciales de P-02', campo('campo3')?.status === 'CUMPLE' && /sede electrónica/.test(campo('campo3')?.value || ''), campo('campo3')?.value);
-  comprueba('informe · la integración con otros planes de P-06', campo('campo10')?.status === 'CUMPLE', campo('campo10')?.status);
-  comprueba(
-    'informe · interrupciones, disponibilidad y activación de medios: no se miden y lo dice',
+  check('the report has the twelve fields of the template', report.fields.length === 12, report.fields.length);
+  check('report · plan valid until 2027-01-15, DOCUMENTO APORTADO', /DOCUMENTO APORTADO.*2027-01-15/.test(campo('campo2')?.value || ''), campo('campo2')?.value);
+  check('report · P-02\'s essential services', campo('campo3')?.status === 'CUMPLE' && /sede electrónica/.test(campo('campo3')?.value || ''), campo('campo3')?.value);
+  check('report · the integration with other plans from P-06', campo('campo10')?.status === 'CUMPLE', campo('campo10')?.status);
+  check(
+    'report · interruptions, availability and activation of means: not measured, and it says so',
     ['campo4', 'campo5', 'campo6'].every(id => campo(id)?.status === 'NO_APLICA' && /No se mide/.test(campo(id)?.value || '')),
     ['campo4', 'campo5', 'campo6'].map(id => campo(id)?.value).join(' | ')
   );
-  comprueba(
-    'informe · la puntuación dice que todo es documental',
+  check(
+    'report · the score says everything is documentary',
     /100 %.*5 de 5 acreditados documentalmente.*nada se verifica técnicamente/.test(campo('campo12')?.value || ''),
     campo('campo12')?.value
   );
 }
 
-// --- 3. el plan y su vigencia -------------------------------------------------
-
-bloque('3. EV-01: el plan vencido tumba los cinco; la periodicidad y la fecha deciden');
+section('3. EV-01: the expired plan brings down all five; periodicity and date decide');
 
 {
-  const viejo = con({ 'P-01': ['Plan de Continuidad del Servicio | v2.1 | 2025-09-01 | Comité de Seguridad | RS'] });
-  const r = evalua(viejo);
+  const old = withIt({ 'P-01': ['Plan de Continuidad del Servicio | v2.1 | 2025-09-01 | Comité de Seguridad | RS'] });
+  const r = evaluate(old);
 
-  comprueba(
-    'aprobado el 01/09/2025 con P-08 = 12: vencido el 2026-09-01 → los cinco NO_CUMPLE medidos, sin la marca',
-    todos(r, id => r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === true && !r.requisito(id).attested).length === 0,
+  check(
+    'approved on 01/09/2025 with P-08 = 12: expired on 2026-09-01 → all five measured NO_CUMPLE, without the mark',
+    all(r, id => r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === true && !r.requisito(id).attested).length === 0,
     BASE_REQ.map(id => `${id}=${r.requisito(id).status}/${r.requisito(id).attested}`).join(' ')
   );
-  comprueba('y el motivo da la fecha y los días', /venció el 2026-09-01, hace 37 días/.test(r.motivo('op.cont.2.3')), r.motivo('op.cont.2.3'));
+  check('and the motive gives the date and the days', /venció el 2026-09-01, hace 37 días/.test(r.motivo('op.cont.2.3')), r.motivo('op.cont.2.3'));
 
-  const bienal = evalua({ ...viejo, 'P-08': '24' });
+  const biennial = evaluate({ ...old, 'P-08': '24' });
 
-  comprueba(
-    'reversión · el mismo plan con P-08 = 24 (bienal): CUMPLE acreditado',
-    todos(bienal, id => bienal.requisito(id).status === 'CUMPLE' && bienal.requisito(id).attested === true).length === 0,
-    bienal.motivo('op.cont.2.1')
+  check(
+    'reversal · the same plan with P-08 = 24 (biennial): accredited CUMPLE',
+    all(biennial, id => biennial.requisito(id).status === 'CUMPLE' && biennial.requisito(id).attested === true).length === 0,
+    biennial.motivo('op.cont.2.1')
   );
 
-  const justo = con({ 'P-01': ['Plan | v1 | 2025-10-09 | Comité | RS'] });
+  const justo = withIt({ 'P-01': ['Plan | v1 | 2025-10-09 | Comité | RS'] });
 
-  comprueba(
-    'aprobado el 09/10/2025 con P-08 = 12: el 09/10/2026 todavía vale (vence al acabar el día)',
-    evalua(justo).evidencia('EV-01')?.status === 'CUMPLE',
-    evalua(justo).deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  check(
+    'approved on 09/10/2025 with P-08 = 12: on 09/10/2026 it is still valid (expires at the end of the day)',
+    evaluate(justo).evidencia('EV-01')?.status === 'CUMPLE',
+    evaluate(justo).deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
-  comprueba(
-    'reversión · el 10/10/2026 ya ha vencido',
-    evalua(justo, 'ALTO', new Date('2026-10-10T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE'
-  );
-
-  const finDeMes = con({ 'P-01': ['Plan | v1 | 2026-01-31 | Comité | RS'], 'P-08': '1' });
-
-  comprueba(
-    'los meses son de calendario: 31/01 + 1 mes vence el 28/02, no el 03/03',
-    evalua(finDeMes, 'ALTO', new Date('2026-02-28T23:00:00Z')).evidencia('EV-01')?.status === 'CUMPLE' &&
-      evalua(finDeMes, 'ALTO', new Date('2026-03-01T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE',
-    evalua(finDeMes, 'ALTO', new Date('2026-02-28T23:00:00Z')).deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  check(
+    'reversal · on 10/10/2026 it has expired',
+    evaluate(justo, 'ALTO', new Date('2026-10-10T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE'
   );
 
-  // La serie diaria evalúa días pasados con la configuración de hoy: una
-  // versión aprobada después de esa fecha no existía todavía.
-  const antes = evalua(BASE, 'ALTO', new Date('2025-12-01T12:00:00Z'));
+  const endOfMonth = withIt({ 'P-01': ['Plan | v1 | 2026-01-31 | Comité | RS'], 'P-08': '1' });
 
-  comprueba(
-    'el 01/12/2025 cuenta la v2.1 de 2024 (la v3.0 aún no existía), vencida el 10/03/2025',
+  check(
+    'months are calendar months: 31/01 + 1 month expires on 28/02, not 03/03',
+    evaluate(endOfMonth, 'ALTO', new Date('2026-02-28T23:00:00Z')).evidencia('EV-01')?.status === 'CUMPLE' &&
+      evaluate(endOfMonth, 'ALTO', new Date('2026-03-01T00:00:00Z')).evidencia('EV-01')?.status === 'NO_CUMPLE',
+    evaluate(endOfMonth, 'ALTO', new Date('2026-02-28T23:00:00Z')).deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  );
+
+  const antes = evaluate(BASE, 'ALTO', new Date('2025-12-01T12:00:00Z'));
+
+  check(
+    'on 01/12/2025 the 2024 v2.1 counts (v3.0 did not exist yet), expired on 10/03/2025',
     antes.evidencia('EV-01')?.status === 'NO_CUMPLE' && /v2\.1/.test(antes.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
     antes.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
 
-  const soloFutura = evalua(con({ 'P-01': ['Plan | v3.0 | 2026-01-15 | Comité | RS'] }), 'ALTO', new Date('2025-12-01T12:00:00Z'));
+  const onlyFuture = evaluate(withIt({ 'P-01': ['Plan | v3.0 | 2026-01-15 | Comité | RS'] }), 'ALTO', new Date('2025-12-01T12:00:00Z'));
 
-  comprueba(
-    'sin ninguna versión aprobada a esa fecha: no demostrado (CONFIGURATION), nunca CUMPLE',
-    soloFutura.evidencia('EV-01')?.status === 'NO_EVALUABLE' && soloFutura.evidencia('EV-01')?.gapCause === 'CONFIGURATION',
-    soloFutura.deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  check(
+    'no approved version on that date: not proven (CONFIGURATION), never CUMPLE',
+    onlyFuture.evidencia('EV-01')?.status === 'NO_EVALUABLE' && onlyFuture.evidencia('EV-01')?.gapCause === 'CONFIGURATION',
+    onlyFuture.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
 }
 
-// --- 4. contratos y formación ------------------------------------------------
-
-bloque('4. EV-04 y EV-06: lo que la organización declara que falta o venció es NO_CUMPLE');
+section('4. EV-04 and EV-06: what the organization declares missing or expired is NO_CUMPLE');
 
 {
-  const sinContrato = evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h', 'sede de respaldo | - |  |  | 24 h'] }));
+  const withoutContract = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h', 'sede de respaldo | - |  |  | 24 h'] }));
 
-  comprueba(
-    'un medio sin contrato: op.cont.2.3 NO_CUMPLE medido, y lo nombra',
-    sinContrato.requisito('op.cont.2.3').status === 'NO_CUMPLE' && sinContrato.requisito('op.cont.2.3').evidenced === true && /sin acuerdo ni contrato: sede de respaldo/.test(sinContrato.motivo('op.cont.2.3')),
-    sinContrato.motivo('op.cont.2.3')
+  check(
+    'a means without a contract: op.cont.2.3 measured NO_CUMPLE, and it names it',
+    withoutContract.requisito('op.cont.2.3').status === 'NO_CUMPLE' && withoutContract.requisito('op.cont.2.3').evidenced === true && /sin acuerdo ni contrato: sede de respaldo/.test(withoutContract.motivo('op.cont.2.3')),
+    withoutContract.motivo('op.cont.2.3')
   );
-  comprueba(
-    'y los otros cuatro siguen acreditados (el plan está en vigor)',
-    ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.4', 'op.cont.2.5'].every(id => sinContrato.requisito(id).status === 'CUMPLE' && sinContrato.requisito(id).attested === true)
-  );
-
-  const vencido = evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }));
-
-  comprueba(
-    'un contrato vencido el 30/06: NO_CUMPLE con la fecha',
-    vencido.evidencia('EV-04')?.status === 'NO_CUMPLE' && /venció el 2026-06-30/.test(vencido.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
-    vencido.deEvidencia('op.cont.2.3', 'EV-04')?.reason
-  );
-  comprueba(
-    'reversión · el mismo contrato evaluado el 15/06/2026: en vigor',
-    evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }), 'ALTO', new Date('2026-06-15T12:00:00Z')).evidencia('EV-04')?.status === 'CUMPLE'
+  check(
+    'and the other four stay accredited (the plan is in force)',
+    ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.4', 'op.cont.2.5'].every(id => withoutContract.requisito(id).status === 'CUMPLE' && withoutContract.requisito(id).attested === true)
   );
 
-  const sinFecha = evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 |  | 48 h'] }));
+  const expired2 = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }));
 
-  comprueba(
-    'un contrato sin fecha de vigencia: no demostrado (CONFIGURATION), no CUMPLE',
-    sinFecha.evidencia('EV-04')?.status === 'NO_EVALUABLE' &&
-      sinFecha.evidencia('EV-04')?.gapCause === 'CONFIGURATION' &&
-      sinFecha.requisito('op.cont.2.3').status === 'NO_CUMPLE' &&
-      sinFecha.requisito('op.cont.2.3').evidenced === false,
-    sinFecha.deEvidencia('op.cont.2.3', 'EV-04')?.reason
+  check(
+    'a contract expired on 30/06: NO_CUMPLE with the date',
+    expired2.evidencia('EV-04')?.status === 'NO_CUMPLE' && /venció el 2026-06-30/.test(expired2.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
+    expired2.deEvidencia('op.cont.2.3', 'EV-04')?.reason
+  );
+  check(
+    'reversal · the same contract evaluated on 15/06/2026: in force',
+    evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h'] }), 'ALTO', new Date('2026-06-15T12:00:00Z')).evidencia('EV-04')?.status === 'CUMPLE'
   );
 
-  const mala = evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] }));
+  const withoutDate = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 |  | 48 h'] }));
 
-  comprueba(
-    'una vigencia «30/06/2027» no es una fecha: CONFIGURATION, nombrando el medio',
+  check(
+    'a contract without a validity date: not proven (CONFIGURATION), not CUMPLE',
+    withoutDate.evidencia('EV-04')?.status === 'NO_EVALUABLE' &&
+      withoutDate.evidencia('EV-04')?.gapCause === 'CONFIGURATION' &&
+      withoutDate.requisito('op.cont.2.3').status === 'NO_CUMPLE' &&
+      withoutDate.requisito('op.cont.2.3').evidenced === false,
+    withoutDate.deEvidencia('op.cont.2.3', 'EV-04')?.reason
+  );
+
+  const mala = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] }));
+
+  check(
+    'a validity «30/06/2027» is not a date: CONFIGURATION, naming the means',
     mala.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /CPD alternativo \(CT-2025-014\): vigencia «30\/06\/2027»/.test(mala.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
     mala.deEvidencia('op.cont.2.3', 'EV-04')?.reason
   );
-  comprueba(
-    'y la pantalla la rechaza igual',
+  check(
+    'and the screen rejects it all the same',
     (() => {
-      const p04 = configuracion(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] })).parameters.find(p => p.id === 'P-04')!;
+      const p04 = configuration(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 30/06/2027 | 48 h'] })).parameters.find(p => p.id === 'P-04')!;
 
       return !validateParameterValue(p04, p04.value).valid;
     })()
   );
 
-  const mixto = evalua(con({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h', 'enlace | Operador Y | CT-9 |  | 4 h'] }));
+  const mixedOne = evaluate(withIt({ 'P-04': ['CPD alternativo | Proveedor X | CT-2025-014 | 2026-06-30 | 48 h', 'enlace | Operador Y | CT-9 |  | 4 h'] }));
 
-  comprueba(
-    'un contrato vencido y otro sin fecha: manda el incumplimiento, y el otro se dice',
-    mixto.evidencia('EV-04')?.status === 'NO_CUMPLE' && /Además: P-04 no permite afirmar/.test(mixto.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
-    mixto.deEvidencia('op.cont.2.3', 'EV-04')?.reason
+  check(
+    'an expired contract and another without a date: the breach prevails, and the other is mentioned',
+    mixedOne.evidencia('EV-04')?.status === 'NO_CUMPLE' && /Además: P-04 no permite afirmar/.test(mixedOne.deEvidencia('op.cont.2.3', 'EV-04')?.reason || ''),
+    mixedOne.deEvidencia('op.cont.2.3', 'EV-04')?.reason
   );
 
-  const sinRuiz = evalua(con({ 'P-05': (BASE['P-05'] as string[]).filter(f => !f.startsWith('J. Ruiz')) }));
+  const withoutRuiz = evaluate(withIt({ 'P-05': (BASE['P-05'] as string[]).filter(f => !f.startsWith('J. Ruiz')) }));
 
-  comprueba(
-    'el suplente sin formación registrada: op.cont.2.4 NO_CUMPLE, y lo nombra',
-    sinRuiz.requisito('op.cont.2.4').status === 'NO_CUMPLE' && /sin formación registrada en P-05: J\. Ruiz/.test(sinRuiz.motivo('op.cont.2.4')),
-    sinRuiz.motivo('op.cont.2.4')
+  check(
+    'the deputy without registered training: op.cont.2.4 NO_CUMPLE, and it names them',
+    withoutRuiz.requisito('op.cont.2.4').status === 'NO_CUMPLE' && /sin formación registrada en P-05: J\. Ruiz/.test(withoutRuiz.motivo('op.cont.2.4')),
+    withoutRuiz.motivo('op.cont.2.4')
   );
 
-  const ruizIlegible = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+  const unreadableRuiz = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
-  comprueba(
-    'la única fila del suplente con la vigencia ilegible: no demostrado (CONFIGURATION) nombrando la fila, no «sin formación»',
-    ruizIlegible.evidencia('EV-06')?.status === 'NO_EVALUABLE' &&
-      ruizIlegible.evidencia('EV-06')?.gapCause === 'CONFIGURATION' &&
-      /fila 2 \(J\. Ruiz\): vigencia «10\/02\/2027»/.test(ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || '') &&
-      !/sin formación registrada/.test(ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
-    ruizIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  check(
+    'the deputy\'s only row with unreadable validity: not proven (CONFIGURATION) naming the row, not «sin formación»',
+    unreadableRuiz.evidencia('EV-06')?.status === 'NO_EVALUABLE' &&
+      unreadableRuiz.evidencia('EV-06')?.gapCause === 'CONFIGURATION' &&
+      /fila 2 \(J\. Ruiz\): vigencia «10\/02\/2027»/.test(unreadableRuiz.deEvidencia('op.cont.2.4', 'EV-06')?.reason || '') &&
+      !/sin formación registrada/.test(unreadableRuiz.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    unreadableRuiz.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 
-  const vencidaMasIlegible = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2025-01-10 | 2026-01-10', 'J. Ruiz | renovación |  | ', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
+  const expiredPlusUnreadable = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2025-01-10 | 2026-01-10', 'J. Ruiz | renovación |  | ', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
-  comprueba(
-    'una vencida y otra fila sin vigencia de la misma persona: no demostrado, no NO_CUMPLE',
-    vencidaMasIlegible.evidencia('EV-06')?.status === 'NO_EVALUABLE' && /fila 3 \(J\. Ruiz\)/.test(vencidaMasIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
-    vencidaMasIlegible.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  check(
+    'one expired row and another row without validity for the same person: not proven, not NO_CUMPLE',
+    expiredPlusUnreadable.evidencia('EV-06')?.status === 'NO_EVALUABLE' && /fila 3 \(J\. Ruiz\)/.test(expiredPlusUnreadable.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    expiredPlusUnreadable.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
-  comprueba(
-    'reversión · con la fecha bien escrita, CUMPLE',
-    evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'CUMPLE'
+  check(
+    'reversal · with the date well written, CUMPLE',
+    evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | coordinación (suplente) | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'CUMPLE'
   );
-  comprueba(
-    'y una persona sin ninguna fila sigue siendo NO_CUMPLE aunque haya filas ilegibles de otra',
-    evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
-  );
-
-  const minusculas = evalua(con({ 'P-05': ['a. martinez | coordinación | 2026-02-10 | 2027-02-10', 'J.  RUIZ | coordinación | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
-
-  comprueba(
-    'reversión · «a. martinez» y «J.  RUIZ» son las personas de P-03 (sin mayúsculas, tildes ni espacios de más)',
-    minusculas.evidencia('EV-06')?.status === 'CUMPLE',
-    minusculas.deEvidencia('op.cont.2.4', 'EV-06')?.reason
-  );
-  comprueba(
-    'pero nunca por parecido: «Martínez» no es «A. Martínez»',
-    evalua(con({ 'P-05': ['Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
+  check(
+    'and a person with no row at all is still NO_CUMPLE even if there are unreadable rows of another',
+    evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-02-10 | 10/02/2027', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
   );
 
-  const caducada = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+  const lowerCase = evaluate(withIt({ 'P-05': ['a. martinez | coordinación | 2026-02-10 | 2027-02-10', 'J.  RUIZ | coordinación | 2026-02-10 | 2027-02-10', 'L. Gómez | conmutación | 2025-11-20 | 2026-11-20'] }));
 
-  comprueba(
-    'una formación vencida el 10/02: NO_CUMPLE con la fecha',
-    caducada.evidencia('EV-06')?.status === 'NO_CUMPLE' && /A\. Martínez \(coordinación, venció el 2026-02-10/.test(caducada.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
-    caducada.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  check(
+    'reversal · «a. martinez» and «J.  RUIZ» are P-03\'s people (ignoring case, accents and extra spaces)',
+    lowerCase.evidencia('EV-06')?.status === 'CUMPLE',
+    lowerCase.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  );
+  check(
+    'but never by similarity: «Martínez» is not «A. Martínez»',
+    evaluate(withIt({ 'P-05': ['Martínez | coordinación | 2026-02-10 | 2027-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] })).evidencia('EV-06')?.status === 'NO_CUMPLE'
   );
 
-  const renovada = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'A. Martínez | coordinación (renovación) | 2026-02-09 | 2027-02-09', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+  const expiredOne = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
 
-  comprueba('reversión · con la renovación en otra fila, vigente', renovada.evidencia('EV-06')?.status === 'CUMPLE', renovada.deEvidencia('op.cont.2.4', 'EV-06')?.reason);
-
-  const futura = evalua(con({ 'P-05': ['A. Martínez | coordinación | 2026-11-15 | 2027-11-15', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
-
-  comprueba(
-    'una formación que se recibirá en noviembre no forma hoy',
-    futura.evidencia('EV-06')?.status === 'NO_CUMPLE' && /recibida el 2026-11-15, después de la fecha de la evaluación/.test(futura.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
-    futura.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  check(
+    'training expired on 10/02: NO_CUMPLE with the date',
+    expiredOne.evidencia('EV-06')?.status === 'NO_CUMPLE' && /A\. Martínez \(coordinación, venció el 2026-02-10/.test(expiredOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    expiredOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 
-  const sinP05 = evalua(con({ 'P-05': undefined }));
+  const renewed = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2025-02-10 | 2026-02-10', 'A. Martínez | coordinación (renovación) | 2026-02-09 | 2027-02-09', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
 
-  comprueba(
-    'P-05 vacío: no demostrado (CONFIGURATION), nunca CUMPLE ni un NO_CUMPLE inventado',
-    sinP05.evidencia('EV-06')?.status === 'NO_EVALUABLE' && sinP05.evidencia('EV-06')?.gapCause === 'CONFIGURATION' && sinP05.requisito('op.cont.2.4').evidenced === false,
-    sinP05.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  check('reversal · with the renewal in another row, valid', renewed.evidencia('EV-06')?.status === 'CUMPLE', renewed.deEvidencia('op.cont.2.4', 'EV-06')?.reason);
+
+  const futureOne = evaluate(withIt({ 'P-05': ['A. Martínez | coordinación | 2026-11-15 | 2027-11-15', 'J. Ruiz | x | 2026-02-10 | 2027-02-10', 'L. Gómez | x | 2025-11-20 | 2026-11-20'] }));
+
+  check(
+    'training that will be received in November does not train today',
+    futureOne.evidencia('EV-06')?.status === 'NO_CUMPLE' && /recibida el 2026-11-15, después de la fecha de la evaluación/.test(futureOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason || ''),
+    futureOne.deEvidencia('op.cont.2.4', 'EV-06')?.reason
+  );
+
+  const withoutP05 = evaluate(withIt({ 'P-05': undefined }));
+
+  check(
+    'empty P-05: not proven (CONFIGURATION), never CUMPLE nor an invented NO_CUMPLE',
+    withoutP05.evidencia('EV-06')?.status === 'NO_EVALUABLE' && withoutP05.evidencia('EV-06')?.gapCause === 'CONFIGURATION' && withoutP05.requisito('op.cont.2.4').evidenced === false,
+    withoutP05.deEvidencia('op.cont.2.4', 'EV-06')?.reason
   );
 }
 
-// --- 5. las declaraciones propias de 2.1, 2.2 y 2.5 --------------------------
-
-bloque('5. P-03, P-02 y P-06: fila a medias o duración ilegible es CONFIGURATION, con la fila');
+section('5. P-03, P-02 and P-06: a half row or unreadable duration is CONFIGURATION, with the row');
 
 {
-  const sinActividades = evalua(con({ 'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | ', 'responsable de sistemas | L. Gómez | - | conmutar'] }));
+  const withoutActivities = evaluate(withIt({ 'P-03': ['coordinador de crisis | A. Martínez | J. Ruiz | ', 'responsable de sistemas | L. Gómez | - | conmutar'] }));
 
-  comprueba(
-    'una función sin actividades: op.cont.2.1 no demostrado (CONFIGURATION), nombrando la fila',
-    sinActividades.requisito('op.cont.2.1').status === 'NO_CUMPLE' &&
-      sinActividades.requisito('op.cont.2.1').evidenced === false &&
-      /fila 1 \(coordinador de crisis\)/.test(sinActividades.motivo('op.cont.2.1')),
-    sinActividades.motivo('op.cont.2.1')
+  check(
+    'a function without activities: op.cont.2.1 not proven (CONFIGURATION), naming the row',
+    withoutActivities.requisito('op.cont.2.1').status === 'NO_CUMPLE' &&
+      withoutActivities.requisito('op.cont.2.1').evidenced === false &&
+      /fila 1 \(coordinador de crisis\)/.test(withoutActivities.motivo('op.cont.2.1')),
+    withoutActivities.motivo('op.cont.2.1')
   );
-  comprueba(
-    'y EV-01 sigue CUMPLE: el plan no se pinta «sin medir» por un parámetro que no es suyo',
-    sinActividades.evidencia('EV-01')?.status === 'CUMPLE',
-    `${sinActividades.evidencia('EV-01')?.status} ${(sinActividades.evidencia('EV-01')?.observations || [])[0]}`
+  check(
+    'and EV-01 stays CUMPLE: the plan is not painted «sin medir» for a parameter that is not its own',
+    withoutActivities.evidencia('EV-01')?.status === 'CUMPLE',
+    `${withoutActivities.evidencia('EV-01')?.status} ${(withoutActivities.evidencia('EV-01')?.observations || [])[0]}`
   );
 
-  const rto = evalua(con({ 'P-02': ['sede electrónica | cuanto antes | 1 h | srv-web', 'correo corporativo | 8 h | 30 min | ldap-zimbra'] }));
+  const rto = evaluate(withIt({ 'P-02': ['sede electrónica | cuanto antes | 1 h | srv-web', 'correo corporativo | 8 h | 30 min | ldap-zimbra'] }));
 
-  comprueba(
-    'un RTO «cuanto antes»: op.cont.2.2 no demostrado (CONFIGURATION), nombrando el servicio',
+  check(
+    'an RTO «cuanto antes»: op.cont.2.2 not proven (CONFIGURATION), naming the service',
     rto.requisito('op.cont.2.2').evidenced === false && /fila 1 \(sede electrónica\): RTO «cuanto antes»/.test(rto.motivo('op.cont.2.2')),
     rto.motivo('op.cont.2.2')
   );
-  comprueba(
-    'reversión · «1,5 horas», «2 días» y «45 min» son duraciones',
-    evalua(con({ 'P-02': ['sede electrónica | 1,5 horas | 45 min | srv-web', 'correo | 2 días | 4 h | x'] })).requisito('op.cont.2.2').status === 'CUMPLE'
+  check(
+    'reversal · «1,5 horas», «2 días» and «45 min» are durations',
+    evaluate(withIt({ 'P-02': ['sede electrónica | 1,5 horas | 45 min | srv-web', 'correo | 2 días | 4 h | x'] })).requisito('op.cont.2.2').status === 'CUMPLE'
   );
-  comprueba('un RTO «4» sin unidad no lo es', evalua(con({ 'P-02': ['sede | 4 | 1 h | x'] })).requisito('op.cont.2.2').evidenced === false);
+  check('an RTO «4» without a unit is not', evaluate(withIt({ 'P-02': ['sede | 4 | 1 h | x'] })).requisito('op.cont.2.2').evidenced === false);
 
-  const sinP06 = evalua(con({ 'P-06': undefined }));
+  const withoutP06 = evaluate(withIt({ 'P-06': undefined }));
 
-  comprueba(
-    'P-06 vacío: op.cont.2.5 no demostrado (CONFIGURATION)',
-    sinP06.requisito('op.cont.2.5').status === 'NO_CUMPLE' && sinP06.requisito('op.cont.2.5').evidenced === false && /P-06 .* está sin configurar/.test(sinP06.motivo('op.cont.2.5')),
-    sinP06.motivo('op.cont.2.5')
+  check(
+    'empty P-06: op.cont.2.5 not proven (CONFIGURATION)',
+    withoutP06.requisito('op.cont.2.5').status === 'NO_CUMPLE' && withoutP06.requisito('op.cont.2.5').evidenced === false && /P-06 .* está sin configurar/.test(withoutP06.motivo('op.cont.2.5')),
+    withoutP06.motivo('op.cont.2.5')
   );
 }
 
-// --- 6. la medida manda sobre la acreditación ---------------------------------
-
-bloque('6. attested: una medida en NO_CUMPLE manda siempre sobre la declaración');
+section('6. attested: a measure in NO_CUMPLE always prevails over the declaration');
 
 {
-  // Una evidencia MEDIDA en contra (como si un agente la hubiera medido): la
-  // declaración no la tapa.
-  const medidaEnContra = (t: ENSEvidenceResolved[]) =>
+  const measuredAgainst = (t: ENSEvidenceResolved[]) =>
     t.map(e => (e.id === 'EV-04' ? { ...e, status: 'NO_CUMPLE' as const, observations: ['EV-04 medida: contrato rescindido.'] } : e));
-  const r = evalua(BASE, 'ALTO', AHORA, medidaEnContra);
+  const r = evaluate(BASE, 'ALTO', NOW, measuredAgainst);
 
-  comprueba(
-    'EV-04 medida en NO_CUMPLE: op.cont.2.3 NO_CUMPLE, sin la marca',
+  check(
+    'EV-04 measured as NO_CUMPLE: op.cont.2.3 NO_CUMPLE, without the mark',
     r.requisito('op.cont.2.3').status === 'NO_CUMPLE' && !r.requisito('op.cont.2.3').attested,
     r.requisito('op.cont.2.3').observations.join(' | ')
   );
-  comprueba(
-    'y la observación lo explica',
+  check(
+    'and the observation explains it',
     r.requisito('op.cont.2.3').observations.some(o => /La medida manda sobre la acreditación documental: EV-04 NO_CUMPLE/.test(o))
   );
-  comprueba(
-    'reversión · los requisitos que no se apoyan en EV-04 siguen acreditados',
+  check(
+    'reversal · requirements not resting on EV-04 stay accredited',
     ['op.cont.2.1', 'op.cont.2.2', 'op.cont.2.4', 'op.cont.2.5'].every(id => r.requisito(id).status === 'CUMPLE' && r.requisito(id).attested === true)
   );
-  comprueba(
-    'una acreditación no rellena evidencias: la decisión del requisito acreditada no está en la tabla, solo las de evidencia',
-    evalua().decisions.filter(d => d.attested).every(d => BASE_REQ.includes(d.trace.ruleId))
+  check(
+    'an accreditation does not fill evidences: the requirement\'s accredited decision is not in the table, only the evidence ones',
+    evaluate().decisions.filter(d => d.attested).every(d => BASE_REQ.includes(d.trace.ruleId))
   );
 }
 
-// --- 7. sin parámetros: CONFIGURATION, nunca RECOGIDA --------------------------
-
-bloque('7. Sin parámetros: NO_CUMPLE no demostrado por CONFIGURACIÓN, nunca por recogida');
+section('7. Without parameters: NO_CUMPLE not proven for CONFIGURACIÓN, never for collection');
 
 {
-  const r = evalua({});
+  const r = evaluate({});
 
-  comprueba(
-    'los cinco NO_CUMPLE, no demostrados',
-    todos(r, id => r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === false).length === 0,
+  check(
+    'the five NO_CUMPLE, not proven',
+    all(r, id => r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === false).length === 0,
     BASE_REQ.map(id => `${id}=${r.requisito(id).status}/${r.requisito(id).evidenced}`).join(' ')
   );
-  comprueba(
-    'EV-01, EV-04 y EV-06 sin medir por CONFIGURATION (P-01, P-04 y P-03 sin configurar)',
+  check(
+    'EV-01, EV-04 and EV-06 unmeasured by CONFIGURATION (P-01, P-04 and P-03 unconfigured)',
     ['EV-01', 'EV-04', 'EV-06'].every(id => r.evidencia(id)?.status === 'NO_EVALUABLE' && r.evidencia(id)?.gapCause === 'CONFIGURATION'),
     ['EV-01', 'EV-04', 'EV-06'].map(id => `${id}=${r.evidencia(id)?.status}/${r.evidencia(id)?.gapCause}`).join(' ')
   );
 
-  const resultado = r.motor();
-  const causas = resultado.nonConformities.map(nc => `${nc.id}:${nc.cause}`);
+  const result = r.motor();
+  const causes = result.nonConformities.map(nc => `${nc.id}:${nc.cause}`);
 
-  comprueba('el control no cumple y nada es CUMPLE', resultado.status === 'NO_CUMPLE' && resultado.requirements.every(q => q.status !== 'CUMPLE'), resultado.status);
-  comprueba(
-    'NC-CFG con P-01 y P-08, los obligatorios',
-    resultado.nonConformities.find(nc => nc.id === 'NC-CFG')?.parameterIds.join(',') === 'P-01,P-08',
-    resultado.nonConformities.find(nc => nc.id === 'NC-CFG')?.parameterIds.join(',')
+  check('the control does not comply and nothing is CUMPLE', result.status === 'NO_CUMPLE' && result.requirements.every(q => q.status !== 'CUMPLE'), result.status);
+  check(
+    'NC-CFG with P-01 and P-08, the mandatory ones',
+    result.nonConformities.find(nc => nc.id === 'NC-CFG')?.parameterIds.join(',') === 'P-01,P-08',
+    result.nonConformities.find(nc => nc.id === 'NC-CFG')?.parameterIds.join(',')
   );
-  comprueba(
-    'todas las no conformidades por CONFIGURATION; ninguna manda a restablecer la recogida',
-    resultado.nonConformities.every(nc => nc.cause === 'CONFIGURATION' && !/RECOGIDA/.test(nc.requiredAction)),
-    causas.join(' ')
+  check(
+    'all nonconformities by CONFIGURATION; none sends to restore collection',
+    result.nonConformities.every(nc => nc.cause === 'CONFIGURATION' && !/RECOGIDA/.test(nc.requiredAction)),
+    causes.join(' ')
   );
 
-  // La reversión del eje que importa: el MISMO hueco en un control que sí
-  // espera hechos se atribuye a la recogida. Es lo que se evita aquí.
-  const comoSiEsperaraHechos = evaluateENSControl(
+  const asIfExpectingFacts = evaluateENSControl(
     opCont2CatalogDefinition,
-    configuracion({}),
+    configuration({}),
     'ALTO',
-    resolveEvidenceForControl('op.cont.2', [], '000', 'ALTO', configuracion({}), AHORA),
+    resolveEvidenceForControl('op.cont.2', [], '000', 'ALTO', configuration({}), NOW),
     {
       controlId: 'op.cont.2',
       policyId: opCont2PolicyDefinition.id,
-      evaluatedAt: AHORA.toISOString(),
+      evaluatedAt: NOW.toISOString(),
       decisions: r.decisions,
       appliedParameters: [],
       runtimeVariables: r.runtimeVariables,
@@ -631,43 +576,41 @@ bloque('7. Sin parámetros: NO_CUMPLE no demostrado por CONFIGURACIÓN, nunca po
     true
   );
 
-  comprueba(
-    'reversión · si esperara hechos, el mismo vacío saldría como RECOGIDA',
-    comoSiEsperaraHechos.nonConformities.some(nc => nc.cause === 'COLLECTION'),
-    comoSiEsperaraHechos.nonConformities.map(nc => `${nc.id}:${nc.cause}`).join(' ')
+  check(
+    'reversal · if it waited for facts, the same emptiness would come out as RECOGIDA',
+    asIfExpectingFacts.nonConformities.some(nc => nc.cause === 'COLLECTION'),
+    asIfExpectingFacts.nonConformities.map(nc => `${nc.id}:${nc.cause}`).join(' ')
   );
 
-  const sinP08 = evalua(con({ 'P-08': undefined }));
+  const withoutP08 = evaluate(withIt({ 'P-08': undefined }));
 
-  comprueba(
-    'sin P-08: el plan no tiene vigencia que medir (CONFIGURATION)',
-    sinP08.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /P-08 .* está sin configurar/.test(sinP08.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
-    sinP08.deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  check(
+    'without P-08: the plan has no validity to measure (CONFIGURATION)',
+    withoutP08.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /P-08 .* está sin configurar/.test(withoutP08.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
+    withoutP08.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
-  comprueba(
-    'P-08 = 12,5: tiene que ser un entero de meses (CONFIGURATION)',
-    evalua(con({ 'P-08': '12.5' })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
+  check(
+    'P-08 = 12,5: it must be a whole number of months (CONFIGURATION)',
+    evaluate(withIt({ 'P-08': '12.5' })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
   );
 
-  const fechaMala = evalua(con({ 'P-01': ['Plan de Continuidad del Servicio | v3.0 | 15/01/2026 | Comité | RS'] }));
+  const badDate = evaluate(withIt({ 'P-01': ['Plan de Continuidad del Servicio | v3.0 | 15/01/2026 | Comité | RS'] }));
 
-  comprueba(
-    'una fecha de aprobación «15/01/2026»: CONFIGURATION, nombrando la fila',
-    fechaMala.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /fila 1 \(Plan de Continuidad del Servicio\): «15\/01\/2026»/.test(fechaMala.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
-    fechaMala.deEvidencia('op.cont.2.1', 'EV-01')?.reason
+  check(
+    'an approval date «15/01/2026»: CONFIGURATION, naming the row',
+    badDate.evidencia('EV-01')?.gapCause === 'CONFIGURATION' && /fila 1 \(Plan de Continuidad del Servicio\): «15\/01\/2026»/.test(badDate.deEvidencia('op.cont.2.1', 'EV-01')?.reason || ''),
+    badDate.deEvidencia('op.cont.2.1', 'EV-01')?.reason
   );
-  comprueba(
-    'una versión del plan sin versión: CONFIGURATION',
-    evalua(con({ 'P-01': ['Plan de Continuidad del Servicio |  | 2026-01-15 | Comité | RS'] })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
+  check(
+    'a plan version without version: CONFIGURATION',
+    evaluate(withIt({ 'P-01': ['Plan de Continuidad del Servicio |  | 2026-01-15 | Comité | RS'] })).evidencia('EV-01')?.gapCause === 'CONFIGURATION'
   );
 }
 
-// --- 8. el motor entero: Disponibilidad y fila del manager ----------------------
-
-bloque('8. Motor entero: solo con D en ALTO, en la fila del manager y sin recogida');
+section('8. Whole engine: only with D at ALTO, in the manager row and without collection');
 
 {
-  const conValores = (global: Record<string, unknown>, valores: Valores): ENSConfigurationVersion => ({
+  const withValues = (global: Record<string, unknown>, values: Values): ENSConfigurationVersion => ({
     ...defaultENSConfigurationTemplate,
     global: {
       ...defaultENSConfigurationTemplate.global,
@@ -677,75 +620,73 @@ bloque('8. Motor entero: solo con D en ALTO, en la fila del manager y sin recogi
       ...global,
     } as ENSConfigurationVersion['global'],
     controls: defaultENSConfigurationTemplate.controls.map(control =>
-      control.controlId !== 'op.cont.2' ? control : configuracion(valores)
+      control.controlId !== 'op.cont.2' ? control : configuration(values)
     ),
   });
 
-  const evaluaMotor = (global: Record<string, unknown>, nivel: ENSLevel, valores: Valores = BASE) => {
-    ensConfigurationRepository.replaceActive(conValores(global, valores));
+  const evaluateEngine = (global: Record<string, unknown>, level: ENSLevel, values: Values = BASE) => {
+    ensConfigurationRepository.replaceActive(withValues(global, values));
 
-    return getENSComplianceResults(nivel, [], undefined, undefined, AHORA).find(r => r.control.id === 'op.cont.2')!;
+    return getENSComplianceResults(level, [], undefined, undefined, NOW).find(r => r.control.id === 'op.cont.2')!;
   };
 
-  const altaConDMedia = evaluaMotor({ ensLevel: 'ALTO', availabilityLevel: 'MEDIO' }, 'ALTO');
+  const highWithMediumD = evaluateEngine({ ensLevel: 'ALTO', availabilityLevel: 'MEDIO' }, 'ALTO');
 
-  comprueba(
-    'categoría ALTA con D en MEDIO: NO_APLICA, y la policy no decide nada',
-    altaConDMedia.status === 'NO_APLICA' && altaConDMedia.level === 'MEDIO' && (altaConDMedia.policyRuntime?.decisions || []).length === 0,
-    `${altaConDMedia.status} ${altaConDMedia.level} ${(altaConDMedia.policyRuntime?.decisions || []).length}`
+  check(
+    'category ALTA with D at MEDIO: NO_APLICA, and the policy decides nothing',
+    highWithMediumD.status === 'NO_APLICA' && highWithMediumD.level === 'MEDIO' && (highWithMediumD.policyRuntime?.decisions || []).length === 0,
+    `${highWithMediumD.status} ${highWithMediumD.level} ${(highWithMediumD.policyRuntime?.decisions || []).length}`
   );
-  comprueba(
-    'y ninguna evidencia ni requisito cuenta',
-    altaConDMedia.requirements.every(q => q.status === 'NO_APLICA') && altaConDMedia.evidences.every(e => e.status === 'NO_APLICA')
+  check(
+    'and no evidence or requirement counts',
+    highWithMediumD.requirements.every(q => q.status === 'NO_APLICA') && highWithMediumD.evidences.every(e => e.status === 'NO_APLICA')
   );
 
-  const media = evaluaMotor({ ensLevel: 'MEDIO' }, 'MEDIO');
+  const media = evaluateEngine({ ensLevel: 'MEDIO' }, 'MEDIO');
 
-  comprueba('categoría MEDIA sin D: NO_APLICA (el objetivo del responsable)', media.status === 'NO_APLICA', media.status);
-  comprueba(
-    'informe en MEDIA: todo NO_APLICA y dice por qué',
+  check('category MEDIA without D: NO_APLICA (the owner\'s goal)', media.status === 'NO_APLICA', media.status);
+  check(
+    'report at MEDIA: everything NO_APLICA and says why',
     buildOpCont2ReportModel(media).fields.every(f => f.status === 'NO_APLICA') && /solo se exige con nivel ALTO de Disponibilidad/.test(buildOpCont2ReportModel(media).fields[1].value)
   );
 
-  const mediaConDAlta = evaluaMotor({ ensLevel: 'MEDIO', availabilityLevel: 'ALTO' }, 'MEDIO');
+  const mediumWithHighD = evaluateEngine({ ensLevel: 'MEDIO', availabilityLevel: 'ALTO' }, 'MEDIO');
 
-  comprueba(
-    'reversión · categoría MEDIA con D en ALTO: se exige, y con todo en vigor CUMPLE acreditado',
-    mediaConDAlta.status === 'CUMPLE' && mediaConDAlta.level === 'ALTO' && mediaConDAlta.requirements.filter(q => BASE_REQ.includes(q.id)).every(q => q.attested),
-    `${mediaConDAlta.status} ${mediaConDAlta.level}`
+  check(
+    'reversal · category MEDIA with D at ALTO: it is required, and with everything in force, accredited CUMPLE',
+    mediumWithHighD.status === 'CUMPLE' && mediumWithHighD.level === 'ALTO' && mediumWithHighD.requirements.filter(q => BASE_REQ.includes(q.id)).every(q => q.attested),
+    `${mediumWithHighD.status} ${mediumWithHighD.level}`
   );
 
-  const altaVacia = evaluaMotor({ ensLevel: 'ALTO' }, 'ALTO', {});
+  const emptyHigh = evaluateEngine({ ensLevel: 'ALTO' }, 'ALTO', {});
 
-  comprueba(
-    'categoría ALTA sin parámetros, por el motor: todo por CONFIGURATION, nada por recogida',
-    altaVacia.status === 'NO_CUMPLE' &&
-      altaVacia.nonConformities.length > 0 &&
-      altaVacia.nonConformities.every(nc => nc.cause === 'CONFIGURATION') &&
-      altaVacia.evidences
+  check(
+    'category ALTA without parameters, through the engine: all by CONFIGURATION, nothing by collection',
+    emptyHigh.status === 'NO_CUMPLE' &&
+      emptyHigh.nonConformities.length > 0 &&
+      emptyHigh.nonConformities.every(nc => nc.cause === 'CONFIGURATION') &&
+      emptyHigh.evidences
         .filter(e => e.status === 'NO_EVALUABLE')
         .every(e => e.observations.some(o => /está sin configurar/.test(o)) && !e.observations.some(o => /ningún evento|recogida|RECOGIDA/.test(o))),
-    altaVacia.nonConformities.map(nc => `${nc.id}:${nc.cause}`).join(' ') +
+    emptyHigh.nonConformities.map(nc => `${nc.id}:${nc.cause}`).join(' ') +
       ' | ' +
-      altaVacia.evidences.filter(e => e.status === 'NO_EVALUABLE').map(e => `${e.id}: ${e.observations.join(' / ')}`).join(' || ')
+      emptyHigh.evidences.filter(e => e.status === 'NO_EVALUABLE').map(e => `${e.id}: ${e.observations.join(' / ')}`).join(' || ')
   );
 
-  // La fila del manager, con agentes en el alcance y sin ningún hecho de
-  // op.cont.2: se evalúa allí y solo allí, sin recolector que pueda estar parado.
-  ensConfigurationRepository.replaceActive(conValores({ ensLevel: 'ALTO' }, BASE));
+  ensConfigurationRepository.replaceActive(withValues({ ensLevel: 'ALTO' }, BASE));
 
-  const alcance = [
+  const scope = [
     { id: '001', name: 'wazuh-real', groups: ['ens'] },
     { id: '000', name: 'Wazuh-4', groups: [], isManager: true },
   ];
-  const estado = getENSComplianceState('ALTO', [], undefined, alcance, AHORA);
-  const filaManager = estado.agents.find(a => a.agentId === '000');
-  const filaAgente = estado.agents.find(a => a.agentId === '001');
+  const estado = getENSComplianceState('ALTO', [], undefined, scope, NOW);
+  const managerRow = estado.agents.find(a => a.agentId === '000');
+  const agentRow = estado.agents.find(a => a.agentId === '001');
 
-  comprueba('se evalúa en la fila del manager', Boolean(filaManager?.results.some(x => x.control.id === 'op.cont.2')));
-  comprueba('y no en la de un agente', Boolean(filaAgente) && !filaAgente!.results.some(x => x.control.id === 'op.cont.2'));
-  comprueba(
-    'el consolidado CUMPLE acreditado sobre la fila del manager',
+  check('it is evaluated in the manager row', Boolean(managerRow?.results.some(x => x.control.id === 'op.cont.2')));
+  check('and not in an agent\'s', Boolean(agentRow) && !agentRow!.results.some(x => x.control.id === 'op.cont.2'));
+  check(
+    'the consolidated accredited CUMPLE over the manager row',
     estado.results.find(x => x.control.id === 'op.cont.2')?.status === 'CUMPLE' &&
       JSON.stringify(estado.results.find(x => x.control.id === 'op.cont.2')?.consolidatedAgents?.map(a => a.agentId)) === '["000"]',
     estado.results.find(x => x.control.id === 'op.cont.2')?.status
@@ -754,10 +695,8 @@ bloque('8. Motor entero: solo con D en ALTO, en la fila del manager y sin recogi
   ensConfigurationRepository.reset();
 }
 
-// --- salida ----------------------------------------------------------------
+console.log(`\n${failures.length ? `${failures.length} FAIL` : 'ALL OK'}`);
 
-console.log(`\n${fallos.length ? `${fallos.length} FALLAN` : 'todo OK'}`);
-
-if (fallos.length) {
+if (failures.length) {
   process.exit(1);
 }

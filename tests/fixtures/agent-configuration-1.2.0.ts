@@ -1,33 +1,4 @@
-// FROZEN COPY of common/agent-configuration.ts from 1.2.0 (f2e6bd9). Do not edit.
-
-// Configuración por sistema (1.2.0): la capa `configuration.agents` del
-// documento `active` de wazuh-ens-configuration.
-//
-// Vive en `common/` porque la leen el navegador (pantalla y motor) y el
-// servidor (el guardado la conserva y la valida). Solo tipos y funciones puras.
-//
-// FORMA DEL DOCUMENTO. Solo se AÑADE una clave de primer nivel:
-//
-//   configuration.controls[].parameters[].value   ← sigue siendo el valor de la
-//                                                    ORGANIZACIÓN (el que leen
-//                                                    un plugin 1.1.0, el chatbot
-//                                                    y los scripts)
-//   configuration.agents = {                       ← NUEVO
-//     "<id del agente normalizado>": {
-//       name, aliases[],                  identidad cuando se guardó
-//       detectedType, detectedBy,         tipo detectado y de dónde salió
-//       typeOverride,                     tipo corregido a mano
-//       templates[],                      plantillas aplicadas, en orden
-//       controls: { "<control>": { parameters: { "<P-xx>": valor } } }
-//     }
-//   }
-//
-// Por qué una clave aparte y no dentro del parámetro: el validador estructural
-// solo admite escalares y listas de texto en `value` (un objeto tumbaría el
-// entorno ENS entero), e `inject-control.py` sustituye el objeto parámetro y
-// solo conserva `value`, así que cualquier dato por agente guardado dentro del
-// parámetro se perdería al resembrar. Una clave de primer nivel sobrevive a los
-// dos scripts, que escriben el `_source` entero tras editar solo `controls`.
+/** FROZEN COPY of common/agent-configuration.ts from 1.2.0 (f2e6bd9). Do not edit. */
 
 export type ENSSystemType = 'linux' | 'zimbra-ldap' | 'windows' | 'manager';
 
@@ -40,13 +11,9 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   manager: 'Manager',
 };
 
-// El mismo contrato que `value`: un escalar o una lista de texto. Nunca `null`:
-// quitar el valor propio de un agente es BORRAR la clave.
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
 export interface ENSAgentControlOverrides {
-  // Opcional: una versión posterior puede guardar otras claves en el control
-  // (`assigned`, por ejemplo) sin valores propios.
   parameters?: Record<string, ENSAgentParameterValue>;
 }
 
@@ -62,8 +29,6 @@ export interface ENSAgentProfile {
 
 export type ENSAgentsConfiguration = Record<string, ENSAgentProfile>;
 
-// El id de Wazuh normalizado: numérico y con tres cifras al menos (`24` y
-// `024` son el mismo agente), igual que el inventario de `wazuh-monitoring`.
 export const normalizeAgentId = (value: unknown): string => {
   const text = String(value ?? '').trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
@@ -84,9 +49,6 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
 const CONTROL_KEYS = ['parameters'];
 
-// ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
-// se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
-// máquina y su valor no se aplicaría.
 export const isNormalisedAgentId = (key: string): boolean =>
   /^\d+$/.test(key) && normalizeAgentId(key) === key;
 
@@ -95,20 +57,6 @@ export const describeNonIdAgentKey = (key: string): string =>
     ? `«${key}» no es un id de agente normalizado; usar ${normalizeAgentId(key)}`
     : `«${key}» no es un id de agente; usar el id numérico del agente de Wazuh (p. ej. 001)`;
 
-/**
- * Comprueba la FORMA de `configuration.agents` que el motor necesita para no
- * romperse: la clave ausente es válida; presente, un mapa de perfiles cuyos
- * campos conocidos tienen su tipo y cuyos valores son un escalar o una lista de
- * texto (nunca `null` ni un objeto). Estos errores son los únicos FATALES: los
- * usa el validador estructural (hidratación) y el guardado del servidor.
- *
- * No son fatales, a propósito, y los da `checkAgentsConfigurationKeys`:
- *   - una clave de perfil que no es un id normalizado (error de significado);
- *   - una clave que esta versión no conoce, dentro de un perfil o de un control
- *     (aviso: una versión posterior puede añadir campos y volver a esta no
- *     puede tumbar el entorno);
- *   - un tipo de sistema que esta versión no conoce (aviso).
- */
 export const validateAgentsConfigurationShape = (
   value: unknown,
   path: string = 'configuration.agents'
@@ -189,9 +137,7 @@ export const validateAgentsConfigurationShape = (
 };
 
 export interface ENSAgentsKeyCheck {
-  // Perfiles guardados con una clave que no es un id: su valor no se aplica.
   errors: string[];
-  // Lo que esta versión no conoce y se ignora.
   warnings: string[];
 }
 
@@ -242,8 +188,6 @@ export const checkAgentsConfigurationKeys = (
   return result;
 };
 
-// El tipo, si es de esta versión. Un tipo desconocido (de una versión
-// posterior) se trata como ausente.
 export const knownSystemType = (value: unknown): ENSSystemType | undefined =>
   typeof value === 'string' && ENS_SYSTEM_TYPES.includes(value as ENSSystemType)
     ? (value as ENSSystemType)

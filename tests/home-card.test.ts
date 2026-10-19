@@ -1,42 +1,38 @@
-/**
- * Tarjeta de ENSFácil en la portada de OpenSearch Dashboards.
- *
- *   npx --yes tsx tests/home-card.test.ts
- */
+/** ENSFácil card on the OpenSearch Dashboards home page. */
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildHomeCard, registerHomeCard, type HomeFeatureCatalogueEntry } from '../public/home-card';
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  console.log(`  ${condicion ? 'ok  ' : 'FALLA'} ${nombre}${!condicion && detalle !== '' ? ` — ${String(detalle)}` : ''}`);
-  if (!condicion) fallos.push(nombre);
+const failures: string[] = [];
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  console.log(`  ${condition ? 'ok  ' : 'FAIL'} ${name}${!condition && detail !== '' ? ` — ${String(detail)}` : ''}`);
+  if (!condition) failures.push(name);
 };
 
-const registradas: HomeFeatureCatalogueEntry[] = [];
-const home = { featureCatalogue: { register: (e: HomeFeatureCatalogueEntry) => void registradas.push(e) } };
+const registered: HomeFeatureCatalogueEntry[] = [];
+const home = { featureCatalogue: { register: (e: HomeFeatureCatalogueEntry) => void registered.push(e) } };
 
-comprueba('con home: registra', registerHomeCard(home, '/logo.png') === true);
-comprueba('una sola tarjeta', registradas.length === 1, registradas.length);
-const t = registradas[0];
-comprueba('id ensfacil', t?.id === 'ensfacil');
-comprueba('título ENSFácil', t?.title === 'ENSFácil');
-comprueba('icono = logo', t?.icon === '/logo.png');
-comprueba('abre la app', t?.path === '/app/ensfacil');
-comprueba('visible en la portada', t?.showOnHomePage === true);
-comprueba('sección «Manage your data»', t?.category === 'admin');
-comprueba('con descripción', (t?.description ?? '').length > 20);
+check('with home: registers', registerHomeCard(home, '/logo.png') === true);
+check('a single card', registered.length === 1, registered.length);
+const t = registered[0];
+check('id ensfacil', t?.id === 'ensfacil');
+check('title ENSFácil', t?.title === 'ENSFácil');
+check('icon = logo', t?.icon === '/logo.png');
+check('opens the app', t?.path === '/app/ensfacil');
+check('visible on the home page', t?.showOnHomePage === true);
+check('section «Manage your data»', t?.category === 'admin');
+check('with description', (t?.description ?? '').length > 20);
 
-comprueba('sin home: no falla', registerHomeCard(undefined, '/logo.png') === false);
-comprueba('home sin catálogo: no falla', registerHomeCard({}, '/logo.png') === false);
-const repetida = { featureCatalogue: { register: () => { throw new Error('Feature with id [ensfacil] has already been registered'); } } };
-comprueba('id repetido: no tumba el plugin', registerHomeCard(repetida, '/logo.png') === false);
-comprueba('buildHomeCard es puro', JSON.stringify(buildHomeCard('x')) === JSON.stringify(buildHomeCard('x')));
+check('without home: does not fail', registerHomeCard(undefined, '/logo.png') === false);
+check('home without catalog: does not fail', registerHomeCard({}, '/logo.png') === false);
+const duplicate = { featureCatalogue: { register: () => { throw new Error('Feature with id [ensfacil] has already been registered'); } } };
+check('repeated id: does not bring the plugin down', registerHomeCard(duplicate, '/logo.png') === false);
+check('buildHomeCard is pure', JSON.stringify(buildHomeCard('x')) === JSON.stringify(buildHomeCard('x')));
 
 const plugin = fs.readFileSync(path.join(__dirname, '..', 'public', 'plugin.ts'), 'utf8');
-comprueba('plugin.ts registra la tarjeta con el logo', /registerHomeCard\(deps\?\.home, ensLogo\)/.test(plugin));
+check('plugin.ts registers the card with the logo', /registerHomeCard\(deps\?\.home, ensLogo\)/.test(plugin));
 
-console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');
-process.exit(fallos.length ? 1 : 0);
+console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
+process.exit(failures.length ? 1 : 0);

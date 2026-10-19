@@ -1,28 +1,4 @@
-/**
- * Atestación documental: acreditar por documento lo que ninguna telemetría
- * puede demostrar.
- *
- *     ~/.bun/bin/bun run tests/documentary-attestation.test.ts
- *
- * POR QUÉ EXISTE ESTE FICHERO. `op.acc.1.5` (eIDAS) y `op.acc.1.r1.1`
- * (singularizar a la persona) no son requisitos técnicos y no lo van a ser: un
- * agente no puede observar ninguno de los dos, y su prueba es un documento
- * aprobado, que es como los audita un auditor humano. Rechazarlos por no tener
- * telemetría dejaba op.acc.1 con un techo permanente del 75 % sobre algo que el
- * cliente puede tener perfectamente cumplido.
- *
- * Pero una atestación es exactamente por donde entraría un CUMPLE falso, así
- * que este fichero prueba sobre todo LOS DOS LÍMITES:
- *
- *   1. una atestación NO puede tapar una medida que falla — solo se admite en
- *      requisitos que el catálogo declara con `evidenceIds: []`;
- *   2. una atestación incompleta NO acredita — una casilla marcada no es una
- *      prueba.
- *
- * Y que lo acreditado va MARCADO como documental: el requisito cumple, pero
- * `attested` lo separa de lo medido para que la pantalla y el informe no puedan
- * confundirlos.
- */
+/** Documentary attestation: accrediting by document what no telemetry can prove. */
 import {
   describeAttestation,
   isAttestationSufficient,
@@ -43,31 +19,27 @@ import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
-
-const configuracion = (
-  filas: string[]
+const configuration = (
+  rows: string[]
 ): ENSControlConfiguration =>
   ({
     controlId: 'op.acc.1',
@@ -92,331 +64,286 @@ const configuracion = (
         evidenceIds: [],
         ruleIds: [],
         ifNotConfigured: '',
-        value: filas,
+        value: rows,
       } as unknown as ENSControlParameter,
     ],
   }) as ENSControlConfiguration;
 
-const requisito = (id: string) => {
-  const encontrado = opAcc1CatalogDefinition.requirements.find(
+const requirement = (id: string) => {
+  const found = opAcc1CatalogDefinition.requirements.find(
     item => item.id === id
   );
 
-  if (!encontrado) {
-    throw new Error(`fixture rota: ${id} no está en el catálogo`);
+  if (!found) {
+    throw new Error(`broken fixture: ${id} is not in the catalog`);
   }
 
-  return encontrado;
+  return found;
 };
 
-const evidencia = (
-  evidenciaId: string,
+const evidence = (
+  evidenceId: string,
   status: ENSEvidenceResolved['status']
 ): ENSEvidenceResolved => {
-  const definicion = getEvidenceDefinitions('op.acc.1').find(
-    item => item.id === evidenciaId
+  const definition = getEvidenceDefinitions('op.acc.1').find(
+    item => item.id === evidenceId
   );
 
-  if (!definicion) {
-    throw new Error(`fixture rota: ${evidenciaId}`);
+  if (!definition) {
+    throw new Error(`fixture rota: ${evidenceId}`);
   }
 
-  return { ...definicion, status, observations: [] } as ENSEvidenceResolved;
+  return { ...definition, status, observations: [] } as ENSEvidenceResolved;
 };
 
-const ATESTACION_BUENA =
+const GOOD_ATTESTATION =
   'op.acc.1.5 | Política de identificación v3 | https://intranet/pol-id-v3.pdf | 2026-05-12 | RSI';
 
-const juzga = (
-  requisitoId: string,
-  filas: string[],
-  evidencias: ENSEvidenceResolved[] = [],
-  nivel: ENSLevel = 'MEDIO'
+const judges = (
+  requirementId: string,
+  rows: string[],
+  evidences: ENSEvidenceResolved[] = [],
+  level: ENSLevel = 'MEDIO'
 ) =>
   evaluateRequirement(
-    requisito(requisitoId),
-    nivel,
-    evidencias,
+    requirement(requirementId),
+    level,
+    evidences,
     false,
     [],
     'ACTIVE',
-    parseRequirementAttestations(configuracion(filas)).get(requisitoId)
+    parseRequirementAttestations(configuration(rows)).get(requirementId)
   );
 
-// --- 1. lo que no tiene evidencia técnica, se acredita con documento --------
-
-bloque('1. Un requisito sin evidencia técnica SÍ se puede acreditar');
+section('1. A requirement without technical evidence CAN be accredited');
 
 {
-  // op.acc.1.5 (eIDAS) no declara ninguna evidencia en el catálogo.
-  comprueba(
-    'op.acc.1.5 no tiene evidencia técnica en el catálogo',
-    requisito('op.acc.1.5').evidenceIds.length === 0,
-    String(requisito('op.acc.1.5').evidenceIds.length)
+  check(
+    'op.acc.1.5 has no technical evidence in the catalog',
+    requirement('op.acc.1.5').evidenceIds.length === 0,
+    String(requirement('op.acc.1.5').evidenceIds.length)
   );
 
-  const sin = juzga('op.acc.1.5', []);
+  const withoutIt = judges('op.acc.1.5', []);
 
-  comprueba(
-    'sin atestación NO cumple, que es el criterio por defecto',
-    sin.status === 'NO_CUMPLE',
-    sin.status
+  check(
+    'without attestation it does NOT comply, which is the default criterion',
+    withoutIt.status === 'NO_CUMPLE',
+    withoutIt.status
   );
 
-  const con = juzga('op.acc.1.5', [ATESTACION_BUENA]);
+  const withIt = judges('op.acc.1.5', [GOOD_ATTESTATION]);
 
-  comprueba(
-    'con el documento y su enlace, CUMPLE',
-    con.status === 'CUMPLE',
-    con.status
+  check(
+    'with the document and its link, CUMPLE',
+    withIt.status === 'CUMPLE',
+    withIt.status
   );
 
-  // Y VA MARCADO. Es lo que impide que se confunda con una medida.
-  comprueba(
-    'pero marcado como acreditado documentalmente, no como medido',
-    con.attested === true,
-    String(con.attested)
+  check(
+    'but marked as documentarily accredited, not as measured',
+    withIt.attested === true,
+    String(withIt.attested)
   );
 
-  comprueba(
-    'y el motivo nombra el documento y deja el enlace',
-    (con.observations[0] || '').includes('Política de identificación v3') &&
-      (con.observations[0] || '').includes('https://intranet/pol-id-v3.pdf'),
-    con.observations[0]
+  check(
+    'and the motive names the document and leaves the link',
+    (withIt.observations[0] || '').includes('Política de identificación v3') &&
+      (withIt.observations[0] || '').includes('https://intranet/pol-id-v3.pdf'),
+    withIt.observations[0]
   );
 
-  // La reversión que separa lo documental de lo medido: un requisito que SÍ se
-  // mide no lleva la marca.
-  const medido = juzga(
+  const measured = judges(
     'op.acc.1.1',
     [],
-    [evidencia('EV-03', 'CUMPLE')]
+    [evidence('EV-03', 'CUMPLE')]
   );
 
-  comprueba(
-    'un requisito medido cumple SIN la marca de atestación',
-    medido.status === 'CUMPLE' && !medido.attested,
-    `${medido.status} attested=${medido.attested}`
+  check(
+    'a measured requirement complies WITHOUT the attestation mark',
+    measured.status === 'CUMPLE' && !measured.attested,
+    `${measured.status} attested=${measured.attested}`
   );
 }
 
-// --- 2. EL LÍMITE: no puede tapar una medida -------------------------------
-
-bloque('2. Una atestación NO puede tapar una medida que falla');
+section('2. An attestation CANNOT cover a measurement that fails');
 
 {
-  // op.acc.1.1 SÍ tiene evidencia técnica (EV-03). Se declara una atestación
-  // para él y la evidencia en rojo: tiene que seguir sin cumplir.
-  const conTrampa = juzga(
+  const withTrap = judges(
     'op.acc.1.1',
     ['op.acc.1.1 | Un documento cualquiera | https://intranet/lo-que-sea.pdf'],
-    [evidencia('EV-03', 'NO_CUMPLE')]
+    [evidence('EV-03', 'NO_CUMPLE')]
   );
 
-  comprueba(
-    'el requisito medido y fallando sigue en NO_CUMPLE',
-    conTrampa.status === 'NO_CUMPLE',
-    conTrampa.status
+  check(
+    'the measured, failing requirement stays NO_CUMPLE',
+    withTrap.status === 'NO_CUMPLE',
+    withTrap.status
   );
 
-  comprueba(
-    'y no se marca como atestado',
-    !conTrampa.attested,
-    String(conTrampa.attested)
+  check(
+    'and it is not marked as attested',
+    !withTrap.attested,
+    String(withTrap.attested)
   );
 
-  // Ni siquiera cuando la evidencia no ha llegado: si el catálogo declara que
-  // ese requisito SE MIDE, la prueba tiene que ser la medida.
-  const sinDatos = juzga(
+  const withoutData = judges(
     'op.acc.1.1',
     ['op.acc.1.1 | Un documento cualquiera | https://intranet/lo-que-sea.pdf'],
     []
   );
 
-  comprueba(
-    'ni tapando una evidencia que no ha llegado',
-    sinDatos.status === 'NO_CUMPLE' && !sinDatos.attested,
-    `${sinDatos.status} attested=${sinDatos.attested}`
+  check(
+    'nor covering an evidence that has not arrived',
+    withoutData.status === 'NO_CUMPLE' && !withoutData.attested,
+    `${withoutData.status} attested=${withoutData.attested}`
   );
 }
 
-// --- 3. EL OTRO LÍMITE: una casilla marcada no es una prueba ---------------
-
-bloque('3. Una atestación incompleta NO acredita');
+section('3. An incomplete attestation does NOT accredit');
 
 {
-  const casos: [string, string][] = [
+  const cases: [string, string][] = [
     ['sin enlace', 'op.acc.1.5 | Política de identificación v3'],
     ['con un enlace que no lleva a ninguna parte',
      'op.acc.1.5 | Política v3 | está en el SharePoint'],
     ['sin documento', 'op.acc.1.5 |  | https://intranet/algo.pdf'],
   ];
 
-  for (const [nombre, fila] of casos) {
-    const resultado = juzga('op.acc.1.5', [fila]);
+  for (const [name, row] of cases) {
+    const result = judges('op.acc.1.5', [row]);
 
-    comprueba(
-      `${nombre}: no acredita`,
-      resultado.status === 'NO_CUMPLE' && !resultado.attested,
-      `${resultado.status} attested=${resultado.attested}`
+    check(
+      `${name}: does not accredit`,
+      result.status === 'NO_CUMPLE' && !result.attested,
+      `${result.status} attested=${result.attested}`
     );
   }
 
-  // La reversión: con las dos cosas, sí.
-  comprueba(
-    'y con documento Y enlace, sí acredita',
-    juzga('op.acc.1.5', [ATESTACION_BUENA]).status === 'CUMPLE'
+  check(
+    'and with document AND link, it does accredit',
+    judges('op.acc.1.5', [GOOD_ATTESTATION]).status === 'CUMPLE'
   );
 
-  // La fecha y el responsable NO bloquean: una política sin fecha sigue siendo
-  // una política, mientras que una sin documento al que apuntar no es nada.
-  comprueba(
-    'la fecha y el responsable son deseables, no bloqueantes',
-    juzga('op.acc.1.5', [
+  check(
+    'date and owner are desirable, not blocking',
+    judges('op.acc.1.5', [
       'op.acc.1.5 | Política v3 | https://intranet/p.pdf',
     ]).status === 'CUMPLE'
   );
 }
 
-// --- 4. varios enlaces -----------------------------------------------------
-
-bloque('4. Varios enlaces en la misma atestación');
+section('4. Several links in the same attestation');
 
 {
-  const atestaciones = parseRequirementAttestations(
-    configuracion([
+  const attestations = parseRequirementAttestations(
+    configuration([
       'op.acc.1.5 | Política v3 y su anexo | https://a/p.pdf https://a/anexo.pdf | 2026-05-12',
     ])
   );
 
-  const a = atestaciones.get('op.acc.1.5');
+  const a = attestations.get('op.acc.1.5');
 
-  comprueba(
-    'se conservan los dos enlaces',
+  check(
+    'both links are kept',
     a?.links.length === 2,
     String(a?.links.length)
   );
 
-  comprueba(
-    'y los dos salen en el motivo',
+  check(
+    'and both appear in the motive',
     describeAttestation(a!).includes('https://a/anexo.pdf'),
     describeAttestation(a!)
   );
 
-  // Se admiten rutas de red y file://, que es como media administración guarda
-  // sus políticas. Lo que no se admite es texto suelto.
-  comprueba(
-    'una ruta de red vale como enlace',
+  check(
+    'a network path counts as a link',
     isAttestationSufficient(
       parseRequirementAttestations(
-        configuracion(['op.acc.1.5 | Política | \\\\srv\\politicas\\id.pdf'])
+        configuration(['op.acc.1.5 | Política | \\\\srv\\politicas\\id.pdf'])
       ).get('op.acc.1.5')
     )
   );
 }
 
-// --- 5. el techo del control desaparece ------------------------------------
-
-bloque('5. Con los dos documentales acreditados, op.acc.1 llega al 100 %');
+section('5. With both documentary ones accredited, op.acc.1 reaches 100 %');
 
 {
-  // Los dos requisitos que ponían el techo del 75 % en MEDIO.
-  const documentales = ['op.acc.1.5', 'op.acc.1.r1.1'];
+  const documentary = ['op.acc.1.5', 'op.acc.1.r1.1'];
 
-  for (const id of documentales) {
-    comprueba(
-      `${id} · sin evidencia técnica en el catálogo`,
-      requisito(id).evidenceIds.length === 0
+  for (const id of documentary) {
+    check(
+      `${id} · no technical evidence in the catalog`,
+      requirement(id).evidenceIds.length === 0
     );
   }
 
-  const filas = [
+  const rows = [
     'op.acc.1.5 | Política de identificación v3 | https://intranet/pol-id.pdf | 2026-05-12 | RSI',
     'op.acc.1.r1.1 | Procedimiento de alta de personal v2 | https://intranet/alta.pdf | 2026-04-01 | RRHH',
   ];
 
-  const acreditados = documentales.map(id => juzga(id, filas));
+  const accredited = documentary.map(id => judges(id, rows));
 
-  comprueba(
-    'los dos acreditan con su documento',
-    acreditados.every(r => r.status === 'CUMPLE' && r.attested),
-    acreditados.map(r => `${r.id}=${r.status}/${r.attested}`).join(' ')
+  check(
+    'both accredit with their document',
+    accredited.every(r => r.status === 'CUMPLE' && r.attested),
+    accredited.map(r => `${r.id}=${r.status}/${r.attested}`).join(' ')
   );
 
-  // La reversión: si se declara SOLO uno, el otro sigue sin cumplir. Sin esto,
-  // la prueba pasaría igual con una implementación que acreditara todo.
-  const soloUno = juzga('op.acc.1.r1.1', [filas[0]]);
+  const onlyOne = judges('op.acc.1.r1.1', [rows[0]]);
 
-  comprueba(
-    'y declarar uno no acredita al otro',
-    soloUno.status === 'NO_CUMPLE',
-    soloUno.status
+  check(
+    'and declaring one does not accredit the other',
+    onlyOne.status === 'NO_CUMPLE',
+    onlyOne.status
   );
 }
 
-// --- 6. el EJEMPLO del parámetro no puede acreditar ------------------------
-
-bloque('6. El ejemplo que se entrega no acredita nada');
+section('6. The shipped example accredits nothing');
 
 {
-  // Lo destaparon `measurement-gap` y `aggregated-overview`, que rellenan
-  // cada parámetro con su propio `example`: con un ejemplo utilizable,
-  // op.acc.1.5 salía acreditado en una configuración de prueba, y en
-  // producción bastaría con copiar la fila tal cual para tener un requisito en
-  // verde apuntando a un documento que no existe.
-  //
-  // Misma disciplina que en op.acc.2: copiar la plantilla `.example` no
-  // configura nada, porque declararía como política un ejemplo.
-  const ejemplo = opAcc1Configuration.parameters.find(
-    parametro => parametro.id === 'P-ATT'
+  const example = opAcc1Configuration.parameters.find(
+    parameter => parameter.id === 'P-ATT'
   )?.example;
 
-  comprueba(
-    'el parámetro trae un ejemplo, para que se vea la forma',
-    Boolean(ejemplo && ejemplo.includes('|')),
-    ejemplo
+  check(
+    'the parameter ships an example, so the shape is visible',
+    Boolean(example && example.includes('|')),
+    example
   );
 
-  const conElEjemplo = juzga('op.acc.1.5', [ejemplo || '']);
+  const withExample = judges('op.acc.1.5', [example || '']);
 
-  comprueba(
-    'pero copiarlo tal cual NO acredita',
-    conElEjemplo.status === 'NO_CUMPLE' && !conElEjemplo.attested,
-    `${conElEjemplo.status} attested=${conElEjemplo.attested}`
+  check(
+    'but copying it as is does NOT accredit',
+    withExample.status === 'NO_CUMPLE' && !withExample.attested,
+    `${withExample.status} attested=${withExample.attested}`
   );
 
-  // La reversión: el mismo ejemplo con un enlace de verdad sí acredita, así
-  // que lo que rechaza es el enlace de mentira y no la fila entera.
-  const conEnlaceReal = juzga('op.acc.1.5', [
-    (ejemplo || '').replace(
+  const withRealLink = judges('op.acc.1.5', [
+    (example || '').replace(
       /https:\/\/EJEMPLO\.invalido\/[^ |]+/,
       'https://intranet/politica-real.pdf'
     ),
   ]);
 
-  comprueba(
-    'y con un enlace real, la misma fila sí acredita',
-    conEnlaceReal.status === 'CUMPLE' && conEnlaceReal.attested === true,
-    `${conEnlaceReal.status} attested=${conEnlaceReal.attested}`
+  check(
+    'and with a real link, the same row does accredit',
+    withRealLink.status === 'CUMPLE' && withRealLink.attested === true,
+    `${withRealLink.status} attested=${withRealLink.attested}`
   );
 }
 
-// --- 7. la policy manda sobre la atestación ---------------------------------
-//
-// Un requisito que solo aplica según lo que declara la organización (el
-// refuerzo elegido en P-01) lo saca del juego la policy. Si la atestación se
-// evaluaba antes, un documento declarado para un refuerzo NO elegido salía
-// CUMPLE y entraba en el denominador: un CUMPLE falso con enlace y todo.
-
-bloque('7. Ninguna atestación gana a una decisión de la policy');
+section('7. No attestation beats a policy decision');
 
 {
   const decision = (
-    requisitoId: string,
+    requirementId: string,
     status: ENSPolicyDecision['status']
   ): ENSPolicyDecision => ({
     policyId: 'prueba',
-    requirementId: requisitoId,
+    requirementId: requirementId,
     status,
     parameterIds: [],
     evidenceIds: [],
@@ -433,58 +360,56 @@ bloque('7. Ninguna atestación gana a una decisión de la policy');
     reason: `la policy decide ${status}`,
   });
 
-  const conPolicy = (status: ENSPolicyDecision['status']) =>
+  const withPolicy = (status: ENSPolicyDecision['status']) =>
     evaluateRequirement(
-      requisito('op.acc.1.5'),
+      requirement('op.acc.1.5'),
       'MEDIO',
       [],
       false,
       [decision('op.acc.1.5', status)],
       'ACTIVE',
-      parseRequirementAttestations(configuracion([ATESTACION_BUENA])).get(
+      parseRequirementAttestations(configuration([GOOD_ATTESTATION])).get(
         'op.acc.1.5'
       )
     );
 
-  const noAplica = conPolicy('NO_APLICA');
+  const notApplicable = withPolicy('NO_APLICA');
 
-  comprueba(
-    'policy NO_APLICA + atestación completa → NO_APLICA, no CUMPLE',
-    noAplica.status === 'NO_APLICA' && noAplica.attested !== true,
-    `${noAplica.status} attested=${noAplica.attested}`
+  check(
+    'policy NO_APLICA + complete attestation → NO_APLICA, not CUMPLE',
+    notApplicable.status === 'NO_APLICA' && notApplicable.attested !== true,
+    `${notApplicable.status} attested=${notApplicable.attested}`
   );
 
-  comprueba(
-    'y sale del denominador',
-    evaluateControlStatus([noAplica]).applicableRequirements === 0,
-    String(evaluateControlStatus([noAplica]).applicableRequirements)
+  check(
+    'and it leaves the denominator',
+    evaluateControlStatus([notApplicable]).applicableRequirements === 0,
+    String(evaluateControlStatus([notApplicable]).applicableRequirements)
   );
 
-  const noCumple = conPolicy('NO_CUMPLE');
+  const nonCompliant = withPolicy('NO_CUMPLE');
 
-  comprueba(
-    'policy NO_CUMPLE + atestación completa → NO_CUMPLE: el documento no tapa la medida',
-    noCumple.status === 'NO_CUMPLE' && noCumple.attested !== true,
-    `${noCumple.status} attested=${noCumple.attested}`
+  check(
+    'policy NO_CUMPLE + complete attestation → NO_CUMPLE: the document does not cover the measurement',
+    nonCompliant.status === 'NO_CUMPLE' && nonCompliant.attested !== true,
+    `${nonCompliant.status} attested=${nonCompliant.attested}`
   );
 
-  const noEvaluable = conPolicy('NO_EVALUABLE');
+  const noEvaluable = withPolicy('NO_EVALUABLE');
 
-  comprueba(
-    'policy NO_EVALUABLE + atestación completa → acredita, porque nadie lo había demostrado',
+  check(
+    'policy NO_EVALUABLE + complete attestation → accredits, because nobody had proven it',
     noEvaluable.status === 'CUMPLE' && noEvaluable.attested === true,
     `${noEvaluable.status} attested=${noEvaluable.attested}`
   );
 }
 
-// --- salida ----------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

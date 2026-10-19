@@ -1,21 +1,4 @@
-/**
- * La línea diaria de UN control, la del detalle.
- *
- *     npx tsx tests/evolution-by-control.test.ts
- *
- * POR QUÉ EXISTE, y por qué no reutiliza la del panel. La serie del panel
- * promedia TODOS los controles del alcance: en la pantalla de detalle no dice
- * nada sobre el que se está mirando, y ponerla ahí repetiría el defecto que se
- * corrigió el 05/08 —dos números con denominadores distintos en la misma
- * pantalla, sin que nada avisara de que no hablaban de lo mismo—.
- *
- * QUÉ SE PRUEBA Y QUÉ NO. `ens-engine` arrastra `kibana-services`, que solo
- * existe dentro del árbol del plugin, así que la función pública no se puede
- * importar aquí —le pasa lo mismo a `compliance-timeline.ts`, que por eso no
- * tiene pruebas—. Por eso el módulo se parte: `mapCutsToControlPoints` es puro
- * y recibe el evaluador, y es donde vive todo lo que puede romperse. El motor
- * real se prueba en sus propias suites.
- */
+/** The daily line of ONE control, the one in the detail view. */
 import {
   mapCutsToControlPoints,
 } from '../common/ens/core/timeline/control-timeline-points';
@@ -24,182 +7,169 @@ import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle?: unknown
+const check = (
+  name: string,
+  condition: boolean,
+  detail?: unknown
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  console.log(`  FALLA ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
-  fallos.push(nombre);
+  console.log(`  FAIL ${name}${detail !== undefined ? ` — ${String(detail)}` : ''}`);
+  failures.push(name);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-let contador = 0;
+let counter = 0;
 
-const AHORA = new Date(2026, 7, 7, 12, 0, 0);
+const NOW = new Date(2026, 7, 7, 12, 0, 0);
 
-const diasAntes = (dias: number): Date => {
-  const cuando = new Date(AHORA);
-  cuando.setDate(cuando.getDate() - dias);
-  cuando.setHours(9, 0, 0, 0);
+const daysBefore = (days: number): Date => {
+  const when = new Date(NOW);
+  when.setDate(when.getDate() - days);
+  when.setHours(9, 0, 0, 0);
 
-  return cuando;
+  return when;
 };
 
-const evento = (cuando: Date): ENSNormalizedEvent => ({
-  id: `evt-${(contador += 1)}`,
+const event = (when: Date): ENSNormalizedEvent => ({
+  id: `evt-${(counter += 1)}`,
   controlId: 'op.acc.1',
   eventType: 'account_active',
   sourceType: 'WAZUH_ALERT',
-  timestamp: cuando.toISOString(),
+  timestamp: when.toISOString(),
   agentId: '024',
 });
 
-const cortes = (eventos: ENSNormalizedEvent[], dias = 10) =>
-  buildENSTimelineCuts(eventos, { now: AHORA, days: dias });
+const cortes = (events: ENSNormalizedEvent[], days = 10) =>
+  buildENSTimelineCuts(events, { now: NOW, days: days });
 
-// --- 1. cada punto se evalúa a SU instante --------------------------------
-
-bloque('1. Cada punto se evalúa al instante de su día, no al de hoy');
+section('1. Each point is evaluated at the instant of its day, not today\'s');
 
 {
-  const eventos = [diasAntes(5), diasAntes(3), diasAntes(0)].map(evento);
+  const events = [daysBefore(5), daysBefore(3), daysBefore(0)].map(event);
 
   const instantes: string[] = [];
 
-  const serie = mapCutsToControlPoints(
-    cortes(eventos),
-    (delCorte, cutoff) => {
+  const series = mapCutsToControlPoints(
+    cortes(events),
+    (ofCut, cutoff) => {
       instantes.push(cutoff.toISOString());
 
-      return { score: delCorte.length * 10, status: 'PARCIAL' };
+      return { score: ofCut.length * 10, status: 'PARCIAL' };
     }
   );
 
-  comprueba(
-    'el evaluador recibe un instante distinto por punto',
+  check(
+    'the evaluator receives a different instant per point',
     new Set(instantes).size === instantes.length,
     instantes.join(' ')
   );
 
-  comprueba(
-    'los instantes van en orden creciente',
-    instantes.every((valor, i) => i === 0 || valor >= instantes[i - 1]),
+  check(
+    'instants are in increasing order',
+    instantes.every((value, i) => i === 0 || value >= instantes[i - 1]),
     instantes.join(' ')
   );
 
-  comprueba(
-    'y el último es AHORA, no el fin de un día',
-    instantes[instantes.length - 1] === AHORA.toISOString(),
+  check(
+    'and the last is NOW, not the end of a day',
+    instantes[instantes.length - 1] === NOW.toISOString(),
     instantes[instantes.length - 1]
   );
 
-  comprueba(
-    'el último punto va marcado como el presente',
-    serie[serie.length - 1].isCurrent,
-    JSON.stringify(serie[serie.length - 1])
+  check(
+    'the last point is marked as the present',
+    series[series.length - 1].isCurrent,
+    JSON.stringify(series[series.length - 1])
   );
 
-  // El prefijo crece: cada punto conoce lo de los anteriores más lo suyo.
-  comprueba(
-    'cada punto conoce al menos tantos eventos como el anterior',
-    serie.every((punto, i) => i === 0 || punto.events >= serie[i - 1].events),
-    JSON.stringify(serie.map(p => p.events))
+  check(
+    'each point knows at least as many events as the previous one',
+    series.every((punto, i) => i === 0 || punto.events >= series[i - 1].events),
+    JSON.stringify(series.map(p => p.events))
   );
 }
 
-// --- 2. NO_APLICA no es un cero -------------------------------------------
-
-bloque('2. Un día en que el control no aplicaba sale SIN número');
+section('2. A day on which the control did not apply comes out WITHOUT a number');
 
 {
-  const eventos = [diasAntes(3), diasAntes(0)].map(evento);
+  const events = [daysBefore(3), daysBefore(0)].map(event);
 
-  // El motor devuelve `score: undefined` cuando el control es NO_APLICA.
-  const serie = mapCutsToControlPoints(
-    cortes(eventos),
+  const series = mapCutsToControlPoints(
+    cortes(events),
     () => ({ score: undefined, status: 'NO_APLICA' })
   );
 
-  comprueba(
-    'el punto no trae número',
-    serie.every(punto => punto.score === undefined),
-    JSON.stringify(serie.map(p => p.score))
+  check(
+    'the point carries no number',
+    series.every(punto => punto.score === undefined),
+    JSON.stringify(series.map(p => p.score))
   );
 
-  comprueba(
-    'y NO se convierte en cero',
-    serie.every(punto => punto.score !== 0),
-    JSON.stringify(serie.map(p => p.score))
+  check(
+    'and it is NOT turned into zero',
+    series.every(punto => punto.score !== 0),
+    JSON.stringify(series.map(p => p.score))
   );
 
-  comprueba(
+  check(
     'y el estado lo dice',
-    serie.every(punto => punto.status === 'NO_APLICA'),
-    JSON.stringify(serie.map(p => p.status))
+    series.every(punto => punto.status === 'NO_APLICA'),
+    JSON.stringify(series.map(p => p.status))
   );
 
-  // LA REVERSIÓN: un cero de verdad SÍ se conserva. Sin esto, un `?? undefined`
-  // demasiado agresivo borraría los incumplimientos reales y la comprobación de
-  // arriba pasaría igual.
-  const conCero = mapCutsToControlPoints(
-    cortes(eventos),
+  const withZero = mapCutsToControlPoints(
+    cortes(events),
     () => ({ score: 0, status: 'NO_CUMPLE' })
   );
 
-  comprueba(
-    'un 0 medido de verdad sí se conserva',
-    conCero.every(punto => punto.score === 0),
-    JSON.stringify(conCero.map(p => p.score))
+  check(
+    'a truly measured 0 is kept',
+    withZero.every(punto => punto.score === 0),
+    JSON.stringify(withZero.map(p => p.score))
   );
 
-  comprueba(
-    'y se distingue del NO_APLICA por el estado',
-    conCero.every(punto => punto.status === 'NO_CUMPLE'),
-    JSON.stringify(conCero.map(p => p.status))
+  check(
+    'and it is distinguished from NO_APLICA by the state',
+    withZero.every(punto => punto.status === 'NO_CUMPLE'),
+    JSON.stringify(withZero.map(p => p.status))
   );
 }
 
-// --- 3. sin resultado, NO_EVALUABLE ---------------------------------------
-
-bloque('3. Si el motor no devuelve nada, el punto no se inventa');
+section('3. If the engine returns nothing, the point is not invented');
 
 {
-  const serie = mapCutsToControlPoints(
-    cortes([diasAntes(2), diasAntes(0)].map(evento)),
+  const series = mapCutsToControlPoints(
+    cortes([daysBefore(2), daysBefore(0)].map(event)),
     () => undefined
   );
 
-  comprueba(
-    'sin resultado, el estado es NO_EVALUABLE',
-    serie.every(punto => punto.status === 'NO_EVALUABLE'),
-    JSON.stringify(serie.map(p => p.status))
+  check(
+    'without a result, the state is NO_EVALUABLE',
+    series.every(punto => punto.status === 'NO_EVALUABLE'),
+    JSON.stringify(series.map(p => p.status))
   );
 
-  comprueba(
-    'y sin número',
-    serie.every(punto => punto.score === undefined),
-    JSON.stringify(serie.map(p => p.score))
+  check(
+    'and without a number',
+    series.every(punto => punto.score === undefined),
+    JSON.stringify(series.map(p => p.score))
   );
 }
-
-// --- salida ---------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

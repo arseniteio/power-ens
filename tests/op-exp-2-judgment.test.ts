@@ -1,18 +1,4 @@
-/**
- * op.exp.2 · el motor juzga los hechos REALES de una máquina.
- *
- *     npx tsx tests/op-exp-2-judgment.test.ts
- *
- * Los eventos de abajo son los que emitió el recolector de
- * linux/op.exp.2 en un Ubuntu 24.04 real (solo se ha cambiado la
- * IP de origen del acceso ssh por una de documentación). Se envuelven como las
- * alertas que indexa Wazuh y se pasan por el mismo camino que el panel:
- * normalizador, resolución de evidencias y evaluación del control.
- *
- * La prueba de aceptación es la de todo el modelo nuevo: CAMBIAR UN PARÁMETRO
- * CAMBIA EL VEREDICTO SIN TOCAR EL AGENTE. Cada bloque mueve un solo eje y lleva
- * al lado su reversión.
- */
+/** op.exp.2: the engine judges the REAL facts of a machine. */
 import { opExp2CatalogDefinition } from '../common/ens/catalog/op-exp-2';
 import { opExp2Configuration } from '../common/ens/configuration/data/op-exp-2-parameters';
 import type { ENSControlConfiguration } from '../common/ens/configuration/types';
@@ -22,31 +8,26 @@ import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 import { evaluateENSControl } from '../common/ens/core/evaluation/evaluation-engine';
 
-// El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
-
-// --- los hechos reales -----------------------------------------------------
+const section = (title: string): void => console.log(`\n${title}`);
 
 const REALES: string[] = [
   "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"sca_evaluation\",\"evidence_id\":\"EV-01\",\"requisito\":\"op.exp.2.1,op.exp.2.2,op.exp.2.3\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"politicas\":\"cis_ubuntu24-04\",\"ficheros\":\"cis_ubuntu24-04.yml\",\"ultima_evaluacion\":\"2026-09-16T06:14:25Z\",\"evaluaciones\":1,\"sca_habilitado\":\"yes\",\"sca_intervalo\":\"12h\",\"origen_dato\":\"/var/ossec/logs/ossec.log\"}",
@@ -67,8 +48,7 @@ const REALES: string[] = [
   "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"collector_run\",\"resultado\":\"completada\",\"evidencias_cubiertas\":\"EV-02,EV-04,EV-05\",\"evidencias_miradas\":\"EV-01,EV-02,EV-03,EV-04,EV-05\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"plano\":\"sistema\",\"emisor\":\"recolector\"}",
 ];
 
-// Una hora y media después de la pasada: el latido está dentro de su ventana.
-const AHORA = new Date('2026-09-16T18:00:00Z');
+const NOW = new Date('2026-09-16T18:00:00Z');
 
 const RULE_ID: Record<string, string> = {
   sca_evaluation: '110301',
@@ -82,10 +62,10 @@ const RULE_ID: Record<string, string> = {
   collector_run: '110390',
 };
 
-const alertas = (lineas: string[]): ENSNormalizedEvent[] =>
+const alerts = (lines: string[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
-    lineas.map((linea, i) => {
-      const data = JSON.parse(linea);
+    lines.map((line, i) => {
+      const data = JSON.parse(line);
 
       return {
         _id: `op-exp-2-${i}`,
@@ -100,10 +80,10 @@ const alertas = (lineas: string[]): ENSNormalizedEvent[] =>
     })
   );
 
-const sinEvento = (evento: string): string[] =>
-  REALES.filter(linea => JSON.parse(linea).event !== evento);
+const withoutEvent = (event: string): string[] =>
+  REALES.filter(line => JSON.parse(line).event !== event);
 
-const conEvento = (extra: Record<string, unknown>): string[] => [
+const withEvent = (extra: Record<string, unknown>): string[] => [
   ...REALES,
   JSON.stringify({
     ensfacil: 'op.exp.2',
@@ -113,11 +93,9 @@ const conEvento = (extra: Record<string, unknown>): string[] => [
   }),
 ];
 
-// --- la configuración que se declararía para esta máquina -------------------
+type Value = string[] | number | undefined;
 
-type Valor = string[] | number | undefined;
-
-const VALORES: Record<string, Valor> = {
+const VALUES: Record<string, Value> = {
   'P-01': ['wazuh-real | cis_ubuntu24-04'],
   'P-02': ['wazuh-real | sshd,systemd-resolve,systemd-network | 22121,53,68'],
   'P-03': [
@@ -130,33 +108,33 @@ const VALORES: Record<string, Valor> = {
   'P-06': ['hetzner-cloud | wazuh-real | acreditación del proveedor (referencia)'],
 };
 
-const configuracion = (
-  cambios: Record<string, Valor> = {}
+const configuration = (
+  changesList: Record<string, Value> = {}
 ): ENSControlConfiguration => {
-  const valores = { ...VALORES, ...cambios };
+  const values = { ...VALUES, ...changesList };
 
   return {
     ...opExp2Configuration,
-    parameters: opExp2Configuration.parameters.map(parametro => ({
-      ...parametro,
-      value: valores[parametro.id] as string[] | number | undefined,
+    parameters: opExp2Configuration.parameters.map(parameter => ({
+      ...parameter,
+      value: values[parameter.id] as string[] | number | undefined,
     })),
   };
 };
 
-const evidencias = (
-  lineas: string[] = REALES,
-  cambios: Record<string, Valor> = {}
+const evidences = (
+  lines: string[] = REALES,
+  changesList: Record<string, Value> = {}
 ): Map<string, ENSEvidenceResolved> =>
   new Map(
     resolveEvidenceForControl(
       'op.exp.2',
-      alertas(lineas),
+      alerts(lines),
       '024',
       'BAJO',
-      configuracion(cambios),
-      AHORA
-    ).map(evidencia => [evidencia.id, evidencia])
+      configuration(changesList),
+      NOW
+    ).map(evidence => [evidence.id, evidence])
   );
 
 const estado = (
@@ -164,168 +142,160 @@ const estado = (
   id: string
 ): string => `${e.get(id)?.status}`;
 
-const motivo = (
+const motive = (
   e: Map<string, ENSEvidenceResolved>,
   id: string
 ): string => (e.get(id)?.observations || []).join(' | ');
 
-// --- 1. la máquina real con su configuración ---------------------------------
-
-bloque('1. wazuh-real tal como está, con la configuración propuesta');
+section('1. wazuh-real as it is, with the proposed configuration');
 
 {
-  const e = evidencias();
+  const e = evidences();
 
-  comprueba(
-    'EV-01 CUMPLE: evalúa cis_ubuntu24-04, la que P-01 le asigna',
+  check(
+    'EV-01 CUMPLE: evaluates cis_ubuntu24-04, the one P-01 assigns it',
     estado(e, 'EV-01') === 'CUMPLE',
-    motivo(e, 'EV-01')
+    motive(e, 'EV-01')
   );
-  comprueba(
-    'EV-02 CUMPLE: root y dioni no son cuentas estándar de P-03',
+  check(
+    'EV-02 CUMPLE: root and dioni are not standard accounts in P-03',
     estado(e, 'EV-02') === 'CUMPLE',
-    motivo(e, 'EV-02')
+    motive(e, 'EV-02')
   );
-  comprueba(
-    'EV-03 CUMPLE: sus cuatro funciones expuestas están justificadas',
+  check(
+    'EV-03 CUMPLE: its four exposed functions are justified',
     estado(e, 'EV-03') === 'CUMPLE',
-    motivo(e, 'EV-03')
+    motive(e, 'EV-03')
   );
-  comprueba(
-    'EV-04 NO_CUMPLE: cinco valores por defecto inseguros sin excepción',
+  check(
+    'EV-04 NO_CUMPLE: five insecure defaults without exception',
     estado(e, 'EV-04') === 'NO_CUMPLE',
-    motivo(e, 'EV-04')
+    motive(e, 'EV-04')
   );
-  comprueba(
-    'EV-04 nombra la desviación, no «algo falló»',
-    motivo(e, 'EV-04').includes('wazuh-real:ssh_permitrootlogin'),
-    motivo(e, 'EV-04')
+  check(
+    'EV-04 names the deviation, not «algo falló»',
+    motive(e, 'EV-04').includes('wazuh-real:ssh_permitrootlogin'),
+    motive(e, 'EV-04')
   );
-  comprueba(
-    'EV-05 CUMPLE: la VM consta en el inventario',
+  check(
+    'EV-05 CUMPLE: the VM is in the inventory',
     estado(e, 'EV-05') === 'CUMPLE',
-    motivo(e, 'EV-05')
+    motive(e, 'EV-05')
   );
-  comprueba(
-    'EV-06 NO_EVALUABLE: sin API no llega ninguna puntuación',
+  check(
+    'EV-06 NO_EVALUABLE: without an API no score arrives',
     estado(e, 'EV-06') === 'NO_EVALUABLE',
-    motivo(e, 'EV-06')
+    motive(e, 'EV-06')
   );
-  comprueba(
-    'EV-06 nunca CUMPLE por silencio, ni con el latido confirmado',
+  check(
+    'EV-06 never CUMPLE by silence, not even with confirmed heartbeat',
     e.get('EV-06')?.gapCause === 'COLLECTION',
     `${e.get('EV-06')?.gapCause}`
   );
-  comprueba(
-    'la regla del hecho decisivo viaja en la traza (EV-04 → 110305)',
+  check(
+    'the deciding fact\'s rule travels in the trace (EV-04 → 110305)',
     (e.get('EV-04')?.relatedRules || []).includes('110305'),
     (e.get('EV-04')?.relatedRules || []).join(',')
   );
 }
 
-// --- 2. los requisitos -----------------------------------------------------
-
-bloque('2. Los cuatro requisitos, con el motor entero');
+section('2. The four requirements, with the whole engine');
 
 {
-  const eventos = alertas(REALES);
-  const resueltas = resolveEvidenceForControl(
+  const events = alerts(REALES);
+  const resolved = resolveEvidenceForControl(
     'op.exp.2',
-    eventos,
+    events,
     '024',
     'BAJO',
-    configuracion(),
-    AHORA
+    configuration(),
+    NOW
   );
-  const resultado = evaluateENSControl(
+  const result = evaluateENSControl(
     opExp2CatalogDefinition,
-    configuracion(),
+    configuration(),
     'BAJO',
-    resueltas,
+    resolved,
     undefined,
-    eventos
+    events
   );
-  const requisito = (id: string) =>
-    resultado.requirements.find(item => item.id === id);
+  const requirement = (id: string) =>
+    result.requirements.find(item => item.id === id);
 
-  comprueba(
-    'el control está ACTIVE',
+  check(
+    'the control is ACTIVE',
     opExp2CatalogDefinition.status === 'ACTIVE'
   );
-  comprueba(
-    'op.exp.2.1 CUMPLE (EV-01 y EV-02 en verde)',
-    requisito('op.exp.2.1')?.status === 'CUMPLE',
-    `${requisito('op.exp.2.1')?.status}`
+  check(
+    'op.exp.2.1 CUMPLE (EV-01 and EV-02 green)',
+    requirement('op.exp.2.1')?.status === 'CUMPLE',
+    `${requirement('op.exp.2.1')?.status}`
   );
-  comprueba(
-    'op.exp.2.2 NO_CUMPLE y NO evidenciado: le falta EV-06',
-    requisito('op.exp.2.2')?.status === 'NO_CUMPLE' &&
-      requisito('op.exp.2.2')?.evidenced === false,
-    `${requisito('op.exp.2.2')?.status} evidenced=${requisito('op.exp.2.2')?.evidenced}`
+  check(
+    'op.exp.2.2 NO_CUMPLE and NOT evidenced: EV-06 is missing',
+    requirement('op.exp.2.2')?.status === 'NO_CUMPLE' &&
+      requirement('op.exp.2.2')?.evidenced === false,
+    `${requirement('op.exp.2.2')?.status} evidenced=${requirement('op.exp.2.2')?.evidenced}`
   );
-  comprueba(
-    'op.exp.2.3 NO_CUMPLE y SÍ evidenciado: EV-04 midió y falló',
-    requisito('op.exp.2.3')?.status === 'NO_CUMPLE' &&
-      requisito('op.exp.2.3')?.evidenced === true,
-    `${requisito('op.exp.2.3')?.status} evidenced=${requisito('op.exp.2.3')?.evidenced}`
+  check(
+    'op.exp.2.3 NO_CUMPLE and evidenced: EV-04 measured and failed',
+    requirement('op.exp.2.3')?.status === 'NO_CUMPLE' &&
+      requirement('op.exp.2.3')?.evidenced === true,
+    `${requirement('op.exp.2.3')?.status} evidenced=${requirement('op.exp.2.3')?.evidenced}`
   );
-  comprueba(
+  check(
     'op.exp.2.4 CUMPLE',
-    requisito('op.exp.2.4')?.status === 'CUMPLE',
-    `${requisito('op.exp.2.4')?.status}`
+    requirement('op.exp.2.4')?.status === 'CUMPLE',
+    `${requirement('op.exp.2.4')?.status}`
   );
-  comprueba(
-    'P-07 y P-ATT no bloquean la evaluación: no son obligatorios',
+  check(
+    'P-07 and P-ATT do not block the evaluation: they are not mandatory',
     !opExp2Configuration.parameters.some(
-      parametro =>
-        ['P-07', 'P-ATT'].includes(parametro.id) && parametro.required
+      parameter =>
+        ['P-07', 'P-ATT'].includes(parameter.id) && parameter.required
     )
   );
 
-  // La reversión del bloque: sin P-05, que SÍ es obligatorio, ni op.exp.2.1
-  // —cuyas dos evidencias están en verde— puede salir CUMPLE.
-  const sinUmbral = evaluateENSControl(
+  const withoutThreshold = evaluateENSControl(
     opExp2CatalogDefinition,
-    configuracion({ 'P-05': undefined }),
+    configuration({ 'P-05': undefined }),
     'BAJO',
-    resueltas,
+    resolved,
     undefined,
-    eventos
+    events
   );
-  comprueba(
-    'reversión: sin un parámetro obligatorio, op.exp.2.1 deja de CUMPLIR',
-    sinUmbral.requirements.find(item => item.id === 'op.exp.2.1')?.status ===
+  check(
+    'reversal: without a mandatory parameter, op.exp.2.1 stops COMPLYING',
+    withoutThreshold.requirements.find(item => item.id === 'op.exp.2.1')?.status ===
       'NO_CUMPLE'
   );
 }
 
-// --- 3. P-03 --------------------------------------------------------------
-
-bloque('3. P-03 decide qué cuenta es estándar, no el agente');
+section('3. P-03 decides which account is standard, not the agent');
 
 {
-  const conRoot = evidencias(REALES, { 'P-03': ['root | Linux'] });
+  const withRoot = evidences(REALES, { 'P-03': ['root | Linux'] });
 
-  comprueba(
-    'root en P-03 → EV-02 NO_CUMPLE nombrando root',
-    estado(conRoot, 'EV-02') === 'NO_CUMPLE' &&
-      motivo(conRoot, 'EV-02').includes("'root'"),
-    motivo(conRoot, 'EV-02')
+  check(
+    'root in P-03 → EV-02 NO_CUMPLE naming root',
+    estado(withRoot, 'EV-02') === 'NO_CUMPLE' &&
+      motive(withRoot, 'EV-02').includes("'root'"),
+    motive(withRoot, 'EV-02')
   );
-  comprueba(
-    'ROOT en mayúsculas cuenta igual (lista prohibida)',
-    estado(evidencias(REALES, { 'P-03': ['ROOT | Linux'] }), 'EV-02') ===
+  check(
+    'ROOT in upper case counts the same (forbidden list)',
+    estado(evidences(REALES, { 'P-03': ['ROOT | Linux'] }), 'EV-02') ===
       'NO_CUMPLE'
   );
-  comprueba(
-    'reversión: sin root vuelve a CUMPLE',
-    estado(evidencias(), 'EV-02') === 'CUMPLE'
+  check(
+    'reversal: without root it goes back to CUMPLE',
+    estado(evidences(), 'EV-02') === 'CUMPLE'
   );
-  comprueba(
-    'una autenticación con una cuenta estándar también incumple',
+  check(
+    'an authentication with a standard account also breaches',
     estado(
-      evidencias(
-        conEvento({
+      evidences(
+        withEvent({
           event: 'account_authenticated',
           evidence_id: 'EV-02',
           usuario: 'admin',
@@ -336,59 +306,55 @@ bloque('3. P-03 decide qué cuenta es estándar, no el agente');
     ) === 'NO_CUMPLE'
   );
 
-  const sinP03 = evidencias(REALES, { 'P-03': undefined });
-  comprueba(
-    'sin P-03 → NO_EVALUABLE por CONFIGURATION',
-    estado(sinP03, 'EV-02') === 'NO_EVALUABLE' &&
-      sinP03.get('EV-02')?.gapCause === 'CONFIGURATION',
-    `${estado(sinP03, 'EV-02')} ${sinP03.get('EV-02')?.gapCause}`
+  const withoutP03 = evidences(REALES, { 'P-03': undefined });
+  check(
+    'without P-03 → NO_EVALUABLE by CONFIGURATION',
+    estado(withoutP03, 'EV-02') === 'NO_EVALUABLE' &&
+      withoutP03.get('EV-02')?.gapCause === 'CONFIGURATION',
+    `${estado(withoutP03, 'EV-02')} ${withoutP03.get('EV-02')?.gapCause}`
   );
 }
 
-// --- 4. P-02 --------------------------------------------------------------
-
-bloque('4. P-02: mínima funcionalidad');
+section('4. P-02: minimum functionality');
 
 {
-  const sinDhcp = evidencias(REALES, {
+  const withoutDhcp = evidences(REALES, {
     'P-02': ['wazuh-real | sshd,systemd-resolve | 22121,53'],
   });
 
-  comprueba(
-    'sin systemd-network ni 68 justificados → EV-03 NO_CUMPLE nombrándolo',
-    estado(sinDhcp, 'EV-03') === 'NO_CUMPLE' &&
-      motivo(sinDhcp, 'EV-03').includes('systemd-network'),
-    motivo(sinDhcp, 'EV-03')
+  check(
+    'without systemd-network or 68 justified → EV-03 NO_CUMPLE naming it',
+    estado(withoutDhcp, 'EV-03') === 'NO_CUMPLE' &&
+      motive(withoutDhcp, 'EV-03').includes('systemd-network'),
+    motive(withoutDhcp, 'EV-03')
   );
-  comprueba(
-    'el puerto también cuenta: sshd justificado en 22 y no en 22121 → NO_CUMPLE',
+  check(
+    'the port counts too: sshd justified on 22 and not on 22121 → NO_CUMPLE',
     estado(
-      evidencias(REALES, {
+      evidences(REALES, {
         'P-02': ['wazuh-real | sshd,systemd-resolve,systemd-network | 22,53,68'],
       }),
       'EV-03'
     ) === 'NO_CUMPLE'
   );
 
-  const otroPerfil = evidencias(REALES, { 'P-02': ['srv-web | nginx | 443'] });
-  comprueba(
-    'una fila de OTRO perfil no decide por esta máquina → NO_EVALUABLE CONFIGURATION',
-    estado(otroPerfil, 'EV-03') === 'NO_EVALUABLE' &&
-      otroPerfil.get('EV-03')?.gapCause === 'CONFIGURATION',
-    `${estado(otroPerfil, 'EV-03')} ${otroPerfil.get('EV-03')?.gapCause}`
+  const otherProfile = evidences(REALES, { 'P-02': ['srv-web | nginx | 443'] });
+  check(
+    'a row of ANOTHER profile does not decide for this machine → NO_EVALUABLE CONFIGURATION',
+    estado(otherProfile, 'EV-03') === 'NO_EVALUABLE' &&
+      otherProfile.get('EV-03')?.gapCause === 'CONFIGURATION',
+    `${estado(otherProfile, 'EV-03')} ${otherProfile.get('EV-03')?.gapCause}`
   );
-  comprueba(
-    'reversión: con la fila completa, CUMPLE',
-    estado(evidencias(), 'EV-03') === 'CUMPLE'
+  check(
+    'reversal: with the complete row, CUMPLE',
+    estado(evidences(), 'EV-03') === 'CUMPLE'
   );
 }
 
-// --- 5. P-04 --------------------------------------------------------------
-
-bloque('5. P-04: las excepciones son por máquina');
+section('5. P-04: exceptions are per machine');
 
 {
-  const todas = [
+  const allOnes = [
     'ssh_permitrootlogin',
     'ssh_x11forwarding',
     'ssh_macs_debiles',
@@ -396,34 +362,34 @@ bloque('5. P-04: las excepciones son por máquina');
     'permisos:/etc/crontab',
   ];
 
-  comprueba(
-    'las cinco autorizadas para wazuh-real → EV-04 CUMPLE',
+  check(
+    'the five authorized for wazuh-real → EV-04 CUMPLE',
     estado(
-      evidencias(REALES, {
-        'P-04': todas.map(c => `wazuh-real | wazuh-real:${c} | prueba`),
+      evidences(REALES, {
+        'P-04': allOnes.map(c => `wazuh-real | wazuh-real:${c} | prueba`),
       }),
       'EV-04'
     ) === 'CUMPLE'
   );
-  comprueba(
-    'las mismas autorizadas para OTRA máquina no excusan a ésta → NO_CUMPLE',
+  check(
+    'the same authorized for ANOTHER machine do not excuse this one → NO_CUMPLE',
     estado(
-      evidencias(REALES, {
-        'P-04': todas.map(c => `otra | otra:${c} | prueba`),
+      evidences(REALES, {
+        'P-04': allOnes.map(c => `otra | otra:${c} | prueba`),
       }),
       'EV-04'
     ) === 'NO_CUMPLE'
   );
-  comprueba(
-    'sin desviaciones, con latido y «ninguna» declarada → CUMPLE',
-    estado(evidencias(sinEvento('insecure_default')), 'EV-04') === 'CUMPLE'
+  check(
+    'without deviations, with heartbeat and «ninguna» declared → CUMPLE',
+    estado(evidences(withoutEvent('insecure_default')), 'EV-04') === 'CUMPLE'
   );
-  comprueba(
-    'sin desviaciones y SIN latido → NO_EVALUABLE (no consta que se mirara)',
+  check(
+    'without deviations and WITHOUT heartbeat → NO_EVALUABLE (no record that it was looked at)',
     estado(
-      evidencias(
-        sinEvento('insecure_default').filter(
-          linea => JSON.parse(linea).event !== 'collector_run'
+      evidences(
+        withoutEvent('insecure_default').filter(
+          line => JSON.parse(line).event !== 'collector_run'
         )
       ),
       'EV-04'
@@ -431,40 +397,36 @@ bloque('5. P-04: las excepciones son por máquina');
   );
 }
 
-// --- 6. P-01 --------------------------------------------------------------
-
-bloque('6. P-01: la línea base asignada');
+section('6. P-01: the assigned baseline');
 
 {
-  comprueba(
-    'asignada cis_ubuntu22-04 y evalúa 24-04 → EV-01 NO_CUMPLE',
+  check(
+    'assigned cis_ubuntu22-04 and evaluates 24-04 → EV-01 NO_CUMPLE',
     estado(
-      evidencias(REALES, { 'P-01': ['wazuh-real | cis_ubuntu22-04'] }),
+      evidences(REALES, { 'P-01': ['wazuh-real | cis_ubuntu22-04'] }),
       'EV-01'
     ) === 'NO_CUMPLE'
   );
-  comprueba(
-    'asignadas dos y evalúa una → NO_CUMPLE (se compara el conjunto)',
+  check(
+    'two assigned and it evaluates one → NO_CUMPLE (the set is compared)',
     estado(
-      evidencias(REALES, {
+      evidences(REALES, {
         'P-01': ['wazuh-real | cis_ubuntu24-04,ensfacil_extra'],
       }),
       'EV-01'
     ) === 'NO_CUMPLE'
   );
-  comprueba(
-    'sin fila para el perfil → NO_EVALUABLE CONFIGURATION',
-    evidencias(REALES, { 'P-01': ['otro | cis_ubuntu24-04'] }).get('EV-01')
+  check(
+    'without a row for the profile → NO_EVALUABLE CONFIGURATION',
+    evidences(REALES, { 'P-01': ['otro | cis_ubuntu24-04'] }).get('EV-01')
       ?.gapCause === 'CONFIGURATION'
   );
 }
 
-// --- 7. P-05 y EV-06 ------------------------------------------------------
-
-bloque('7. P-05: la puntuación SCA la juzga el motor');
+section('7. P-05: the SCA score is judged by the engine');
 
 {
-  const conPuntuacion = conEvento({
+  const withScore = withEvent({
     event: 'sca_score',
     evidence_id: 'EV-06',
     perfil: 'wazuh-real',
@@ -472,20 +434,20 @@ bloque('7. P-05: la puntuación SCA la juzga el motor');
     puntuacion: 49,
   });
 
-  comprueba(
-    '49 con umbral 90 → EV-06 NO_CUMPLE',
-    estado(evidencias(conPuntuacion), 'EV-06') === 'NO_CUMPLE'
+  check(
+    '49 with threshold 90 → EV-06 NO_CUMPLE',
+    estado(evidences(withScore), 'EV-06') === 'NO_CUMPLE'
   );
-  comprueba(
-    'el MISMO evento con umbral 45 → CUMPLE',
-    estado(evidencias(conPuntuacion, { 'P-05': 45 }), 'EV-06') === 'CUMPLE'
+  check(
+    'the SAME event with threshold 45 → CUMPLE',
+    estado(evidences(withScore, { 'P-05': 45 }), 'EV-06') === 'CUMPLE'
   );
-  comprueba(
-    'una caída en la serie por debajo del umbral incumple aunque la última suba',
+  check(
+    'a drop in the series below the threshold breaches even if the last one rises',
     estado(
-      evidencias(
+      evidences(
         [
-          ...conPuntuacion,
+          ...withScore,
           JSON.stringify({
             ensfacil: 'op.exp.2',
             ts: '2026-09-16T17:00:00Z',
@@ -502,45 +464,41 @@ bloque('7. P-05: la puntuación SCA la juzga el motor');
   );
 }
 
-// --- 8. P-06 --------------------------------------------------------------
-
-bloque('8. P-06: inventario de virtualización');
+section('8. P-06: virtualization inventory');
 
 {
-  comprueba(
-    'la VM fuera del inventario → EV-05 NO_CUMPLE',
-    estado(evidencias(REALES, { 'P-06': ['pve01 | otra-vm | agente pve01'] }), 'EV-05') ===
+  check(
+    'the VM outside the inventory → EV-05 NO_CUMPLE',
+    estado(evidences(REALES, { 'P-06': ['pve01 | otra-vm | agente pve01'] }), 'EV-05') ===
       'NO_CUMPLE'
   );
 
-  const sinP06 = evidencias(REALES, { 'P-06': undefined });
-  comprueba(
-    'sin P-06 → EV-05 NO_EVALUABLE por CONFIGURATION',
-    estado(sinP06, 'EV-05') === 'NO_EVALUABLE' &&
-      sinP06.get('EV-05')?.gapCause === 'CONFIGURATION'
+  const withoutP06 = evidences(REALES, { 'P-06': undefined });
+  check(
+    'without P-06 → EV-05 NO_EVALUABLE by CONFIGURATION',
+    estado(withoutP06, 'EV-05') === 'NO_EVALUABLE' &&
+      withoutP06.get('EV-05')?.gapCause === 'CONFIGURATION'
   );
 
-  // P-06 no es obligatorio: su ausencia deja op.exp.2.4 sin evidenciar y NO
-  // arrastra a op.exp.2.1, que no depende de él.
-  const eventos = alertas(REALES);
-  const sinInventario = evaluateENSControl(
+  const events = alerts(REALES);
+  const withoutInventory = evaluateENSControl(
     opExp2CatalogDefinition,
-    configuracion({ 'P-06': undefined }),
+    configuration({ 'P-06': undefined }),
     'BAJO',
-    resolveEvidenceForControl('op.exp.2', eventos, '024', 'BAJO', configuracion({ 'P-06': undefined }), AHORA),
+    resolveEvidenceForControl('op.exp.2', events, '024', 'BAJO', configuration({ 'P-06': undefined }), NOW),
     undefined,
-    eventos
+    events
   );
-  comprueba(
-    'sin P-06, op.exp.2.4 NO_CUMPLE no evidenciado y op.exp.2.1 sigue CUMPLE',
-    sinInventario.requirements.find(r => r.id === 'op.exp.2.4')?.evidenced === false &&
-      sinInventario.requirements.find(r => r.id === 'op.exp.2.1')?.status === 'CUMPLE',
-    sinInventario.requirements.map(r => `${r.id}=${r.status}`).join(' ')
+  check(
+    'without P-06, op.exp.2.4 NO_CUMPLE not evidenced and op.exp.2.1 stays CUMPLE',
+    withoutInventory.requirements.find(r => r.id === 'op.exp.2.4')?.evidenced === false &&
+      withoutInventory.requirements.find(r => r.id === 'op.exp.2.1')?.status === 'CUMPLE',
+    withoutInventory.requirements.map(r => `${r.id}=${r.status}`).join(' ')
   );
-  comprueba(
-    'una máquina física (sin hecho) con latido e inventario declarado → CUMPLE',
+  check(
+    'a physical machine (no fact) with heartbeat and declared inventory → CUMPLE',
     estado(
-      evidencias(sinEvento('virtualization_role'), {
+      evidences(withoutEvent('virtualization_role'), {
         'P-06': ['pve01 | srv-bd01 | agente pve01'],
       }),
       'EV-05'
@@ -548,31 +506,27 @@ bloque('8. P-06: inventario de virtualización');
   );
 }
 
-// --- 9. EV-07 -------------------------------------------------------------
-
-bloque('9. EV-07 no finge medir lo que no se puede observar');
+section('9. EV-07 does not pretend to measure what cannot be observed');
 
 {
-  comprueba(
+  check(
     'EV-07 NO_EVALUABLE',
-    estado(evidencias(), 'EV-07') === 'NO_EVALUABLE'
+    estado(evidences(), 'EV-07') === 'NO_EVALUABLE'
   );
-  comprueba(
-    'y ningún requisito la declara',
-    !opExp2CatalogDefinition.requirements.some(requisito =>
-      requisito.evidenceIds.includes('EV-07')
+  check(
+    'and no requirement declares it',
+    !opExp2CatalogDefinition.requirements.some(requirement =>
+      requirement.evidenceIds.includes('EV-07')
     )
   );
 }
 
-// --- salida ----------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

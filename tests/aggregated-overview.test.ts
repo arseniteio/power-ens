@@ -1,39 +1,4 @@
-/**
- * La vista general escala a decenas de agentes sin dejar de leerse.
- *
- *     ~/.bun/bin/bun run tests/aggregated-overview.test.ts
- *
- * Mismo montaje que `measurement-gap.test.ts` y `evidence-judgment.test.ts`:
- * TypeScript suelto con su propio comprobador, sin `package.json` ni `tsconfig`.
- * Hace falta un runtime que ejecute TypeScript resolviendo imports sin extensión
- * (`bun`, probado con 1.3.14).
- *
- * Por qué existe este fichero: con los 7 agentes del primer despliegue real, el
- * detalle del control sin agente seleccionado era ilegible. La columna «Motivo»
- * concatenaba el mensaje de las 7 máquinas con el prefijo `[nombre (id)]` —una
- * celda de quince líneas repitiendo casi lo mismo—, y las tarjetas salían
- * multiplicadas por agente: 45 tarjetas donde hay 8 requisitos distintos, con
- * `op.acc.1.5` repetido 5 veces diciendo que no tiene evidencia declarada en el
- * catálogo, que es un hecho DEL CATÁLOGO y no de la máquina.
- *
- * Reglas de estas pruebas, las mismas de sus dos hermanas:
- *
- *   - cada bloque mueve UN SOLO eje respecto de su hermano. Si un caso cambia
- *     dos cosas a la vez no dice cuál de las dos produjo el efecto;
- *   - se comprueba la ESTRUCTURA (cuántos grupos, cuántas máquinas por grupo,
- *     en qué lista está la tarjeta), no el texto de un mensaje, que también
- *     aparece en la salida normal;
- *   - toda afirmación de «esto agrupa» lleva su REVERSIÓN al lado: los mismos
- *     agentes con el texto distinto NO agrupan. Sin ella, una prueba que solo
- *     mirase el caso agrupado pasaría igual con un `uniqueValues` ciego que
- *     borrase información;
- *   - el «antes» nunca se compara consigo mismo: sale de sumar los resultados
- *     POR AGENTE, que son objetos distintos del consolidado.
- *
- * Imports desde el FICHERO, nunca desde un barrel de alto nivel: el barrel
- * reintroduce el ciclo transitivo del TDZ de `Settings` y arrastra
- * `kibana-services`, que solo existe en el árbol del plugin `main` de Wazuh.
- */
+/** The overview scales to dozens of agents and stays readable. */
 import { opAcc1CatalogDefinition } from '../common/ens/catalog/op-acc-1';
 import type { ENSControlDefinition } from '../common/ens/catalog/types';
 import { opAcc1Configuration } from '../common/ens/configuration/data/op-acc-1-parameters';
@@ -57,79 +22,65 @@ import {
   summarizeMotives,
 } from '../public/ens/controls/control-detail/general-view';
 
-// El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
-
-// --- fixtures --------------------------------------------------------------
+const section = (title: string): void => console.log(`\n${title}`);
 
 const CONTROL: ENSControlDefinition = opAcc1CatalogDefinition;
 
-// La evidencia resuelta se construye desde la definición REAL del catálogo, no
-// a mano: una fixture inventada probaría un control que no existe.
-//
-// `observations` y `motivoDelAgente` NO son lo mismo y aquí importa la
-// diferencia: las primeras alimentan la columna «Motivo» de la tabla de
-// evidencias; el segundo es el `motivo` que el agente puso en su
-// `evidence_state`, viaja en `resolvedAttributes` y es lo que el motor mete
-// dentro del `finding` de la tarjeta PM. Dos máquinas que no miden por razones
-// distintas se distinguen por el segundo, no por las primeras.
-const evidencia = (
-  evidenciaId: string,
+const evidence = (
+  evidenceId: string,
   status: ENSComplianceStatus,
   observations: string[] = [],
-  motivoDelAgente?: string
+  agentMotive?: string
 ): ENSEvidenceResolved => {
-  const definicion = getEvidenceDefinitions('op.acc.1').find(
-    item => item.id === evidenciaId
+  const definition = getEvidenceDefinitions('op.acc.1').find(
+    item => item.id === evidenceId
   );
 
-  if (!definicion) {
-    throw new Error(`El catálogo no define ${evidenciaId} para op.acc.1`);
+  if (!definition) {
+    throw new Error(`The catalog does not define ${evidenceId} for op.acc.1`);
   }
 
   return {
-    id: definicion.id,
-    controlId: definicion.controlId,
-    title: definicion.title,
-    description: definicion.description,
-    requirements: definicion.requirements,
-    levels: definicion.levels,
-    category: definicion.category,
-    criticality: definicion.criticality,
-    sourceTypes: definicion.sourceTypes,
-    expectedEventTypes: definicion.expectedEventTypes,
-    relatedRules: definicion.relatedRules,
-    auditQuestion: definicion.auditQuestion,
+    id: definition.id,
+    controlId: definition.controlId,
+    title: definition.title,
+    description: definition.description,
+    requirements: definition.requirements,
+    levels: definition.levels,
+    category: definition.category,
+    criticality: definition.criticality,
+    sourceTypes: definition.sourceTypes,
+    expectedEventTypes: definition.expectedEventTypes,
+    relatedRules: definition.relatedRules,
+    auditQuestion: definition.auditQuestion,
     status,
     observations,
-    resolvedAttributes: motivoDelAgente
-      ? { motivo: motivoDelAgente }
+    resolvedAttributes: agentMotive
+      ? { motivo: agentMotive }
       : undefined,
   };
 };
 
-const TODAS = [
+const ALL_OF_THEM = [
   'EV-01',
   'EV-02',
   'EV-03',
@@ -140,53 +91,42 @@ const TODAS = [
   'EV-08',
 ];
 
-// Todas en CUMPLE salvo las que se digan. Un único eje por caso.
-const evidencias = (
-  excepciones: Record<string, ENSComplianceStatus> = {},
-  motivos: Record<string, string[]> = {},
-  motivosDelAgente: Record<string, string> = {}
+const evidences = (
+  exceptions: Record<string, ENSComplianceStatus> = {},
+  motives: Record<string, string[]> = {},
+  agentMotives: Record<string, string> = {}
 ): ENSEvidenceResolved[] =>
-  TODAS.map(id =>
-    evidencia(
+  ALL_OF_THEM.map(id =>
+    evidence(
       id,
-      excepciones[id] || 'CUMPLE',
-      motivos[id] || [],
-      motivosDelAgente[id]
+      exceptions[id] || 'CUMPLE',
+      motives[id] || [],
+      agentMotives[id]
     )
   );
 
-// Valor válido para el tipo de cada parámetro: hace falta para que el eje
-// «configuración incompleta» esté quieto mientras se mueve el de las evidencias.
-const valorValido = (
-  parametro: ENSControlParameter
+const validValue = (
+  parameter: ENSControlParameter
 ): ENSControlParameter['value'] => {
-  if (parametro.options && parametro.options.length) {
-    return parametro.options[0];
+  if (parameter.options && parameter.options.length) {
+    return parameter.options[0];
   }
 
-  switch (parametro.type) {
+  switch (parameter.type) {
     case 'number':
     case 'duration_days':
     case 'duration_hours':
-      return typeof parametro.minValue === 'number'
-        ? Math.max(parametro.minValue, 1)
+      return typeof parameter.minValue === 'number'
+        ? Math.max(parameter.minValue, 1)
         : 7;
     case 'boolean':
       return true;
     case 'list':
-      // Una lista que declara la forma de su elemento (`columns[0]`) no admite
-      // cualquier cosa: 'valor-uno' no es una ruta absoluta. El ejemplo de la
-      // ficha sí vale, y `config/test_control_blocks.py` ya obliga a que sea un
-      // elemento válido.
-      return parametro.columns && parametro.columns.length
-        ? [parametro.example || '']
+      return parameter.columns && parameter.columns.length
+        ? [parameter.example || '']
         : ['valor-uno', 'valor-dos'];
     case 'table':
-      // Una fila entera. Con el `default: 'valor'` de antes, toda tabla
-      // obligatoria salía INVALID y el eje «configuración» dejaba de estar
-      // quieto: esta prueba mediría el hueco de configuración creyendo que mide
-      // el de evidencias.
-      return [parametro.example || ''];
+      return [parameter.example || ''];
     case 'path':
       return '/var/lib/ensfacil';
     case 'url':
@@ -196,22 +136,21 @@ const valorValido = (
   }
 };
 
-const CONFIGURACION_COMPLETA: ENSControlConfiguration = {
+const FULL_CONFIGURATION: ENSControlConfiguration = {
   ...opAcc1Configuration,
-  parameters: opAcc1Configuration.parameters.map(parametro => ({
-    ...parametro,
-    value: valorValido(parametro),
+  parameters: opAcc1Configuration.parameters.map(parameter => ({
+    ...parameter,
+    value: validValue(parameter),
   })),
 };
 
-const evalua = (
-  resueltas: ENSEvidenceResolved[],
-  nivel: ENSLevel = 'MEDIO'
+const evaluate = (
+  resolved: ENSEvidenceResolved[],
+  level: ENSLevel = 'MEDIO'
 ): ENSComplianceResult =>
-  evaluateENSControl(CONTROL, CONFIGURACION_COMPLETA, nivel, resueltas, undefined, []);
+  evaluateENSControl(CONTROL, FULL_CONFIGURATION, level, resolved, undefined, []);
 
-// El parque del primer despliegue real: siete máquinas.
-const MAQUINAS = [
+const MACHINES = [
   { agentId: '021', agentName: 'CLIENTE-01' },
   { agentId: '022', agentName: 'CLIENTE-02' },
   { agentId: '023', agentName: 'CLIENTE-03' },
@@ -221,120 +160,103 @@ const MAQUINAS = [
   { agentId: '027', agentName: 'CLIENTE-07' },
 ];
 
-// Un parque de N máquinas, cada una con el resultado que le toque. `resultadoDe`
-// recibe el índice para poder hacer que una se comporte distinta de las demás.
-const parque = (
-  cuantas: number,
-  resultadoDe: (indice: number) => ENSComplianceResult
+const fleet = (
+  howMany: number,
+  resultOf: (index: number) => ENSComplianceResult
 ): ENSAgentComplianceState[] =>
-  MAQUINAS.slice(0, cuantas).map((maquina, indice) => ({
-    agentId: maquina.agentId,
-    agentName: maquina.agentName,
-    results: [resultadoDe(indice)],
+  MACHINES.slice(0, howMany).map((machine, index) => ({
+    agentId: machine.agentId,
+    agentName: machine.agentName,
+    results: [resultOf(index)],
     summary: undefined as never,
   }));
 
-const consolida = (agentes: ENSAgentComplianceState[]): ENSComplianceResult => {
-  const resultado = consolidateAgentComplianceResultByControl(agentes, 'op.acc.1');
+const consolidate = (agents: ENSAgentComplianceState[]): ENSComplianceResult => {
+  const result = consolidateAgentComplianceResultByControl(agents, 'op.acc.1');
 
-  if (!resultado) {
-    throw new Error('La consolidación no ha devuelto resultado para op.acc.1');
+  if (!result) {
+    throw new Error('The consolidation returned no result for op.acc.1');
   }
 
-  return resultado;
+  return result;
 };
 
-// El «antes»: lo que la pantalla habría pintado sumando los resultados por
-// agente. Son objetos distintos del consolidado, no el consolidado otra vez.
-const sumaPorAgente = (
-  agentes: ENSAgentComplianceState[],
-  selector: (resultado: ENSComplianceResult) => number
+const sumByAgent = (
+  agents: ENSAgentComplianceState[],
+  selector: (result: ENSComplianceResult) => number
 ): number =>
-  agentes.reduce((total, agente) => total + selector(agente.results[0]), 0);
+  agents.reduce((total, agent) => total + selector(agent.results[0]), 0);
 
-// Hasta el 04/08 esto vivía en una lista propia, `measurementGaps`. Desde la
-// decisión del responsable el veredicto de un hueco es el mismo que el de un
-// incumplimiento medido, así que viven en la MISMA lista y lo que las separa es
-// `origin`. La agregación que se comprueba en este fichero —una tarjeta por
-// hallazgo, no por máquina— es la misma; sólo ha cambiado dónde están.
-const huecos = (resultado: ENSComplianceResult) =>
-  resultado.nonConformities.filter(item => item.origin === 'NO_EVIDENCIADA');
+const gaps = (result: ENSComplianceResult) =>
+  result.nonConformities.filter(item => item.origin === 'NO_EVIDENCIADA');
 
-const medidas = (resultado: ENSComplianceResult) =>
-  resultado.nonConformities.filter(item => item.origin === 'MEDIDA');
+const measurements = (result: ENSComplianceResult) =>
+  result.nonConformities.filter(item => item.origin === 'MEDIDA');
 
-const MOTIVO_SIN_DATOS =
+const NO_DATA_MOTIVE =
   'Sin eventos del recolector en la ventana de evaluación.';
 
-// ---------------------------------------------------------------------------
-bloque('1 · un motivo que se repite en N máquinas es UN motivo');
+section('1 · a motive repeated on N machines is ONE motive');
 
 {
-  // Eje: el TEXTO del motivo. Todo lo demás (las 7 máquinas, el estado de la
-  // evidencia, la configuración) se queda quieto entre los tres casos.
-  const mismoMotivo = consolida(
-    parque(7, () =>
-      evalua(
-        evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] })
+  const sameMotive = consolidate(
+    fleet(7, () =>
+      evaluate(
+        evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] })
       )
     )
   );
 
-  const ev04 = mismoMotivo.evidences.find(item => item.id === 'EV-04');
+  const ev04 = sameMotive.evidences.find(item => item.id === 'EV-04');
 
-  comprueba(
-    'siete máquinas con el mismo motivo · un solo grupo',
+  check(
+    'seven machines with the same motive · a single group',
     ev04?.observationGroups?.length === 1,
-    JSON.stringify(ev04?.observationGroups?.map(grupo => grupo.text))
+    JSON.stringify(ev04?.observationGroups?.map(group => group.text))
   );
 
-  comprueba(
-    'siete máquinas con el mismo motivo · el grupo dice que son siete',
+  check(
+    'seven machines with the same motive · the group says there are seven',
     ev04?.observationGroups?.[0].agents.length === 7,
     String(ev04?.observationGroups?.[0].agents.length)
   );
 
-  comprueba(
-    'siete máquinas con el mismo motivo · una sola línea de texto plano',
+  check(
+    'seven machines with the same motive · a single plain-text line',
     ev04?.observations.length === 1,
     JSON.stringify(ev04?.observations)
   );
 
-  // REVERSIÓN, moviendo solo el texto: si cada máquina trae un motivo distinto,
-  // no se agrupa nada. Sin esto, la comprobación de arriba pasaría igual con un
-  // borrado ciego de duplicados que perdiese los motivos que sí difieren.
-  const motivoDistinto = consolida(
-    parque(7, indice =>
-      evalua(
-        evidencias(
+  const differentMotive = consolidate(
+    fleet(7, index =>
+      evaluate(
+        evidences(
           { 'EV-04': 'NO_EVALUABLE' },
-          { 'EV-04': [`${MOTIVO_SIN_DATOS} Detalle propio de la máquina ${indice}.`] }
+          { 'EV-04': [`${NO_DATA_MOTIVE} Detalle propio de la máquina ${index}.`] }
         )
       )
     )
   );
 
-  const ev04Distinto = motivoDistinto.evidences.find(item => item.id === 'EV-04');
+  const ev04Different = differentMotive.evidences.find(item => item.id === 'EV-04');
 
-  comprueba(
-    'reversión · siete motivos distintos siguen siendo siete',
-    ev04Distinto?.observationGroups?.length === 7 &&
-      ev04Distinto?.observationGroups?.every(grupo => grupo.agents.length === 1),
+  check(
+    'reversal · seven different motives remain seven',
+    ev04Different?.observationGroups?.length === 7 &&
+      ev04Different?.observationGroups?.every(group => group.agents.length === 1),
     JSON.stringify(
-      ev04Distinto?.observationGroups?.map(grupo => grupo.agents.length)
+      ev04Different?.observationGroups?.map(group => group.agents.length)
     )
   );
 
-  // Agregar no es esconder: seis fallan por una razón y una por otra, y las dos
-  // se ven, con su recuento.
-  const seisYUna = consolida(
-    parque(7, indice =>
-      evalua(
-        evidencias(
+  const sixAndOne = consolidate(
+    fleet(7, index =>
+      evaluate(
+        evidences(
           { 'EV-04': 'NO_EVALUABLE' },
           {
             'EV-04': [
-              indice === 6 ? 'El recolector no está instalado.' : MOTIVO_SIN_DATOS,
+              index === 6 ? 'El recolector no está instalado.' : NO_DATA_MOTIVE,
             ],
           }
         )
@@ -342,555 +264,481 @@ bloque('1 · un motivo que se repite en N máquinas es UN motivo');
     )
   );
 
-  const ev04Mezcla = seisYUna.evidences.find(item => item.id === 'EV-04');
-  const recuentos = (ev04Mezcla?.observationGroups || [])
-    .map(grupo => grupo.agents.length)
-    .sort((izquierda, derecha) => derecha - izquierda);
+  const ev04Mix = sixAndOne.evidences.find(item => item.id === 'EV-04');
+  const counts = (ev04Mix?.observationGroups || [])
+    .map(group => group.agents.length)
+    .sort((left, right) => right - left);
 
-  comprueba(
-    'seis por una razón y una por otra · dos grupos, de 6 y de 1',
-    recuentos.length === 2 && recuentos[0] === 6 && recuentos[1] === 1,
-    JSON.stringify(recuentos)
+  check(
+    'six for one reason and one for another · two groups, of 6 and of 1',
+    counts.length === 2 && counts[0] === 6 && counts[1] === 1,
+    JSON.stringify(counts)
   );
 
-  comprueba(
-    'la máquina rara se puede nombrar: el grupo de 1 dice cuál es',
-    (ev04Mezcla?.observationGroups || []).some(
-      grupo => grupo.agents.length === 1 && grupo.agents[0].agentId === '027'
+  check(
+    'the odd machine can be named: the group of 1 says which',
+    (ev04Mix?.observationGroups || []).some(
+      group => group.agents.length === 1 && group.agents[0].agentId === '027'
     ),
     JSON.stringify(
-      (ev04Mezcla?.observationGroups || []).map(grupo =>
-        grupo.agents.map(agente => agente.agentId)
+      (ev04Mix?.observationGroups || []).map(group =>
+        group.agents.map(agent => agent.agentId)
       )
     )
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('2 · las tarjetas no se multiplican por máquina');
+section('2 · cards are not multiplied per machine');
 
 {
-  const agentes = parque(7, () =>
-    evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }))
+  const agents = fleet(7, () =>
+    evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }))
   );
 
-  const antes = sumaPorAgente(agentes, resultado => huecos(resultado).length);
-  const consolidado = consolida(agentes);
-  const despues = huecos(consolidado).length;
+  const antes = sumByAgent(agents, result => gaps(result).length);
+  const consolidated = consolidate(agents);
+  const after = gaps(consolidated).length;
 
-  // Baseline explícita: si cada agente no trajera huecos por su cuenta, la
-  // reducción de abajo no probaría nada (la mutación tiene que aplicarse donde
-  // se cree que se aplica).
-  comprueba(
-    'cada agente trae sus huecos por su cuenta (el «antes» no es cero)',
-    antes === agentes.length * huecos(agentes[0].results[0]).length &&
+  check(
+    'each agent brings its own gaps (the "before" is not zero)',
+    antes === agents.length * gaps(agents[0].results[0]).length &&
       antes > 0,
     String(antes)
   );
 
-  // Recuento independiente: cuántos huecos DISTINTOS hay realmente, calculado
-  // fuera de la consolidación.
-  const distintos = new Set(
-    agentes.flatMap(agente =>
-      huecos(agente.results[0]).map(
-        hueco => `${hueco.requirementId}|${hueco.finding}|${hueco.requiredAction}`
+  const distinct = new Set(
+    agents.flatMap(agent =>
+      gaps(agent.results[0]).map(
+        gap => `${gap.requirementId}|${gap.finding}|${gap.requiredAction}`
       )
     )
   ).size;
 
-  comprueba(
-    'la vista general enseña tantas tarjetas como huecos distintos hay',
-    despues === distintos,
-    `${despues} tarjetas vs ${distintos} huecos distintos`
+  check(
+    'the overview shows as many cards as there are distinct gaps',
+    after === distinct,
+    `${after} tarjetas vs ${distinct} huecos distintos`
   );
 
-  comprueba(
-    'y son muchas menos que antes',
-    despues < antes,
-    `antes ${antes}, después ${despues}`
+  check(
+    'and they are far fewer than before',
+    after < antes,
+    `antes ${antes}, después ${after}`
   );
 
-  comprueba(
-    'ninguna tarjeta consolidada repite identificador',
-    new Set(huecos(consolidado).map(hueco => hueco.id)).size === despues,
-    JSON.stringify(huecos(consolidado).map(hueco => hueco.id))
+  check(
+    'no consolidated card repeats an identifier',
+    new Set(gaps(consolidated).map(gap => gap.id)).size === after,
+    JSON.stringify(gaps(consolidated).map(gap => gap.id))
   );
 
-  // El «antes» y el «después» de arriba salen de siete máquinas que no miden
-  // por la MISMA razón. Que la tarjeta sea una es correcto justo porque el
-  // motivo es el mismo:
-  const huecosDeEv04 = huecos(consolidado).filter(hueco =>
-    hueco.evidenceIds.includes('EV-04')
+  const gapsOfEv04 = gaps(consolidated).filter(gap =>
+    gap.evidenceIds.includes('EV-04')
   );
 
-  comprueba(
-    'mismo motivo del recolector · una sola tarjeta con las siete máquinas',
-    huecosDeEv04.length === 1 && (huecosDeEv04[0].agents || []).length === 7,
-    JSON.stringify(huecosDeEv04.map(hueco => (hueco.agents || []).length))
+  check(
+    'same collector motive · a single card with the seven machines',
+    gapsOfEv04.length === 1 && (gapsOfEv04[0].agents || []).length === 7,
+    JSON.stringify(gapsOfEv04.map(gap => (gap.agents || []).length))
   );
 
-  // REVERSIÓN, moviendo solo el motivo QUE VIAJA EN LA TARJETA (el que el
-  // agente pone en su `evidence_state`, no las observaciones de la evidencia):
-  // dos máquinas que no miden por razones distintas siguen dando dos tarjetas.
-  // Agrupar por contenido no puede tragarse una diferencia real.
-  const conMotivosDistintos = parque(7, indice =>
-    evalua(
-      evidencias(
+  const withDistinctMotives = fleet(7, index =>
+    evaluate(
+      evidences(
         { 'EV-04': 'NO_EVALUABLE' },
         {},
-        { 'EV-04': `Motivo propio de la máquina ${indice}.` }
+        { 'EV-04': `Motivo propio de la máquina ${index}.` }
       )
     )
   );
 
-  const huecosVariados = huecos(consolida(conMotivosDistintos)).filter(hueco =>
-    hueco.evidenceIds.includes('EV-04')
+  const variedGaps = gaps(consolidate(withDistinctMotives)).filter(gap =>
+    gap.evidenceIds.includes('EV-04')
   );
 
-  comprueba(
-    'reversión · siete motivos distintos siguen dando siete tarjetas',
-    huecosVariados.length === 7 &&
-      huecosVariados.every(hueco => (hueco.agents || []).length === 1),
-    JSON.stringify(huecosVariados.map(hueco => (hueco.agents || []).length))
+  check(
+    'reversal · seven different motives still give seven cards',
+    variedGaps.length === 7 &&
+      variedGaps.every(gap => (gap.agents || []).length === 1),
+    JSON.stringify(variedGaps.map(gap => (gap.agents || []).length))
   );
 
-  comprueba(
-    'reversión · y cada una lleva el nombre de su máquina en el id',
-    huecosVariados.every(hueco =>
-      hueco.id.startsWith(`${(hueco.agents || [])[0]?.agentId}:NC-`)
+  check(
+    'reversal · and each carries its machine name in the id',
+    variedGaps.every(gap =>
+      gap.id.startsWith(`${(gap.agents || [])[0]?.agentId}:NC-`)
     ),
-    JSON.stringify(huecosVariados.map(hueco => hueco.id))
+    JSON.stringify(variedGaps.map(gap => gap.id))
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('3 · lo del catálogo no es un hallazgo por máquina');
+section('3 · what comes from the catalog is not a per-machine finding');
 
 {
-  // Las dos causas conviven en el MISMO resultado consolidado, así que la
-  // diferencia entre ellas solo puede venir de la causa: no hay una fixture
-  // para cada rama que pudiera estar midiendo otra cosa.
-  const consolidado = consolida(
-    parque(7, () =>
-      evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }))
+  const consolidated = consolidate(
+    fleet(7, () =>
+      evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }))
     )
   );
 
-  const delCatalogo = huecos(consolidado).filter(
-    hueco => hueco.cause === 'CATALOG'
+  const fromCatalog = gaps(consolidated).filter(
+    gap => gap.cause === 'CATALOG'
   );
 
-  const deLaMaquina = huecos(consolidado).filter(
-    hueco => hueco.cause === 'EVIDENCE'
+  const ofTheMachine = gaps(consolidated).filter(
+    gap => gap.cause === 'EVIDENCE'
   );
 
-  // op.acc.1.5 y op.acc.1.r1.1 no declaran ninguna evidencia en el catálogo.
-  comprueba(
-    'los dos huecos del catálogo salen UNA vez, no siete',
-    delCatalogo.length === 2,
-    JSON.stringify(delCatalogo.map(hueco => hueco.requirementId))
+  check(
+    'the two catalog gaps appear ONCE, not seven times',
+    fromCatalog.length === 2,
+    JSON.stringify(fromCatalog.map(gap => gap.requirementId))
   );
 
-  comprueba(
-    'op.acc.1.5 aparece exactamente una vez',
-    huecos(consolidado).filter(
-      hueco => hueco.requirementId === 'op.acc.1.5'
+  check(
+    'op.acc.1.5 appears exactly once',
+    gaps(consolidated).filter(
+      gap => gap.requirementId === 'op.acc.1.5'
     ).length === 1,
     JSON.stringify(
-      huecos(consolidado)
-        .filter(hueco => hueco.requirementId === 'op.acc.1.5')
-        .map(hueco => hueco.id)
+      gaps(consolidated)
+        .filter(gap => gap.requirementId === 'op.acc.1.5')
+        .map(gap => gap.id)
     )
   );
 
-  comprueba(
-    'un hueco del catálogo no se atribuye a ninguna máquina',
-    delCatalogo.every(hueco => (hueco.agents || []).length === 0),
-    JSON.stringify(delCatalogo.map(hueco => (hueco.agents || []).length))
+  check(
+    'a catalog gap is not attributed to any machine',
+    fromCatalog.every(gap => (gap.agents || []).length === 0),
+    JSON.stringify(fromCatalog.map(gap => (gap.agents || []).length))
   );
 
-  // La otra rama, en el mismo resultado: lo que SÍ es de la máquina sí las
-  // nombra. Sin esto, «agents vacío» podría estar vacío para todos.
-  comprueba(
-    'lo que sí es de la máquina sigue nombrando a las siete',
-    deLaMaquina.length > 0 &&
-      deLaMaquina.every(hueco => (hueco.agents || []).length === 7),
-    JSON.stringify(deLaMaquina.map(hueco => (hueco.agents || []).length))
+  check(
+    'what does belong to the machine still names all seven',
+    ofTheMachine.length > 0 &&
+      ofTheMachine.every(gap => (gap.agents || []).length === 7),
+    JSON.stringify(ofTheMachine.map(gap => (gap.agents || []).length))
   );
 
-  // El identificador tampoco puede nombrar una máquina si la tarjeta es de
-  // varias (o de ninguna): `025:NC-001` y `024:NC-001` parecían hermanos y no
-  // lo eran, porque el número es el índice DENTRO de cada agente.
-  comprueba(
-    'una tarjeta compartida no lleva el nombre de una máquina en el id',
-    [...delCatalogo, ...deLaMaquina].every(hueco => !hueco.id.includes(':')),
-    JSON.stringify([...delCatalogo, ...deLaMaquina].map(hueco => hueco.id))
+  check(
+    'a shared card does not carry a machine name in the id',
+    [...fromCatalog, ...ofTheMachine].every(gap => !gap.id.includes(':')),
+    JSON.stringify([...fromCatalog, ...ofTheMachine].map(gap => gap.id))
   );
 
-  // REVERSIÓN, moviendo solo el número de máquinas: con UNA sola, la tarjeta sí
-  // puede llevar su nombre, y lo lleva.
-  const unaSola = consolida(
-    parque(1, () =>
-      evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }))
+  const onlyOne2 = consolidate(
+    fleet(1, () =>
+      evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }))
     )
   );
 
-  comprueba(
-    'reversión · con una sola máquina, su hueco sí lleva su etiqueta',
-    huecos(unaSola).some(
-      hueco => hueco.cause === 'EVIDENCE' && hueco.id.startsWith('021:NC-')
+  check(
+    'reversal · with a single machine, its gap does carry its label',
+    gaps(onlyOne2).some(
+      gap => gap.cause === 'EVIDENCE' && gap.id.startsWith('021:NC-')
     ),
-    JSON.stringify(huecos(unaSola).map(hueco => hueco.id))
+    JSON.stringify(gaps(onlyOne2).map(gap => gap.id))
   );
 
-  comprueba(
-    'reversión · pero el del catálogo sigue sin llevarla ni con una máquina',
-    huecos(unaSola)
-      .filter(hueco => hueco.cause === 'CATALOG')
-      .every(hueco => !hueco.id.includes(':')),
+  check(
+    'reversal · but the catalog one still does not carry it even with one machine',
+    gaps(onlyOne2)
+      .filter(gap => gap.cause === 'CATALOG')
+      .every(gap => !gap.id.includes(':')),
     JSON.stringify(
-      huecos(unaSola)
-        .filter(hueco => hueco.cause === 'CATALOG')
-        .map(hueco => hueco.id)
+      gaps(onlyOne2)
+        .filter(gap => gap.cause === 'CATALOG')
+        .map(gap => gap.id)
     )
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('4 · agregar no diluye la distinción medido / no evidenciado');
+section('4 · aggregating does not dilute the measured / not-evidenced distinction');
 
 {
-  // op.acc.1.1 se acredita SOLO con EV-03, así que el estado del requisito lo
-  // decide una única evidencia: el eje se mueve limpio.
-  //
-  //   máquina 021       -> EV-03 NO_CUMPLE     -> incumplimiento MEDIDO
-  //   máquinas 022..027 -> EV-03 NO_EVALUABLE  -> incumplimiento NO EVIDENCIADO
-  //
-  // Desde el 04/08 las dos cosas son no conformidades y cuentan igual, así que
-  // están en la MISMA lista. Lo que no puede pasar es que se fundan en una sola
-  // tarjeta: la acción de cada una es distinta y la ejecuta otra persona.
-  const agentes = parque(7, indice =>
-    indice === 0
-      ? evalua(evidencias({ 'EV-03': 'NO_CUMPLE' }))
-      : evalua(
-          evidencias({ 'EV-03': 'NO_EVALUABLE' }, { 'EV-03': [MOTIVO_SIN_DATOS] })
+  const agents = fleet(7, index =>
+    index === 0
+      ? evaluate(evidences({ 'EV-03': 'NO_CUMPLE' }))
+      : evaluate(
+          evidences({ 'EV-03': 'NO_EVALUABLE' }, { 'EV-03': [NO_DATA_MOTIVE] })
         )
   );
 
-  const consolidado = consolida(agentes);
+  const consolidated = consolidate(agents);
 
-  const deOpAcc11 = consolidado.nonConformities.filter(
+  const ofOpAcc11 = consolidated.nonConformities.filter(
     item => item.requirementId === 'op.acc.1.1'
   );
 
-  const ncDeOpAcc11 = deOpAcc11.filter(item => item.origin === 'MEDIDA');
+  const ncOfOpAcc11 = ofOpAcc11.filter(item => item.origin === 'MEDIDA');
 
-  const pmDeOpAcc11 = deOpAcc11.filter(
+  const pmOfOpAcc11 = ofOpAcc11.filter(
     item => item.origin === 'NO_EVIDENCIADA'
   );
 
-  comprueba(
-    'el mismo requisito abre DOS tarjetas en la misma lista, no una fundida',
-    deOpAcc11.length === 2 &&
-      ncDeOpAcc11.length === 1 &&
-      pmDeOpAcc11.length === 1,
-    `${deOpAcc11.length} tarjetas: ${ncDeOpAcc11.length} medidas / ${pmDeOpAcc11.length} no evidenciadas`
+  check(
+    'the same requirement opens TWO cards in the same list, not a merged one',
+    ofOpAcc11.length === 2 &&
+      ncOfOpAcc11.length === 1 &&
+      pmOfOpAcc11.length === 1,
+    `${ofOpAcc11.length} tarjetas: ${ncOfOpAcc11.length} medidas / ${pmOfOpAcc11.length} no evidenciadas`
   );
 
-  comprueba(
-    'la no conformidad señala solo a la máquina donde se demostró',
-    (ncDeOpAcc11[0]?.agents || []).length === 1 &&
-      ncDeOpAcc11[0]?.agents?.[0].agentId === '021',
-    JSON.stringify((ncDeOpAcc11[0]?.agents || []).map(agente => agente.agentId))
+  check(
+    'the nonconformity points only at the machine where it was proven',
+    (ncOfOpAcc11[0]?.agents || []).length === 1 &&
+      ncOfOpAcc11[0]?.agents?.[0].agentId === '021',
+    JSON.stringify((ncOfOpAcc11[0]?.agents || []).map(agent => agent.agentId))
   );
 
-  comprueba(
-    'la no evidenciada señala a las otras seis, y NO a la que incumple',
-    (pmDeOpAcc11[0]?.agents || []).length === 6 &&
-      !(pmDeOpAcc11[0]?.agents || []).some(agente => agente.agentId === '021'),
-    JSON.stringify((pmDeOpAcc11[0]?.agents || []).map(agente => agente.agentId))
+  check(
+    'the not-evidenced one points at the other six, and NOT at the one that fails',
+    (pmOfOpAcc11[0]?.agents || []).length === 6 &&
+      !(pmOfOpAcc11[0]?.agents || []).some(agent => agent.agentId === '021'),
+    JSON.stringify((pmOfOpAcc11[0]?.agents || []).map(agent => agent.agentId))
   );
 
-  comprueba(
-    'ningún identificador se repite dentro de la lista',
-    new Set(consolidado.nonConformities.map(item => item.id)).size ===
-      consolidado.nonConformities.length,
-    JSON.stringify(consolidado.nonConformities.map(item => item.id))
+  check(
+    'no identifier is repeated within the list',
+    new Set(consolidated.nonConformities.map(item => item.id)).size ===
+      consolidated.nonConformities.length,
+    JSON.stringify(consolidated.nonConformities.map(item => item.id))
   );
 
-  // Lo que ya NO puede decir ninguna tarjeta: que no es un incumplimiento. Lo
-  // es. Lo que sí tiene que decir es por qué cuenta.
-  comprueba(
-    'ninguna tarjeta se presenta ya como «no es un incumplimiento»',
-    consolidado.nonConformities.every(
+  check(
+    'no card is presented any more as «no es un incumplimiento»',
+    consolidated.nonConformities.every(
       item => !item.impact.includes('No es un incumplimiento')
     ),
-    JSON.stringify(consolidado.nonConformities.map(item => item.impact))
+    JSON.stringify(consolidated.nonConformities.map(item => item.impact))
   );
 
-  comprueba(
-    'las no evidenciadas invocan la carga de la prueba; las medidas, no',
-    huecos(consolidado).every(item =>
+  check(
+    'the not-evidenced ones invoke the burden of proof; the measured ones do not',
+    gaps(consolidated).every(item =>
       item.impact.includes('carga de la prueba')
     ) &&
-      medidas(consolidado).every(
+      measurements(consolidated).every(
         item => !item.impact.includes('carga de la prueba')
       ),
-    JSON.stringify(consolidado.nonConformities.map(item => item.origin))
+    JSON.stringify(consolidated.nonConformities.map(item => item.origin))
   );
 
-  // El corazón de lo que se conserva de 346e56b: mismo requisito, mismo
-  // veredicto, y aun así dos acciones distintas.
-  comprueba(
-    'el mismo requisito da dos acciones distintas según cómo se llegó a él',
-    ncDeOpAcc11[0]?.requiredAction !== pmDeOpAcc11[0]?.requiredAction,
-    `${String(ncDeOpAcc11[0]?.requiredAction)} vs ${String(
-      pmDeOpAcc11[0]?.requiredAction
+  check(
+    'the same requirement gives two different actions depending on how it was reached',
+    ncOfOpAcc11[0]?.requiredAction !== pmOfOpAcc11[0]?.requiredAction,
+    `${String(ncOfOpAcc11[0]?.requiredAction)} vs ${String(
+      pmOfOpAcc11[0]?.requiredAction
     )}`
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('5 · lo que la pantalla recorta, lo dice');
+section('5 · what the screen truncates, it says');
 
 {
-  const grupo = (texto: string, cuantas: number) => ({
-    text: texto,
-    agents: MAQUINAS.slice(0, cuantas),
+  const group = (text: string, howMany: number) => ({
+    text: text,
+    agents: MACHINES.slice(0, howMany),
   });
 
-  const cinco = [
-    grupo('motivo-a', 1),
-    grupo('motivo-b', 5),
-    grupo('motivo-c', 2),
-    grupo('motivo-d', 1),
-    grupo('motivo-e', 1),
+  const five = [
+    group('motivo-a', 1),
+    group('motivo-b', 5),
+    group('motivo-c', 2),
+    group('motivo-d', 1),
+    group('motivo-e', 1),
   ];
 
-  const resumen = summarizeMotives(cinco);
+  const summary = summarizeMotives(five);
 
-  comprueba(
-    'con cinco motivos se enseñan tres y se cuentan los dos que faltan',
-    resumen.visibles.length === 3 && resumen.ocultos === 2,
-    `${resumen.visibles.length} visibles / ${resumen.ocultos} ocultos`
+  check(
+    'with five motives three are shown and the two missing are counted',
+    summary.visibles.length === 3 && summary.ocultos === 2,
+    `${summary.visibles.length} visibles / ${summary.ocultos} ocultos`
   );
 
-  comprueba(
-    'el motivo más extendido no se queda fuera nunca',
-    resumen.visibles[0].text === 'motivo-b' &&
-      resumen.visibles[1].text === 'motivo-c',
-    JSON.stringify(resumen.visibles.map(item => item.text))
+  check(
+    'the most widespread motive is never left out',
+    summary.visibles[0].text === 'motivo-b' &&
+      summary.visibles[1].text === 'motivo-c',
+    JSON.stringify(summary.visibles.map(item => item.text))
   );
 
-  // REVERSIÓN, moviendo solo cuántos motivos hay: con tres no se oculta nada, y
-  // la pantalla no puede anunciar un «y N más» que no existe.
-  const tres = summarizeMotives(cinco.slice(0, 3));
+  const three = summarizeMotives(five.slice(0, 3));
 
-  comprueba(
-    'reversión · con tres motivos no se oculta ninguno',
-    tres.visibles.length === 3 && tres.ocultos === 0,
-    `${tres.visibles.length} visibles / ${tres.ocultos} ocultos`
+  check(
+    'reversal · with three motives none is hidden',
+    three.visibles.length === 3 && three.ocultos === 0,
+    `${three.visibles.length} visibles / ${three.ocultos} ocultos`
   );
 
-  // «6 de 7» y «las 7» son dos cosas distintas: la primera dice que hay una
-  // máquina que se comporta de otra manera y hay que ir a buscarla.
-  comprueba(
-    'siete de siete se marcan como «todas»',
-    (describeScope(MAQUINAS.slice(0, 7), 7) || '').includes('(todas)'),
-    describeScope(MAQUINAS.slice(0, 7), 7)
+  check(
+    'seven out of seven are marked as «todas»',
+    (describeScope(MACHINES.slice(0, 7), 7) || '').includes('(todas)'),
+    describeScope(MACHINES.slice(0, 7), 7)
   );
 
-  comprueba(
-    'reversión · seis de siete NO se marcan como «todas»',
-    !(describeScope(MAQUINAS.slice(0, 6), 7) || '').includes('(todas)'),
-    describeScope(MAQUINAS.slice(0, 6), 7)
+  check(
+    'reversal · six out of seven are NOT marked as «todas»',
+    !(describeScope(MACHINES.slice(0, 6), 7) || '').includes('(todas)'),
+    describeScope(MACHINES.slice(0, 6), 7)
   );
 
-  comprueba(
-    'a partir de la quinta máquina se cuentan en vez de nombrarlas',
-    (describeScope(MAQUINAS.slice(0, 7), 7) || '').includes('y 3 más'),
-    describeScope(MAQUINAS.slice(0, 7), 7)
+  check(
+    'from the fifth machine on they are counted instead of named',
+    (describeScope(MACHINES.slice(0, 7), 7) || '').includes('y 3 más'),
+    describeScope(MACHINES.slice(0, 7), 7)
   );
 
-  comprueba(
-    'reversión · cuatro máquinas se nombran todas, sin «y N más»',
-    !(describeScope(MAQUINAS.slice(0, 4), 7) || '').includes('más'),
-    describeScope(MAQUINAS.slice(0, 4), 7)
+  check(
+    'reversal · four machines are all named, without «y N más»',
+    !(describeScope(MACHINES.slice(0, 4), 7) || '').includes('más'),
+    describeScope(MACHINES.slice(0, 4), 7)
   );
 
-  comprueba(
-    'una sola máquina se nombra, no se cuenta',
-    machinesLabel(MAQUINAS.slice(0, 1), 7) === 'CLIENTE-01 (021)',
-    machinesLabel(MAQUINAS.slice(0, 1), 7)
+  check(
+    'a single machine is named, not counted',
+    machinesLabel(MACHINES.slice(0, 1), 7) === 'CLIENTE-01 (021)',
+    machinesLabel(MACHINES.slice(0, 1), 7)
   );
 
-  comprueba(
-    'sin máquinas no hay alcance que describir (lo del catálogo)',
+  check(
+    'no machines, no scope to describe (the catalog part)',
     describeScope([], 7) === undefined,
     String(describeScope([], 7))
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('6 · las cifras de la pantalla con los 7 agentes del despliegue real');
+section('6 · the screen figures with the 7 agents of the real deployment');
 
 {
-  // El caso que se vio en el servidor: nada medido en ninguna máquina.
-  const sinMedirNada = () =>
-    evalua(
-      evidencias(
+  const nothingMeasured = () =>
+    evaluate(
+      evidences(
         Object.fromEntries(
-          TODAS.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
+          ALL_OF_THEM.map(id => [id, 'NO_EVALUABLE' as ENSComplianceStatus])
         ),
-        Object.fromEntries(TODAS.map(id => [id, [MOTIVO_SIN_DATOS]]))
+        Object.fromEntries(ALL_OF_THEM.map(id => [id, [NO_DATA_MOTIVE]]))
       )
     );
 
-  const agentes = parque(7, sinMedirNada);
-  const consolidado = consolida(agentes);
+  const agents = fleet(7, nothingMeasured);
+  const consolidated = consolidate(agents);
 
-  // Una sola lista desde el 04/08: el total es directamente el de tarjetas.
-  const tarjetasAntes = sumaPorAgente(
-    agentes,
-    resultado => resultado.nonConformities.length
+  const cardsBefore = sumByAgent(
+    agents,
+    result => result.nonConformities.length
   );
 
-  const tarjetasDespues = consolidado.nonConformities.length;
+  const cardsAfter = consolidated.nonConformities.length;
 
-  const lineasAntes = sumaPorAgente(agentes, resultado =>
-    resultado.evidences.reduce(
-      (total, evidencia) => total + evidencia.observations.length,
+  const linesBefore = sumByAgent(agents, result =>
+    result.evidences.reduce(
+      (total, evidence) => total + evidence.observations.length,
       0
     )
   );
 
-  const lineasDespues = consolidado.evidences.reduce(
-    (total, evidencia) => total + evidencia.observations.length,
+  const linesAfter = consolidated.evidences.reduce(
+    (total, evidence) => total + evidence.observations.length,
     0
   );
 
   console.log(
-    `       tarjetas: ${tarjetasAntes} -> ${tarjetasDespues} · ` +
-      `líneas de motivo: ${lineasAntes} -> ${lineasDespues}`
+    `         cards: ${cardsBefore} -> ${cardsAfter} · ` +
+      `motive lines: ${linesBefore} -> ${linesAfter}`
   );
 
-  comprueba(
-    'las tarjetas dejan de multiplicarse por siete',
-    tarjetasDespues * 7 === tarjetasAntes,
-    `antes ${tarjetasAntes}, después ${tarjetasDespues}`
+  check(
+    'cards stop being multiplied by seven',
+    cardsAfter * 7 === cardsBefore,
+    `antes ${cardsBefore}, después ${cardsAfter}`
   );
 
-  comprueba(
-    'las líneas de motivo dejan de multiplicarse por siete',
-    lineasDespues * 7 === lineasAntes,
-    `antes ${lineasAntes}, después ${lineasDespues}`
+  check(
+    'motive lines stop being multiplied by seven',
+    linesAfter * 7 === linesBefore,
+    `antes ${linesBefore}, después ${linesAfter}`
   );
 
-  comprueba(
-    'y no se ha perdido ninguna evidencia por el camino',
-    consolidado.evidences.length === agentes[0].results[0].evidences.length,
-    `${consolidado.evidences.length} vs ${agentes[0].results[0].evidences.length}`
+  check(
+    'and no evidence was lost on the way',
+    consolidated.evidences.length === agents[0].results[0].evidences.length,
+    `${consolidated.evidences.length} vs ${agents[0].results[0].evidences.length}`
   );
 
-  comprueba(
-    'la vista general dice sobre cuántas máquinas ha resumido',
-    consolidado.consolidatedAgents?.length === 7,
-    String(consolidado.consolidatedAgents?.length)
+  check(
+    'the overview says how many machines it summarized',
+    consolidated.consolidatedAgents?.length === 7,
+    String(consolidated.consolidatedAgents?.length)
   );
 }
 
-// --- 7 · el score del requisito consolidado sigue al veredicto ------------
-//
-// UNA BOMBA ARMADA, desactivada el 07/08/2026.
-//
-// `consolidateRequirements` construye el requisito consolidado con
-// `{...template, status: peorGana}`, y `template` es el requisito de la PRIMERA
-// máquina: arrastraba su `score`. Un requisito que sale NO_CUMPLE porque falla
-// en la segunda seguía llevando los 100 de la primera, y `createSummaryFromItems`
-// prefiere `item.score` sobre el estado.
-//
-// Hoy ese índice no se pinta en ninguna pantalla —el número grande sale de
-// `controlSummary`, que recalcula desde los veredictos— así que no ha mentido a
-// ningún auditor. Pero un campo que contradice al estado de al lado es una
-// mentira esperando a que alguien la pinte.
-//
-// La comprobación que importa es la de ORDEN: un arreglo a medias da el número
-// bueno cuando la máquina mala va primera y el malo cuando va segunda.
-
-bloque('7 · el score consolidado no se queda con el de la primera máquina');
+section('7 · the consolidated score does not keep the first machine\'s');
 
 {
-  // Una máquina sana y una que no reporta EV-04. Son resultados de la
-  // evaluación real, no objetos a mano: lo que se prueba es la consolidación.
-  const sana = () => evalua(evidencias({}));
+  const healthy = () => evaluate(evidences({}));
   const rota = () =>
-    evalua(evidencias({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [MOTIVO_SIN_DATOS] }));
+    evaluate(evidences({ 'EV-04': 'NO_EVALUABLE' }, { 'EV-04': [NO_DATA_MOTIVE] }));
 
-  const conOrden = (sanaPrimero: boolean) =>
-    consolida(
-      parque(2, indice =>
-        (sanaPrimero ? indice === 0 : indice === 1) ? sana() : rota()
+  const withOrder = (healthyFirst: boolean) =>
+    consolidate(
+      fleet(2, index =>
+        (healthyFirst ? index === 0 : index === 1) ? healthy() : rota()
       )
     );
 
-  const sanaDelante = conOrden(true);
-  const sanaDetras = conOrden(false);
+  const healthyAhead = withOrder(true);
+  const healthyLast = withOrder(false);
 
-  const scoreDe = (r: ENSComplianceResult, id: string) =>
+  const scoreOf = (r: ENSComplianceResult, id: string) =>
     (r.requirements.find(x => x.id === id) as { score?: number } | undefined)?.score;
 
-  const estadoDe = (r: ENSComplianceResult, id: string) =>
+  const stateOf = (r: ENSComplianceResult, id: string) =>
     r.requirements.find(x => x.id === id)?.status;
 
-  // El requisito que EV-04 acredita y que por tanto difiere entre las dos.
   const REQ = 'op.acc.1.4';
 
-  comprueba(
-    'baseline: el requisito sale distinto en la máquina sana y en la rota',
-    estadoDe(sana(), REQ) !== estadoDe(rota(), REQ),
-    `${estadoDe(sana(), REQ)} / ${estadoDe(rota(), REQ)}`
+  check(
+    'baseline: the requirement differs on the healthy machine and on the broken one',
+    stateOf(healthy(), REQ) !== stateOf(rota(), REQ),
+    `${stateOf(healthy(), REQ)} / ${stateOf(rota(), REQ)}`
   );
 
-  comprueba(
-    'el estado consolidado es el mismo en los dos órdenes',
-    estadoDe(sanaDelante, REQ) === estadoDe(sanaDetras, REQ),
-    `${estadoDe(sanaDelante, REQ)} / ${estadoDe(sanaDetras, REQ)}`
+  check(
+    'the consolidated state is the same in both orders',
+    stateOf(healthyAhead, REQ) === stateOf(healthyLast, REQ),
+    `${stateOf(healthyAhead, REQ)} / ${stateOf(healthyLast, REQ)}`
   );
 
-  // LA COMPROBACIÓN QUE IMPORTA: con la máquina sana delante, el score se
-  // quedaba con el 100 de esa primera.
-  comprueba(
-    'y el score también, da igual qué máquina vaya primera',
-    scoreDe(sanaDelante, REQ) === scoreDe(sanaDetras, REQ),
-    `${scoreDe(sanaDelante, REQ)} / ${scoreDe(sanaDetras, REQ)}`
+  check(
+    'and the score too, whichever machine goes first',
+    scoreOf(healthyAhead, REQ) === scoreOf(healthyLast, REQ),
+    `${scoreOf(healthyAhead, REQ)} / ${scoreOf(healthyLast, REQ)}`
   );
 
-  comprueba(
-    'y el score no contradice al estado consolidado',
-    (estadoDe(sanaDelante, REQ) === 'CUMPLE') ===
-      (scoreDe(sanaDelante, REQ) === 100),
-    `${estadoDe(sanaDelante, REQ)} con score ${scoreDe(sanaDelante, REQ)}`
+  check(
+    'and the score does not contradict the consolidated state',
+    (stateOf(healthyAhead, REQ) === 'CUMPLE') ===
+      (scoreOf(healthyAhead, REQ) === 100),
+    `${stateOf(healthyAhead, REQ)} con score ${scoreOf(healthyAhead, REQ)}`
   );
 
-  // La reversión: con las dos máquinas sanas, el consolidado sí puntúa 100. Sin
-  // esto, poner el score a 0 siempre pasaría las comprobaciones de arriba.
-  const lasDosSanas = consolida(parque(2, () => sana()));
+  const bothHealthy = consolidate(fleet(2, () => healthy()));
 
-  comprueba(
-    'con las dos máquinas conformes, el consolidado puntúa 100',
-    scoreDe(lasDosSanas, REQ) === 100,
-    `${estadoDe(lasDosSanas, REQ)} con score ${scoreDe(lasDosSanas, REQ)}`
+  check(
+    'with both machines compliant, the consolidated one scores 100',
+    scoreOf(bothHealthy, REQ) === 100,
+    `${stateOf(bothHealthy, REQ)} con score ${scoreOf(bothHealthy, REQ)}`
   );
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -1,19 +1,4 @@
-/**
- * La fila de la matriz se identifica por SUJETO Y RECURSO, no solo por sujeto.
- *
- *     docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx tests/table-composite-key.test.ts
- *
- * POR QUÉ EXISTE ESTE FICHERO. `CONFORME_A_TABLA` indexaba la política por una
- * sola columna y, cuando la misma clave se repetía, se quedaba con la última
- * fila. En op.acc.4 eso significaba juzgar el `sudo` de root contra la fila del
- * cortafuegos de root: un privilegio correctamente declarado salía como
- * incumplimiento, y el auditor leía una no conformidad que no existe. El 23/09
- * era la única razón por la que op.acc.4 no pasaba de 20 % en wazuh-real.
- *
- * El límite que se prueba: la clave compuesta NO relaja nada. Un privilegio que
- * no figura en la matriz sigue siendo un hallazgo, y una fila que declara otro
- * acceso para ese mismo recurso sigue incumpliendo.
- */
+/** A matrix row is identified by SUBJECT AND RESOURCE, not by subject alone. */
 import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 import { resolveEvidenceForControl } from '../common/ens/core/evidence/engine';
 import { opAcc4Configuration } from '../common/ens/configuration/data/op-acc-4-parameters';
@@ -24,46 +9,46 @@ import type {
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const AHORA = new Date('2026-09-23T12:00:00Z');
+const NOW = new Date('2026-09-23T12:00:00Z');
 
-let contador = 0;
+let counter = 0;
 
-const hecho = (
-  sujeto: string,
-  recurso: string,
-  acceso: string
+const fact = (
+  subject: string,
+  resource: string,
+  access: string
 ): ENSNormalizedEvent => ({
-  id: `evt-${(contador += 1)}`,
+  id: `evt-${(counter += 1)}`,
   agentId: '024',
   controlId: 'op.acc.4',
   evidenceId: 'EV-02',
   eventType: 'privilege_grant',
   sourceType: 'WAZUH_ALERT',
   timestamp: '2026-09-23T11:00:00Z',
-  attributes: { sujeto, recurso, acceso },
+  attributes: { sujeto: subject, recurso: resource, acceso: access },
 });
 
-const latido = (): ENSNormalizedEvent => ({
-  id: `evt-${(contador += 1)}`,
+const heartbeat = (): ENSNormalizedEvent => ({
+  id: `evt-${(counter += 1)}`,
   agentId: '024',
   controlId: 'op.acc.4',
   eventType: 'collector_run',
@@ -72,97 +57,91 @@ const latido = (): ENSNormalizedEvent => ({
   attributes: { resultado: 'completada', evidencias_cubiertas: 'EV-02' },
 });
 
-const configuracion = (matriz: string[]): ENSControlConfiguration => ({
+const configuration = (matrix: string[]): ENSControlConfiguration => ({
   ...opAcc4Configuration,
-  parameters: opAcc4Configuration.parameters.map(parametro =>
-    parametro.id === 'P-01'
-      ? ({ ...parametro, value: matriz } as ENSControlParameter)
-      : ({ ...parametro } as ENSControlParameter)
+  parameters: opAcc4Configuration.parameters.map(parameter =>
+    parameter.id === 'P-01'
+      ? ({ ...parameter, value: matrix } as ENSControlParameter)
+      : ({ ...parameter } as ENSControlParameter)
   ),
 });
 
-const estadoEV02 = (matriz: string[], hechos: ENSNormalizedEvent[]) =>
+const stateEv02 = (matrix: string[], facts: ENSNormalizedEvent[]) =>
   resolveEvidenceForControl(
     'op.acc.4',
-    [...hechos, latido()],
+    [...facts, heartbeat()],
     '024',
     'MEDIO',
-    configuracion(matriz),
-    AHORA
-  ).find(evidencia => evidencia.id === 'EV-02');
+    configuration(matrix),
+    NOW
+  ).find(evidence => evidence.id === 'EV-02');
 
-// --- 1. un sujeto con varios recursos ----------------------------------------
-
-bloque('1. Cada privilegio se juzga contra la fila de SU recurso');
+section('1. Each privilege is judged against ITS resource\'s row');
 
 {
-  const matriz = [
+  const matrix = [
     'root | sudo | ALL=(ALL:ALL) ALL,ALL=(ALL) NOPASSWD:ALL',
     'root | cortafuegos | administracion del cortafuegos del sistema',
   ];
 
-  const resultado = estadoEV02(matriz, [
-    hecho('root', 'sudo', 'ALL=(ALL:ALL) ALL'),
-    hecho('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
-    hecho('root', 'cortafuegos', 'administracion del cortafuegos del sistema'),
+  const result = stateEv02(matrix, [
+    fact('root', 'sudo', 'ALL=(ALL:ALL) ALL'),
+    fact('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
+    fact('root', 'cortafuegos', 'administracion del cortafuegos del sistema'),
   ]);
 
-  comprueba(
-    'los tres privilegios declarados CUMPLEN',
-    resultado?.status === 'CUMPLE',
-    `${resultado?.status}: ${(resultado?.observations || []).join(' ¦ ').slice(0, 200)}`
+  check(
+    'the three declared privileges COMPLY',
+    result?.status === 'CUMPLE',
+    `${result?.status}: ${(result?.observations || []).join(' ¦ ').slice(0, 200)}`
   );
 }
 
-// --- 2. el límite: la clave compuesta no relaja nada --------------------------
-
-bloque('2. Lo que no está declarado sigue siendo un hallazgo');
+section('2. What is not declared is still a finding');
 
 {
-  const matriz = [
+  const matrix = [
     'root | sudo | ALL=(ALL:ALL) ALL',
     'root | cortafuegos | administracion del cortafuegos del sistema',
   ];
 
-  const conAccesoDeMas = estadoEV02(matriz, [
-    hecho('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
+  const withExtraAccess = stateEv02(matrix, [
+    fact('root', 'sudo', 'ALL=(ALL) NOPASSWD:ALL'),
   ]);
 
-  comprueba(
-    'un acceso que la fila de ese recurso no declara NO cumple',
-    conAccesoDeMas?.status === 'NO_CUMPLE',
-    String(conAccesoDeMas?.status)
+  check(
+    'an access that the resource\'s row does not declare does NOT comply',
+    withExtraAccess?.status === 'NO_CUMPLE',
+    String(withExtraAccess?.status)
   );
 
-  const recursoSinFila = estadoEV02(matriz, [
-    hecho('root', 'base de datos', 'lectura y escritura'),
+  const resourceWithoutRow = stateEv02(matrix, [
+    fact('root', 'base de datos', 'lectura y escritura'),
   ]);
 
-  comprueba(
-    'un recurso sin fila no se da por bueno: no hay política contra la que medir',
-    recursoSinFila?.status !== 'CUMPLE',
-    String(recursoSinFila?.status)
+  check(
+    'a resource without a row is not taken as good: there is no policy to measure against',
+    resourceWithoutRow?.status !== 'CUMPLE',
+    String(resourceWithoutRow?.status)
   );
 
-  const otroSujeto = estadoEV02(matriz, [
-    hecho('invitado', 'sudo', 'ALL=(ALL:ALL) ALL'),
+  const otherSubject = stateEv02(matrix, [
+    fact('invitado', 'sudo', 'ALL=(ALL:ALL) ALL'),
   ]);
 
-  comprueba(
-    'otro sujeto con el mismo recurso tampoco hereda la fila de root',
-    otroSujeto?.status !== 'CUMPLE',
-    String(otroSujeto?.status)
+  check(
+    'another subject with the same resource does not inherit root\'s row either',
+    otherSubject?.status !== 'CUMPLE',
+    String(otherSubject?.status)
   );
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  - ${fallo}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  - ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

@@ -1,29 +1,4 @@
-/**
- * La columna «Evidencia» del informe dice qué sostiene cada fila.
- *
- *     ~/.bun/bin/bun run tests/evidence-column.test.ts
- *
- * Mismo montaje que `report-by-control.test.ts`: TypeScript suelto con su
- * propio comprobador, sin `package.json` ni `tsconfig`. Hace falta un runtime
- * que ejecute TypeScript resolviendo imports sin extensión (`bun`, probado con
- * 1.3.14).
- *
- * QUÉ SE PRUEBA Y POR QUÉ EXISTE ESTE FICHERO. La tabla de los campos del
- * informe construía filas `{campo, valor, evidencia}` y su tercera columna leía
- * `ev` y `status`, dos claves que la fila no tuvo nunca. En pantalla la insignia
- * salía muda; en el PDF —el documento que se firma y se le entrega al auditor—
- * se imprimía literalmente «undefined · undefined» en la columna que dice en qué
- * se apoya cada veredicto. En los tres controles, desde el primer commit.
- *
- * Las afirmaciones son sobre la ESTRUCTURA de la fila y de la celda del PDF
- * (qué claves trae, qué estado, qué color), nunca sobre el texto de la interfaz.
- * Y el caso que separa incumplimiento de hueco de medida mueve UN SOLO eje: la
- * misma evaluación con una evidencia en NO_CUMPLE y la misma en NO_EVALUABLE.
- *
- * Imports desde el FICHERO, nunca desde un barrel de alto nivel: el barrel
- * reintroduce el ciclo transitivo del TDZ de `Settings` y arrastra
- * `kibana-services`, que solo existe en el árbol del plugin `main` de Wazuh.
- */
+/** The report's Evidence column states what supports each row. */
 import {
   buildENSReportEvidencePdfCell,
   buildENSReportRows,
@@ -52,35 +27,30 @@ import type {
 import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 
-// El repo no tiene @types/node y no va a tenerlos.
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FALLA ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
+const CONTROLS = ['mp.info.6', 'op.acc.1', 'op.acc.2'];
 
-const CONTROLES = ['mp.info.6', 'op.acc.1', 'op.acc.2'];
-
-const ESTADOS_VALIDOS = [
+const VALID_STATES = [
   'CUMPLE',
   'PARCIAL',
   'NO_CUMPLE',
@@ -89,77 +59,64 @@ const ESTADOS_VALIDOS = [
   'SIN_DATOS',
 ];
 
-// Todo el texto que la celda del PDF imprime, en el orden en que se lee.
-const textoPdf = (fila: ENSReportRow): string =>
-  buildENSReportEvidencePdfCell(fila)
-    .text.map(fragmento => fragmento.text)
+const pdfText = (row: ENSReportRow): string =>
+  buildENSReportEvidencePdfCell(row)
+    .text.map(fragment => fragment.text)
     .join('');
 
-// La evidencia resuelta se construye desde la definición REAL del catálogo, no
-// a mano: una fixture inventada probaría un control que no existe.
-const evidencia = (
+const evidence = (
   controlId: string,
-  evidenciaId: string,
+  evidenceId: string,
   status: ENSComplianceStatus
 ): ENSEvidenceResolved => {
-  const definicion = getEvidenceDefinitions(controlId).find(
-    item => item.id === evidenciaId
+  const definition = getEvidenceDefinitions(controlId).find(
+    item => item.id === evidenceId
   );
 
-  if (!definicion) {
-    throw new Error(`El catálogo no define ${evidenciaId} para ${controlId}`);
+  if (!definition) {
+    throw new Error(`The catalog does not define ${evidenceId} for ${controlId}`);
   }
 
   return {
-    id: definicion.id,
-    controlId: definicion.controlId,
-    title: definicion.title,
-    description: definicion.description,
-    requirements: definicion.requirements,
-    levels: definicion.levels,
-    category: definicion.category,
-    criticality: definicion.criticality,
-    sourceTypes: definicion.sourceTypes,
-    expectedEventTypes: definicion.expectedEventTypes,
-    relatedRules: definicion.relatedRules,
-    auditQuestion: definicion.auditQuestion,
+    id: definition.id,
+    controlId: definition.controlId,
+    title: definition.title,
+    description: definition.description,
+    requirements: definition.requirements,
+    levels: definition.levels,
+    category: definition.category,
+    criticality: definition.criticality,
+    sourceTypes: definition.sourceTypes,
+    expectedEventTypes: definition.expectedEventTypes,
+    relatedRules: definition.relatedRules,
+    auditQuestion: definition.auditQuestion,
     status,
     observations: [],
   };
 };
 
-// Valor válido para el tipo de cada parámetro: hace falta para que el eje
-// «configuración incompleta» esté quieto mientras se mueve el de las evidencias.
-const valorValido = (
-  parametro: ENSControlParameter
+const validValue = (
+  parameter: ENSControlParameter
 ): ENSControlParameter['value'] => {
-  if (parametro.options && parametro.options.length) {
-    return parametro.options[0];
+  if (parameter.options && parameter.options.length) {
+    return parameter.options[0];
   }
 
-  switch (parametro.type) {
+  switch (parameter.type) {
     case 'number':
     case 'duration_days':
     case 'duration_hours':
-      return typeof parametro.minValue === 'number'
-        ? Math.max(parametro.minValue, 1)
+      return typeof parameter.minValue === 'number'
+        ? Math.max(parameter.minValue, 1)
         : 7;
     case 'boolean':
       return true;
     case 'list':
-      // Una lista que declara la forma de su elemento (`columns[0]`) no admite
-      // cualquier cosa: 'valor-uno' no es una ruta absoluta. El ejemplo de la
-      // ficha sí vale, y `config/test_control_blocks.py` ya obliga a que sea un
-      // elemento válido.
-      return parametro.columns && parametro.columns.length
-        ? [parametro.example || '']
+      return parameter.columns && parameter.columns.length
+        ? [parameter.example || '']
         : ['valor-uno', 'valor-dos'];
     case 'table':
-      // Una fila entera. Con el `default: 'valor'` de antes, toda tabla
-      // obligatoria salía INVALID y el eje «configuración» dejaba de estar
-      // quieto: esta prueba mediría el hueco de configuración creyendo que mide
-      // el de evidencias.
-      return [parametro.example || ''];
+      return [parameter.example || ''];
     case 'path':
       return '/var/lib/ensfacil';
     case 'url':
@@ -169,342 +126,285 @@ const valorValido = (
   }
 };
 
-const CONFIGURACION_OPACC1: ENSControlConfiguration = {
+const OPACC1_CONFIGURATION: ENSControlConfiguration = {
   ...opAcc1Configuration,
-  parameters: opAcc1Configuration.parameters.map(parametro => ({
-    ...parametro,
-    value: valorValido(parametro),
+  parameters: opAcc1Configuration.parameters.map(parameter => ({
+    ...parameter,
+    value: validValue(parameter),
   })),
 };
 
-const EVIDENCIAS_OPACC1 = getEvidenceDefinitions('op.acc.1').map(
-  definicion => definicion.id
+const OPACC1_EVIDENCES = getEvidenceDefinitions('op.acc.1').map(
+  definition => definition.id
 );
 
-// Todas las evidencias de op.acc.1 en CUMPLE salvo la que se diga.
 const evaluaOpAcc1 = (
-  excepciones: Record<string, ENSComplianceStatus> = {},
-  nivel: ENSLevel = 'MEDIO'
+  exceptions: Record<string, ENSComplianceStatus> = {},
+  level: ENSLevel = 'MEDIO'
 ): ENSComplianceResult =>
   evaluateENSControl(
     opAcc1CatalogDefinition,
-    CONFIGURACION_OPACC1,
-    nivel,
-    EVIDENCIAS_OPACC1.map(id =>
-      evidencia('op.acc.1', id, excepciones[id] || 'CUMPLE')
+    OPACC1_CONFIGURATION,
+    level,
+    OPACC1_EVIDENCES.map(id =>
+      evidence('op.acc.1', id, exceptions[id] || 'CUMPLE')
     ),
     undefined,
     []
   );
 
-const filaDe = (filas: ENSReportRow[], campoId: string): ENSReportRow => {
-  const fila = filas.find(item => item.campo.startsWith(`${campoId} ·`));
+const rowOf = (rows: ENSReportRow[], campoId: string): ENSReportRow => {
+  const row = rows.find(item => item.campo.startsWith(`${campoId} ·`));
 
-  if (!fila) {
-    throw new Error(`fixture rota: el informe no trae el campo ${campoId}`);
+  if (!row) {
+    throw new Error(`broken fixture: the report has no field ${campoId}`);
   }
 
-  return fila;
+  return row;
 };
 
-// ---------------------------------------------------------------------------
-bloque('1 · la fila trae lo que la columna «Evidencia» necesita');
+section('1 · the row carries what the «Evidencia» column needs');
 
-// El informe recién desplegado, sin ninguna evidencia todavía: es el estado
-// REAL de un control el día que se instala, y es cuando alguien abre su informe
-// por primera vez. Los tres modelos lo aceptan.
 {
-  for (const controlId of CONTROLES) {
-    const modelo = buildENSReportModel(controlId, undefined);
-    const filas = buildENSReportRows(modelo);
+  for (const controlId of CONTROLS) {
+    const model = buildENSReportModel(controlId, undefined);
+    const rows = buildENSReportRows(model);
 
-    comprueba(
-      `${controlId} · el informe produce filas`,
-      filas.length > 0,
-      String(filas.length)
+    check(
+      `${controlId} · the report produces rows`,
+      rows.length > 0,
+      String(rows.length)
     );
 
-    comprueba(
-      `${controlId} · ninguna fila se queda sin evidencia`,
-      filas.every(fila => fila.evidencia.length > 0),
+    check(
+      `${controlId} · no row is left without evidence`,
+      rows.every(row => row.evidencia.length > 0),
       JSON.stringify(
-        filas.filter(fila => !fila.evidencia).map(fila => fila.campo)
+        rows.filter(row => !row.evidencia).map(row => row.campo)
       )
     );
 
-    comprueba(
-      `${controlId} · ninguna fila se queda sin estado válido`,
-      filas.every(fila => ESTADOS_VALIDOS.indexOf(fila.estado) >= 0),
-      JSON.stringify(filas.map(fila => fila.estado))
+    check(
+      `${controlId} · no row is left without a valid state`,
+      rows.every(row => VALID_STATES.indexOf(row.estado) >= 0),
+      JSON.stringify(rows.map(row => row.estado))
     );
 
-    // La clave por la que lee la columna de la pantalla. Es EXACTAMENTE lo que
-    // estaba roto: la columna pedía `ev` y la fila traía `evidencia`. Aquí el
-    // nombre sale del mismo sitio del que lo saca la tabla.
-    comprueba(
-      `${controlId} · la columna lee una clave que la fila sí tiene`,
-      filas.every(fila => {
-        const valor = (fila as unknown as Record<string, unknown>)[
+    check(
+      `${controlId} · the column reads a key the row does have`,
+      rows.every(row => {
+        const value = (row as unknown as Record<string, unknown>)[
           ENS_REPORT_EVIDENCE_FIELD
         ];
 
-        return typeof valor === 'string' && valor.length > 0;
+        return typeof value === 'string' && value.length > 0;
       }),
       ENS_REPORT_EVIDENCE_FIELD
     );
 
-    // Y el PDF. Antes cada fila del documento firmado imprimía la cadena
-    // «undefined» dos veces; el `indexOf` la busca en el texto ya montado.
-    comprueba(
-      `${controlId} · el PDF no imprime «undefined» en la columna Evidencia`,
-      filas.every(fila => textoPdf(fila).indexOf('undefined') === -1),
-      JSON.stringify(filas.map(textoPdf).filter(t => t.indexOf('undefined') >= 0))
+    check(
+      `${controlId} · the PDF does not print «undefined» in the Evidencia column`,
+      rows.every(row => pdfText(row).indexOf('undefined') === -1),
+      JSON.stringify(rows.map(pdfText).filter(t => t.indexOf('undefined') >= 0))
     );
 
-    comprueba(
-      `${controlId} · el PDF imprime el estado y la evidencia de cada fila`,
-      filas.every(
-        fila =>
-          textoPdf(fila).indexOf(fila.estado) >= 0 &&
-          textoPdf(fila).indexOf(fila.evidencia) >= 0
+    check(
+      `${controlId} · the PDF prints each row's state and evidence`,
+      rows.every(
+        row =>
+          pdfText(row).indexOf(row.estado) >= 0 &&
+          pdfText(row).indexOf(row.evidencia) >= 0
       ),
-      JSON.stringify(filas.slice(0, 2).map(textoPdf))
+      JSON.stringify(rows.slice(0, 2).map(pdfText))
     );
 
-    // El estado ya no encabeza «Valor»: sale una vez, en su columna. Si volviera
-    // a duplicarse, la insignia podría vaciarse otra vez sin que se notara.
-    comprueba(
-      `${controlId} · la columna «Valor» ya no repite el estado`,
-      filas.every(fila => !fila.valor.startsWith(`${fila.estado} · `)),
+    check(
+      `${controlId} · the «Valor» column no longer repeats the state`,
+      rows.every(row => !row.valor.startsWith(`${row.estado} · `)),
       JSON.stringify(
-        filas
-          .filter(fila => fila.valor.startsWith(`${fila.estado} · `))
-          .map(fila => fila.campo)
+        rows
+          .filter(row => row.valor.startsWith(`${row.estado} · `))
+          .map(row => row.campo)
       )
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-bloque('2 · la evidencia que aparece es la que el modelo declara');
+section('2 · the evidence shown is the one the model declares');
 
 {
-  // Un control con evidencias de verdad: los identificadores de la fila tienen
-  // que ser los del campo, no una lista fija ni la del control de al lado.
-  const modelo = buildOpAcc1ReportModel(evaluaOpAcc1());
-  const filas = buildENSReportRows(modelo);
+  const model = buildOpAcc1ReportModel(evaluaOpAcc1());
+  const rows = buildENSReportRows(model);
 
-  for (const campo of modelo.fields) {
-    const fila = filaDe(filas, campo.id);
+  for (const campo of model.fields) {
+    const row = rowOf(rows, campo.id);
 
-    comprueba(
-      `op.acc.1 · ${campo.id} cita sus evidencias (${campo.evidenceIds.join(
+    check(
+      `op.acc.1 · ${campo.id} cites its evidences (${campo.evidenceIds.join(
         ', '
       )})`,
-      fila.evidencia === campo.evidenceIds.join(', '),
-      fila.evidencia
+      row.evidencia === campo.evidenceIds.join(', '),
+      row.evidencia
     );
   }
 
-  // Control negativo del comparador de arriba: dos campos distintos de este
-  // informe citan evidencias distintas, así que la comprobación no puede estar
-  // pasando por comparar algo consigo mismo.
-  comprueba(
-    'op.acc.1 · dos campos del mismo informe citan evidencias distintas',
-    filaDe(filas, 'op.acc.1.inventario').evidencia !==
-      filaDe(filas, 'op.acc.1.genericas').evidencia,
-    `${filaDe(filas, 'op.acc.1.inventario').evidencia} / ${
-      filaDe(filas, 'op.acc.1.genericas').evidencia
+  check(
+    'op.acc.1 · two fields of the same report cite different evidences',
+    rowOf(rows, 'op.acc.1.inventario').evidencia !==
+      rowOf(rows, 'op.acc.1.genericas').evidencia,
+    `${rowOf(rows, 'op.acc.1.inventario').evidencia} / ${
+      rowOf(rows, 'op.acc.1.genericas').evidencia
     }`
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('3 · lo no demostrado cuenta, y el informe lo sigue distinguiendo');
-//
-// EJE ÚNICO: la misma evaluación, la misma configuración, el mismo nivel y las
-// mismas ocho evidencias; solo EV-05 cambia de NO_CUMPLE a NO_EVALUABLE.
-//
-// Este bloque probaba lo contrario hasta el 04/08: que un hueco de medida NO
-// abría no conformidad. Con el criterio del responsable la abre —la carga de la
-// prueba es del auditado—, pero el documento firmado tiene que seguir diciendo
-// CUÁL de las dos cosas es, porque las acciones son distintas y las ejecutan
-// personas distintas. Eso es exactamente lo que se comprueba aquí.
-
+section('3 · what is not proven counts, and the report keeps distinguishing it');
 {
-  const conIncumplimiento = evaluaOpAcc1({ 'EV-05': 'NO_CUMPLE' });
-  const conHueco = evaluaOpAcc1({ 'EV-05': 'NO_EVALUABLE' });
+  const withBreach = evaluaOpAcc1({ 'EV-05': 'NO_CUMPLE' });
+  const withGap = evaluaOpAcc1({ 'EV-05': 'NO_EVALUABLE' });
 
-  const tarjetaDe = (
-    resultado: ENSComplianceResult,
-    requisitoId: string,
+  const cardOf = (
+    result: ENSComplianceResult,
+    requirementId: string,
   ) =>
-    resultado.nonConformities.find(
-      item => item.requirementId === requisitoId,
+    result.nonConformities.find(
+      item => item.requirementId === requirementId,
     );
 
-  // Primero, que el eje sea el que se dice: los dos abren tarjeta, y el motor
-  // las marca distinto.
-  comprueba(
-    'motor · EV-05 en NO_CUMPLE abre una no conformidad MEDIDA',
-    tarjetaDe(conIncumplimiento, 'op.acc.1.2')?.origin === 'MEDIDA',
-    String(tarjetaDe(conIncumplimiento, 'op.acc.1.2')?.origin),
+  check(
+    'engine · EV-05 in NO_CUMPLE opens a MEASURED nonconformity',
+    cardOf(withBreach, 'op.acc.1.2')?.origin === 'MEDIDA',
+    String(cardOf(withBreach, 'op.acc.1.2')?.origin),
   );
 
-  comprueba(
-    'motor · EV-05 sin demostrar TAMBIÉN abre no conformidad, pero NO_EVIDENCIADA',
-    tarjetaDe(conHueco, 'op.acc.1.2')?.origin === 'NO_EVIDENCIADA',
-    String(tarjetaDe(conHueco, 'op.acc.1.2')?.origin),
+  check(
+    'engine · EV-05 unproven ALSO opens a nonconformity, but NO_EVIDENCIADA',
+    cardOf(withGap, 'op.acc.1.2')?.origin === 'NO_EVIDENCIADA',
+    String(cardOf(withGap, 'op.acc.1.2')?.origin),
   );
 
-  comprueba(
-    'motor · las dos cuentan: ninguna de las dos evaluaciones sale sin tarjeta',
-    conIncumplimiento.nonConformities.length > 0 &&
-      conHueco.nonConformities.length > 0,
-    `${conIncumplimiento.nonConformities.length} / ${conHueco.nonConformities.length}`,
+  check(
+    'engine · both count: neither evaluation comes out without a card',
+    withBreach.nonConformities.length > 0 &&
+      withGap.nonConformities.length > 0,
+    `${withBreach.nonConformities.length} / ${withGap.nonConformities.length}`,
   );
 
-  const filaIncumple = filaDe(
-    buildENSReportRows(buildOpAcc1ReportModel(conIncumplimiento)),
+  const breachRow = rowOf(
+    buildENSReportRows(buildOpAcc1ReportModel(withBreach)),
     'op.acc.1.servicio',
   );
 
-  const filaHueco = filaDe(
-    buildENSReportRows(buildOpAcc1ReportModel(conHueco)),
+  const gapRow = rowOf(
+    buildENSReportRows(buildOpAcc1ReportModel(withGap)),
     'op.acc.1.servicio',
   );
 
-  comprueba(
-    'informe · el incumplimiento demostrado sale NO_CUMPLE',
-    filaIncumple.estado === 'NO_CUMPLE',
-    filaIncumple.estado,
+  check(
+    'report · the proven breach comes out NO_CUMPLE',
+    breachRow.estado === 'NO_CUMPLE',
+    breachRow.estado,
   );
 
-  // La fila de una EVIDENCIA describe la PRUEBA, no el veredicto del requisito:
-  // «no ha llegado» y «ha llegado y falla» no se pueden imprimir igual, o el
-  // auditor pierde la única pista de a quién le toca actuar. El veredicto —que
-  // sí es el mismo— lo lleva la fila de puntuación, dos comprobaciones más
-  // abajo.
-  comprueba(
-    'informe · lo no demostrado se sigue distinguiendo de lo medido',
-    filaHueco.estado === 'NO_EVALUABLE',
-    filaHueco.estado,
+  check(
+    'report · what is not proven is still distinguished from what was measured',
+    gapRow.estado === 'NO_EVALUABLE',
+    gapRow.estado,
   );
 
-  // Y en el PDF, que es el documento que se firma: colores distintos, y el del
-  // hueco no es el rojo del incumplimiento medido.
-  comprueba(
-    'PDF · lo no demostrado no se imprime del color del incumplimiento medido',
-    ensReportStatusPdfColor(filaHueco.estado) !==
-      ensReportStatusPdfColor(filaIncumple.estado),
-    `${ensReportStatusPdfColor(filaHueco.estado)} / ${ensReportStatusPdfColor(
-      filaIncumple.estado,
+  check(
+    'PDF · what is not proven is not printed in the colour of the measured breach',
+    ensReportStatusPdfColor(gapRow.estado) !==
+      ensReportStatusPdfColor(breachRow.estado),
+    `${ensReportStatusPdfColor(gapRow.estado)} / ${ensReportStatusPdfColor(
+      breachRow.estado,
     )}`,
   );
 
-  comprueba(
-    'pantalla · la insignia de lo no demostrado no lleva el color de peligro',
-    ensReportStatusBadgeColor(filaHueco.estado) !== 'danger' &&
-      ensReportStatusBadgeColor(filaIncumple.estado) === 'danger',
+  check(
+    'screen · the badge for what is not proven does not carry the danger colour',
+    ensReportStatusBadgeColor(gapRow.estado) !== 'danger' &&
+      ensReportStatusBadgeColor(breachRow.estado) === 'danger',
     `${ensReportStatusBadgeColor(
-      filaHueco.estado,
-    )} / ${ensReportStatusBadgeColor(filaIncumple.estado)}`,
+      gapRow.estado,
+    )} / ${ensReportStatusBadgeColor(breachRow.estado)}`,
   );
 
-  // Control negativo del comparador de colores: si devolviera cualquier cosa
-  // distinta para cualquier par, esta línea también fallaría, y no falla.
-  comprueba(
-    'PDF · dos filas del mismo estado sí comparten color',
-    ensReportStatusPdfColor(filaHueco.estado) ===
+  check(
+    'PDF · two rows of the same state do share colour',
+    ensReportStatusPdfColor(gapRow.estado) ===
       ensReportStatusPdfColor('NO_EVALUABLE'),
   );
 
-  // La OTRA mitad, y la que cambia con el criterio nuevo: la fila que lleva el
-  // veredicto del control. Hasta el 04/08 el hueco la dejaba en «N/A» —un
-  // informe firmado sin porcentaje—; ahora trae número, porque lo no demostrado
-  // ya no se cae de la cuenta.
-  const puntuacionHueco = filaDe(
-    buildENSReportRows(buildOpAcc1ReportModel(conHueco)),
+  const gapScore = rowOf(
+    buildENSReportRows(buildOpAcc1ReportModel(withGap)),
     'op.acc.1.puntuacion',
   );
 
-  const puntuacionIncumple = filaDe(
-    buildENSReportRows(buildOpAcc1ReportModel(conIncumplimiento)),
+  const breachScore = rowOf(
+    buildENSReportRows(buildOpAcc1ReportModel(withBreach)),
     'op.acc.1.puntuacion',
   );
 
-  comprueba(
-    'informe · el veredicto del control ya no sale sin número por un hueco',
-    puntuacionHueco.valor.indexOf('N/A') === -1 &&
-      puntuacionHueco.valor.indexOf('%') >= 0,
-    puntuacionHueco.valor,
+  check(
+    'report · the control\'s verdict no longer comes out without a number because of a gap',
+    gapScore.valor.indexOf('N/A') === -1 &&
+      gapScore.valor.indexOf('%') >= 0,
+    gapScore.valor,
   );
 
-  comprueba(
-    'informe · y su estado ya no es NO_EVALUABLE',
-    puntuacionHueco.estado !== 'NO_EVALUABLE',
-    puntuacionHueco.estado,
+  check(
+    'report · and its state is no longer NO_EVALUABLE',
+    gapScore.estado !== 'NO_EVALUABLE',
+    gapScore.estado,
   );
 
-  comprueba(
-    'informe · el incumplimiento medido sigue trayendo su número',
-    puntuacionIncumple.valor.indexOf('N/A') === -1 &&
-      puntuacionIncumple.valor.indexOf('%') >= 0,
-    puntuacionIncumple.valor,
+  check(
+    'report · the measured breach still brings its number',
+    breachScore.valor.indexOf('N/A') === -1 &&
+      breachScore.valor.indexOf('%') >= 0,
+    breachScore.valor,
   );
 
-  // La otra mitad del eje: en el informe entero solo se mueven las filas que
-  // citan EV-05 —la suya y las dos que resumen el control—, y ninguna otra. Sin
-  // esto, el caso podría estar moviendo el informe entero y no notarse.
-  const modeloIncumple = buildOpAcc1ReportModel(conIncumplimiento);
-  const filasIncumple = buildENSReportRows(modeloIncumple);
-  const filasHueco = buildENSReportRows(buildOpAcc1ReportModel(conHueco));
+  const breachModel = buildOpAcc1ReportModel(withBreach);
+  const breachRows = buildENSReportRows(breachModel);
+  const gapRows = buildENSReportRows(buildOpAcc1ReportModel(withGap));
 
-  const citaEv05 = (posicion: number): boolean =>
-    modeloIncumple.fields[posicion].evidenceIds.indexOf('EV-05') >= 0;
+  const citesEv05 = (position: number): boolean =>
+    breachModel.fields[position].evidenceIds.indexOf('EV-05') >= 0;
 
-  const movidas = filasIncumple
-    .map((fila, posicion) => ({ fila, posicion }))
-    .filter(({ fila, posicion }) => fila.estado !== filasHueco[posicion].estado);
+  const moved = breachRows
+    .map((row, position) => ({ fila: row, posicion: position }))
+    .filter(({ fila: row, posicion: position }) => row.estado !== gapRows[position].estado);
 
-  comprueba(
-    'informe · toda fila que se mueve cita EV-05, la evidencia del eje',
-    movidas.every(({ posicion }) => citaEv05(posicion)),
+  check(
+    'report · every row that moves cites EV-05, the axis evidence',
+    moved.every(({ posicion: position }) => citesEv05(position)),
     JSON.stringify(
-      movidas
-        .filter(({ posicion }) => !citaEv05(posicion))
-        .map(({ fila }) => fila.campo)
+      moved
+        .filter(({ posicion: position }) => !citesEv05(position))
+        .map(({ fila: row }) => row.campo)
     )
   );
 
-  // Control negativo del criterio de arriba: si «cita EV-05» valiera para todas
-  // las filas, la comprobación anterior pasaría sin decir nada. No vale: hay
-  // filas que no la citan, y son exactamente las que no se han movido.
-  comprueba(
-    'informe · hay filas que no citan EV-05, y ninguna se ha movido',
-    filasIncumple.some((fila, posicion) => !citaEv05(posicion)) &&
-      filasIncumple.every(
-        (fila, posicion) =>
-          citaEv05(posicion) || fila.estado === filasHueco[posicion].estado
+  check(
+    'report · some rows do not cite EV-05, and none has moved',
+    breachRows.some((row, position) => !citesEv05(position)) &&
+      breachRows.every(
+        (row, position) =>
+          citesEv05(position) || row.estado === gapRows[position].estado
       ),
     JSON.stringify(
-      filasIncumple
-        .filter((fila, posicion) => !citaEv05(posicion))
-        .map(fila => fila.campo)
+      breachRows
+        .filter((row, position) => !citesEv05(position))
+        .map(row => row.campo)
     )
   );
 }
 
-// ---------------------------------------------------------------------------
-bloque('4 · las guardas: nada de huecos mudos ni de rojos inventados');
-//
-// Modelos escritos a mano, y solo aquí: es la única forma de ejercitar las dos
-// guardas, porque los tres modelos reales nunca producen ni un estado fuera de
-// la lista ni un campo sin evidencias. Una guarda que ninguna fixture ejecuta no
-// es una guarda, es un comentario.
-
+section('4 · guards: no silent gaps or invented reds');
 {
-  const modeloRaro: ENSReportModel = {
+  const oddModel: ENSReportModel = {
     controlId: 'op.acc.1',
     status: 'SIN_DATOS',
     score: null,
@@ -523,8 +423,6 @@ bloque('4 · las guardas: nada de huecos mudos ni de rojos inventados');
       {
         id: 'campo.con.estado.roto',
         title: 'Campo con un estado que no existe',
-        // Justo lo que producía el fallo: un valor que la columna imprimía tal
-        // cual. Va forzado porque el tipo, con razón, no lo permite.
         status: undefined as unknown as ENSReportModel['status'],
         value: 'lo que sea',
         evidenceIds: ['EV-01'],
@@ -534,51 +432,49 @@ bloque('4 · las guardas: nada de huecos mudos ni de rojos inventados');
     ],
   };
 
-  const [sinEvidencias, estadoRoto] = buildENSReportRows(modeloRaro);
+  const [withoutEvidences, estadoRoto] = buildENSReportRows(oddModel);
 
-  comprueba(
-    'guarda · un campo sin evidencias lo DICE, no deja el hueco mudo',
-    sinEvidencias.evidencia === ENS_REPORT_NO_EVIDENCE,
-    sinEvidencias.evidencia
+  check(
+    'guard · a field without evidences SAYS so, it does not leave a silent gap',
+    withoutEvidences.evidencia === ENS_REPORT_NO_EVIDENCE,
+    withoutEvidences.evidencia
   );
 
-  comprueba(
-    'guarda · un estado fuera de la lista cae a SIN_DATOS, no a undefined',
+  check(
+    'guard · a state outside the list falls to SIN_DATOS, not to undefined',
     estadoRoto.estado === 'SIN_DATOS',
     String(estadoRoto.estado)
   );
 
-  comprueba(
-    'guarda · ese estado no se imprime en rojo en el PDF',
+  check(
+    'guard · that state is not printed in red in the PDF',
     ensReportStatusPdfColor(estadoRoto.estado) !==
       ensReportStatusPdfColor('NO_CUMPLE'),
     ensReportStatusPdfColor(estadoRoto.estado)
   );
 
-  comprueba(
-    'guarda · los datos pendientes del productor llegan a la celda del PDF',
-    textoPdf(estadoRoto).indexOf('P-04') >= 0,
-    textoPdf(estadoRoto)
+  check(
+    'guard · the producer\'s pending data reaches the PDF cell',
+    pdfText(estadoRoto).indexOf('P-04') >= 0,
+    pdfText(estadoRoto)
   );
 
-  comprueba(
-    'guarda · sin datos pendientes la celda no inventa una línea vacía',
-    buildENSReportEvidencePdfCell(sinEvidencias).text.length === 2 &&
+  check(
+    'guard · without pending data the cell does not invent an empty line',
+    buildENSReportEvidencePdfCell(withoutEvidences).text.length === 2 &&
       buildENSReportEvidencePdfCell(estadoRoto).text.length === 3,
-    `${buildENSReportEvidencePdfCell(sinEvidencias).text.length} / ${
+    `${buildENSReportEvidencePdfCell(withoutEvidences).text.length} / ${
       buildENSReportEvidencePdfCell(estadoRoto).text.length
     }`
   );
 }
 
-// --- resultado --------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length > 0) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(fallo => console.log(`  · ${fallo}`));
+if (failures.length > 0) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(failure => console.log(`  · ${failure}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

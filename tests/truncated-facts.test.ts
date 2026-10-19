@@ -1,126 +1,93 @@
-/**
- * Cuando el motor no ha visto todos los hechos, hay que decirlo.
- *
- *     npx tsx tests/truncated-facts.test.ts
- *
- * POR QUÉ EXISTE. El 07/08/2026 el usuario dijo «no lo entiendo, no parece
- * real, tocas algo y en unos sitios funciona y en otros no». Tenía razón y la
- * causa era esta: la pantalla de detalle pedía al índice `size: 1000` y de
- * op.acc.3 había 17.444 alertas en la ventana. El motor juzgaba el 6 % de los
- * hechos —los MÁS RECIENTES, porque el orden es descendente— y presentaba el
- * resultado como «cumplimiento de los últimos 30 días».
- *
- * El efecto es que el veredicto dependía de qué mil alertas caían dentro del
- * corte, no de lo que había pasado: una acción de hace unas horas que salía del
- * corte hacía desaparecer una incompatibilidad real y el control subía a 100 %
- * él solo. Y el Panel pedía 6000 y el detalle 1000, así que las dos pantallas
- * juzgaban conjuntos distintos del mismo control.
- *
- * Un recorte SILENCIOSO es la misma mentira que un CUMPLE sin medir: presenta
- * una medida parcial como si fuera completa.
- */
+/** When the engine has not seen all facts, it must say so. */
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle?: unknown
+const check = (
+  name: string,
+  condition: boolean,
+  detail?: unknown
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  console.log(`  FALLA ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
-  fallos.push(nombre);
+  console.log(`  FAIL ${name}${detail !== undefined ? ` — ${String(detail)}` : ''}`);
+  failures.push(name);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// La cuenta que hace la pantalla, aislada: cuántos hechos han quedado fuera.
-const recortados = (
+const trimmed = (
   total: unknown,
-  traidos: number
+  fetched: number
 ): number => {
-  const totalEnIndice =
+  const totalInIndex =
     typeof total === 'number'
       ? total
       : typeof (total as { value?: number })?.value === 'number'
       ? (total as { value: number }).value
-      : traidos;
+      : fetched;
 
-  return Math.max(0, totalEnIndice - traidos);
+  return Math.max(0, totalInIndex - fetched);
 };
 
-// --- 1. el caso de producción ---------------------------------------------
-
-bloque('1. 17.444 hechos y solo 1.000 traídos: se dice');
+section('1. 17,444 facts and only 1,000 fetched: it is stated');
 
 {
-  comprueba(
-    'con 17.444 en el índice y 1.000 traídos, faltan 16.444',
-    recortados({ value: 17444 }, 1000) === 16444,
-    recortados({ value: 17444 }, 1000)
+  check(
+    'with 17,444 in the index and 1,000 fetched, 16,444 are missing',
+    trimmed({ value: 17444 }, 1000) === 16444,
+    trimmed({ value: 17444 }, 1000)
   );
 
-  comprueba(
-    'y por tanto el aviso se pinta',
-    recortados({ value: 17444 }, 1000) > 0
+  check(
+    'and therefore the notice is shown',
+    trimmed({ value: 17444 }, 1000) > 0
   );
 }
 
-// --- 2. la reversión: sin recorte NO se avisa ------------------------------
-
-bloque('2. Cuando el motor lo ha visto todo, no se avisa de nada');
+section('2. When the engine has seen everything, nothing is warned about');
 
 {
-  // LA MITAD IMPORTANTE. Un aviso que sale siempre no lo lee nadie, y a las tres
-  // veces deja de significar algo. Solo puede salir cuando de verdad falta algo.
-  comprueba(
-    'traído todo, no falta nada',
-    recortados({ value: 340 }, 340) === 0,
-    recortados({ value: 340 }, 340)
+  check(
+    'all fetched, nothing missing',
+    trimmed({ value: 340 }, 340) === 0,
+    trimmed({ value: 340 }, 340)
   );
 
-  comprueba(
-    'sin ningún hecho, tampoco se avisa de recorte',
-    recortados({ value: 0 }, 0) === 0
+  check(
+    'without any fact, no truncation is warned about either',
+    trimmed({ value: 0 }, 0) === 0
   );
 
-  // OpenSearch puede devolver `total` como número suelto en vez de objeto.
-  comprueba(
-    'y da igual que `total` venga como número o como objeto',
-    recortados(17444, 1000) === recortados({ value: 17444 }, 1000),
-    `${recortados(17444, 1000)} vs ${recortados({ value: 17444 }, 1000)}`
+  check(
+    'and it does not matter whether `total` comes as a number or as an object',
+    trimmed(17444, 1000) === trimmed({ value: 17444 }, 1000),
+    `${trimmed(17444, 1000)} vs ${trimmed({ value: 17444 }, 1000)}`
   );
 
-  // Y si el total no viene, NO se inventa un recorte: se asume lo traído. Un
-  // aviso falso sobre datos incompletos mina la confianza igual que su ausencia.
-  comprueba(
-    'sin `total`, no se inventa un recorte',
-    recortados(undefined, 500) === 0,
-    recortados(undefined, 500)
+  check(
+    'without `total`, no truncation is invented',
+    trimmed(undefined, 500) === 0,
+    trimmed(undefined, 500)
   );
 
-  // Un total MENOR que lo traído (no debería pasar) tampoco produce negativos.
-  comprueba(
-    'un total incoherente no produce un recorte negativo',
-    recortados({ value: 10 }, 500) === 0,
-    recortados({ value: 10 }, 500)
+  check(
+    'an incoherent total does not produce a negative truncation',
+    trimmed({ value: 10 }, 500) === 0,
+    trimmed({ value: 10 }, 500)
   );
 }
-
-// --- salida ---------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} comprobación(es) fallan:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
-console.log('Todas las comprobaciones pasan.');
+console.log('All checks pass.');

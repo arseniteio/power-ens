@@ -1,18 +1,10 @@
-/**
- * Configuración (1.3.0): tabs «Controles», «Agentes» and «General», the deep links and what their buttons save.
- *
- *   npx --yes tsx tests/configuration-screen.test.ts
- *
- * The screen is rendered with a fake React that keeps hook state between renders, fake EUI and fake HTTP and
- * dashboard search, so real buttons are pressed and the saved document is checked.
- */
+/** Configuration (1.3.0): Controls, Agents and General tabs, deep links and what their buttons save. */
 import { readFileSync, readdirSync } from 'fs';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-// --- fake React with real hooks, fake EUI and router -------------------------
 const ELEMENT = Symbol('element');
 const states = new Map<string, any[]>();
 const effectsDone = new Map<string, string>();
@@ -95,8 +87,8 @@ const fakeHttp = {
     let resolved = '';
     try { resolved = Module._resolveFilename(request, parent); } catch (error) { resolved = ''; }
     if (resolved && nodePath.resolve(resolved) === nodePath.resolve(RUNTIME)) {
-      const real = load.call(this, request, parent, ...rest);
-      return { ...real, getActiveENSScopeAgents: () => (emptyScope ? [] : real.getActiveENSScopeAgents()) };
+      const actual = load.call(this, request, parent, ...rest);
+      return { ...actual, getActiveENSScopeAgents: () => (emptyScope ? [] : actual.getActiveENSScopeAgents()) };
     }
     if (resolved && nodePath.resolve(resolved) === nodePath.resolve(SERVICES)) {
       return {
@@ -123,7 +115,6 @@ const check = (name: string, ok: boolean, detail: unknown = '') => {
   if (!ok) failures.push(name);
 };
 
-// --- rendering -----------------------------------------------------------------
 interface RenderedNode { type: string; props: any; path: string; text: string }
 let nodes: RenderedNode[] = [];
 
@@ -288,7 +279,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     page = await render(ConfigurationShell);
     check('a control unknown to the catalog: says so', /no es ningún control del catálogo/.test(page));
 
-    // The control page: common settings, templates and assignment.
     await prepare(documentWith({
       templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }],
       agents: { '101': { detectedType: 'linux', controls: { 'op.acc.1': { templateId: 'custom-web' } } }, '102': { detectedType: 'zimbra-ldap' } },
@@ -299,14 +289,12 @@ const prepare = async (doc: any, agents = AGENTS) => {
     check('templates with «De serie» and «Propia» badges', /Linux De serie/.test(page) && /Web Propia/.test(page), page.slice(page.indexOf('Plantillas'), page.indexOf('Plantillas') + 800));
     check('assignment table: agent | type | template | own settings', /101 · web01/.test(page) && /Web/.test(page) && /Servidor LDAP \(de serie, por su tipo\)/.test(page) && /Windows \(detectado, sin guardar\)/.test(page) && /Ninguna hasta guardar su tipo: valores comunes/.test(page), page.slice(page.indexOf('Asignación'), page.indexOf('Asignación') + 1500));
 
-    // Duplicate a built-in.
     nodes.filter(node => node.type === 'EuiButtonEmpty' && node.text === 'Duplicar')[0].props.onClick();
     await tick(); await tick();
     page = await render(ConfigurationShell);
     check('«Duplicar» a built-in saves a custom copy with all its values', saved.length === 1 &&
       lastSaved().configuration.templates.some((template: any) => template.name === 'Linux (copia)' && template.values['P-10'] === 1000 && template.controlId === 'op.acc.1'), lastSaved()?.configuration?.templates);
 
-    // Edit the custom template through its editor.
     await prepare(documentWith({
       templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }],
       agents: { '101': { detectedType: 'linux', controls: { 'op.acc.1': { templateId: 'custom-web' } } } },
@@ -324,7 +312,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     page = await render(ConfigurationShell);
     check('«Guardar plantilla» saves the edited values', saved.length === 1 && JSON.stringify(lastSaved().configuration.templates[0]) === JSON.stringify({ id: 'custom-web', controlId: 'op.acc.1', name: 'Web servers', values: { 'P-10': 600, 'P-11': ['wheel'] } }), lastSaved()?.configuration?.templates);
 
-    // Delete a template in use: reassign first, typed confirmation.
     page = await press(ConfigurationShell, /^Borrar$/);
     check('deleting a template in use asks where its agents go', /Borrar la plantilla «Web servers»/.test(page) && /Está asignada a 1 agente ?: 101 · web01/.test(page) && /Reasignar sus agentes a/.test(page), page.slice(page.indexOf('Borrar la plantilla'), page.indexOf('Borrar la plantilla') + 400));
     await confirmModal()!.props.onConfirm();
@@ -337,7 +324,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     check('typed: the template is gone and 101 moves to the chosen one', saved.length === 2 && lastSaved().configuration.templates.length === 0 &&
       lastSaved().configuration.agents['101'].controls['op.acc.1'].templateId === 'zimbra-ldap', lastSaved()?.configuration?.agents);
 
-    // Bulk assignment with a preview; a template for another type asks to type «aplicar».
     await prepare(documentWith({ agents: { '101': { detectedType: 'linux' }, '103': { detectedType: 'windows' } } }));
     search = '?tabView=configuration&configControl=op.acc.1';
     page = await render(ConfigurationShell);
@@ -372,7 +358,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     page = await render(ConfigurationShell);
     check('confirmed: detected types stored', saved.length === 1 && lastSaved().configuration.agents['101'].detectedType === 'linux' && lastSaved().configuration.agents['102'].detectedType === 'zimbra-ldap' && lastSaved().configuration.agents['103'].detectedType === 'windows', lastSaved()?.configuration?.agents);
 
-    // Rows of the common value that name an agent: «Repartir por agentes» with typed confirmation.
     await prepare(documentWith());
     page = await render(ConfigurationShell);
     page = await press(ConfigurationShell, /^Repartir por agentes$/);
@@ -386,7 +371,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     await render(ConfigurationShell);
     check('typed: rows saved as each agent\'s own settings', saved.length === 1 && /Reparto por agentes/.test(lastSaved().changeReason || '') && !!lastSaved().configuration.agents?.['101'], saved.map(item => item.changeReason));
 
-    // Agent page: template per control, overrides with their level, clear, orphan, aliases.
     const withScopeList = (doc: any) => {
       doc.controls.find((control: any) => control.controlId === 'op.acc.1').parameters.find((p: any) => p.id === 'P-02').value = ['web01', 'dirHost'];
       return doc;
@@ -442,7 +426,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     const alias = nodes.find(node => node.type === 'EuiFieldText' && /dir01\.example\.com/.test(String(node.props.value || '')));
     check('other names start with the hostname', !!alias);
 
-    // A contribution on a non-manager agent: its rows, and the common ones apart.
     await prepare(documentWith({ agents: { '102': { name: 'dirHost', controls: { 'op.exp.7': { parameters: { 'P-07': ['dirHost | directorio'] } } } } } }));
     search = '?tabView=configuration&configAgent=102&configControl=op.exp.7';
     page = await render(ConfigurationShell);
@@ -450,7 +433,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     check('contribution: the editor starts from this agent\'s rows', !!rowE7 && JSON.stringify(rowE7.props.parameter.value) === '["dirHost | directorio"]' && rowE7.props.contributionOnly === true);
     check('and the common rows are shown apart, read-only', JSON.stringify(rowE7?.props.organisationRows) === '["srv-x | nóminas"]' && /Del valor común/.test(page));
 
-    // An unsaved detected type is never shown as if it applied.
     await prepare(documentWith());
     search = '?tabView=configuration&configAgent=101&configControl=op.acc.1';
     page = await render(ConfigurationShell);
@@ -462,13 +444,11 @@ const prepare = async (doc: any, agents = AGENTS) => {
     page = await render(ConfigurationShell);
     check('and the Agentes list shows the same label', /101 · web01 \] Linux \(detectado, sin guardar\)/.test(page), page.slice(0, 1200));
 
-    // Counts leave out «Sin plantilla».
     await prepare(documentWith({ agents: { '101': { detectedType: 'linux', controls: { 'op.acc.1': { templateId: 'none' } } }, '102': { detectedType: 'zimbra-ldap', controls: { 'op.acc.1': { templateId: 'linux-ubuntu' } } } } }));
     search = '?tabView=configuration';
     page = await render(ConfigurationShell);
     check('«con plantilla asignada» does not count «Sin plantilla»', /op\.acc\.1 · [^\]]+\][^\[]*3 de serie · 0 propia\(s\) · 1 agente con plantilla asignada/.test(page), page.slice(page.indexOf('op.acc.1 ·'), page.indexOf('op.acc.1 ·') + 400));
 
-    // Manual type: previewed when it changes values.
     await prepare(documentWith({ agents: { '101': { name: 'web01', detectedType: 'linux' } } }));
     search = '?tabView=configuration&configAgent=101';
     page = await render(ConfigurationShell);
@@ -479,7 +459,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     await render(ConfigurationShell);
     check('confirmed: the manual type is stored, the detected one kept', saved.length === 1 && lastSaved().configuration.agents['101'].typeOverride === 'zimbra-ldap' && lastSaved().configuration.agents['101'].detectedType === 'linux');
 
-    // A whole profile saved under a name: what is lost, and typed «quitar».
     await prepare(documentWith({ agents: { srvWeb: { aliases: ['web'], controls: { 'op.acc.1': { templateId: 'linux-ubuntu', parameters: { 'P-07': ['ana | srvWeb | admin'] } } } } } }));
     search = '?tabView=configuration&configView=agentes';
     page = await render(ConfigurationShell);
@@ -490,7 +469,6 @@ const prepare = async (doc: any, agents = AGENTS) => {
     await render(ConfigurationShell);
     check('typed: the profile leaves the document', saved.length === 1 && !lastSaved().configuration.agents?.srvWeb);
 
-    // No agents, empty scope, out of scope, unknown id.
     await prepare(documentWith(), []);
     page = await render(ConfigurationShell);
     check('without agents: the empty table says so', /No hay agentes en el alcance\./.test(page));
