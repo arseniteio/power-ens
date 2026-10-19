@@ -49,7 +49,7 @@ class Index(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self._respond({"_source": state["doc"]})
+        self._respond({"_source": state["doc"], "_seq_no": state["version"], "_primary_term": 1})
 
     def do_PUT(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -61,6 +61,10 @@ class Index(BaseHTTPRequestHandler):
                 return
             state.setdefault("history", []).append({"order": state["version"], "path": self.path, "doc": body})
             self._respond({"result": "created"})
+            return
+        state["last_put_path"] = self.path
+        if state.get("conflict") and "if_seq_no=" in self.path:
+            self._respond({"error": {"type": "version_conflict_engine_exception"}}, 409)
             return
         state["doc"] = body
         state["version"] += 1
@@ -357,6 +361,28 @@ def main():
         r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")
         check("organisation · refuses to write over an invalid block, saying where",
               r.returncode == 1 and "organizationData.values.retencion" in r.stderr, r.stderr)
+        state["doc"] = json.loads(json.dumps(org_doc))
+        for control in state["doc"]["configuration"]["controls"]:
+            for parameter in control["parameters"]:
+                if (control["controlId"], parameter["id"]) == ("op.acc.1", "P-11"):
+                    parameter["columns"] = [{"name": "grupo", "label": "Grupo privilegiado", "type": "identifier", "required": True}]
+        version = state["version"]
+        r = run_script(url, tmp, {"op.acc.4": {"P-06": ["Domain Admins | AD"]}}, "--apply")
+        check("organisation · a value another parameter of the item does not accept is refused, saying which",
+              r.returncode == 1 and "op.acc.1 P-11 does not accept the value of «Grupos con privilegio administrativo»" in r.stderr and state["version"] == version, r.stderr)
+
+        state["doc"] = json.loads(json.dumps(org_doc))
+        version = state["version"]
+        r = run_script(url, tmp, {"op.acc.1": {"P-06": 400}}, "--apply")
+        check("concurrency · writes only over the version it read", r.returncode == 0 and
+              state.get("last_put_path", "").endswith("/_doc/active?if_seq_no=%d&if_primary_term=1" % version), state.get("last_put_path"))
+        state["conflict"] = True
+        before = json.dumps(state["doc"])
+        r = run_script(url, tmp, {"op.acc.1": {"P-06": 500}}, "--apply")
+        state["conflict"] = False
+        check("concurrency · a save that landed meanwhile stops it, saying to run again",
+              r.returncode == 1 and "La configuración ha cambiado mientras se aplicaba; volver a ejecutar." in r.stderr and json.dumps(state["doc"]) == before, r.stdout + r.stderr)
+
         state["doc"] = json.loads(json.dumps(org_doc))
         state["doc"]["configuration"]["organizationData"] = None
         r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")

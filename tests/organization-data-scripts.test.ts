@@ -10,6 +10,8 @@ import {
   sameParameterValue,
 } from '../common/ens/configuration/organization';
 import { organizationViewRows } from '../common/ens/configuration/organization/organization-data-views';
+import { organizationDataParameter } from '../common/ens/configuration/organization/organization-data-form';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -104,6 +106,21 @@ const documents = ENS_ORGANIZATION_DATA_ITEMS.filter(item => item.views.length).
 
 const SINGLE_VALUE = ['accesos | VPN | 365', 'accesos | web | 90', 'cuentas |  | 365'];
 
+// Whether a value is valid for a parameter: the scripts only complete a parameter with a value the screen accepts.
+const CRAFTED: unknown[] = [['a b'], ['x | y | z | w | v | u | t'], 'treinta', -5, 30.5, 365, '365', ['ssh'], ['ssh | si | RSEG | si'],
+  ['ssh | quizá | RSEG | si'], ['2026-02-31'], ['Ana | ENS | 2026-01-10 | 2027-01-10'], ['srv-a | pre a'], ['root | configuracion'], ['root | nada'], 'Otra herramienta', 'otra'];
+const parametersToCheck = [
+  ...ENS_ORGANIZATION_DATA_ITEMS.flatMap(item => item.views.map(view =>
+    ENSConfigurationRegistry.find(control => control.controlId === view.controlId)!.parameters.find(parameter => parameter.id === view.parameterId)!)),
+  ...ENS_ORGANIZATION_DATA_ITEMS.filter(item => item.views.length).map(item => organizationDataParameter(item)),
+];
+const validity = parametersToCheck.flatMap(parameter => {
+  const item = ENS_ORGANIZATION_DATA_ITEMS.find(candidate => candidate.views.some(view => view.controlId === parameter.controlId && view.parameterId === parameter.id));
+  const view = item?.views.find(candidate => candidate.controlId === parameter.controlId && candidate.parameterId === parameter.id);
+  const projected = item && view ? [organizationViewValue(item, view, parameter, SAMPLES[item.id] as any)] : [SAMPLES[parameter.name]];
+  return [...projected, ...CRAFTED].filter(value => value !== undefined).map(value => ({ parameter, value }));
+});
+
 const PYTHON = `
 import json, sys
 sys.path.insert(0, sys.argv[1])
@@ -125,13 +142,14 @@ for document in data["documents"]:
     out["adopted"].append(o.adopted_value(document["configuration"], o.get_item(items, document["item"]))[0])
 retention = o.get_item(items, "retencion")
 out["single"] = o.single_value_problems(data["single"]["configuration"], retention, data["single"]["value"])
+out["valid"] = [o.value_problem(case["parameter"], case["value"]) is None for case in data["validity"]]
 json.dump(out, sys.stdout)
 `;
 
 const single = { configuration: defaultENSConfigurationTemplate, value: SINGLE_VALUE };
 const python = JSON.parse(
   execFileSync('python3', ['-I', '-c', PYTHON, `${__dirname}/../config`], {
-    input: JSON.stringify({ cases: allCases, same: SAME_PAIRS, documents, single }),
+    input: JSON.stringify({ cases: allCases, same: SAME_PAIRS, documents, single, validity }),
     encoding: 'utf8',
   })
 );
@@ -174,6 +192,14 @@ const adoptedDifferences = documents
 check(`the value moved to an item is the same in both (${documents.length} documents, adopted and in conflict)`, adoptedDifferences.length === 0 && python.adopted.includes(null), adoptedDifferences);
 check('two rows for a one-value parameter are refused with the same message',
   JSON.stringify(organizationSingleValueIssues(defaultENSConfigurationTemplate, itemOf('retencion'), SINGLE_VALUE).map(issue => `${issue.source} ${issue.reason}`)) === JSON.stringify(python.single), python.single);
+
+const validityDifferences = validity
+  .map((entry, index) => (validateParameterValue(entry.parameter, entry.value as any).valid === python.valid[index]
+    ? undefined
+    : { parameter: `${entry.parameter.controlId} ${entry.parameter.id}`, value: entry.value, plugin: validateParameterValue(entry.parameter, entry.value as any), script: python.valid[index] }))
+  .filter(Boolean);
+check(`a value is valid or not for a parameter the same way in both (${validity.length} cases, both outcomes)`,
+  validityDifferences.length === 0 && python.valid.includes(true) && python.valid.includes(false), validityDifferences.slice(0, 5));
 
 console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

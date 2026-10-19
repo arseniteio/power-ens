@@ -55,7 +55,7 @@ class Index(BaseHTTPRequestHandler):
         if state["doc"] is None:
             self._respond({"error": "not found"}, 404)
             return
-        self._respond({"_source": state["doc"]})
+        self._respond({"_source": state["doc"], "_seq_no": state["version"], "_primary_term": 1})
 
     def do_PUT(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -67,6 +67,10 @@ class Index(BaseHTTPRequestHandler):
                 return
             state.setdefault("history", []).append({"order": state["version"], "path": self.path, "doc": body})
             self._respond({"result": "created"})
+            return
+        state["last_put_path"] = self.path
+        if state.get("conflict") and "if_seq_no=" in self.path:
+            self._respond({"error": {"type": "version_conflict_engine_exception"}}, 409)
             return
         state["doc"] = body
         state["version"] += 1
@@ -266,6 +270,39 @@ def main():
         state["doc"] = {"configuration": {"controls": json.loads(json.dumps(others))}, "updatedAt": ""}
         seed(url, org_path, "--apply")
         check("organisation data · and stays empty when they differ (the plugin shows the conflict)", values().get("P-11") is None, str(values()))
+
+        # op.acc.4 P-04 alone: op.acc.6 P-07 would get a channel without encryption or authoriser, so it stays empty.
+        six_block = {"controlId": "op.acc.6", "parameters": [{"id": "P-07", "name": "canales_acceso_remoto", "type": "table", "required": True, "value": None, "columns": [
+            {"name": "canal", "label": "Canal", "type": "identifier", "required": True},
+            {"name": "cifrado", "label": "Cifrado", "type": "select", "required": True, "options": ["si", "no"]},
+            {"name": "autoriza", "label": "Autoriza", "type": "string", "required": True},
+            {"name": "uso_constante", "label": "Uso constante", "type": "select", "required": True, "options": ["si", "no"]}]}]}
+        six_path = os.path.join(tmp, "six-block.json")
+        with open(six_path, "w", encoding="utf-8") as f:
+            json.dump(six_block, f)
+        four = {"controlId": "op.acc.4", "parameters": [{"id": "P-04", "type": "list", "value": ["ssh | 22 | 10.0.0.0/8"]}]}
+        state["doc"] = {"configuration": {"controls": [four]}, "updatedAt": ""}
+        env = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
+        r = subprocess.run([sys.executable, SCRIPT, "op.acc.6", "--block", six_path, "--apply"], capture_output=True, text=True, env=env)
+        six = next(c for c in state["doc"]["configuration"]["controls"] if c["controlId"] == "op.acc.6")
+        check("organisation data · a parameter is never completed with a value it does not accept",
+              r.returncode == 0 and six["parameters"][0].get("value") is None, r.stdout + r.stderr)
+        state["doc"] = {"configuration": {"controls": [four], "organizationData": {"values": {"canales_acceso_remoto": ["ssh | | | | 22 | 10.0.0.0/8"]}}}, "updatedAt": ""}
+        r = subprocess.run([sys.executable, SCRIPT, "op.acc.6", "--block", six_path, "--apply"], capture_output=True, text=True, env=env)
+        six = next(c for c in state["doc"]["configuration"]["controls"] if c["controlId"] == "op.acc.6")
+        check("organisation data · not even from a stored value, and the plan says why",
+              six["parameters"][0].get("value") is None and "op.acc.6 P-07: " in r.stdout and "stays without value" in r.stdout, r.stdout)
+
+        # Concurrency: only over the version read; a save meanwhile stops it.
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]}, "updatedAt": ""}
+        version = state["version"]
+        seed(url, block_path, "--apply")
+        check("concurrency · writes only over the version it read", state.get("last_put_path", "").endswith("?if_seq_no=%d&if_primary_term=1" % version), state.get("last_put_path"))
+        state["conflict"] = True
+        r = seed(url, block_path, "--apply")
+        state["conflict"] = False
+        check("concurrency · a save that landed meanwhile stops it, saying to run again",
+              r.returncode == 1 and "La configuración ha cambiado mientras se aplicaba; volver a ejecutar." in r.stderr, r.stdout + r.stderr)
 
         # --- does not touch the other controls
         other = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intact"}]}

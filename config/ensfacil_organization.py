@@ -8,6 +8,7 @@ The item value lives in `configuration.organizationData.values.<item>` (absent k
 null) and is written into every mapped parameter, so the plugin, the engine and a 1.3.0 plugin read it
 in the `value` of each parameter.
 """
+import datetime
 import json
 import os
 import re
@@ -68,6 +69,8 @@ def list_items(value):
         return [cell(x) for x in value if cell(x)]
     if isinstance(value, str):
         return [x.strip() for x in re.split(r"[\n,;]", value) if x.strip()]
+    if isinstance(value, (bool, int, float)):
+        return [cell_text(value)]
     return []
 
 
@@ -256,6 +259,132 @@ def same_value(parameter_type, left, right):
     return normalize(left) == normalize(right)
 
 
+# --- validity (parameter-value-validator.ts: the screen's rules, without the per-parameter refinements) --------
+
+IDENTIFIER = re.compile(r"^[^\s|,]+$")
+NUMBER = re.compile(r"^-?\d+(?:\.\d+)?$")
+NON_NEGATIVE_INTEGER = re.compile(r"^\d+$")
+OCTAL = re.compile(r"^[0-7]{3,4}$")
+PATHS = [re.compile(r"^/\S"), re.compile(r"^[A-Za-z]:[\\/]"), re.compile(r"^\\\\[^\\/\s]+\\[^\\/\s]"),
+         re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://\S+$")]
+URI = PATHS[3]
+BOOLEANS = ["true", "sí", "si", "s", "yes", "1", "false", "no", "n", "0"]
+
+
+def _in_range(parameter, number):
+    if parameter.get("minValue") is not None and number < parameter["minValue"]:
+        return "el mínimo admitido es %s" % parameter["minValue"]
+    if parameter.get("maxValue") is not None and number > parameter["maxValue"]:
+        return "el máximo admitido es %s" % parameter["maxValue"]
+    return None
+
+
+def _number(parameter, value, integer=False):
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if integer and (value != int(value) or value < 0):
+            return "se esperaba un número entero no negativo"
+        return _in_range(parameter, value)
+    text = cell(value)
+    if not (NON_NEGATIVE_INTEGER if integer else NUMBER).match(text):
+        return "se esperaba un número%s" % (" entero no negativo" if integer else "")
+    return _in_range(parameter, float(text))
+
+
+def _path(value):
+    text = cell(value)
+    if re.search(r"[|\n]", text):
+        return "se esperaba UNA ruta absoluta"
+    return None if any(p.match(text) for p in PATHS) else "se esperaba una ruta absoluta"
+
+
+def _real_date(text):
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", text)
+    if not m:
+        return False
+    try:
+        datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        return True
+    except ValueError:
+        return False
+
+
+def _cell_problem(column, parameter, text):
+    kind = column.get("type")
+    choices = [cell(o) for o in column.get("options") or [] if cell(o)]
+    if kind == "identifier":
+        return None if IDENTIFIER.match(text) else "se esperaba un identificador sin espacios ni comas"
+    if kind == "path":
+        return _path(text)
+    if kind == "octal":
+        return None if OCTAL.match(text) else "se esperaban tres o cuatro dígitos octales"
+    if kind == "number":
+        return _number(parameter, text)
+    if kind == "date":
+        return None if _real_date(text) else "se esperaba una fecha AAAA-MM-DD que exista"
+    if kind == "select":
+        return None if not choices or any(same(o, text) for o in choices) else "se esperaba una de las opciones declaradas"
+    if kind == "multiselect":
+        elements = options(text)
+        if not elements:
+            return "se esperaba al menos un valor"
+        return None if not choices or all(any(same(o, e) for o in choices) for e in elements) else "se esperaban valores de la lista"
+    return None if text else "se esperaba un texto"
+
+
+def value_problem(parameter, value):
+    """Why the value is not valid for the parameter, or None (an empty value is valid: «not configured» is apart)."""
+    if is_empty(value):
+        return None
+    kind = parameter.get("type")
+    columns = [c for c in parameter.get("columns") or [] if cell(c.get("name"))]
+    if kind in ("duration_days", "duration_hours"):
+        return _number(parameter, value, integer=True)
+    if kind == "number":
+        return _number(parameter, value)
+    if kind == "boolean":
+        return None if isinstance(value, bool) or cell(value).lower() in BOOLEANS else "se esperaba sí o no"
+    if kind == "path":
+        return _path(value)
+    if kind == "url":
+        return None if URI.match(cell(value)) else "se esperaba una URL con esquema"
+    if kind == "list" or (kind == "table" and not columns):
+        items = list_items(value)
+        if not items:
+            return "se esperaba al menos un elemento"
+        problems = ["'%s': %s" % (x, _cell_problem(columns[0], parameter, x)) for x in items
+                    if columns and _cell_problem(columns[0], parameter, x)]
+        return "; ".join(problems) or None
+    if kind == "table":
+        rows = [r for r in table_rows(value) if any(cells(r))]
+        if not rows:
+            return "se esperaba al menos una fila"
+        problems = []
+        for number, row in enumerate(rows, 1):
+            parts = cells(row)
+            if len(parts) > len(columns) and not columns[-1].get("variadic"):
+                problems.append("la fila %d trae %d campos y la tabla declara %d" % (number, len(parts), len(columns)))
+                continue
+            for position, column in enumerate(columns):
+                text = parts[position] if position < len(parts) else ""
+                if not text:
+                    if column.get("required"):
+                        problems.append("falta «%s» en la fila %d" % (column.get("label"), number))
+                    continue
+                problem = _cell_problem(column, parameter, text)
+                if problem:
+                    problems.append("«%s» de la fila %d: %s" % (column.get("label"), number, problem))
+        return "; ".join(problems) or None
+    if kind == "select":
+        choices = [cell(o) for o in parameter.get("options") or [] if cell(o)]
+        return None if not choices or any(same(o, cell(value)) for o in choices) else "se esperaba una de las opciones declaradas"
+    return None if cell(value) else "se esperaba un texto"
+
+
+def item_parameter(item):
+    """The item as a parameter, to validate its own value."""
+    return {"type": item["type"], "columns": item.get("columns") or [], "options": item.get("options") or []}
+
+
 # --- the document -------------------------------------------------------------
 
 def stored_value(config, item_id):
@@ -275,6 +404,15 @@ def set_stored_value(config, item_id, value):
         values[item_id] = value
     block["values"] = values
     config["organizationData"] = block
+
+
+CHANGED_WHILE_APPLYING = "La configuración ha cambiado mientras se aplicaba; volver a ejecutar."
+
+
+def guarded_path(path, read):
+    """The PUT path that only writes over the version that was read (`_seq_no`/`_primary_term` of the GET)."""
+    seq, term = (read or {}).get("_seq_no"), (read or {}).get("_primary_term")
+    return path if seq is None or term is None else "%s?if_seq_no=%d&if_primary_term=%d" % (path, seq, term)
 
 
 def find_parameter(config, control_id, parameter_id):
@@ -307,7 +445,23 @@ def adopted_value(config, item):
     for view, parameter in configured:
         if not same_value(parameter.get("type"), project(item, view, parameter.get("type"), rows), parameter.get("value")):
             return None, []
-    return value_from_rows(item, rows), ["%s %s" % (view["controlId"], view["parameterId"]) for view, _ in configured]
+    value = value_from_rows(item, rows)
+    if value_problem(item_parameter(item), value) or fill_problems(config, item, value):
+        return None, []
+    return value, ["%s %s" % (view["controlId"], view["parameterId"]) for view, _ in configured]
+
+
+def fill_problems(config, item, value):
+    """Parameters without value that cannot take the item value as it is: «<control> <parameter>: <reason>»."""
+    problems = []
+    for view in item.get("views", []):
+        parameter = find_parameter(config, view["controlId"], view["parameterId"])
+        if parameter is None or not is_empty(parameter.get("value")):
+            continue
+        problem = value_problem(parameter, view_value(item, view, parameter.get("type"), value))
+        if problem:
+            problems.append("%s %s: %s" % (view["controlId"], view["parameterId"], problem))
+    return problems
 
 
 def single_value_problems(config, item, value):
@@ -340,6 +494,9 @@ def write_through(config, item, value, only_empty=False):
         if only_empty and not is_empty(old):
             continue
         new = view_value(item, view, parameter.get("type"), value)
+        # A parameter without value is completed only with a value valid for it.
+        if only_empty and value_problem(parameter, new):
+            continue
         if same_value(parameter.get("type"), new, old) and is_empty(new) == is_empty(old):
             continue
         if new is None:

@@ -262,6 +262,8 @@ for item in items or []:
     if value is None:
         continue
     single = {"controls": [block]}
+    for problem in organization.fill_problems(single, item, value):
+        print("  {} stays without value, it does not accept «{}» as it is (the plugin shows it in General)".format(problem, item["label"]))
     for _, pid, _, written in organization.write_through(single, item, value, only_empty=True):
         print("  {} takes «{}» from {}: {}".format(pid, item["label"], " and ".join(sources), json.dumps(written, ensure_ascii=False)[:70]))
 
@@ -288,7 +290,13 @@ if not args.apply:
     sys.exit(0)
 
 print("\nPrevious version saved in: {}".format(save_previous_version(req, INDEX, previous_source, "inject-control.py")))
-result = req("PUT", "/{}/_doc/{}".format(INDEX, DOC), source)
+# Only over the version read: a save from the screen meanwhile is not overwritten.
+try:
+    result = req("PUT", organization.guarded_path("/{}/_doc/{}".format(INDEX, DOC), doc), source)
+except urllib.error.HTTPError as e:
+    if e.code == 409:
+        sys.exit("ERROR: " + organization.CHANGED_WHILE_APPLYING)
+    raise
 print("\n== APPLIED ==  result: {} | version: {}".format(result.get("result"), result.get("_version")))
 print("The control will appear in the plugin's Configuración screen.")
 print("Required parameters without a value will keep degrading their evidence to NO_EVALUABLE,")

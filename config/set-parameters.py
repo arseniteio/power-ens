@@ -178,7 +178,8 @@ per_agent = wanted.pop("agents", None) or {}
 per_item = wanted.pop("organization", None) or {}
 
 try:
-    current = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
+    read = req("GET", "/%s/_doc/%s" % (INDEX, DOC))
+    current = read["_source"]
 except urllib.error.HTTPError as e:
     sys.exit("ERROR: could not read the active configuration (%s). Have the controls been seeded with inject-control.py?" % e)
 
@@ -438,6 +439,12 @@ for control_id, values in wanted.items():
 for item_id, (value, source) in item_changes.items():
     item = organization.get_item(items, item_id)
     errors += ["%s: %s" % (source, problem) for problem in organization.single_value_problems(config, item, value)]
+    # As the screen: the item is written into every parameter that reads it, so each one must accept it.
+    for view in item.get("views", []):
+        target = organization.find_parameter(config, view["controlId"], view["parameterId"])
+        problem = target is not None and organization.value_problem(target, organization.view_value(item, view, target.get("type"), value))
+        if problem:
+            errors.append("%s: %s %s does not accept the value of «%s»: %s" % (source, view["controlId"], view["parameterId"], item["label"], problem))
 
 if errors:
     for e in errors:
@@ -590,5 +597,11 @@ print("Previous version saved in: %s" % save_previous_version(req, INDEX, previo
 
 config["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 current["configuration"] = config
-req("PUT", "/%s/_doc/%s" % (INDEX, DOC), current)
+# Only over the version read: a save from the screen meanwhile is not overwritten.
+try:
+    req("PUT", organization.guarded_path("/%s/_doc/%s" % (INDEX, DOC), read), current)
+except urllib.error.HTTPError as e:
+    if e.code == 409:
+        sys.exit("ERROR: " + organization.CHANGED_WHILE_APPLYING)
+    raise
 print("\n%d change(s) written to %s/%s." % (changes, INDEX, DOC))
