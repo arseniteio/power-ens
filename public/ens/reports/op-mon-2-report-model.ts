@@ -9,10 +9,10 @@ import {
 // en el informe, o el informe presentaría contra un objetivo que la policy no
 // reconoce.
 import {
-  parseDeclaracionAplicabilidad,
-  parseObjetivos,
+  parseStatementOfApplicability,
+  parseMetricTargets,
 } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
-import type { ObjetivoDeMetrica } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -125,7 +125,7 @@ const tabla = (
     });
 };
 
-const desviacion = (valor: number, o: ObjetivoDeMetrica | undefined): string => {
+const desviacion = (valor: number, o: MetricTarget | undefined): string => {
   if (!o) {
     return 'sin objetivo en P-06';
   }
@@ -269,10 +269,10 @@ export const buildOpMon2ReportModel = (
   const refuerzos = level === 'MEDIO' || level === 'ALTO';
 
   // P-01 y P-06 con las gramáticas de la policy.
-  const declaracion = parseDeclaracionAplicabilidad(
+  const declaracion = parseStatementOfApplicability(
     tabla(result, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']),
   );
-  const { objetivos } = parseObjetivos(
+  const { objetivos } = parseMetricTargets(
     tabla(result, 'P-06', ['metrica', 'objetivo', 'tolerancia']),
   );
 

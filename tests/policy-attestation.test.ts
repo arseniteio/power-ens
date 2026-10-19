@@ -43,7 +43,7 @@ import type {
 import type { ENSComplianceStatus } from '../common/ens/core/evaluation/types';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
-import { etiquetaDeRequisitoQueCumple } from '../public/ens/controls/control-detail/general-view';
+import { compliantRequirementLabel } from '../public/ens/controls/control-detail/general-view';
 import { ensRequirementProofLabel } from '../public/ens/reports/report-rows';
 
 declare const process: { exit(code: number): void };
@@ -557,9 +557,9 @@ bloque('5. El detalle del control y el informe lo dicen como documental');
 {
   comprueba(
     'detalle · un requisito acreditado se lee «acreditado documentalmente»',
-    etiquetaDeRequisitoQueCumple({ attested: true }) === 'acreditado documentalmente'
+    compliantRequirementLabel({ attested: true }) === 'acreditado documentalmente'
   );
-  comprueba('detalle · uno medido se lee «cumple»', etiquetaDeRequisitoQueCumple({}) === 'cumple');
+  comprueba('detalle · uno medido se lee «cumple»', compliantRequirementLabel({}) === 'cumple');
 
   comprueba(
     'informe · un requisito acreditado: «Acreditado documentalmente»',

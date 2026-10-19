@@ -14,16 +14,16 @@
  * Se importa por la ruta del fichero, como lo hacen las policies.
  */
 import {
-  causaComun,
-  combina,
-  cumple,
-  decisorDe,
-  escalar,
-  lectorDeHechos,
-  noAplica,
-  noCumple,
-  peor,
-  sinMedir,
+  commonGapCause,
+  combineMeasurements,
+  compliant,
+  decisionBuilderFor,
+  positiveScalar,
+  createFactReader,
+  notApplicable,
+  nonCompliant,
+  worstStatus,
+  notMeasured,
 } from '../common/ens/core/policy-runtime/policies/policy-kit';
 import type { ENSPolicyContext } from '../common/ens/core/policy-runtime/types';
 import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
@@ -49,18 +49,18 @@ const bloque = (titulo: string): void => console.log(`\n${titulo}`);
 
 bloque('1. Medidas: vacío no cumple, la peor manda, la causa común');
 
-comprueba('peor([]) es NO_EVALUABLE, nunca CUMPLE por vacío', peor([]) === 'NO_EVALUABLE', peor([]));
-comprueba('combina([]) es NO_EVALUABLE con motivo', combina([]).estado === 'NO_EVALUABLE' && Boolean(combina([]).motivo), combina([]).estado);
-comprueba('todas NO_APLICA → NO_APLICA', peor([noAplica('a'), noAplica('b')]) === 'NO_APLICA');
-comprueba('NO_APLICA no tapa un CUMPLE', peor([noAplica('a'), cumple('b')]) === 'CUMPLE');
+comprueba('worstStatus([]) es NO_EVALUABLE, nunca CUMPLE por vacío', worstStatus([]) === 'NO_EVALUABLE', worstStatus([]));
+comprueba('combineMeasurements([]) es NO_EVALUABLE con motivo', combineMeasurements([]).estado === 'NO_EVALUABLE' && Boolean(combineMeasurements([]).motivo), combineMeasurements([]).estado);
+comprueba('todas NO_APLICA → NO_APLICA', worstStatus([notApplicable('a'), notApplicable('b')]) === 'NO_APLICA');
+comprueba('NO_APLICA no tapa un CUMPLE', worstStatus([notApplicable('a'), compliant('b')]) === 'CUMPLE');
 
-const mezcla = combina([cumple('bien.'), sinMedir('falta un dato.', 'COLLECTION'), noCumple('mal.')]);
+const mezcla = combineMeasurements([compliant('bien.'), notMeasured('falta un dato.', 'COLLECTION'), nonCompliant('mal.')]);
 comprueba('NO_CUMPLE manda sobre NO_EVALUABLE, y el hueco se dice con «Además»', mezcla.estado === 'NO_CUMPLE' && mezcla.motivo === 'mal. Además: falta un dato.', mezcla.motivo);
 
-const huecos = combina([sinMedir('a', 'COLLECTION'), sinMedir('b', 'CONFIGURATION')]);
+const huecos = combineMeasurements([notMeasured('a', 'COLLECTION'), notMeasured('b', 'CONFIGURATION')]);
 comprueba('dos huecos: CONFIGURATION si lo dice alguno', huecos.estado === 'NO_EVALUABLE' && huecos.causa === 'CONFIGURATION', huecos.causa);
-comprueba('COLLECTION solo si lo dicen todos', causaComun([sinMedir('a', 'COLLECTION'), sinMedir('b', 'COLLECTION')]) === 'COLLECTION');
-comprueba('sin huecos, sin causa', causaComun([cumple('a')]) === undefined);
+comprueba('COLLECTION solo si lo dicen todos', commonGapCause([notMeasured('a', 'COLLECTION'), notMeasured('b', 'COLLECTION')]) === 'COLLECTION');
+comprueba('sin huecos, sin causa', commonGapCause([compliant('a')]) === undefined);
 
 // --- 2. los hechos ---------------------------------------------------------------
 
@@ -74,7 +74,7 @@ const hecho = (id: string, tipo: string, ts: string, atributos: Record<string, s
 const contexto = (events: ENSNormalizedEvent[]): ENSPolicyContext =>
   ({ events } as unknown as ENSPolicyContext);
 
-const lector = lectorDeHechos('op.zzz.1', { recolector: 'el recolector de prueba' });
+const lector = createFactReader('op.zzz.1', { recolector: 'el recolector de prueba' });
 const estado = (ts: string) => hecho(`h-${ts}`, 'algo_observado', ts);
 const degradado = (ts: string) =>
   hecho(`d-${ts}`, 'evidence_state', ts, { evidence_id: 'EV-01', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se pudo leer' });
@@ -98,11 +98,11 @@ comprueba('REVERSIÓN: una de hoy sí, con la causa del recolector', lector.degr
 const despues = contexto([estado('2026-10-09T12:00:00Z'), degradado('2026-10-09T12:05:00Z')]);
 comprueba(
   'una degradación posterior al último hecho no tapa una medida en contra',
-  lector.conDegradacion(despues, AHORA, 'EV-01', 'algo_observado', noCumple('mal.')).estado === 'NO_CUMPLE'
+  lector.conDegradacion(despues, AHORA, 'EV-01', 'algo_observado', nonCompliant('mal.')).estado === 'NO_CUMPLE'
 );
 comprueba(
   'y deja sin demostrar lo que cumplía',
-  lector.conDegradacion(despues, AHORA, 'EV-01', 'algo_observado', cumple('bien.')).estado === 'NO_EVALUABLE'
+  lector.conDegradacion(despues, AHORA, 'EV-01', 'algo_observado', compliant('bien.')).estado === 'NO_EVALUABLE'
 );
 comprueba(
   'sin hechos, el motivo nombra al recolector',
@@ -116,11 +116,11 @@ bloque('3. Parámetros y decisiones');
 const conValor = (value: unknown): ENSPolicyContext =>
   ({ configuration: { parameters: [{ id: 'P-01', value }] } } as unknown as ENSPolicyContext);
 
-comprueba('un plazo a cero no es un plazo', escalar(conValor('0'), 'P-01') === undefined);
-comprueba('un plazo negativo tampoco', escalar(conValor('-3'), 'P-01') === undefined);
-comprueba('«26» es 26', escalar(conValor('26'), 'P-01') === 26);
+comprueba('un plazo a cero no es un plazo', positiveScalar(conValor('0'), 'P-01') === undefined);
+comprueba('un plazo negativo tampoco', positiveScalar(conValor('-3'), 'P-01') === undefined);
+comprueba('«26» es 26', positiveScalar(conValor('26'), 'P-01') === 26);
 
-const decide = decisorDe('policy.op.zzz.1');
+const decide = decisionBuilderFor('policy.op.zzz.1');
 comprueba('`attested` viaja con CUMPLE', decide('op.zzz.1.1', 'CUMPLE', [], [], 'COVERAGE_REQUIRED', 'r', 'm', 'e', undefined, true).attested === true);
 comprueba('y no con NO_EVALUABLE', decide('op.zzz.1.1', 'NO_EVALUABLE', [], [], 'COVERAGE_REQUIRED', 'r', 'm', 'e', 'CONFIGURATION', true).attested === undefined);
 comprueba('la causa solo con NO_EVALUABLE', decide('op.zzz.1.1', 'NO_CUMPLE', [], [], 'COVERAGE_REQUIRED', 'r', 'm', 'e', 'CONFIGURATION').cause === undefined);

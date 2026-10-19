@@ -10,11 +10,11 @@
 //   Resuelta por la política del control (policy.op.exp.6), que mide esta
 //   evidencia junto a op.exp.6.1: ← el puente policy → evidencia
 //   EV-01 NO_EVALUABLE: … | EV-11 NO_CUMPLE: … ← una parte por evidencia
-//   … Además: … ← lo secundario (`combina`)
+//   … Además: … ← lo secundario (`combineMeasurements`)
 //   Pregunta de auditoría: … ← la pregunta del catálogo
 //
-// Dentro de cada parte: listas `a; b; c y N más` (`lista()`), parámetros
-// `P-02 (nombre)` (`etiqueta()`) y fechas ISO (`iso()`).
+// Dentro de cada parte: listas `a; b; c y N más` (`formatList()`), parámetros
+// `P-02 (nombre)` (`parameterDisplayName()`) y fechas ISO (`iso()`).
 //
 // NO SE PIERDE NADA: el análisis solo CORTA el texto, nunca lo reescribe.
 // `motiveToText(parseMotive(t)) === t` para cualquier `t` (lo comprueba la
@@ -61,7 +61,7 @@ export interface ParsedMotive {
   structured: boolean;
 }
 
-// El texto que forman unas partes publicadas (como `motivoCompuesto`).
+// El texto que forman unas partes publicadas (como `compositeReason`).
 export const knownPartsText = (parts: KnownReasonParts['parts']): string =>
   parts
     .map(p => `${p.evidenceId} ${p.status}: ${p.text}${p.secondary?.length ? `${p.text ? ' ' : ''}Además: ${p.secondary.join(' ')}` : ''}`)
@@ -95,8 +95,8 @@ const primeraFrase = (texto: string): { summary: string; detail: string } => {
   return { summary: texto.slice(0, corte), detail: texto.slice(corte + 1) };
 };
 
-// Una lista de `lista()` (`a; b; c y N más`) dentro del texto. Empieza tras
-// «: » o « en » (lo que precede a `lista()` en las policies) o al principio; el
+// Una lista de `formatList()` (`a; b; c y N más`) dentro del texto. Empieza tras
+// «: » o « en » (lo que precede a `formatList()` en las policies) o al principio; el
 // último valor acaba en « y N más», en fin de frase, en «, », en « (» o en
 // « y ». Solo se reconoce con tres valores o más, o con «y N más», y con
 // valores cortos (rutas, cuentas, direcciones): dos frases separadas por «; »

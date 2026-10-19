@@ -42,8 +42,8 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import { MotivoLinea } from './motive-cell';
-import type { ClaseNoConformidad } from './nonconformity-class';
+import { MotiveLine } from './motive-cell';
+import type { NonConformityClass } from './nonconformity-class';
 import {
   describeAction,
   guiltyPart,
@@ -58,9 +58,9 @@ import {
 import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadgeColor } from './motive-view';
 import { ENS_THEME } from '../../theme-colors';
 
-export type { ClaseNoConformidad } from './nonconformity-class';
+export type { NonConformityClass } from './nonconformity-class';
 
-export interface NoConformidadItem {
+export interface NonConformityItem {
   id: string;
   requirement: string;
   // Distingue el incumplimiento medido del hueco de prueba, y es lo que da el
@@ -77,12 +77,12 @@ export interface NoConformidadItem {
 }
 
 interface NonConformityCardProps {
-  item: NoConformidadItem;
-  clase: ClaseNoConformidad;
+  item: NonConformityItem;
+  clase: NonConformityClass;
   criticidad?: string;
   etiquetaAlcance: string;
   textoAlcance: string;
-  lineasMotivo: MotivoLinea[];
+  lineasMotivo: MotiveLine[];
   evidenciasImplicadas: string[];
   controlId: string;
   ocultos?: number;
@@ -94,7 +94,7 @@ interface NonConformityCardProps {
 const PREFIJO_PREGUNTA = 'Pregunta de auditoría:';
 
 interface LineaLeida {
-  linea: MotivoLinea;
+  linea: MotiveLine;
   motivo: ParsedMotive;
 }
 
@@ -102,7 +102,7 @@ interface LineaLeida {
 // misma medida dos veces, p. ej. la observación de la evidencia y el hallazgo
 // del motor), cuál se lee primero y su parte culpable.
 export const readCardMotive = (
-  lineas: MotivoLinea[],
+  lineas: MotiveLine[],
   evidenceIds: string[],
   finding: string,
   conocidos: KnownReasonParts[] = []
@@ -145,13 +145,13 @@ export const readCardMotive = (
 //     la presenta: si está en la primera frase, el titular acaba justo antes
 //     de ella («…en ejecución:») y la lista abre la causa; si está en el
 //     resto, va dentro de ese texto, en su sitio.
-//   - Un titular largo se corta en un espacio antes de `TITULAR_MAX`
+//   - Un titular largo se corta en un espacio antes de `HEADLINE_MAX`
 //     caracteres, con «…», y lo que no cabe abre la causa con «…»: nada queda
 //     solo en el `title` ni se recorta con CSS (en una tarjeta estrecha, dos
 //     líneas cortaban el titular por la mitad).
 //   - Una frase que empieza casi con la lista (menos de `INTRO_MIN`
 //     caracteres delante) no se parte ahí: la lista se queda en su texto.
-export const TITULAR_MAX = 200;
+export const HEADLINE_MAX = 200;
 const INTRO_MIN = 15;
 
 export interface CardTextBlock {
@@ -175,7 +175,7 @@ const saltaEspacios = (texto: string, i: number) => {
   return i;
 };
 
-export const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, max: number = TITULAR_MAX): CardPartLayout => {
+export const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, max: number = HEADLINE_MAX): CardPartLayout => {
   const frase = part.summary;
   const texto = part.text;
   const lista = part.list;

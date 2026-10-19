@@ -26,7 +26,7 @@ const VISTAS: Record<string, React.ComponentType> = {
   controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
   events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),
   plugins: React.lazy(() => import('../ens/controls').then(m => ({ default: m.ControlsENS }))),
-  'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.InformesENS }))),
+  'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.ReportsENS }))),
   evidences: React.lazy(() => import('../ens/evidences').then(m => ({ default: m.EvidencesENS }))),
 };
 

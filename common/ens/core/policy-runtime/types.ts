@@ -82,7 +82,7 @@ export interface ENSReasonPart {
   // El motivo de esa evidencia, sin lo de «Además:».
   text: string;
   cause?: ENSGapCause;
-  // Lo que `combina` añade tras «Además:» (otros ejes que tampoco conforman).
+  // Lo que `combineMeasurements` añade tras «Además:» (otros ejes que tampoco conforman).
   secondary?: string[];
 }
 

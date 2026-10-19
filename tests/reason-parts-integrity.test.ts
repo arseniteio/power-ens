@@ -33,7 +33,7 @@ const comprueba = (n: string, c: boolean, d: unknown = '') => {
 const h = installReactHarness();
 const React = require('react');
 const { readFileSync, readdirSync } = require('fs');
-const { conPartes, motivoCompuesto, partesDe } = require('../common/ens/core/policy-runtime/policies/policy-kit');
+const { withReasonParts, compositeReason, reasonPartsOf } = require('../common/ens/core/policy-runtime/policies/policy-kit');
 const { markPolicyRuntimeStale } = require('../common/ens/core/evidence/stale-collector');
 const { markPolicyRuntimeUnmatchedScope } = require('../common/ens/core/scope/measurement-planes');
 const { consolidateAgentComplianceResultByControl } = require('../common/ens/core/compliance-state/consolidation');
@@ -50,7 +50,7 @@ const propias = [
   { id: 'EV-11', medida: { estado: 'NO_CUMPLE', motivo: 'Faltan scripts de respuesta en op.exp.6.1.' } },
 ];
 const decision = (req: string) =>
-  conPartes({ policyId: 'policy.op.exp.6', requirementId: req, status: 'NO_CUMPLE', parameterIds: [], evidenceIds: ['EV-11'], eventIds: [], runtimeVariables: [], trace: { ruleId: req, ruleType: 'x', expression: '', expected: '', actual: '', result: false }, reason: motivoCompuesto(propias) }, partesDe(propias));
+  withReasonParts({ policyId: 'policy.op.exp.6', requirementId: req, status: 'NO_CUMPLE', parameterIds: [], evidenceIds: ['EV-11'], eventIds: [], runtimeVariables: [], trace: { ruleId: req, ruleType: 'x', expression: '', expected: '', actual: '', result: false }, reason: compositeReason(propias) }, reasonPartsOf(propias));
 const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último latido de op.exp.6 en esta máquina tiene más de 24 h y lo que envió entonces no demuestra su estado a fecha de la evaluación.';
 
 (async () => {
@@ -72,7 +72,7 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
     const estado = getENSComplianceState('BAJO', [], undefined, scope, new Date('2026-10-17T12:00:00Z'));
     const agentes = estado.agents.map((a: any) => ({
       ...a,
-      results: a.results.map((r: any) => (r.control.id === 'op.exp.6' && r.policyRuntime ? { ...r, policyRuntime: { ...r.policyRuntime, decisions: r.policyRuntime.decisions.map((d: any) => conPartes(d, partesDe(propias))) } } : r)),
+      results: a.results.map((r: any) => (r.control.id === 'op.exp.6' && r.policyRuntime ? { ...r, policyRuntime: { ...r.policyRuntime, decisions: r.policyRuntime.decisions.map((d: any) => withReasonParts(d, reasonPartsOf(propias))) } } : r)),
     }));
     const conPartesAntes = agentes.flatMap((a: any) => a.results.filter((r: any) => r.control.id === 'op.exp.6').flatMap((r: any) => r.policyRuntime?.decisions || [])).filter((d: any) => d.reasonParts).length;
     const consolidado = consolidateAgentComplianceResultByControl(agentes, 'op.exp.6');
@@ -80,10 +80,10 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
   }
 
   console.log('2. El analizador solo acepta partes que son el texto');
-  const viejas = { reason: STALE, parts: partesDe(propias) };
+  const viejas = { reason: STALE, parts: reasonPartsOf(propias) };
   const m = parseMotive(`${PUENTE('op.exp.6.2')}${STALE}`, [viejas]);
   comprueba('partes que no rebuildean el texto: se ignoran (no estructurado) y el texto vuelve exacto', !m.structured && motiveToText(m) === `${PUENTE('op.exp.6.2')}${STALE}` && m.parts.length === 1 && !m.parts[0].evidenceId, m.parts.map((p: any) => p.evidenceId));
-  const buenas = parseMotive(`${PUENTE('op.exp.6.1')}${motivoCompuesto(propias)}`, [{ reason: motivoCompuesto(propias), parts: partesDe(propias) }]);
+  const buenas = parseMotive(`${PUENTE('op.exp.6.1')}${compositeReason(propias)}`, [{ reason: compositeReason(propias), parts: reasonPartsOf(propias) }]);
   comprueba('partes que sí son el texto: estructurado', buenas.structured && buenas.parts.length === 2);
   const item = { id: 'NC-2', requirement: 'op.exp.6.2', origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', finding: STALE, impact: 'Cuenta.', requiredAction: 'Restablecer la RECOGIDA.', parameterIds: [], evidenceIds: ['EV-11'] };
   const pantalla = await h.render(() => React.createElement(NonConformityCard, {
@@ -140,8 +140,8 @@ const STALE = 'Sin datos del recolector desde 2026-10-15 12:47 UTC: el último l
     }
     comprueba('20.000 textos al azar con las piezas de la gramática: todos vuelven exactos', malos === 0, { malos, ejemplo });
     comprueba('« Además: x» con el espacio al principio no pierde el espacio', motiveToText(parseMotive('EV-01 CUMPLE:  Además: x')) === 'EV-01 CUMPLE:  Además: x');
-    const conEspacio = partesDe([{ id: 'EV-01', medida: { estado: 'CUMPLE', motivo: ' Además: x' } }]);
-    comprueba('partesDe tampoco parte ahí', conEspacio[0].text === ' Además: x' && conEspacio[0].secondary === undefined);
+    const conEspacio = reasonPartsOf([{ id: 'EV-01', medida: { estado: 'CUMPLE', motivo: ' Además: x' } }]);
+    comprueba('reasonPartsOf tampoco parte ahí', conEspacio[0].text === ' Además: x' && conEspacio[0].secondary === undefined);
   }
 
   console.log(fallos.length ? `\n${fallos.length} FALLOS` : '\nTODO OK');

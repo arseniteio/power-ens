@@ -50,7 +50,7 @@
 // Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
 // ciclo del TDZ de Settings.
 // El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -1335,7 +1335,7 @@ type Tipo = ENSPolicyDecision['trace']['ruleType'];
 // Con qué evidencias se mide cada requisito. Son las del catálogo (una prueba
 // lo comprueba); en cada nivel cuentan solo las que aplican (EV-06, la copia
 // separada, solo en ALTO).
-export const MP_INFO_6_REQUISITOS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
+export const MP_INFO_6_REQUIREMENTS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
   'mp.info.6.1': { evidencias: ['EV-01', 'EV-02', 'EV-07'], parametros: ['P-01', 'P-02', 'P-03', 'P-04', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   'mp.info.6.2.a': { evidencias: ['EV-01', 'EV-02'], parametros: ['P-01', 'P-02'], tipo: 'MAX_AGE' },
   'mp.info.6.2.b': { evidencias: ['EV-03', 'EV-07'], parametros: ['P-03'], tipo: 'MIN_RETENTION' },
@@ -1418,7 +1418,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const requisitoDecisions: ENSPolicyDecision[] = [];
   const evidenciaDecisions: ENSPolicyDecision[] = [];
 
-  Object.entries(MP_INFO_6_REQUISITOS).forEach(([requisito, definicion]) => {
+  Object.entries(MP_INFO_6_REQUIREMENTS).forEach(([requisito, definicion]) => {
     const propias = definicion.evidencias
       .filter(id => aplican.has(id))
       .map(id => ({ id, medida: medidas[id] }));
@@ -1445,17 +1445,17 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
 
     // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
     requisitoDecisions.push(
-      conPartes(decide(
+      withReasonParts(decide(
         requisito,
         estado,
         responsables.map(p => p.id),
         definicion.parametros,
         definicion.tipo,
         requisito,
-        motivoCompuesto(propias),
+        compositeReason(propias),
         propias.map(p => `${p.id} CUMPLE`).join(' y '),
         causaComun(responsables.map(p => p.medida))
-      ), partesDe(propias))
+      ), reasonPartsOf(propias))
     );
 
     // Y una por evidencia, con SU estado: es la que lleva la medida a la tabla

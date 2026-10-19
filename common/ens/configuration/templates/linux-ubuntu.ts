@@ -27,25 +27,25 @@ const SUID_UBUNTU = [
 ];
 
 // `OPACC2_RUTAS_CRITICAS` de `op.acc.2-access-requirements/etc/opacc2.env.example`.
-export const RUTAS_CRITICAS_LINUX = [
+export const LINUX_CRITICAL_PATHS = [
   '/etc/passwd', '/etc/shadow', '/etc/group', '/etc/gshadow', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/ssh/sshd_config', '/etc/crontab', '/etc/cron.d',
   '/etc/login.defs',
 ];
 
-export const RUTAS_CONFIGURACION_SEGURIDAD_LINUX = [
+export const LINUX_SECURITY_CONFIGURATION_PATHS = [
   '/etc/ssh', '/etc/pam.d', '/etc/security', '/etc/login.defs', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/audit', '/var/ossec/etc/ossec.conf',
   '/etc/sysctl.conf', '/etc/sysctl.d', '/etc/apparmor', '/etc/apparmor.d',
   '/etc/nftables.conf', '/etc/ufw', '/etc/iptables',
 ];
 
-export const EVENTOS_AUDITABLES_LINUX = [
+export const LINUX_AUDITABLE_EVENTS = [
   'autenticación | sshd, sudo, auditd | 3',
   'cambios de configuración | auditd | 5',
 ];
 
-export const CAMPOS_REGISTRO_AUDITD = 'auditd | auid | msg=audit(...) | exe, name | type | success, res';
+export const AUDITD_RECORD_FIELDS = 'auditd | auid | msg=audit(...) | exe, name | type | success, res';
 
 export const linuxUbuntuTemplate: ENSPlatformSource = {
   id: 'linux-ubuntu',
@@ -66,7 +66,7 @@ export const linuxUbuntuTemplate: ENSPlatformSource = {
       'P-11': ['sudo', 'wheel', 'admin'],
     },
     'op.acc.2': {
-      'P-02': RUTAS_CRITICAS_LINUX,
+      'P-02': LINUX_CRITICAL_PATHS,
       'P-10': SUID_UBUNTU,
       'P-11': ['/tmp', '/var/tmp', '/dev/shm'],
       'P-12': ['sudo', 'wheel', 'admin', 'adm', 'root'],
@@ -108,7 +108,7 @@ export const linuxUbuntuTemplate: ENSPlatformSource = {
         'libpam-pwquality', 'chrony', 'clamav', 'clamav-daemon',
         'clamav-freshclam', 'clamdscan',
       ],
-      'P-04': RUTAS_CONFIGURACION_SEGURIDAD_LINUX,
+      'P-04': LINUX_SECURITY_CONFIGURATION_PATHS,
     },
     'op.exp.4': {
       'P-03': [
@@ -124,8 +124,8 @@ export const linuxUbuntuTemplate: ENSPlatformSource = {
       'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin', '* | /etc', '* | /lib/modules'],
     },
     'op.exp.8': {
-      'P-01': EVENTOS_AUDITABLES_LINUX,
-      'P-03': [CAMPOS_REGISTRO_AUDITD],
+      'P-01': LINUX_AUDITABLE_EVENTS,
+      'P-03': [AUDITD_RECORD_FIELDS],
       'P-08': ['root | total | todos', 'syslog | escritura | registros del sistema'],
     },
     'op.exp.10': {

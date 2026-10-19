@@ -52,9 +52,9 @@ import type { ENSAgentComplianceState } from '../common/ens/core/compliance-stat
 import { getEvidenceDefinitions } from '../common/ens/core/evidence/registry';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 import {
-  describirAlcance,
-  etiquetaDeMaquinas,
-  resumirMotivos,
+  describeScope,
+  machinesLabel,
+  summarizeMotives,
 } from '../public/ens/controls/control-detail/general-view';
 
 // El repo no tiene @types/node y no va a tenerlos.
@@ -667,7 +667,7 @@ bloque('5 · lo que la pantalla recorta, lo dice');
     grupo('motivo-e', 1),
   ];
 
-  const resumen = resumirMotivos(cinco);
+  const resumen = summarizeMotives(cinco);
 
   comprueba(
     'con cinco motivos se enseñan tres y se cuentan los dos que faltan',
@@ -684,7 +684,7 @@ bloque('5 · lo que la pantalla recorta, lo dice');
 
   // REVERSIÓN, moviendo solo cuántos motivos hay: con tres no se oculta nada, y
   // la pantalla no puede anunciar un «y N más» que no existe.
-  const tres = resumirMotivos(cinco.slice(0, 3));
+  const tres = summarizeMotives(cinco.slice(0, 3));
 
   comprueba(
     'reversión · con tres motivos no se oculta ninguno',
@@ -696,38 +696,38 @@ bloque('5 · lo que la pantalla recorta, lo dice');
   // máquina que se comporta de otra manera y hay que ir a buscarla.
   comprueba(
     'siete de siete se marcan como «todas»',
-    (describirAlcance(MAQUINAS.slice(0, 7), 7) || '').includes('(todas)'),
-    describirAlcance(MAQUINAS.slice(0, 7), 7)
+    (describeScope(MAQUINAS.slice(0, 7), 7) || '').includes('(todas)'),
+    describeScope(MAQUINAS.slice(0, 7), 7)
   );
 
   comprueba(
     'reversión · seis de siete NO se marcan como «todas»',
-    !(describirAlcance(MAQUINAS.slice(0, 6), 7) || '').includes('(todas)'),
-    describirAlcance(MAQUINAS.slice(0, 6), 7)
+    !(describeScope(MAQUINAS.slice(0, 6), 7) || '').includes('(todas)'),
+    describeScope(MAQUINAS.slice(0, 6), 7)
   );
 
   comprueba(
     'a partir de la quinta máquina se cuentan en vez de nombrarlas',
-    (describirAlcance(MAQUINAS.slice(0, 7), 7) || '').includes('y 3 más'),
-    describirAlcance(MAQUINAS.slice(0, 7), 7)
+    (describeScope(MAQUINAS.slice(0, 7), 7) || '').includes('y 3 más'),
+    describeScope(MAQUINAS.slice(0, 7), 7)
   );
 
   comprueba(
     'reversión · cuatro máquinas se nombran todas, sin «y N más»',
-    !(describirAlcance(MAQUINAS.slice(0, 4), 7) || '').includes('más'),
-    describirAlcance(MAQUINAS.slice(0, 4), 7)
+    !(describeScope(MAQUINAS.slice(0, 4), 7) || '').includes('más'),
+    describeScope(MAQUINAS.slice(0, 4), 7)
   );
 
   comprueba(
     'una sola máquina se nombra, no se cuenta',
-    etiquetaDeMaquinas(MAQUINAS.slice(0, 1), 7) === 'CLIENTE-01 (021)',
-    etiquetaDeMaquinas(MAQUINAS.slice(0, 1), 7)
+    machinesLabel(MAQUINAS.slice(0, 1), 7) === 'CLIENTE-01 (021)',
+    machinesLabel(MAQUINAS.slice(0, 1), 7)
   );
 
   comprueba(
     'sin máquinas no hay alcance que describir (lo del catálogo)',
-    describirAlcance([], 7) === undefined,
-    String(describirAlcance([], 7))
+    describeScope([], 7) === undefined,
+    String(describeScope([], 7))
   );
 }
 

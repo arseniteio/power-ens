@@ -28,10 +28,10 @@ import type { ENSObservationGroup } from '../../../../common/ens/core/evaluation
 // Cuánto se enseña de la vista general y cómo se nombran las máquinas. Es
 // lógica pura y vive aparte para poder comprobarla sin `react` ni `@elastic/eui`.
 import {
-  describirAlcance,
-  etiquetaDeMaquinas,
-  etiquetaDeRequisitoQueCumple,
-  resumirMotivos,
+  describeScope,
+  machinesLabel,
+  compliantRequirementLabel,
+  summarizeMotives,
 } from './general-view';
 import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
@@ -42,7 +42,7 @@ import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-
 import type { MotiveViewHandlers } from './motive-view';
 import { describeParameterForMachine } from '../parameter-origins';
 import { statusBadgeColor } from '../../status-colors';
-import type { MotivoLinea } from './motive-cell';
+import type { MotiveLine } from './motive-cell';
 import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
 import type { ENSControlEvaluationResponse } from '../../../../common/ens/evaluation/types';
 import { traceabilityPageSource } from '../../../evaluation/traceability-paging';
@@ -385,8 +385,8 @@ export const ControlDetailENS = ({
   // en la tabla de evidencias. En la tarjeta era donde más falta hacía, porque
   // sin él todas decían lo mismo —«el requisito X se ha medido y no conforma»—
   // y ninguna decía QUÉ pasa en la máquina.
-  const motivosDeEvidencias = (evidenceIds: string[]): MotivoLinea[] => {
-    const lineas: MotivoLinea[] = [];
+  const motivosDeEvidencias = (evidenceIds: string[]): MotiveLine[] => {
+    const lineas: MotiveLine[] = [];
 
     evidenceIds.forEach(evidenceId => {
       const evidencia = buscarEvidencia(evidenceId);
@@ -399,12 +399,12 @@ export const ControlDetailENS = ({
 
       if (grupos.length > 0) {
         // Vista general: un motivo por texto distinto, con las máquinas
-        // delante. El corte lo decide `resumirMotivos`, igual que en la tabla.
-        resumirMotivos(grupos).visibles.forEach(grupo => {
+        // delante. El corte lo decide `summarizeMotives`, igual que en la tabla.
+        summarizeMotives(grupos).visibles.forEach(grupo => {
           lineas.push({
             texto: grupo.text,
             etiqueta: grupo.agents.length
-              ? `${evidenceId} · ${etiquetaDeMaquinas(
+              ? `${evidenceId} · ${machinesLabel(
                   grupo.agents,
                   totalMaquinas,
                 )}`
@@ -1270,7 +1270,7 @@ export const ControlDetailENS = ({
                               midió de lo que se declaró. */}
                           {cumple ? (
                             <EuiText size='xs' color='subdued'>
-                              {etiquetaDeRequisitoQueCumple(requisito)}
+                              {compliantRequirementLabel(requisito)}
                             </EuiText>
                           ) : culpables.length ? (
                             <EuiFlexGroup
@@ -1536,7 +1536,7 @@ export const ControlDetailENS = ({
                   );
                 }
 
-                const { visibles, ocultos } = resumirMotivos(motivos);
+                const { visibles, ocultos } = summarizeMotives(motivos);
 
                 return (
                   <MotiveCell
@@ -1545,7 +1545,7 @@ export const ControlDetailENS = ({
                     // una sola, se la nombra.
                     lineas={visibles.map(grupo => ({
                       texto: grupo.text,
-                      etiqueta: etiquetaDeMaquinas(
+                      etiqueta: machinesLabel(
                         grupo.agents,
                         totalMaquinas
                       ),
@@ -1781,7 +1781,7 @@ export const ControlDetailENS = ({
                   // en la máquina— y el veredicto del motor detrás: `MotiveCell`
                   // enseña la primera línea y pliega el resto, así que la que se
                   // ve es la que informa.
-                  const lineasMotivo: MotivoLinea[] = [
+                  const lineasMotivo: MotiveLine[] = [
                     ...motivosDeEvidencias(nonConformity.evidenceIds),
                     ...(nonConformity.finding
                       ? [
@@ -1795,7 +1795,7 @@ export const ControlDetailENS = ({
 
                   const criticidad = criticidadDe(nonConformity.evidenceIds);
 
-                  const alcance = describirAlcance(
+                  const alcance = describeScope(
                     nonConformity.agents,
                     totalMaquinas,
                   );

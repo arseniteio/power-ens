@@ -48,7 +48,7 @@
 // Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
 // ciclo del TDZ de Settings.
 // El motivo compuesto, en texto y por partes (`reasonParts`).
-import { conPartes, motivoCompuesto, partesDe } from './policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,
@@ -59,30 +59,30 @@ import type {
 import { toParameterListItems } from '../../../configuration/services/parameter-value-validator';
 // Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
-  DIA,
-  cumple,
-  noCumple,
-  sinMedir,
-  causaComun,
-  peor,
-  combina,
-  numero,
-  lista,
-  dias,
-  sinTildes,
-  vacio,
-  parametro,
-  etiqueta,
-  filas,
-  faltaParametro,
-  decisorDe,
+  DAY_MS,
+  compliant,
+  nonCompliant,
+  notMeasured,
+  commonGapCause,
+  worstStatus,
+  combineMeasurements,
+  parseNumber,
+  formatList,
+  wholeDays,
+  stripAccents,
+  isEmptyField,
+  findParameter,
+  parameterDisplayName,
+  tableParameterRows,
+  missingParameter,
+  decisionBuilderFor,
 } from './policy-kit';
-import type { ENSTipoDeRegla, Medida } from './policy-kit';
+import type { ENSDecisionRuleType, Measurement } from './policy-kit';
 
 const CONTROL = 'op.cont.2';
 const POLICY = 'policy.op.cont.2';
 
-const decide = decisorDe(POLICY);
+const decide = decisionBuilderFor(POLICY);
 
 // --- fechas declaradas -----------------------------------------------------
 //
@@ -120,12 +120,12 @@ const masMeses = (t: number, meses: number): number => {
 const dia = (t: number): string => new Date(t).toISOString().slice(0, 10);
 
 // Una fecha «hasta» vale todo ese día: vence al empezar el siguiente.
-const vencida = (hasta: number, ahora: number): boolean => ahora >= hasta + DIA;
+const vencida = (hasta: number, ahora: number): boolean => ahora >= hasta + DAY_MS;
 
 // Días que quedan hasta el final del día «hasta», o que han pasado desde que
 // venció.
-const diasHasta = (hasta: number, ahora: number): number => dias(hasta + DIA - ahora);
-const diasDesde = (hasta: number, ahora: number): number => dias(ahora - (hasta + DIA));
+const diasHasta = (hasta: number, ahora: number): number => wholeDays(hasta + DAY_MS - ahora);
+const diasDesde = (hasta: number, ahora: number): number => wholeDays(ahora - (hasta + DAY_MS));
 
 // --- duraciones de P-02 ------------------------------------------------------
 //
@@ -133,38 +133,38 @@ const diasDesde = (hasta: number, ahora: number): number => dias(ahora - (hasta 
 // «cuanto antes» o «4» no es un objetivo que se pueda contrastar con nada.
 const DURACION = /^\d+([.,]\d+)?\s*(min|mins|minuto|minutos|h|hora|horas|d|dia|dias)$/;
 
-const esDuracion = (texto: string): boolean => DURACION.test(sinTildes(String(texto).trim()));
+const esDuracion = (texto: string): boolean => DURACION.test(stripAccents(String(texto).trim()));
 
 // --- personas ----------------------------------------------------------------
 //
 // P-03 y P-05 nombran a las mismas personas a mano: se comparan sin mayúsculas,
 // sin tildes y sin espacios de más, y nunca por parecido.
-const persona = (texto: string): string => sinTildes(String(texto)).replace(/\s+/g, ' ').trim();
+const persona = (texto: string): string => stripAccents(String(texto)).replace(/\s+/g, ' ').trim();
 
 const fila = (n: number): string => `fila ${n + 1}`;
 
 // --- EV-01 · el plan y su vigencia -------------------------------------------
 
 // Lo que sabe el informe del plan, además de la medida.
-type Plan = { medida: Medida; vence?: number };
+type Plan = { medida: Measurement; vence?: number };
 
 const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
-  const planes = filas(context, 'P-01');
+  const planes = tableParameterRows(context, 'P-01');
 
   if (!planes) {
-    return { medida: faltaParametro(context, 'P-01', 'qué plan de continuidad está aprobado') };
+    return { medida: missingParameter(context, 'P-01', 'qué plan de continuidad está aprobado') };
   }
 
-  const valor = parametro(context, 'P-08')?.value;
-  const meses = valor === undefined || valor === null || Array.isArray(valor) ? undefined : numero(String(valor));
+  const valor = findParameter(context, 'P-08')?.value;
+  const meses = valor === undefined || valor === null || Array.isArray(valor) ? undefined : parseNumber(String(valor));
 
   if (meses === undefined || meses <= 0) {
-    return { medida: faltaParametro(context, 'P-08', 'la vigencia del plan (cada cuántos meses se revisa)') };
+    return { medida: missingParameter(context, 'P-08', 'la vigencia del plan (cada cuántos meses se revisa)') };
   }
 
   if (!Number.isInteger(meses)) {
     return {
-      medida: sinMedir(`${etiqueta(context, 'P-08')} vale ${valor}: tiene que ser un número entero de meses.`, 'CONFIGURATION'),
+      medida: notMeasured(`${parameterDisplayName(context, 'P-08')} vale ${valor}: tiene que ser un número entero de meses.`, 'CONFIGURATION'),
     };
   }
 
@@ -173,7 +173,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
   const leidas: { referencia: string; version: string; aprobado: number; por: string }[] = [];
 
   planes.forEach((p, i) => {
-    if (vacio(p.referencia) || vacio(p.version) || vacio(p.fecha_de_aprobacion)) {
+    if (isEmptyField(p.referencia) || isEmptyField(p.version) || isEmptyField(p.fecha_de_aprobacion)) {
       incompletas.push(`${fila(i)} (${p.referencia || 'sin referencia'})`);
       return;
     }
@@ -190,10 +190,10 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
 
   if (incompletas.length || ilegibles.length) {
     return {
-      medida: sinMedir(
+      medida: notMeasured(
         [
-          incompletas.length ? `P-01 tiene filas sin referencia, versión o fecha de aprobación: ${lista(incompletas)}.` : '',
-          ilegibles.length ? `P-01 tiene fechas de aprobación que no son una fecha AAAA-MM-DD: ${lista(ilegibles)}.` : '',
+          incompletas.length ? `P-01 tiene filas sin referencia, versión o fecha de aprobación: ${formatList(incompletas)}.` : '',
+          ilegibles.length ? `P-01 tiene fechas de aprobación que no son una fecha AAAA-MM-DD: ${formatList(ilegibles)}.` : '',
           'Sin la fecha de aprobación de cada versión no se puede medir la vigencia del plan.',
         ]
           .filter(Boolean)
@@ -210,7 +210,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
 
   if (!aprobadas.length) {
     return {
-      medida: sinMedir(
+      medida: notMeasured(
         `Ninguna versión de P-01 estaba aprobada el ${dia(ahora)}: la primera es de ${dia(Math.min(...leidas.map(p => p.aprobado)))}.`,
         'CONFIGURATION'
       ),
@@ -224,7 +224,7 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
 
   if (vencida(vence, ahora)) {
     return {
-      medida: noCumple(
+      medida: nonCompliant(
         `El plan ${plan}, tenía que revisarse cada ${meses} meses (P-08): venció el ${dia(vence)}, hace ${diasDesde(vence, ahora)} días. Un plan sin revisar no acredita sus contenidos.`
       ),
       vence,
@@ -232,52 +232,52 @@ const ev01 = (context: ENSPolicyContext, ahora: number): Plan => {
   }
 
   return {
-    medida: cumple(`Plan ${plan}: vigente hasta el ${dia(vence)} (quedan ${diasHasta(vence, ahora)} días) con una revisión cada ${meses} meses.`),
+    medida: compliant(`Plan ${plan}: vigente hasta el ${dia(vence)} (quedan ${diasHasta(vence, ahora)} días) con una revisión cada ${meses} meses.`),
     vence,
   };
 };
 
 // --- op.cont.2.1 · funciones del plan (P-03) ---------------------------------
 
-const funciones = (context: ENSPolicyContext): Medida => {
-  const filasP03 = filas(context, 'P-03');
+const funciones = (context: ENSPolicyContext): Measurement => {
+  const filasP03 = tableParameterRows(context, 'P-03');
 
   if (!filasP03) {
-    return faltaParametro(context, 'P-03', 'qué funciones, responsables y actividades identifica el plan');
+    return missingParameter(context, 'P-03', 'qué funciones, responsables y actividades identifica el plan');
   }
 
   const incompletas = filasP03
     .map((f, i) => ({ f, i }))
-    .filter(({ f }) => vacio(f.funcion) || vacio(f.responsable) || vacio(f.actividades));
+    .filter(({ f }) => isEmptyField(f.funcion) || isEmptyField(f.responsable) || isEmptyField(f.actividades));
 
   if (incompletas.length) {
-    return sinMedir(
-      `P-03 tiene funciones sin responsable o sin actividades: ${lista(incompletas.map(({ f, i }) => `${fila(i)} (${f.funcion || 'sin función'})`))}. op.cont.2.1 pide identificar las tres cosas.`,
+    return notMeasured(
+      `P-03 tiene funciones sin responsable o sin actividades: ${formatList(incompletas.map(({ f, i }) => `${fila(i)} (${f.funcion || 'sin función'})`))}. op.cont.2.1 pide identificar las tres cosas.`,
       'CONFIGURATION'
     );
   }
 
-  return cumple(
-    `P-03 identifica ${filasP03.length} función(es), cada una con su responsable y sus actividades: ${lista(
-      filasP03.map(f => `${f.funcion} → ${f.responsable}${vacio(f.suplente) ? '' : ` (suplente ${f.suplente})`}`)
+  return compliant(
+    `P-03 identifica ${filasP03.length} función(es), cada una con su responsable y sus actividades: ${formatList(
+      filasP03.map(f => `${f.funcion} → ${f.responsable}${isEmptyField(f.suplente) ? '' : ` (suplente ${f.suplente})`}`)
     )}.`
   );
 };
 
 // --- op.cont.2.2 · servicios esenciales y objetivos (P-02) ---------------------
 
-const servicios = (context: ENSPolicyContext): Medida => {
-  const filasP02 = filas(context, 'P-02');
+const servicios = (context: ENSPolicyContext): Measurement => {
+  const filasP02 = tableParameterRows(context, 'P-02');
 
   if (!filasP02) {
-    return faltaParametro(context, 'P-02', 'qué servicios esenciales tiene que garantizar la previsión ni con qué objetivos de recuperación');
+    return missingParameter(context, 'P-02', 'qué servicios esenciales tiene que garantizar la previsión ni con qué objetivos de recuperación');
   }
 
   const incompletas: string[] = [];
   const ilegibles: string[] = [];
 
   filasP02.forEach((f, i) => {
-    if (vacio(f.servicio) || vacio(f.rto) || vacio(f.rpo)) {
+    if (isEmptyField(f.servicio) || isEmptyField(f.rto) || isEmptyField(f.rpo)) {
       incompletas.push(`${fila(i)} (${f.servicio || 'sin servicio'})`);
       return;
     }
@@ -290,11 +290,11 @@ const servicios = (context: ENSPolicyContext): Medida => {
   });
 
   if (incompletas.length || ilegibles.length) {
-    return sinMedir(
+    return notMeasured(
       [
-        incompletas.length ? `P-02 tiene servicios esenciales sin RTO o sin RPO: ${lista(incompletas)}.` : '',
+        incompletas.length ? `P-02 tiene servicios esenciales sin RTO o sin RPO: ${formatList(incompletas)}.` : '',
         ilegibles.length
-          ? `P-02 tiene objetivos de recuperación que no son una duración (un número y su unidad: 30 min, 4 h, 2 d): ${lista(ilegibles)}.`
+          ? `P-02 tiene objetivos de recuperación que no son una duración (un número y su unidad: 30 min, 4 h, 2 d): ${formatList(ilegibles)}.`
           : '',
       ]
         .filter(Boolean)
@@ -303,8 +303,8 @@ const servicios = (context: ENSPolicyContext): Medida => {
     );
   }
 
-  return cumple(
-    `P-02 declara ${filasP02.length} servicio(s) esencial(es) con sus objetivos de recuperación: ${lista(
+  return compliant(
+    `P-02 declara ${filasP02.length} servicio(s) esencial(es) con sus objetivos de recuperación: ${formatList(
       filasP02.map(f => `${f.servicio} (RTO ${f.rto}, RPO ${f.rpo})`)
     )}.`
   );
@@ -312,11 +312,11 @@ const servicios = (context: ENSPolicyContext): Medida => {
 
 // --- EV-04 · contratos de los medios alternativos (P-04) ---------------------
 
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const medios = filas(context, 'P-04');
+const ev04 = (context: ENSPolicyContext, ahora: number): Measurement => {
+  const medios = tableParameterRows(context, 'P-04');
 
   if (!medios) {
-    return faltaParametro(context, 'P-04', 'qué medios alternativos hay ni con qué contrato');
+    return missingParameter(context, 'P-04', 'qué medios alternativos hay ni con qué contrato');
   }
 
   const sinContrato: string[] = [];
@@ -329,17 +329,17 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
   medios.forEach((m, i) => {
     const nombre = m.medio;
 
-    if (vacio(m.medio)) {
+    if (isEmptyField(m.medio)) {
       ilegibles.push(`${fila(i)}: sin nombre del medio`);
       return;
     }
 
-    if (vacio(m.contrato)) {
+    if (isEmptyField(m.contrato)) {
       sinContrato.push(nombre);
       return;
     }
 
-    if (vacio(m.vigencia)) {
+    if (isEmptyField(m.vigencia)) {
       ilegibles.push(`${nombre} (${m.contrato}): sin fecha de vigencia`);
       return;
     }
@@ -359,34 +359,34 @@ const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
     enVigor.push(`${nombre} → ${m.contrato}${m.proveedor ? ` con ${m.proveedor}` : ''}, hasta el ${dia(hasta)} (quedan ${diasHasta(hasta, ahora)} días)`);
   });
 
-  const partes: Medida[] = [];
+  const partes: Measurement[] = [];
 
   if (sinContrato.length) {
-    partes.push(noCumple(`Medios alternativos sin acuerdo ni contrato: ${lista(sinContrato)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
+    partes.push(nonCompliant(`Medios alternativos sin acuerdo ni contrato: ${formatList(sinContrato)}. op.cont.2.3 exige que TODOS estén materializados en uno.`));
   }
 
   if (vencidos.length) {
-    partes.push(noCumple(`Contratos de medios alternativos vencidos: ${lista(vencidos)}.`));
+    partes.push(nonCompliant(`Contratos de medios alternativos vencidos: ${formatList(vencidos)}.`));
   }
 
   if (ilegibles.length) {
-    partes.push(sinMedir(`P-04 no permite afirmar que estén en vigor: ${lista(ilegibles)}.`, 'CONFIGURATION'));
+    partes.push(notMeasured(`P-04 no permite afirmar que estén en vigor: ${formatList(ilegibles)}.`, 'CONFIGURATION'));
   }
 
   if (enVigor.length) {
-    partes.push(cumple(`Medios alternativos con contrato en vigor: ${lista(enVigor)}.`));
+    partes.push(compliant(`Medios alternativos con contrato en vigor: ${formatList(enVigor)}.`));
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- EV-06 · formación de las personas del plan (P-03 contra P-05) -----------
 
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const filasP03 = filas(context, 'P-03');
+const ev06 = (context: ENSPolicyContext, ahora: number): Measurement => {
+  const filasP03 = tableParameterRows(context, 'P-03');
 
   if (!filasP03) {
-    return faltaParametro(context, 'P-03', 'quién tiene función en el plan y, por tanto, quién tiene que estar formado');
+    return missingParameter(context, 'P-03', 'quién tiene función en el plan y, por tanto, quién tiene que estar formado');
   }
 
   // Cada persona una vez, con el nombre como se escribió la primera vez.
@@ -394,20 +394,20 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   filasP03.forEach(f =>
     [f.responsable, f.suplente].forEach(nombre => {
-      if (!vacio(nombre) && !personas.has(persona(nombre))) {
+      if (!isEmptyField(nombre) && !personas.has(persona(nombre))) {
         personas.set(persona(nombre), nombre);
       }
     })
   );
 
   if (!personas.size) {
-    return sinMedir('P-03 no nombra a ninguna persona (responsable o suplente): no se sabe quién tiene que estar formado.', 'CONFIGURATION');
+    return notMeasured('P-03 no nombra a ninguna persona (responsable o suplente): no se sabe quién tiene que estar formado.', 'CONFIGURATION');
   }
 
-  const formacion = filas(context, 'P-05');
+  const formacion = tableParameterRows(context, 'P-05');
 
   if (!formacion) {
-    return faltaParametro(context, 'P-05', 'qué formación ha recibido cada persona del plan');
+    return missingParameter(context, 'P-05', 'qué formación ha recibido cada persona del plan');
   }
 
   // Las filas que no se pueden leer se guardan con su persona: una fila ilegible
@@ -420,7 +420,7 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
 
   formacion.forEach((f, i) => {
     const sinLeer = (motivo: string): void => {
-      if (vacio(f.persona)) {
+      if (isEmptyField(f.persona)) {
         sinLeerSinPersona.push(`${fila(i)}: ${motivo}`);
         return;
       }
@@ -430,15 +430,15 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
       sinLeerPorPersona.set(clave, [...(sinLeerPorPersona.get(clave) || []), `${fila(i)} (${f.persona}): ${motivo}`]);
     };
 
-    if (vacio(f.persona) || vacio(f.formacion) || vacio(f.vigencia)) {
+    if (isEmptyField(f.persona) || isEmptyField(f.formacion) || isEmptyField(f.vigencia)) {
       sinLeer('sin persona, formación o vigencia');
       return;
     }
 
     const hasta = fecha(f.vigencia);
-    const desde = vacio(f.fecha) ? undefined : fecha(f.fecha);
+    const desde = isEmptyField(f.fecha) ? undefined : fecha(f.fecha);
 
-    if (hasta === undefined || (!vacio(f.fecha) && desde === undefined)) {
+    if (hasta === undefined || (!isEmptyField(f.fecha) && desde === undefined)) {
       sinLeer(`${hasta === undefined ? `vigencia «${f.vigencia}»` : `fecha «${f.fecha}»`}, que no es una fecha AAAA-MM-DD`);
       return;
     }
@@ -488,19 +488,19 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
     );
   });
 
-  const partes: Medida[] = [];
+  const partes: Measurement[] = [];
 
   if (sinFormacion.length) {
-    partes.push(noCumple(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${lista(sinFormacion)}.`));
+    partes.push(nonCompliant(`Personas con función en el plan (P-03) sin formación registrada en P-05: ${formatList(sinFormacion)}.`));
   }
 
   if (caducadas.length) {
-    partes.push(noCumple(`Personas del plan sin formación vigente: ${lista(caducadas)}.`));
+    partes.push(nonCompliant(`Personas del plan sin formación vigente: ${formatList(caducadas)}.`));
   }
 
   if (sinDemostrar.length) {
     partes.push(
-      sinMedir(`Personas del plan cuya formación vigente no se puede leer en P-05: ${lista(sinDemostrar)}.`, 'CONFIGURATION')
+      notMeasured(`Personas del plan cuya formación vigente no se puede leer en P-05: ${formatList(sinDemostrar)}.`, 'CONFIGURATION')
     );
   }
 
@@ -514,35 +514,35 @@ const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
   ];
 
   if (otras.length) {
-    partes.push(sinMedir(`P-05 tiene filas que no se pueden leer: ${lista(otras)}.`, 'CONFIGURATION'));
+    partes.push(notMeasured(`P-05 tiene filas que no se pueden leer: ${formatList(otras)}.`, 'CONFIGURATION'));
   }
 
   if (formadas.length) {
     const fuera = Array.from(porPersona.keys()).filter(clave => !personas.has(clave));
 
     partes.push(
-      cumple(
-        `Las ${formadas.length} persona(s) del plan con formación vigente: ${lista(formadas)}.${
+      compliant(
+        `Las ${formadas.length} persona(s) del plan con formación vigente: ${formatList(formadas)}.${
           fuera.length ? ` P-05 registra además a ${fuera.length} persona(s) sin función en P-03, que no cuentan.` : ''
         }`
       )
     );
   }
 
-  return combina(partes);
+  return combineMeasurements(partes);
 };
 
 // --- op.cont.2.5 · integración con los demás planes (P-06) -------------------
 
-const integracion = (context: ENSPolicyContext): Medida => {
-  const planes = toParameterListItems(parametro(context, 'P-06')?.value);
+const integracion = (context: ENSPolicyContext): Measurement => {
+  const planes = toParameterListItems(findParameter(context, 'P-06')?.value);
 
   if (!planes.length) {
-    return faltaParametro(context, 'P-06', 'con qué planes de la organización se integra el de continuidad');
+    return missingParameter(context, 'P-06', 'con qué planes de la organización se integra el de continuidad');
   }
 
-  return cumple(
-    `P-06 declara ${planes.length} plan(es) de la organización con los que se integra: ${lista(planes)}. Que la integración sea «armónica» es revisión documental.`
+  return compliant(
+    `P-06 declara ${planes.length} plan(es) de la organización con los que se integra: ${formatList(planes)}. Que la integración sea «armónica» es revisión documental.`
   );
 };
 
@@ -586,7 +586,7 @@ const DATO_DEL_INFORME: Record<string, { requisito: string; parametros: string[]
 // Una declaración no es una medida: el motivo de cada evidencia juzgada lo dice,
 // porque el puente lo lleva a la tabla de evidencias. Lo que no se ha podido
 // juzgar ya dice qué falta.
-const comoDeclaracion = (medida: Medida): string =>
+const comoDeclaracion = (medida: Measurement): string =>
   medida.estado === 'CUMPLE' || medida.estado === 'NO_CUMPLE'
     ? `Declaración de la pantalla, no medida: ${medida.motivo}`
     : medida.motivo;
@@ -595,9 +595,9 @@ type Definicion = {
   requisito: string;
   evidencias: string[];
   parametros: string[];
-  tipo: ENSTipoDeRegla;
+  tipo: ENSDecisionRuleType;
   // La declaración propia del requisito que no es una evidencia (P-03, P-02, P-06).
-  propia?: { etiqueta: string; medir: (context: ENSPolicyContext) => Medida };
+  propia?: { etiqueta: string; medir: (context: ENSPolicyContext) => Measurement };
   esperado: string;
 };
 
@@ -660,13 +660,13 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   }
 
   const plan = ev01(context, ahora);
-  const evidencias: Record<string, Medida> = {
+  const evidencias: Record<string, Measurement> = {
     'EV-01': plan.medida,
     'EV-04': ev04(context, ahora),
     'EV-06': ev06(context, ahora),
   };
   // La declaración propia de cada requisito que la tiene, para el informe.
-  const propias: { requisito: string; parametro: string; medida: Medida }[] = [];
+  const propias: { requisito: string; parametro: string; medida: Measurement }[] = [];
 
   const requisitoDecisions: ENSPolicyDecision[] = [];
   const evidenciaDecisions: ENSPolicyDecision[] = [];
@@ -681,25 +681,25 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       propias.push({ requisito: definicion.requisito, parametro: definicion.propia.etiqueta, medida: partes[partes.length - 1].medida });
     }
 
-    const estado = peor(partes.map(p => p.medida));
+    const estado = worstStatus(partes.map(p => p.medida));
     const responsables = partes.filter(p => p.medida.estado === estado);
 
     // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
     // Si cumple, cumple ACREDITADO DOCUMENTALMENTE: todo lo que la sostiene son
     // declaraciones en vigor.
     requisitoDecisions.push(
-      conPartes(decide(
+      withReasonParts(decide(
         definicion.requisito,
         estado,
         responsables.map(p => p.id).filter(id => id.startsWith('EV-')),
         definicion.parametros,
         definicion.tipo,
         definicion.requisito,
-        motivoCompuesto(partes),
+        compositeReason(partes),
         definicion.esperado,
-        causaComun(responsables.map(p => p.medida)),
+        commonGapCause(responsables.map(p => p.medida)),
         true
-      ), partesDe(partes))
+      ), reasonPartsOf(partes))
     );
 
     // Y una por evidencia, con SU estado y dicho como lo que es.

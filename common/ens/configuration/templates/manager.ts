@@ -1,5 +1,5 @@
 import type { ENSPlatformSource } from './types';
-import { CAMPOS_REGISTRO_AUDITD, EVENTOS_AUDITABLES_LINUX } from './linux-ubuntu';
+import { AUDITD_RECORD_FIELDS, LINUX_AUDITABLE_EVENTS } from './linux-ubuntu';
 
 // Manager de Wazuh (agente 000). En su fila solo se evalúan los controles de
 // plano `manager` (op.exp.7, op.exp.9, op.mon.1, op.mon.2, op.cont.2,
@@ -19,8 +19,8 @@ export const managerWazuhTemplate: ENSPlatformSource = {
   ],
   values: {
     'op.exp.8': {
-      'P-01': EVENTOS_AUDITABLES_LINUX,
-      'P-03': [CAMPOS_REGISTRO_AUDITD],
+      'P-01': LINUX_AUDITABLE_EVENTS,
+      'P-03': [AUDITD_RECORD_FIELDS],
       'P-08': [
         'root | total | todos',
         'syslog | escritura | registros del sistema',

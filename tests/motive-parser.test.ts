@@ -11,8 +11,8 @@
  *   2. NADA SE PIERDE: `motiveToText(parseMotive(t)) === t` en todos, y la
  *      lista y las partes son cortes del texto, no reescrituras.
  *   3. Cada plantilla de motivo de las policies (extraídas del código): sola,
- *      compuesta con otra (`motivoCompuesto`), con el prefijo del puente y el
- *      de máquinas; las partes son las que publica la policy (`partesDe`).
+ *      compuesta con otra (`compositeReason`), con el prefijo del puente y el
+ *      de máquinas; las partes son las que publica la policy (`reasonPartsOf`).
  *   4. Las partes publicadas (`reasonParts`) mandan cuando existen; las
  *      policies compuestas las publican y su texto no cambia.
  *   5. Lo que la tarjeta usa: la parte culpable, el «se pedía» genérico, la
@@ -28,7 +28,7 @@ import {
   parseMotive,
   splitTimestamps,
 } from '../common/ens/evaluation/motive-parser';
-import { conPartes, motivoCompuesto, partesDe } from '../common/ens/core/policy-runtime/policies/policy-kit';
+import { withReasonParts, compositeReason, reasonPartsOf } from '../common/ens/core/policy-runtime/policies/policy-kit';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -137,11 +137,11 @@ console.log('3. Cada plantilla de motivo de las policies');
           k += 1;
         }
         const expr = s.slice(j + 2, k - 1);
-        salida += /lista\(/.test(expr) ? 'srv-a; srv-b; srv-c y 2 más'
-          : /etiqueta\(/.test(expr) ? 'P-02 (nombre_del_parametro)'
+        salida += /lista\(|formatList\(/.test(expr) ? 'srv-a; srv-b; srv-c y 2 más'
+          : /etiqueta\(|parameterDisplayName\(/.test(expr) ? 'P-02 (nombre_del_parametro)'
           : /iso\(/.test(expr) ? '2026-10-17T06:03:34Z'
-          : /horas\(|toFixed/.test(expr) ? '9.0'
-          : /\.length|dias\(|Math\./.test(expr) ? '3'
+          : /horas\(|formatHours\(|toFixed/.test(expr) ? '9.0'
+          : /\.length|dias\(|wholeDays\(|Math\./.test(expr) ? '3'
           : 'valor';
         j = k;
         continue;
@@ -153,7 +153,7 @@ console.log('3. Cada plantilla de motivo de las policies');
   };
   readdirSync(DIR).filter(f => f.endsWith('.ts')).forEach(f => {
     const s = readFileSync(`${DIR}/${f}`, 'utf8');
-    for (const m of s.matchAll(/\b(?:cumple|noCumple|sinMedir|noAplica)\(\s*|motivo: (?=[`'"])/g)) {
+    for (const m of s.matchAll(/\b(?:cumple|noCumple|sinMedir|noAplica|compliant|nonCompliant|notMeasured|notApplicable)\(\s*|motivo: (?=[`'"])/g)) {
       const l = literal(s, m.index! + m[0].length);
       if (l && l.texto.trim()) plantillas.push({ fichero: f, texto: l.texto });
     }
@@ -170,9 +170,9 @@ console.log('3. Cada plantilla de motivo de las policies');
       { id: 'EV-01', medida: { estado: 'NO_EVALUABLE' as const, motivo: p.texto, causa: 'CONFIGURATION' as const } },
       { id: 'EV-11', medida: { estado: 'NO_CUMPLE' as const, motivo: `${otra} Además: ${p.texto}` } },
     ];
-    const texto = `[2 máquinas: srv-a (101), srv-b (102)] ${PUENTE('policy.x', 'op.x.1')}${motivoCompuesto(propias)}`;
+    const texto = `[2 máquinas: srv-a (101), srv-b (102)] ${PUENTE('policy.x', 'op.x.1')}${compositeReason(propias)}`;
     const m = parseMotive(texto);
-    const partes = partesDe(propias);
+    const partes = reasonPartsOf(propias);
     const iguales =
       m.parts.length === 2 &&
       m.parts.every((q, k) => q.evidenceId === partes[k].evidenceId && q.status === partes[k].status && q.text === partes[k].text && (q.secondary ?? undefined) === (partes[k].secondary?.[0] ?? undefined));
@@ -190,22 +190,22 @@ console.log('4. Las partes publicadas');
     { id: 'EV-01', medida: { estado: 'CUMPLE' as const, motivo: 'Bien.' } },
     { id: 'EV-02', medida: { estado: 'NO_CUMPLE' as const, motivo: 'Valor «x | EV-09 CUMPLE: y» raro. Además: otra.' } },
   ];
-  const motivo = motivoCompuesto(propias);
+  const motivo = compositeReason(propias);
   comprueba('el texto compuesto no cambia', motivo === 'EV-01 CUMPLE: Bien. | EV-02 NO_CUMPLE: Valor «x | EV-09 CUMPLE: y» raro. Además: otra.');
-  const partes = partesDe(propias);
+  const partes = reasonPartsOf(propias);
   comprueba('las partes separan «Además»', partes[1].text === 'Valor «x | EV-09 CUMPLE: y» raro.' && partes[1].secondary?.[0] === 'otra.');
   const adivinado = parseMotive(motivo);
   comprueba('sin partes, el texto se parte mal donde un valor imita una cabecera (3 partes)', adivinado.parts.length === 3);
   const publicado = parseMotive(`${PUENTE('p', 'op.x.1')}${motivo}`, [{ reason: motivo, parts: partes }]);
   comprueba('con las partes publicadas: 2 partes exactas, marcadas como estructuradas', publicado.structured && publicado.parts.length === 2 && publicado.parts[1].text === partes[1].text && motiveToText(publicado) === `${PUENTE('p', 'op.x.1')}${motivo}`);
-  const d = conPartes({ reason: motivo } as any, partes);
-  comprueba('conPartes conserva la decisión y añade reasonParts', d.reason === motivo && d.reasonParts === partes);
+  const d = withReasonParts({ reason: motivo } as any, partes);
+  comprueba('withReasonParts conserva la decisión y añade reasonParts', d.reason === motivo && d.reasonParts === partes);
   const DIR = `${__dirname}/../common/ens/core/policy-runtime/policies`;
   const sinPartes = readdirSync(DIR).filter(f => f.endsWith('.policy.ts')).filter(f => {
     const s = readFileSync(`${DIR}/${f}`, 'utf8');
     return /\.map\(p => `\$\{p\.id\} \$\{p\.medida\.estado\}: \$\{p\.medida\.motivo\}`\)\.join\(' \| '\)/.test(s) && !/op-mon-3/.test(f);
   });
-  comprueba('las policies con motivo compuesto lo hacen con motivoCompuesto + partesDe (salvo op.mon.3, que antepone una parte sin evidencia y cubre el analizador)', sinPartes.length === 0, sinPartes);
+  comprueba('las policies con motivo compuesto lo hacen con compositeReason + reasonPartsOf (salvo op.mon.3, que antepone una parte sin evidencia y cubre el analizador)', sinPartes.length === 0, sinPartes);
 }
 
 console.log('5. Lo que usa la tarjeta');
