@@ -37,6 +37,7 @@ import { defaultENSConfigurationTemplate } from '../../../common/ens/configurati
 import { ensConfigurationRepository } from '../../../common/ens/configuration/repository';
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
+import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
@@ -457,8 +458,9 @@ export const createEvaluationService = ({
     const cached = configurations.get('active', stamp);
     if (cached) return cached;
     const stored = await readActiveENSConfiguration(clients.asInternalUser, logger);
+    // A 1.2.0 document is converted once per load, exactly as the browser does on hydration.
     const configuration = stored?.configuration
-      ? assertENSConfigurationVersion(stored.configuration)
+      ? toTemplateModel(assertENSConfigurationVersion(stored.configuration))
       : (defaultENSConfigurationTemplate as ENSConfigurationVersion);
     const entry = {
       configuration,

@@ -15,10 +15,27 @@ import {
   assertENSConfigurationVersion,
 } from './configuration-structure-validator';
 import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
+import {
+  ENSTemplateMigrationPlan,
+  planTemplateMigration,
+} from '../agents/template-migration';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
   | null = null;
+
+// The 1.2.0 -> 1.3.0 conversion done on load: held in memory and written by the next save of any kind.
+let pendingTemplateMigration: ENSTemplateMigrationPlan | undefined;
+
+export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefined =>
+  pendingTemplateMigration;
+
+const commitPersisted = (
+  configuration: ENSConfigurationVersion
+): ENSConfigurationVersion => {
+  pendingTemplateMigration = undefined;
+  return ensConfigurationRepository.commitPersisted(configuration);
+};
 
 export const getENSConfigurationHydrationState =
   (): ENSConfigurationHydrationState =>
@@ -61,8 +78,11 @@ export const hydrateENSConfiguration = (
           serverState.configuration
         );
 
+      const migration = planTemplateMigration(configuration);
+      pendingTemplateMigration = migration.changed ? migration : undefined;
+
       return ensConfigurationRepository.completeHydration(
-        configuration
+        migration.configuration
       );
     } catch (error) {
       ensConfigurationRepository.failHydration(
@@ -177,7 +197,7 @@ export const updateActiveControlConfiguration = async (
     );
   }
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
@@ -229,7 +249,7 @@ export const updateActiveGlobalConfiguration = async (
       serverState.configuration
     );
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
@@ -259,7 +279,7 @@ export const saveActiveENSConfiguration = async (
       serverState.configuration
     );
 
-  return ensConfigurationRepository.commitPersisted(
+  return commitPersisted(
     persistedConfiguration
   );
 };
