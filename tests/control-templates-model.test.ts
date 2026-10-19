@@ -1,8 +1,4 @@
-/**
- * Configuration by control templates (1.3.0): parameter classes, built-in templates, document shape and meaning.
- *
- *   npx --yes tsx tests/control-templates-model.test.ts
- */
+/** Configuration by control templates (1.3.0): parameter classes, built-in templates, document shape. */
 import { readFileSync, readdirSync } from 'fs';
 import {
   ENS_PARAMETER_CLASSES,

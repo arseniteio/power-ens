@@ -1,38 +1,22 @@
-/**
- * El Detalle del control no desaparece (diagnóstico de 17/10, §1):
- *
- *   npx --yes tsx tests/control-detail-states.test.ts
- *
- *   1. «No se mide en esta máquina»: los 14 controles de plano `agent` en el
- *      manager (000) y mp.info.6 fuera de su P-04 dan un motivo; los de solo
- *      manager en otra máquina y los que sí se miden, ninguno.
- *   2. Qué se enseña: lo de ahora; mientras llega o si falla, lo último del
- *      MISMO control rotulado con SU máquina; otro control nunca hereda.
- *   3. La máquina de la URL fuera del alcance; ida y vuelta a Configuración.
- *   4. La pantalla pintada: sin resultado → «no se mide» con sus botones y sin
- *      «todo conforme»; cambio de máquina → el resultado anterior rotulado y la
- *      carga; error → aviso encima del último resultado; error sin nada → aviso.
- *   5. Un fallo al pintar una pestaña se queda en ella, con «Reintentar».
- */
+/** Control Detail never disappears. */
 import { installReactHarness } from './fixtures/react-harness';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
 declare const __dirname: string;
 
-const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => {
+const failures: string[] = [];
+const check = (n: string, c: boolean, d: unknown = '') => {
   console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
-  if (!c) fallos.push(n);
+  if (!c) failures.push(n);
 };
 
-// La evaluación que «devuelve el servidor», a mano.
-let evaluacion: any = { data: undefined, error: undefined, isLoading: true, isRefreshing: false };
-let reintentos = 0;
+let evaluation: any = { data: undefined, error: undefined, isLoading: true, isRefreshing: false };
+let retries = 0;
 const h = installReactHarness({
   overrides: {
     [`${__dirname}/../public/evaluation/use-evaluation.ts`]: () => ({
-      useEnsEvaluation: () => ({ ...evaluacion, retry: () => { reintentos += 1; } }),
+      useEnsEvaluation: () => ({ ...evaluation, retry: () => { retries += 1; } }),
     }),
   },
 });
@@ -40,7 +24,7 @@ const h = installReactHarness({
 const { ENSCatalog } = require('../common/ens/catalog');
 const planes = require('../common/ens/core/scope/measurement-planes') as typeof import('../common/ens/core/scope/measurement-planes');
 const estado = require('../public/ens/controls/control-detail/detail-view-state') as typeof import('../public/ens/controls/control-detail/detail-view-state');
-const alcance = require('../public/app/agent-in-scope') as typeof import('../public/app/agent-in-scope');
+const scopeModule = require('../public/app/agent-in-scope') as typeof import('../public/app/agent-in-scope');
 const enlace = require('../public/routing/configuration-link') as typeof import('../public/routing/configuration-link');
 const { parseRouterSearch, withRouterSearch } = require('../public/routing/router-search');
 const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
@@ -55,87 +39,87 @@ const control = (id: string) => ENSCatalog.find((c: any) => c.id === id);
 const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters: [{ id: 'P-04', value: valor }] }) as any;
 
 (async () => {
-  console.log('1. No se mide en esta máquina');
+  console.log('1. Not measured on this machine');
   {
-    const deAgente = ENSCatalog.filter((c: any) => !planes.isControlMeasuredOnPlane(c, 'manager')).map((c: any) => c.id).sort();
-    comprueba('14 controles de plano agent', deAgente.length === 14, deAgente);
-    const enManager = deAgente.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
-    comprueba('los 14, en el manager: PLANE con su texto', enManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), enManager.map((m: any) => m?.cause));
+    const ofAgent = ENSCatalog.filter((c: any) => !planes.isControlMeasuredOnPlane(c, 'manager')).map((c: any) => c.id).sort();
+    check('14 controls of plane agent', ofAgent.length === 14, ofAgent);
+    const enManager = ofAgent.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
+    check('the 14, on the manager: PLANE with its text', enManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), enManager.map((m: any) => m?.cause));
     const soloManager = ENSCatalog.filter((c: any) => planes.isManagerOnlyControl(c));
-    comprueba('los de solo manager, en otra máquina: sin motivo (se ven con la fila del manager)',
+    check('manager-only ones, on another machine: no motive (seen with the manager row)',
       soloManager.length === 7 && soloManager.every((c: any) => planes.describeNotMeasuredOnAgent(c, '101', 'srv-web01', undefined) === undefined), soloManager.map((c: any) => c.id));
-    comprueba('los de solo manager, en el manager: sin motivo', soloManager.every((c: any) => planes.describeNotMeasuredOnAgent(c, '000', 'Manager', undefined) === undefined));
-    comprueba('op.exp.8 y op.mon.3 (los dos planos), en el manager y en otra: sin motivo',
+    check('manager-only ones, on the manager: no motive', soloManager.every((c: any) => planes.describeNotMeasuredOnAgent(c, '000', 'Manager', undefined) === undefined));
+    check('op.exp.8 and op.mon.3 (both planes), on the manager and on another: no motive',
       ['op.exp.8', 'op.mon.3'].every(id => !planes.describeNotMeasuredOnAgent(control(id), '000', 'M', undefined) && !planes.describeNotMeasuredOnAgent(control(id), '101', 'x', undefined)));
     const p04 = mpInfo6Config(['srv-copias | MEDIA', 'srv-web01 | MEDIA']);
-    const fuera = planes.describeNotMeasuredOnAgent(control('mp.info.6'), '102', 'ldap01', p04);
-    comprueba('mp.info.6 en una máquina que P-04 no declara: DECLARED_SCOPE, con P-04 y las declaradas',
-      fuera?.cause === 'DECLARED_SCOPE' && fuera.parameterId === 'P-04' && /P-04 \(srv-copias, srv-web01\)/.test(fuera.text) && /102 · ldap01 no está entre ellas/.test(fuera.text), fuera);
-    comprueba('mp.info.6 en una declarada (sin distinguir mayúsculas): sin motivo', planes.describeNotMeasuredOnAgent(control('mp.info.6'), '101', 'SRV-WEB01', p04) === undefined);
-    const vacio = planes.describeNotMeasuredOnAgent(control('mp.info.6'), '101', 'srv-web01', mpInfo6Config([]));
-    comprueba('mp.info.6 con P-04 vacío: lo dice', vacio?.cause === 'DECLARED_SCOPE' && /no declara ninguna/.test(vacio.text), vacio);
-    comprueba('mp.info.6 en el manager: PLANE (es de plano agent)', planes.describeNotMeasuredOnAgent(control('mp.info.6'), '000', 'M', p04)?.cause === 'PLANE');
+    const outside = planes.describeNotMeasuredOnAgent(control('mp.info.6'), '102', 'ldap01', p04);
+    check('mp.info.6 on a machine P-04 does not declare: DECLARED_SCOPE, with P-04 and the declared ones',
+      outside?.cause === 'DECLARED_SCOPE' && outside.parameterId === 'P-04' && /P-04 \(srv-copias, srv-web01\)/.test(outside.text) && /102 · ldap01 no está entre ellas/.test(outside.text), outside);
+    check('mp.info.6 on a declared one (case-insensitive): no motive', planes.describeNotMeasuredOnAgent(control('mp.info.6'), '101', 'SRV-WEB01', p04) === undefined);
+    const empty = planes.describeNotMeasuredOnAgent(control('mp.info.6'), '101', 'srv-web01', mpInfo6Config([]));
+    check('mp.info.6 with empty P-04: says so', empty?.cause === 'DECLARED_SCOPE' && /no declara ninguna/.test(empty.text), empty);
+    check('mp.info.6 on the manager: PLANE (it is plane agent)', planes.describeNotMeasuredOnAgent(control('mp.info.6'), '000', 'M', p04)?.cause === 'PLANE');
   }
 
-  console.log('2. Qué se enseña');
+  console.log('2. What is shown');
   {
     const r = (agentId?: string) => ({ controlId: 'op.acc.1', agentId });
-    const dato = (n: string) => ({ n, meta: { computedAt: '2026-10-17T12:05:00Z' } });
+    const datum = (n: string) => ({ n, meta: { computedAt: '2026-10-17T12:05:00Z' } });
     const at = (d: any) => d.meta.computedAt;
-    const actual = estado.decideDetailView(r('101'), { data: dato('a'), isLoading: false }, undefined, at);
-    comprueba('lo de ahora: shown, current, su máquina', actual.kind === 'shown' && actual.current && actual.agentId === '101' && (actual as any).data.n === 'a');
-    const ret = estado.nextRetained(r('101'), { data: dato('a'), isLoading: false }, undefined, at);
-    comprueba('se guarda lo de ahora con su máquina y su hora', ret?.agentId === '101' && ret?.computedAt === '2026-10-17T12:05:00Z');
-    const cargando = estado.decideDetailView(r('102'), { data: undefined, isLoading: true }, ret, at);
-    comprueba('otra máquina cargando: lo anterior, NO current, rotulado con 101, cargando',
-      cargando.kind === 'shown' && !cargando.current && cargando.agentId === '101' && cargando.loading && (cargando as any).data.n === 'a', cargando);
-    comprueba('…y se sabe que es de otra máquina', estado.isFromAnotherMachine(r('102'), cargando));
-    comprueba('lo retenido no cambia mientras carga', estado.nextRetained(r('102'), { data: undefined, isLoading: true }, ret, at) === ret);
-    const fallo = estado.decideDetailView(r('102'), { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
-    comprueba('falla la otra máquina: lo anterior rotulado y el error', fallo.kind === 'shown' && !fallo.current && (fallo as any).error && fallo.agentId === '101' && !fallo.loading);
-    const otroControl = estado.decideDetailView({ controlId: 'op.acc.2', agentId: '101' }, { data: undefined, isLoading: true }, ret, at);
-    comprueba('otro control nunca hereda: carga', otroControl.kind === 'loading');
-    const otroControlError = estado.decideDetailView({ controlId: 'op.acc.2' }, { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
-    comprueba('otro control con error: error, sin nada que enseñar', otroControlError.kind === 'error');
-    comprueba('nada aún: carga', estado.decideDetailView(r(), { data: undefined, isLoading: true }, undefined).kind === 'loading');
-    const mismaFallo = estado.decideDetailView(r('101'), { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
-    comprueba('misma máquina, falla el refresco: lo último, sin «otra máquina»', mismaFallo.kind === 'shown' && !estado.isFromAnotherMachine(r('101'), mismaFallo));
+    const actual = estado.decideDetailView(r('101'), { data: datum('a'), isLoading: false }, undefined, at);
+    check('the current data: shown, current, its machine', actual.kind === 'shown' && actual.current && actual.agentId === '101' && (actual as any).data.n === 'a');
+    const ret = estado.nextRetained(r('101'), { data: datum('a'), isLoading: false }, undefined, at);
+    check('the current data is stored with its machine and time', ret?.agentId === '101' && ret?.computedAt === '2026-10-17T12:05:00Z');
+    const loading = estado.decideDetailView(r('102'), { data: undefined, isLoading: true }, ret, at);
+    check('another machine loading: the previous data, NOT current, labelled 101, loading',
+      loading.kind === 'shown' && !loading.current && loading.agentId === '101' && loading.loading && (loading as any).data.n === 'a', loading);
+    check('...and it is known to be from another machine', estado.isFromAnotherMachine(r('102'), loading));
+    check('what is retained does not change while loading', estado.nextRetained(r('102'), { data: undefined, isLoading: true }, ret, at) === ret);
+    const failure = estado.decideDetailView(r('102'), { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
+    check('the other machine fails: the previous data labelled and the error', failure.kind === 'shown' && !failure.current && (failure as any).error && failure.agentId === '101' && !failure.loading);
+    const otherControl = estado.decideDetailView({ controlId: 'op.acc.2', agentId: '101' }, { data: undefined, isLoading: true }, ret, at);
+    check('another control never inherits: loading', otherControl.kind === 'loading');
+    const otherControlError = estado.decideDetailView({ controlId: 'op.acc.2' }, { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
+    check('another control with an error: error, nothing to show', otherControlError.kind === 'error');
+    check('nothing yet: loading', estado.decideDetailView(r(), { data: undefined, isLoading: true }, undefined).kind === 'loading');
+    const sameFailure = estado.decideDetailView(r('101'), { data: undefined, error: new Error('x'), isLoading: false }, ret, at);
+    check('same machine, refresh fails: the last data, without «otra máquina»', sameFailure.kind === 'shown' && !estado.isFromAnotherMachine(r('101'), sameFailure));
     const hoy = new Date('2026-10-17T18:00:00Z');
-    comprueba('la hora de hoy: «las HH:MM»', /^las \d\d:\d\d$/.test(estado.describeComputedAt('2026-10-17T12:05:00Z', hoy) || ''));
-    comprueba('la de otro día: «el dd/mm a las HH:MM»', /^el \d\d\/\d\d a las \d\d:\d\d$/.test(estado.describeComputedAt('2026-10-15T12:05:00Z', hoy) || ''));
+    check('la hora de hoy: «las HH:MM»', /^las \d\d:\d\d$/.test(estado.describeComputedAt('2026-10-17T12:05:00Z', hoy) || ''));
+    check('one from another day: «el dd/mm a las HH:MM»', /^el \d\d\/\d\d a las \d\d:\d\d$/.test(estado.describeComputedAt('2026-10-15T12:05:00Z', hoy) || ''));
   }
 
-  console.log('3. Máquina fuera del alcance; ida y vuelta a Configuración');
+  console.log('3. Machine outside the scope; round trip to Configuration');
   {
     const scope = [{ id: '000' }, { id: '024' }];
-    comprueba('sin máquina: en el alcance', alcance.isAgentInScope(undefined, scope));
-    comprueba('024 y 24: en el alcance', alcance.isAgentInScope('024', scope) && alcance.isAgentInScope('24', scope));
-    comprueba('025: fuera', !alcance.isAgentInScope('025', scope));
+    check('no machine: in scope', scopeModule.isAgentInScope(undefined, scope));
+    check('024 and 24: in scope', scopeModule.isAgentInScope('024', scope) && scopeModule.isAgentInScope('24', scope));
+    check('025: outside', !scopeModule.isAgentInScope('025', scope));
     const ida = enlace.detailConfigurationChanges({ controlId: 'op.acc.1', agentId: '024', hasAgentLevelParameters: true });
     const url = parseRouterSearch(withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', ida));
-    comprueba('«Configurar este control» con máquina y parámetros por sistema: la página de esa máquina, en el control',
+    check('«Configurar este control» with a machine and per-system parameters: that machine\'s page, on the control',
       url.tabView === 'configuration' && url.configAgent === '024' && url.configControl === 'op.acc.1' && !url.configParam, url);
-    comprueba('…conserva control y máquina y deja la vuelta', url.control === 'op.acc.1' && url.agentId === '024' && url.configBack === 'plugins', url);
+    check('...keeps control and machine and leaves the way back', url.control === 'op.acc.1' && url.agentId === '024' && url.configBack === 'plugins', url);
     const org = parseRouterSearch(withRouterSearch('?tabView=plugins&control=op.cont.2&agentId=024', enlace.detailConfigurationChanges({ controlId: 'op.cont.2', agentId: '024', hasAgentLevelParameters: false })));
-    comprueba('control sin parámetros por sistema: Organización', org.configControl === 'op.cont.2' && !org.configAgent && !org.configView, org);
+    check('control without per-system parameters: Organización', org.configControl === 'op.cont.2' && !org.configAgent && !org.configView, org);
     const param = parseRouterSearch(withRouterSearch('', enlace.detailConfigurationChanges({ controlId: 'op.exp.10', agentId: '024', parameterId: 'P-02', parameterIsAgentLevel: false })));
-    comprueba('parámetro de organización con máquina elegida: Organización, en el parámetro', param.configControl === 'op.exp.10' && param.configParam === 'P-02' && !param.configAgent, param);
-    const vuelta = enlace.parseConfigurationBack(url);
-    comprueba('la vuelta se lee de la URL', vuelta?.tabView === 'plugins' && vuelta?.controlId === 'op.acc.1');
-    const atras = parseRouterSearch(withRouterSearch(withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', ida), enlace.configurationBackChanges(vuelta!)));
-    comprueba('volver: Detalle, mismo control y máquina, sin nada de Configuración',
-      atras.tabView === 'plugins' && atras.control === 'op.acc.1' && atras.agentId === '024' && !Object.keys(atras).some(k => k.startsWith('config')), atras);
-    comprueba('sin configBack no hay vuelta', enlace.parseConfigurationBack({ control: 'op.acc.1' }) === undefined);
+    check('organization parameter with a machine chosen: Organización, on the parameter', param.configControl === 'op.exp.10' && param.configParam === 'P-02' && !param.configAgent, param);
+    const wayBack = enlace.parseConfigurationBack(url);
+    check('the way back is read from the URL', wayBack?.tabView === 'plugins' && wayBack?.controlId === 'op.acc.1');
+    const back = parseRouterSearch(withRouterSearch(withRouterSearch('?tabView=plugins&control=op.acc.1&agentId=024', ida), enlace.configurationBackChanges(wayBack!)));
+    check('go back: Detail, same control and machine, with nothing from Configuration',
+      back.tabView === 'plugins' && back.control === 'op.acc.1' && back.agentId === '024' && !Object.keys(back).some(k => k.startsWith('config')), back);
+    check('without configBack there is no way back', enlace.parseConfigurationBack({ control: 'op.acc.1' }) === undefined);
   }
 
-  console.log('4. La pantalla');
+  console.log('4. The screen');
   {
-    const bloques: Record<string, any> = {};
+    const blocks: Record<string, any> = {};
     readdirSync(`${__dirname}/../config`).filter((f: string) => f.endsWith('-control-block.json')).forEach((f: string) => {
       const b = JSON.parse(readFileSync(`${__dirname}/../config/${f}`, 'utf8'));
-      bloques[b.controlId] = b;
+      blocks[b.controlId] = b;
     });
-    const doc = { ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: ['op.acc.1', 'mp.info.6'].map(id => JSON.parse(JSON.stringify(bloques[id]))) };
+    const doc = { ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: ['op.acc.1', 'mp.info.6'].map(id => JSON.parse(JSON.stringify(blocks[id]))) };
     doc.controls[1].parameters.find((p: any) => p.id === 'P-04').value = ['srv-web01 | MEDIA'];
     ensConfigurationRepository.completeHydration(doc);
     const agentes = [
@@ -145,84 +129,78 @@ const mpInfo6Config = (valor: string[]) => ({ controlId: 'mp.info.6', parameters
     await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => agentes as any, true);
     const ctl = (id: string) => ENSControls.find((c: any) => c.id === id);
     const meta = { computedAt: '2026-10-17T12:05:00Z', evaluatedAt: '2026-10-17T12:05:00Z', fingerprint: 'f', level: 'BAJO', facts: { count: 1 } };
-    const resultado = (estado: string) => ({ control: { id: 'op.acc.1' }, status: estado, score: 20, requirements: [{ id: 'op.acc.1.1', status: 'CUMPLE', evidenceIds: [] }], evidences: [], nonConformities: [], applicableRequirements: 1, measuredRequirements: 1, traceability: [] });
+    const result = (estado: string) => ({ control: { id: 'op.acc.1' }, status: estado, score: 20, requirements: [{ id: 'op.acc.1.1', status: 'CUMPLE', evidenceIds: [] }], evidences: [], nonConformities: [], applicableRequirements: 1, measuredRequirements: 1, traceability: [] });
 
-    // a) mp.info.6 en 102 (fuera de P-04): el servidor no da resultado.
     h.setSearch('?tabView=plugins&control=mp.info.6&agentId=102');
-    evaluacion = { data: { meta, result: undefined, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    evaluation = { data: { meta, result: undefined, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
     let p = await h.render(ControlDetailENS, { control: ctl('mp.info.6'), agentId: '102', onBack: () => undefined });
-    comprueba('sin resultado: «mp.info.6 no se mide en 102 · ldap01» con el motivo de P-04', /mp\.info\.6 no se mide en 102 · ldap01/.test(p) && /P-04 \(srv-web01\)/.test(p), p.slice(0, 600));
-    comprueba('…sin «todo conforme» ni cifras', !/Todo lo aplicable/.test(p) && !/Panel ejecutivo/.test(p));
-    comprueba('…con «Ver todas las máquinas» y «Configurar P-04»', Boolean(h.find('EuiButton', /Ver todas las máquinas/)) && Boolean(h.find('EuiButtonEmpty', /Configurar P-04/)));
+    check('no result: «mp.info.6 no se mide en 102 · ldap01» with the P-04 motive', /mp\.info\.6 no se mide en 102 · ldap01/.test(p) && /P-04 \(srv-web01\)/.test(p), p.slice(0, 600));
+    check('...without «todo conforme» or figures', !/Todo lo aplicable/.test(p) && !/Panel ejecutivo/.test(p));
+    check('...with «Ver todas las máquinas» and «Configurar P-04»', Boolean(h.find('EuiButton', /Ver todas las máquinas/)) && Boolean(h.find('EuiButtonEmpty', /Configurar P-04/)));
     await h.click(/Ver todas las máquinas/);
-    comprueba('«Ver todas las máquinas» quita la máquina de la URL', !parseRouterSearch(h.search()).agentId && parseRouterSearch(h.search()).control === 'mp.info.6', h.search());
+    check('«Ver todas las máquinas» removes the machine from the URL', !parseRouterSearch(h.search()).agentId && parseRouterSearch(h.search()).control === 'mp.info.6', h.search());
     h.setSearch('?tabView=plugins&control=mp.info.6&agentId=102');
     await h.click(/Configurar P-04/);
     const s = parseRouterSearch(h.search());
-    comprueba('«Configurar P-04» abre Configuración en mp.info.6 / P-04 con la vuelta', s.tabView === 'configuration' && s.configControl === 'mp.info.6' && s.configParam === 'P-04' && s.configBack === 'plugins' && s.control === 'mp.info.6', s);
+    check('«Configurar P-04» opens Configuration on mp.info.6 / P-04 with the way back', s.tabView === 'configuration' && s.configControl === 'mp.info.6' && s.configParam === 'P-04' && s.configBack === 'plugins' && s.control === 'mp.info.6', s);
 
-    // b) op.acc.1 en el manager: tampoco hay fila.
     h.reset();
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '000', onBack: () => undefined });
-    comprueba('op.acc.1 en el manager: «no en el manager de Wazuh»', /no en el manager de Wazuh \(000\)/.test(p), p.slice(0, 400));
+    check('op.acc.1 en el manager: «no en el manager de Wazuh»', /no en el manager de Wazuh \(000\)/.test(p), p.slice(0, 400));
 
-    // c) Un resultado en 101 y después se pide 102: lo de 101 rotulado.
     h.reset();
-    evaluacion = { data: { meta, result: resultado('PARCIAL'), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    evaluation = { data: { meta, result: result('PARCIAL'), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '101', onBack: () => undefined });
-    comprueba('101 con resultado: el panel, «Activo: srv-web01»', /Panel ejecutivo/.test(p) && /Activo:\s*srv-web01/.test(p), p.slice(0, 300));
-    evaluacion = { data: undefined, isLoading: true };
+    check('101 with a result: the panel, «Activo: srv-web01»', /Panel ejecutivo/.test(p) && /Activo:\s*srv-web01/.test(p), p.slice(0, 300));
+    evaluation = { data: undefined, isLoading: true };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '102', onBack: () => undefined });
-    comprueba('cambia a 102 y carga: aviso «Cargando 102 · ldap01… se muestra el resultado de 101 · srv-web01»',
+    check('switches to 102 and loads: notice «Cargando 102 · ldap01… se muestra el resultado de 101 · srv-web01»',
       /Cargando 102 · ldap01… Mientras tanto se muestra el resultado de 101 · srv-web01/.test(p), p.slice(0, 500));
-    comprueba('…con la barra de progreso y la cabecera de 101 (nunca la de 102)', Boolean(h.find('EuiProgress')) && /Activo:\s*srv-web01/.test(p) && !/Activo:\s*ldap01/.test(p));
-    evaluacion = { data: undefined, error: new Error('tiempo agotado'), isLoading: false };
+    check('...with the progress bar and 101\'s header (never 102\'s)', Boolean(h.find('EuiProgress')) && /Activo:\s*srv-web01/.test(p) && !/Activo:\s*ldap01/.test(p));
+    evaluation = { data: undefined, error: new Error('timeout'), isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '102', onBack: () => undefined });
-    comprueba('falla 102: el aviso de error ENCIMA del último resultado de 101, rotulado', /tiempo agotado|No se pudo/.test(p) && /último resultado de 101 · srv-web01/.test(p) && /Panel ejecutivo/.test(p), p.slice(0, 600));
+    check('102 fails: the error notice ABOVE the last result of 101, labelled', /tiempo agotado|No se pudo/.test(p) && /último resultado de 101 · srv-web01/.test(p) && /Panel ejecutivo/.test(p), p.slice(0, 600));
     await h.click(/Reintentar/);
-    comprueba('«Reintentar» reintenta', reintentos === 1, reintentos);
+    check('«Reintentar» retries', retries === 1, retries);
 
-    // d) Error sin nada anterior: el aviso, no una página en blanco.
     h.reset();
-    evaluacion = { data: undefined, error: new Error('503 Datos incompletos'), isLoading: false };
+    evaluation = { data: undefined, error: new Error('503 Datos incompletos'), isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.2'), agentId: undefined, onBack: () => undefined });
-    comprueba('error sin nada: título del control y el aviso con «Reintentar»', /op\.acc\.2/.test(p) && /Datos incompletos/.test(p) && Boolean(h.find('EuiButton', /Reintentar/) || h.find('EuiButtonEmpty', /Reintentar/)), p.slice(0, 400));
+    check('error with nothing: control title and the notice with «Reintentar»', /op\.acc\.2/.test(p) && /Datos incompletos/.test(p) && Boolean(h.find('EuiButton', /Reintentar/) || h.find('EuiButtonEmpty', /Reintentar/)), p.slice(0, 400));
 
-    // e) NO_APLICA sin no conformidades: no «todo conforme».
     h.reset();
-    evaluacion = { data: { meta, result: { ...resultado('NO_APLICA'), score: undefined }, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    evaluation = { data: { meta, result: { ...result('NO_APLICA'), score: undefined }, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '101', onBack: () => undefined });
-    comprueba('NO_APLICA: «no aplica en el nivel», nunca «todo conforme»', /no aplica en el nivel BAJO/.test(p) && !/Todo lo aplicable/.test(p), p.slice(-400));
+    check('NO_APLICA: «no aplica en el nivel», never «todo conforme»', /no aplica en el nivel BAJO/.test(p) && !/Todo lo aplicable/.test(p), p.slice(-400));
   }
 
-  console.log('5. Un fallo al pintar se queda en la pestaña');
+  console.log('5. A render failure stays in the tab');
   {
     h.reset();
-    let rompe = true;
-    const Rota = () => { if (rompe) throw new Error('boom al pintar'); return 'pintada'; };
+    let breaks = true;
+    const Rota = () => { if (breaks) throw new Error('boom while rendering'); return 'pintada'; };
     const React = require('react');
-    const Raiz = () => React.createElement(TabErrorBoundary, { tabName: 'Panel' }, React.createElement(Rota, null));
-    let p = await h.render(Raiz);
-    comprueba('el fallo sale como aviso de esa pestaña con el mensaje', /No se pudo mostrar «Panel»/.test(p) && /boom al pintar/.test(p), p);
-    rompe = false;
+    const Root = () => React.createElement(TabErrorBoundary, { tabName: 'Panel' }, React.createElement(Rota, null));
+    let p = await h.render(Root);
+    check('the failure appears as a notice of that tab with the message', /No se pudo mostrar «Panel»/.test(p) && /boom while rendering/.test(p), p);
+    breaks = false;
     p = await h.click(/Reintentar/);
-    comprueba('«Reintentar» vuelve a pintarla', /pintada/.test(p) && !/No se pudo mostrar/.test(p), p);
-    comprueba('un error sin mensaje se dice igual', /desconocido/.test(describeRenderError(undefined)));
-    // (La pestaña dentro de la app, cambiando de máquina: `app-machine-switch.test.ts`.)
+    check('«Reintentar» renders it again', /pintada/.test(p) && !/No se pudo mostrar/.test(p), p);
+    check('an error without a message is reported all the same', /desconocido/.test(describeRenderError(undefined)));
     h.reset();
     const { ControlsENS } = require('../public/ens/controls');
     h.setSearch('?tabView=plugins&control=op.acc.1&agentId=101');
-    let lista = await h.render(ControlsENS);
-    comprueba('con `control=` en la URL se abre su detalle', /OP\.ACC\.1/.test(lista), lista.slice(0, 200));
+    let list = await h.render(ControlsENS);
+    check('with `control=` in the URL its detail opens', /OP\.ACC\.1/.test(list), list.slice(0, 200));
     h.setSearch('?tabView=plugins&control=mp.info.6&agentId=101');
-    lista = await h.rerender();
-    comprueba('si la URL cambia de control con el detalle abierto, el detalle la sigue', /MP\.INFO\.6/.test(lista) && !/OP\.ACC\.1 -/.test(lista), lista.slice(0, 200));
+    list = await h.rerender();
+    check('if the URL changes control with the detail open, the detail follows', /MP\.INFO\.6/.test(list) && !/OP\.ACC\.1 -/.test(list), list.slice(0, 200));
     await h.click(/Volver a controles/);
-    comprueba('«Volver a controles» quita el control de la URL y vuelve a la lista', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 23, h.search());
+    check('«Volver a controles» removes the control from the URL and returns to the list', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 23, h.search());
   }
 
-  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
-  process.exit(fallos.length ? 1 : 0);
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
+  process.exit(failures.length ? 1 : 0);
 })().catch(error => {
   console.error(error);
   process.exit(1);

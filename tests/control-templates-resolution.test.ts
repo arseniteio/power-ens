@@ -1,10 +1,4 @@
-/**
- * The value that applies to an agent (1.3.0): override -> assigned template -> built-in of its type -> common value;
- * unions on the manager row; parity of 1.2.0 documents against the frozen 1.2.0 resolver.
- *
- *   npx --yes tsx tests/control-templates-resolution.test.ts
- *   ENSFACIL_LAB_DOC=active.json npx --yes tsx tests/control-templates-resolution.test.ts   (adds the lab copy)
- */
+/** The value that applies to an agent (1.3.0), and parity of 1.2.0 documents against the frozen 1.2.0 resolver. */
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import {
@@ -128,12 +122,9 @@ console.log('1. Levels');
   check('and memoises per document', getActiveControlConfiguration('op.acc.1', '102') === getActiveControlConfiguration('op.acc.1', '102'));
 }
 
-// --- parity -------------------------------------------------------------------
-
 const TEMPLATE_IDS = ['linux-ubuntu', 'zimbra-ldap', 'windows-server', 'manager-wazuh', 'pbs-backup', 'zimbra-ne-backup', 'ghost'];
 const TYPES = [undefined, 'linux', 'zimbra-ldap', 'windows', 'manager', 'macos'];
 
-// Every single template and every ordered pair, under every stored type, plus overrides on union parameters.
 const syntheticProfiles = (): Record<string, any> => {
   const lists: string[][] = [[], ...TEMPLATE_IDS.map(id => [id])];
   TEMPLATE_IDS.forEach(left => TEMPLATE_IDS.forEach(right => { if (left !== right) lists.push([left, right]); }));

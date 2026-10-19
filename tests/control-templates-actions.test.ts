@@ -1,9 +1,4 @@
-/**
- * What the configuration screen does to the document (pure actions): custom template CRUD, bulk assignment,
- * overrides, stored types, previews and removals.
- *
- *   npx --yes tsx tests/control-templates-actions.test.ts
- */
+/** Pure actions of the configuration screen: template CRUD, bulk assignment, overrides, previews and removals. */
 import { readFileSync, readdirSync } from 'fs';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import * as actions from '../common/ens/configuration/agents/agent-configuration-actions';
