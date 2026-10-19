@@ -1,47 +1,16 @@
-// Datos sin renovar: un control no se juzga con lo que su recolector dejó de
-// enviar hace días.
-//
-// POR QUÉ. El motor juzga el estado con la última pasada del recolector (ver
-// `state-facts.ts`), y eso es lo correcto mientras el recolector sigue pasando.
-// Cuando deja de hacerlo —el LDAP (028) cayó el 25/09—, «la última pasada» es
-// una foto vieja, y el panel enseñaba op.acc.3 al 100 % CUMPLE con los datos del
-// 25 como si fueran de hoy. Eso es un CUMPLE que nadie ha demostrado HOY: lo que
-// dijo la máquina hace dos días no prueba cómo está ahora.
-//
-// LA REGLA (decisión del 27/09). En la fila de una máquina, si el último latido
-// `collector_run` de un control es más antiguo que `STALE_COLLECTOR_MAX_AGE_HOURS`
-// respecto al instante de la evaluación, ese control en esa máquina no se juzga
-// con esos datos: todas sus evidencias salen NO_EVALUABLE con causa COLLECTION
-// y el motivo «sin datos del recolector desde <fecha UTC>», y sus requisitos no
-// cumplen porque no se han demostrado. No es un hallazgo sobre la máquina: es un
-// fallo de recogida, y la tarjeta lo dice así.
-//
-// SIN NINGÚN LATIDO PERO CON HECHOS (datos huérfanos) rige lo mismo, con el
-// hecho más reciente del control como referencia: sin latido no hay otra señal
-// de cuándo miró el recolector por última vez.
-//
-// SIN LATIDO NI HECHOS no se hace nada: el motor ya lo resuelve como «no ha
-// llegado nada» (NO_EVALUABLE / COLLECTION) por su camino de siempre.
-//
-// SE MIDE A FECHA DE `now`, no del reloj. La serie diaria evalúa este mismo
-// motor en días pasados: el punto del 24/09 tiene que ver al 028 vivo, porque
-// ese día lo estaba.
-//
-// LO QUE NO TOCA. Lo que viene de la configuración y no de los datos: un
-// requisito que la policy saca del juego (NO_APLICA por el refuerzo elegido) o
-// una evidencia que no aplica al nivel siguen fuera del denominador. Tampoco se
-// esconden los hechos viejos: siguen en la trazabilidad, que es donde el
-// auditor ve qué llegó y cuándo.
+// Unrenewed data: a control is not judged with what its collector stopped sending days ago. The engine judges state with the collector's last pass (see `state-facts.ts`), right while it keeps passing;
+// once it stops, "the last pass" is an old snapshot and the panel would show a CUMPLE nobody proved TODAY.
+// THE RULE. On a machine's row, if a control's last `collector_run` heartbeat is older than `STALE_COLLECTOR_MAX_AGE_HOURS` relative to the evaluation instant, that control on that machine is not judged with that data:
+// all its evidences come out NO_EVALUABLE with cause COLLECTION and motive "sin datos del recolector desde <fecha UTC>", and its requirements do not comply. It is a collection failure, not a finding on the machine.
+// WITHOUT ANY HEARTBEAT BUT WITH FACTS (orphan data) the same holds, with the control's latest fact as reference. WITHOUT HEARTBEAT OR FACTS nothing is done: the engine already resolves it as "nothing arrived".
+// MEASURED AS OF `now`, not the clock (the daily series evaluates past days).
+// NOT TOUCHED: what comes from configuration (a requirement the policy takes out of play, an evidence not applying to the level). Old facts are not hidden: they stay in the traceability.
 import type { ENSNormalizedEvent } from '../data-source/types';
 import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
 import { withReplacedReason } from '../policy-runtime/reason-parts';
 import type { ENSEvidenceResolved } from './types';
 
-// Umbral ÚNICO de antigüedad del último latido. Los recolectores laten cada
-// hora (op.exp.1 cada 6 h y op.exp.2 cada 12 h en la instalación de
-// referencia), así que 24 h tolera un día de fallos de red sin dejar de
-// reconocer un recolector vivo, y es el mismo margen que ya usa por defecto la
-// cobertura del latido de las evidencias con `judgment`.
+// SINGLE age threshold of the last heartbeat. Collectors beat hourly (op.exp.1 every 6 h and op.exp.2 every 12 h in the reference installation), so 24 h tolerates a day of network failures; same default margin as the evidence heartbeat coverage.
 export const STALE_COLLECTOR_MAX_AGE_HOURS = 24;
 
 const STALE_COLLECTOR_MAX_AGE_MS =
@@ -50,20 +19,18 @@ const STALE_COLLECTOR_MAX_AGE_MS =
 const COLLECTOR_RUN_EVENT_TYPE = 'collector_run';
 
 export interface ENSStaleCollector {
-  // Instante del último latido (o del último hecho, si no hay latido).
+  // Instant of the last heartbeat (or last fact, if no heartbeat).
   since: string;
-  // Si la referencia es un latido o, a falta de él, un hecho huérfano.
+  // Whether the reference is a heartbeat or, lacking one, an orphan fact.
   reference: 'collector_run' | 'fact';
   reason: string;
 }
 
-// `2026-09-25 12:33 UTC`. En UTC a propósito: el motivo lo leen el panel, el
-// informe y el auditor, y cada uno puede estar en una zona distinta.
+// `2026-09-25 12:33 UTC`. In UTC on purpose: the motive is read by the panel, the report and the auditor in possibly different zones.
 const formatUtc = (time: number): string =>
   `${new Date(time).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 
-// ¿Se ha dejado de renovar el control en esta máquina? `events` son los de UNA
-// fila: el motor solo lo pregunta con la máquina fijada.
+// Has the control stopped renewing on this machine? `events` are ONE row's: the engine asks only with the machine fixed.
 export const findStaleCollector = (
   controlId: string,
   events: ENSNormalizedEvent[],
@@ -81,7 +48,7 @@ export const findStaleCollector = (
 
     const time = Date.parse(event.timestamp);
 
-    // Lo posterior a `now` no existía en el instante evaluado.
+    // What is later than `now` did not exist at the evaluated instant.
     if (Number.isNaN(time) || time > nowMs) {
       return;
     }
@@ -111,9 +78,7 @@ export const findStaleCollector = (
   };
 };
 
-// Todas las evidencias que aplican, a NO_EVALUABLE / COLLECTION con el motivo.
-// Se quita el evento que las resolvía —ya no es lo que las decide— y se
-// conserva `lastSeen`, que dice con verdad cuándo llegó el último dato.
+// All applicable evidences to NO_EVALUABLE / COLLECTION with the motive. The event that resolved them is removed and `lastSeen` is kept, which truthfully says when the last data arrived.
 export const markEvidencesStale = (
   evidences: ENSEvidenceResolved[],
   stale: ENSStaleCollector
@@ -140,7 +105,7 @@ export const markEvidencesStale = (
       ...rest,
       status: 'NO_EVALUABLE',
       gapCause: 'COLLECTION',
-      // El `motivo` es lo que la no conformidad cita como «Motivo — EV-xx: …».
+      // The `motivo` is what the nonconformity quotes as "Motivo — EV-xx: …".
       resolvedAttributes: { motivo: stale.reason, causa: 'COLLECTION' },
       observations: [
         `${evidence.id} NO_EVALUABLE: ${stale.reason}`,
@@ -149,11 +114,8 @@ export const markEvidencesStale = (
     };
   });
 
-// Las decisiones de la policy salen de los mismos datos viejos, así que tampoco
-// pueden decidir. Sobreviven las que salen de la configuración: el NO_APLICA y
-// las `documental` (una tabla declarada con su vigencia), en cualquier estado.
-// Borrar un NO_CUMPLE documental lo dejaba en NO_EVALUABLE, y en un requisito
-// sin evidencias técnicas eso abría la puerta a P-ATT: un CUMPLE falso.
+// Policy decisions come from the same old data, so they cannot decide either. Those from configuration survive: NO_APLICA and `documental` (a declared table with validity), in any state.
+// Deleting a documental NO_CUMPLE left it NO_EVALUABLE, which on a requirement without technical evidence opens the door to P-ATT: a false CUMPLE.
 export const markPolicyRuntimeStale = (
   policyRuntime: ENSPolicyRuntimeResult | undefined,
   stale: ENSStaleCollector

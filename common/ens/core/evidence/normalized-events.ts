@@ -1,10 +1,6 @@
 import { ENSNormalizedEvent } from '../data-source/types';
 
-// Utilidades compartidas sobre eventos normalizados. Vivían dentro de
-// `engine.ts`, al servicio del contrato de calidad; las usa también
-// `judgment.ts` para leer el hecho crudo. Están aquí para que los dos caminos
-// lean y ordenen los eventos EXACTAMENTE igual: dos interpretaciones del mismo
-// evento es el problema que se arregló al desconectar el evaluador por control.
+// Shared utilities over normalized events, used by `engine.ts` and `judgment.ts` so both paths read and order events EXACTLY alike.
 
 export const hasMeaningfulValue = (value: unknown): boolean => {
   if (value === undefined || value === null) {
@@ -22,8 +18,7 @@ export const hasMeaningfulValue = (value: unknown): boolean => {
   return true;
 };
 
-// Primero `attributes` (donde el normalizador deja los campos propios del
-// evento del agente) y luego la raíz del evento normalizado.
+// `attributes` first (where the normalizer leaves the agent event's own fields), then the root of the normalized event.
 export const getEventFieldValue = (
   event: ENSNormalizedEvent,
   field: string
