@@ -1,34 +1,18 @@
-// op.exp.10 · Protección de claves criptográficas
-//
-// Por qué este control tiene policy propia. Las siete primitivas contrastan UN
-// campo de UN hecho contra UN parámetro, y casi todo op.exp.10 necesita algo
-// más:
-//
-//   EV-01  el actor de cada acceso contra P-08, PERO además la cobertura: un
-//          acceso autorizado observado solo acredita los almacenes vigilados, y
-//          la primitiva no mira el latido cuando hay hechos.
-//   EV-03  cada algoritmo que acepta un servicio contra SU fila de uso en P-03
-//   EV-04  y su longitud mínima; y P-04 exige además que cada servicio
-//   EV-07  declarado para la máquina se haya observado.
-//   EV-05  la generación observada contra la función de ESA máquina en P-05.
-//   EV-06  P-01 filtrado por `estado` antes de buscar huella o ubicación.
-//   EV-07  la caducidad contra el reloj, con el aviso de P-10.
-//
-// EV-02 y EV-08 los juzga su primitiva y aquí solo se LEE su resultado.
-//
-// Invariantes, las mismas que `evidence/judgment.ts`:
-//   - el agente emite instantes y familias, no edades ni veredictos: la
-//     caducidad se mide aquí contra `context.now`;
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo; un silencio solo es
-//     CUMPLE en las aserciones negativas (nadie no autorizado accede, no se
-//     genera, no hay retiradas presentes, no hay certificados caducados) y solo
-//     con el latido de la última pasada declarando esa evidencia cubierta;
-//   - la policy nunca inventa política: ningún algoritmo, longitud, cuenta ni
-//     plazo tiene valor por defecto.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
+// op.exp.10 · Cryptographic key protection. The seven primitives contrast ONE field of ONE fact
+// against ONE parameter; op.exp.10 needs more: EV-01 the actor of each access against P-08 plus
+// coverage (an observed authorized access only accredits monitored stores, and the primitive
+// ignores the heartbeat when there are facts); EV-03/EV-04 each algorithm a service accepts against
+// ITS P-03 usage row and minimum length, and P-04 requires each service declared for the machine to
+// have been observed; EV-05 the observed generation against the machine's function in P-05; EV-06
+// P-01 filtered by `estado` before looking for fingerprint or location; EV-07 expiry against the
+// clock with P-10's warning.
+// EV-02 and EV-08 are judged by their primitive and only the result is READ here.
+// Invariants (as in `evidence/judgment.ts`): the agent emits instants and families, not ages or
+// verdicts, so expiry is measured against `context.now`; no fact or parameter is NO_EVALUABLE;
+// silence is CUMPLE only in negative assertions (no unauthorized access, no generation, no
+// withdrawn keys present, no expired certificates) and only with the last run's heartbeat declaring
+// that evidence covered; no default algorithm, length, account or deadline.
+// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
@@ -48,787 +32,773 @@ import {
 const CONTROL = 'op.exp.10';
 const POLICY = 'policy.op.exp.10';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// Mismo margen de reloj que `resolveCollectorCoverage`: un hecho del futuro no
-// acredita nada.
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// Same clock margin as `resolveCollectorCoverage`: a fact from the future proves nothing.
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// Latido que habilita un silencio, igual que en las primitivas.
-const LATIDO_HORAS = 24;
+// Heartbeat that enables a silence, as in the primitives.
+const HEARTBEAT_HOURS = 24;
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-// Llega a la evidencia y al requisito por la decisión; sin ella la tarjeta
-// heredaba la causa del modelo clásico, que no ve los hechos que lee la policy.
-type Medida = {
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`). It reaches the evidence and
+// requirement through the decision; without it the card inherited the classic model's cause, which
+// does not see the facts the policy reads.
+type Measurement = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. La falta de parámetro
-// (CONFIGURATION), el silencio del recolector (COLLECTION) y lo que el propio
-// recolector declara (`sinCobertura`) lo dicen expresamente.
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough. Missing parameter (CONFIGURATION),
+// collector silence (COLLECTION) and what the collector declares (`withoutCoverage`) say so
+// explicitly.
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
 
-// La causa de varias medidas sin medir (una por máquina, o varios ejes), con el
-// mismo orden que el motor (`resolveGapCause`): COLLECTION solo si lo dicen
-// todas; CONFIGURATION si lo dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements (one per machine, or several axes), same order as the
+// engine (`resolveGapCause`): COLLECTION only if all say so, CONFIGURATION if any does, otherwise
+// EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-// Ningún evento de op.exp.10 en todo el alcance: el recolector no ha corrido.
-const sinRecolector = (): Medida =>
-  sinMedir('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.', 'COLLECTION');
+// No op.exp.10 event in the whole scope: the collector has not run.
+const withoutCollector = (): Measurement =>
+  notMeasured('No ha llegado ningún evento de op.exp.10: el recolector no se ha ejecutado en ninguna máquina del alcance.', 'COLLECTION');
 
-const GRAVEDAD: Record<Medida['estado'], number> = {
+const SEVERITY: Record<Measurement['estado'], number> = {
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Medida['estado'] =>
-  medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
+  measurements.reduce<Measurement['estado']>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-// Varias medidas (una por máquina, o varios ejes) en una: manda la peor, y el
-// motivo cuenta las que la sostienen.
-const combina = (medidas: Medida[], vacio: Medida): Medida => {
-  if (!medidas.length) {
-    return vacio;
+// Several measurements (per machine, or several axes) into one: the worst wins and the reason
+// counts those that support it.
+const combineMeasurements = (measurements: Measurement[], empty: Measurement): Measurement => {
+  if (!measurements.length) {
+    return empty;
   }
 
-  const estado = peor(medidas);
-  const responsables = medidas.filter(m => m.estado === estado);
+  const status = worstStatus(measurements);
+  const owners = measurements.filter(m => m.estado === status);
 
   return {
-    estado,
-    motivo: responsables.map(m => m.motivo).join(' | '),
-    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
+    estado: status,
+    motivo: owners.map(m => m.motivo).join(' | '),
+    ...(status === 'NO_EVALUABLE' ? { causa: commonGapCause(owners) } : {}),
   };
 };
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=EV-02,EV-06,EV-08` en uno por
-// evidencia (`<id>#EV-06`). Aquí se juzga el HECHO, así que se cuenta una vez.
-const hechos = (
-  eventos: ENSNormalizedEvent[],
-  tipo: string
+// The normalizer splits an event with `evidence_id=EV-02,EV-06,EV-08` into one per evidence
+// (`<id>#EV-06`); the FACT is judged here, so it counts once.
+const facts = (
+  events: ENSNormalizedEvent[],
+  type: string
 ): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+  const seen = new Set<string>();
 
-  return eventos.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+  return events.filter(event => {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:?\d{2})$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:?\d{2})$/.test(text)) {
     return undefined;
   }
 
-  const valor = new Date(texto).getTime();
+  const value = new Date(text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const sinTildes = (texto: string): string =>
-  texto
+const stripAccents = (text: string): string =>
+  text
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
 
-const lista = (elementos: string[], maximo = 5): string => {
-  const unicos = Array.from(new Set(elementos));
+const formatList = (items: string[], max = 5): string => {
+  const unique = Array.from(new Set(items));
 
-  return unicos.length > maximo
-    ? `${unicos.slice(0, maximo).join('; ')} y ${unicos.length - maximo} más`
-    : unicos.join('; ');
+  return unique.length > max
+    ? `${unique.slice(0, max).join('; ')} y ${unique.length - max} más`
+    : unique.join('; ');
 };
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (
+const findParameter = (
   context: ENSPolicyContext,
   id: string
 ): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-const configurado = (p: ENSControlParameter | undefined): boolean => {
+const configured = (p: ENSControlParameter | undefined): boolean => {
   if (!p) return false;
   if (Array.isArray(p.value)) return p.value.some(v => String(v).trim());
   return p.value !== undefined && p.value !== null && String(p.value).trim() !== '';
 };
 
-// Filas de una tabla repartidas en sus columnas declaradas. Sin columnas no se
-// adivina la posición: el parámetro se trata como no configurado.
-const filas = (
+// Table rows split into their declared columns. Without columns the position is not guessed: the
+// parameter is treated as not configured.
+const tableParameterRows = (
   context: ENSPolicyContext,
   id: string
 ): Record<string, string>[] | undefined => {
-  const p = parametro(context, id);
-  const columnas = p?.columns || [];
+  const p = findParameter(context, id);
+  const columns = p?.columns || [];
 
-  if (!p || !columnas.length) {
+  if (!p || !columns.length) {
     return undefined;
   }
 
-  const resultado = toParameterTableRows(p.value)
-    .map(fila => toTableRowCells(fila))
-    .filter(celdas => celdas.some(Boolean))
-    .map(celdas => {
-      const fila: Record<string, string> = {};
+  const result = toParameterTableRows(p.value)
+    .map(row => toTableRowCells(row))
+    .filter(cells => cells.some(Boolean))
+    .map(cells => {
+      const row: Record<string, string> = {};
 
-      columnas.forEach((columna, i) => {
-        fila[columna.name] = celdas[i] || '';
+      columns.forEach((column, i) => {
+        row[column.name] = cells[i] || '';
       });
 
-      return fila;
+      return row;
     });
 
-  return resultado.length ? resultado : undefined;
+  return result.length ? result : undefined;
 };
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-// --- máquinas y cobertura --------------------------------------------------
 
-type Maquina = { nombre: string; eventos: ENSNormalizedEvent[] };
+type Machine = { nombre: string; eventos: ENSNormalizedEvent[] };
 
-// Los hechos de cada máquina por separado: P-05 es una decisión POR MÁQUINA, y
-// la cobertura la declara el latido de cada recolector.
-const maquinas = (context: ENSPolicyContext): Maquina[] => {
-  const porAgente = new Map<string, ENSNormalizedEvent[]>();
+// Each machine's facts apart: P-05 is a decision PER MACHINE and coverage is declared by each
+// collector's heartbeat.
+const machines = (context: ENSPolicyContext): Machine[] => {
+  const byAgent = new Map<string, ENSNormalizedEvent[]>();
 
   context.events
     .filter(e => e.controlId === CONTROL)
     .forEach(e => {
-      const clave = e.agentName || e.agentId || 'desconocida';
-      porAgente.set(clave, [...(porAgente.get(clave) || []), e]);
+      const key = e.agentName || e.agentId || 'desconocida';
+      byAgent.set(key, [...(byAgent.get(key) || []), e]);
     });
 
-  return Array.from(porAgente.entries()).map(([nombre, eventos]) => ({ nombre, eventos }));
+  return Array.from(byAgent.entries()).map(([name, events]) => ({ nombre: name, eventos: events }));
 };
 
-// ¿Declara el último latido de esta máquina, reciente y correcto, que la pasada
-// miró ENTERA esta evidencia?
-const cubierta = (
-  maquina: Maquina,
-  evidencia: string,
-  ahora: number
+// Does this machine's last heartbeat, recent and correct, declare that the run looked at this
+// evidence ENTIRELY?
+const coveredCheck = (
+  machine: Machine,
+  evidence: string,
+  now: number
 ): { si: boolean; motivo: string } => {
-  const latidos = hechos(maquina.eventos, 'collector_run')
+  const heartbeats = facts(machine.eventos, 'collector_run')
     .map(e => ({ e, t: new Date(e.timestamp).getTime() }))
-    .filter(x => Number.isFinite(x.t) && x.t <= ahora + TOLERANCIA_FUTURO && x.t >= ahora - LATIDO_HORAS * HORA)
+    .filter(x => Number.isFinite(x.t) && x.t <= now + FUTURE_TOLERANCE_MS && x.t >= now - HEARTBEAT_HOURS * HOUR_MS)
     .sort((a, b) => b.t - a.t);
 
-  const ultimo = latidos[0]?.e;
+  const last = heartbeats[0]?.e;
 
-  if (!ultimo) {
-    return { si: false, motivo: `no consta ningún latido del recolector de ${maquina.nombre} en las últimas ${LATIDO_HORAS} h` };
+  if (!last) {
+    return { si: false, motivo: `no consta ningún latido del recolector de ${machine.nombre} en las últimas ${HEARTBEAT_HOURS} h` };
   }
 
-  if (campo(ultimo, 'resultado') !== 'completada') {
-    return { si: false, motivo: `el último latido de ${maquina.nombre} no declara una pasada completada` };
+  if (factField(last, 'resultado') !== 'completada') {
+    return { si: false, motivo: `el último latido de ${machine.nombre} no declara una pasada completada` };
   }
 
-  const cubiertas = campo(ultimo, 'evidencias_cubiertas')
+  const coveredEvidences = factField(last, 'evidencias_cubiertas')
     .split(',')
     .map(x => x.trim());
 
-  return cubiertas.includes(evidencia)
-    ? { si: true, motivo: `el latido de ${maquina.nombre} (${ultimo.timestamp}) declara ${evidencia} cubierta` }
-    : { si: false, motivo: `el último latido de ${maquina.nombre} (${ultimo.timestamp}) no declara ${evidencia} cubierta: esa pasada no pudo mirarla entera` };
+  return coveredEvidences.includes(evidence)
+    ? { si: true, motivo: `el latido de ${machine.nombre} (${last.timestamp}) declara ${evidence} cubierta` }
+    : { si: false, motivo: `el último latido de ${machine.nombre} (${last.timestamp}) no declara ${evidence} cubierta: esa pasada no pudo mirarla entera` };
 };
 
-// La degradación más reciente que el recolector emitió para una evidencia en
-// esta máquina: es lo que dice POR QUÉ no se pudo mirar.
-const ultimaDegradacion = (maquina: Maquina, evidencia: string): ENSNormalizedEvent | undefined =>
-  hechos(maquina.eventos, 'evidence_state')
-    .filter(e => e.evidenceId === evidencia || campo(e, 'evidence_id').split(',').includes(evidencia))
+// The most recent degradation the collector emitted for an evidence on this machine: it says WHY it
+// could not look.
+const lastDegradation = (machine: Machine, evidence: string): ENSNormalizedEvent | undefined =>
+  facts(machine.eventos, 'evidence_state')
+    .filter(e => e.evidenceId === evidence || factField(e, 'evidence_id').split(',').includes(evidence))
     .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))[0];
 
-const degradacion = (maquina: Maquina, evidencia: string): string => {
-  const ultima = ultimaDegradacion(maquina, evidencia);
+const degradation = (machine: Machine, evidence: string): string => {
+  const last = lastDegradation(machine, evidence);
 
-  return ultima ? ` El recolector dice: ${campo(ultima, 'motivo')}` : '';
+  return last ? ` El recolector dice: ${factField(last, 'motivo')}` : '';
 };
 
-// La causa con la que el recolector declaró que no pudo mirar: él sabe si son
-// las reglas de auditd sin cargar (CONFIGURATION) o una fuente que no pudo leer
-// (COLLECTION). Sin degradación declarada, `porDefecto`.
-const causaDeclarada = (maquina: Maquina, evidencia: string, porDefecto: ENSGapCause): ENSGapCause => {
-  const ultima = ultimaDegradacion(maquina, evidencia);
-  const declarada = ultima ? campo(ultima, 'causa').toUpperCase() : '';
+// The cause with which the collector declared it could not look: it knows whether auditd rules are
+// unloaded (CONFIGURATION) or a source could not be read (COLLECTION). Without declared
+// degradation, `byDefault`.
+const declaredCause = (machine: Machine, evidence: string, byDefault: ENSGapCause): ENSGapCause => {
+  const last = lastDegradation(machine, evidence);
+  const declared = last ? factField(last, 'causa').toUpperCase() : '';
 
-  return ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
-    ? (declarada as ENSGapCause)
-    : porDefecto;
+  return ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declared)
+    ? (declared as ENSGapCause)
+    : byDefault;
 };
 
-// Una evidencia que la última pasada no miró entera: el motivo acaba con lo
-// que dice el recolector, y la causa es la suya. Sin nada declarado, el
-// latido que falta o no la cubre es un fallo de RECOGIDA.
-const sinCobertura = (maquina: Maquina, evidencia: string, motivo: string): Medida =>
-  sinMedir(`${motivo}${degradacion(maquina, evidencia)}`, causaDeclarada(maquina, evidencia, 'COLLECTION'));
+// An evidence the last run did not look at entirely: the reason ends with what the collector says
+// and the cause is its own. Declaring nothing, the missing heartbeat or one not covering it is a
+// COLLECTION failure.
+const withoutCoverage = (machine: Machine, evidence: string, motive: string): Measurement =>
+  notMeasured(`${motive}${degradation(machine, evidence)}`, declaredCause(machine, evidence, 'COLLECTION'));
 
-const prefijo = (maquina: Maquina, varias: boolean): string =>
-  varias ? `[${maquina.nombre}] ` : '';
+const prefix = (machine: Machine, several: boolean): string =>
+  several ? `[${machine.nombre}] ` : '';
 
-// --- P-03: el vocabulario de algoritmos -----------------------------------
 
-type Autorizado = { algoritmo: string; minimo?: number };
+type Authorized = { algoritmo: string; minimo?: number };
 
-// P-03 por uso. Una fila sin algoritmo no autoriza nada.
-const autorizados = (context: ENSPolicyContext): Map<string, Autorizado[]> | undefined => {
-  const tabla = filas(context, 'P-03');
+// P-03 by usage. A row without algorithm authorizes nothing.
+const authorizedByKey = (context: ENSPolicyContext): Map<string, Authorized[]> | undefined => {
+  const table = tableParameterRows(context, 'P-03');
 
-  if (!tabla) {
+  if (!table) {
     return undefined;
   }
 
-  const porUso = new Map<string, Autorizado[]>();
+  const byUsage = new Map<string, Authorized[]>();
 
-  tabla.forEach(fila => {
-    const uso = sinTildes(fila.uso || '');
-    const algoritmo = (fila.algoritmo || '').trim().toUpperCase();
+  table.forEach(row => {
+    const usage = stripAccents(row.uso || '');
+    const algorithm = (row.algoritmo || '').trim().toUpperCase();
 
-    if (!uso || !algoritmo) {
+    if (!usage || !algorithm) {
       return;
     }
 
-    const minimo = /^\d+$/.test((fila.longitud_min || '').trim())
-      ? Number(fila.longitud_min)
+    const min = /^\d+$/.test((row.longitud_min || '').trim())
+      ? Number(row.longitud_min)
       : undefined;
 
-    porUso.set(uso, [...(porUso.get(uso) || []), { algoritmo, minimo }]);
+    byUsage.set(usage, [...(byUsage.get(usage) || []), { algoritmo: algorithm, minimo: min }]);
   });
 
-  return porUso.size ? porUso : undefined;
+  return byUsage.size ? byUsage : undefined;
 };
 
-// Un elemento observado ('AES-GCM:256', 'SNTRUP761-X25519') contra su uso.
-// `undefined` = no se puede decidir (P-03 exige longitud y el hecho no la trae).
-const autorizado = (
-  politica: Map<string, Autorizado[]>,
-  uso: string,
-  elemento: string
+// An observed element ('AES-GCM:256', 'SNTRUP761-X25519') against its usage. `undefined` = cannot
+// be decided (P-03 requires length and the fact lacks it).
+const authorizedFor = (
+  policy: Map<string, Authorized[]>,
+  usage: string,
+  item: string
 ): { ok: boolean | undefined; motivo: string } => {
-  const [familia, bitsTexto] = elemento.split(':');
-  const algoritmo = (familia || '').trim().toUpperCase();
-  const bits = /^\d+$/.test((bitsTexto || '').trim()) ? Number(bitsTexto) : undefined;
+  const [family, bitsText] = item.split(':');
+  const algorithm = (family || '').trim().toUpperCase();
+  const bits = /^\d+$/.test((bitsText || '').trim()) ? Number(bitsText) : undefined;
 
-  const filasUso = politica.get(sinTildes(uso)) || [];
-  const candidatas = filasUso.filter(f => f.algoritmo === algoritmo);
+  const rowsUsage = policy.get(stripAccents(usage)) || [];
+  const candidate = rowsUsage.filter(f => f.algoritmo === algorithm);
 
-  if (!candidatas.length) {
-    return { ok: false, motivo: `${elemento} no está autorizado para ${uso}` };
+  if (!candidate.length) {
+    return { ok: false, motivo: `${item} no está autorizado para ${usage}` };
   }
 
-  // Basta una fila que lo admita: dos filas del mismo algoritmo con mínimos
-  // distintos no se contradicen, la más permisiva es la decisión.
-  if (candidatas.some(f => f.minimo === undefined)) {
+  // One row admitting it is enough: two rows of the same algorithm with different minimums do not
+  // contradict, the most permissive decides.
+  if (candidate.some(f => f.minimo === undefined)) {
     return { ok: true, motivo: '' };
   }
 
-  const minimo = Math.min(...candidatas.map(f => f.minimo as number));
+  const min = Math.min(...candidate.map(f => f.minimo as number));
 
   if (bits === undefined) {
-    return { ok: undefined, motivo: `${elemento} (${uso}) no trae longitud y P-03 exige ${minimo} bits` };
+    return { ok: undefined, motivo: `${item} (${usage}) no trae longitud y P-03 exige ${min} bits` };
   }
 
-  return bits >= minimo
+  return bits >= min
     ? { ok: true, motivo: '' }
-    : { ok: false, motivo: `${elemento} está por debajo de los ${minimo} bits que P-03 exige para ${uso}` };
+    : { ok: false, motivo: `${item} está por debajo de los ${min} bits que P-03 exige para ${usage}` };
 };
 
-// Contrasta una lista de (uso, elemento, contexto) y devuelve la medida.
-const contrasta = (
-  politica: Map<string, Autorizado[]>,
-  elementos: { uso: string; elemento: string; donde: string }[]
+// Contrasts a list of (usage, element, context) and returns the measurement.
+const checks = (
+  policy: Map<string, Authorized[]>,
+  items: { uso: string; elemento: string; donde: string }[]
 ): { fallos: string[]; dudas: string[] } => {
-  const fallos: string[] = [];
-  const dudas: string[] = [];
+  const failures: string[] = [];
+  const doubts: string[] = [];
 
-  elementos.forEach(({ uso, elemento, donde }) => {
-    const r = autorizado(politica, uso, elemento);
+  items.forEach(({ uso: usage, elemento: item, donde: where }) => {
+    const r = authorizedFor(policy, usage, item);
 
-    if (r.ok === false) fallos.push(`${donde}: ${r.motivo}`);
-    if (r.ok === undefined) dudas.push(`${donde}: ${r.motivo}`);
+    if (r.ok === false) failures.push(`${where}: ${r.motivo}`);
+    if (r.ok === undefined) doubts.push(`${where}: ${r.motivo}`);
   });
 
-  return { fallos, dudas };
+  return { fallos: failures, dudas: doubts };
 };
 
-// --- EV-01 · accesos al material ------------------------------------------
 
-const ev01 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const tabla = filas(context, 'P-08');
+const ev01 = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const table = tableParameterRows(context, 'P-08');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-08')} está sin configurar: no hay contra qué contrastar quién accede a las claves.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-08')} está sin configurar: no hay contra qué contrastar quién accede a las claves.`, 'CONFIGURATION');
   }
 
-  const cuentas = new Set(tabla.map(f => (f.cuenta || '').trim()).filter(Boolean));
-  const varias = todas.length > 1;
+  const accounts = new Set(table.map(f => (f.cuenta || '').trim()).filter(Boolean));
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const accesos = hechos(m.eventos, 'key_material_accessed');
-      const fuera = accesos.filter(e => !cuentas.has(campo(e, 'actor')));
-      const cob = cubierta(m, 'EV-01', ahora);
+  return combineMeasurements(
+    all.map(m => {
+      const accesses = facts(m.eventos, 'key_material_accessed');
+      const outside = accesses.filter(e => !accounts.has(factField(e, 'actor')));
+      const cov = coveredCheck(m, 'EV-01', now);
 
-      if (fuera.length) {
-        return noCumple(
-          `${prefijo(m, varias)}Accesos al material criptográfico por cuentas que no figuran en ${etiqueta(context, 'P-08')}: ${lista(
-            fuera.map(e => `${campo(e, 'actor')} (${campo(e, 'sesion')}) · ${campo(e, 'acceso')} de ${campo(e, 'recurso')} con ${campo(e, 'proceso')}, ${campo(e, 'veces')} vez/veces hasta ${campo(e, 'ultima')}`)
+      if (outside.length) {
+        return nonCompliant(
+          `${prefix(m, several)}Accesos al material criptográfico por cuentas que no figuran en ${parameterDisplayName(context, 'P-08')}: ${formatList(
+            outside.map(e => `${factField(e, 'actor')} (${factField(e, 'sesion')}) · ${factField(e, 'acceso')} de ${factField(e, 'recurso')} con ${factField(e, 'proceso')}, ${factField(e, 'veces')} vez/veces hasta ${factField(e, 'ultima')}`)
           )}.`
         );
       }
 
-      if (!cob.si) {
-        return sinCobertura(
+      if (!cov.si) {
+        return withoutCoverage(
           m,
           'EV-01',
-          `${prefijo(m, varias)}${accesos.length ? `Los ${accesos.length} acceso(s) observados son de cuentas autorizadas, pero` : 'No se ha observado ningún acceso, y'} ${cob.motivo}: lo que no se vigila no acredita nada.`
+          `${prefix(m, several)}${accesses.length ? `Los ${accesses.length} acceso(s) observados son de cuentas autorizadas, pero` : 'No se ha observado ningún acceso, y'} ${cov.motivo}: lo que no se vigila no acredita nada.`
         );
       }
 
-      return cumple(
-        accesos.length
-          ? `${prefijo(m, varias)}Los ${accesos.length} acceso(s) al material criptográfico son de cuentas de ${etiqueta(context, 'P-08')} (${lista(accesos.map(e => campo(e, 'actor')))}), y ${cob.motivo}.`
-          : `${prefijo(m, varias)}Ningún acceso al material criptográfico en la ventana, y ${cob.motivo}.`
+      return compliant(
+        accesses.length
+          ? `${prefix(m, several)}Los ${accesses.length} acceso(s) al material criptográfico son de cuentas de ${parameterDisplayName(context, 'P-08')} (${formatList(accesses.map(e => factField(e, 'actor')))}), y ${cov.motivo}.`
+          : `${prefix(m, several)}Ningún acceso al material criptográfico en la ventana, y ${cov.motivo}.`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// --- EV-03 · configuración de los servicios -------------------------------
 
-const ev03 = (context: ENSPolicyContext, todas: Maquina[]): Medida => {
-  const politica = autorizados(context);
+const ev03 = (context: ENSPolicyContext, all: Machine[]): Measurement => {
+  const policy = authorizedByKey(context);
 
-  if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar la configuración.`, 'CONFIGURATION');
+  if (!policy) {
+    return notMeasured(`${parameterDisplayName(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar la configuración.`, 'CONFIGURATION');
   }
 
-  const alcance = filas(context, 'P-04');
+  const scope = tableParameterRows(context, 'P-04');
 
-  if (!alcance) {
-    return sinMedir(`${etiqueta(context, 'P-04')} está sin configurar: sin el alcance declarado no se puede afirmar que se hayan verificado todos los servicios criptográficos.`, 'CONFIGURATION');
+  if (!scope) {
+    return notMeasured(`${parameterDisplayName(context, 'P-04')} está sin configurar: sin el alcance declarado no se puede afirmar que se hayan verificado todos los servicios criptográficos.`, 'CONFIGURATION');
   }
 
-  const varias = todas.length > 1;
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const observados = hechos(m.eventos, 'crypto_config_observed');
-      const servicios = new Set(observados.map(e => sinTildes(campo(e, 'servicio'))));
+  return combineMeasurements(
+    all.map(m => {
+      const observed = facts(m.eventos, 'crypto_config_observed');
+      const services = new Set(observed.map(e => stripAccents(factField(e, 'servicio'))));
 
-      const declarados = alcance
-        .filter(f => (f.sistema || '').trim() === '*' || sinTildes(f.sistema || '') === sinTildes(m.nombre))
+      const declared = scope
+        .filter(f => (f.sistema || '').trim() === '*' || stripAccents(f.sistema || '') === stripAccents(m.nombre))
         .map(f => (f.servicio || '').trim())
         .filter(Boolean);
 
-      const sinObservar = declarados.filter(s => !servicios.has(sinTildes(s)));
+      const withoutObserve = declared.filter(s => !services.has(stripAccents(s)));
 
-      const { fallos, dudas } = contrasta(
-        politica,
-        observados.flatMap(e =>
-          campo(e, 'algoritmos')
+      const { fallos: failures, dudas: doubts } = checks(
+        policy,
+        observed.flatMap(e =>
+          factField(e, 'algoritmos')
             .split(',')
             .map(x => x.trim())
             .filter(Boolean)
-            .map(elemento => ({
-              uso: campo(e, 'uso'),
-              elemento,
-              donde: `${campo(e, 'servicio')} ${campo(e, 'elemento')}`,
+            .map(item => ({
+              uso: factField(e, 'uso'),
+              elemento: item,
+              donde: `${factField(e, 'servicio')} ${factField(e, 'elemento')}`,
             }))
         )
       );
 
-      if (fallos.length) {
-        return noCumple(`${prefijo(m, varias)}Algoritmos no autorizados en ${etiqueta(context, 'P-03')}: ${lista(fallos, 8)}.`);
+      if (failures.length) {
+        return nonCompliant(`${prefix(m, several)}Algoritmos no autorizados en ${parameterDisplayName(context, 'P-03')}: ${formatList(failures, 8)}.`);
       }
 
-      // El recolector corrió y no vio ningún servicio: si dice por qué, su
-      // causa; si no, el dato llegó y no basta.
-      if (!observados.length) {
-        return sinMedir(
-          `${prefijo(m, varias)}No se ha observado la configuración de ningún servicio criptográfico.${degradacion(m, 'EV-03')}`,
-          causaDeclarada(m, 'EV-03', 'EVIDENCE')
+      // The collector ran and saw no service: its cause if it says why; otherwise the data arrived
+      // and is not enough.
+      if (!observed.length) {
+        return notMeasured(
+          `${prefix(m, several)}No se ha observado la configuración de ningún servicio criptográfico.${degradation(m, 'EV-03')}`,
+          declaredCause(m, 'EV-03', 'EVIDENCE')
         );
       }
 
-      if (sinObservar.length) {
-        return sinMedir(`${prefijo(m, varias)}${etiqueta(context, 'P-04')} declara para esta máquina ${lista(sinObservar)}, y no se ha observado: un servicio declarado sin verificar deja R1 sin demostrar.`);
+      if (withoutObserve.length) {
+        return notMeasured(`${prefix(m, several)}${parameterDisplayName(context, 'P-04')} declara para esta máquina ${formatList(withoutObserve)}, y no se ha observado: un servicio declarado sin verificar deja R1 sin demostrar.`);
       }
 
-      if (dudas.length) {
-        return sinMedir(`${prefijo(m, varias)}No se puede contrastar: ${lista(dudas)}.`);
+      if (doubts.length) {
+        return notMeasured(`${prefix(m, several)}No se puede contrastar: ${formatList(doubts)}.`);
       }
 
-      return cumple(
-        `${prefijo(m, varias)}Todos los algoritmos que aceptan ${lista(Array.from(new Set(observados.map(e => campo(e, 'servicio')))))} (${observados.length} directiva(s)) figuran en ${etiqueta(context, 'P-03')} con la longitud exigida.`
+      return compliant(
+        `${prefix(m, several)}Todos los algoritmos que aceptan ${formatList(Array.from(new Set(observed.map(e => factField(e, 'servicio')))))} (${observed.length} directiva(s)) figuran en ${parameterDisplayName(context, 'P-03')} con la longitud exigida.`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// --- EV-04 · lo negociado --------------------------------------------------
 
-const ev04 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const politica = autorizados(context);
+const ev04 = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const policy = authorizedByKey(context);
 
-  if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar lo negociado.`, 'CONFIGURATION');
+  if (!policy) {
+    return notMeasured(`${parameterDisplayName(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar lo negociado.`, 'CONFIGURATION');
   }
 
-  const varias = todas.length > 1;
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const negociados = hechos(m.eventos, 'crypto_protocol_negotiated');
-      const cob = cubierta(m, 'EV-04', ahora);
+  return combineMeasurements(
+    all.map(m => {
+      const negotiated = facts(m.eventos, 'crypto_protocol_negotiated');
+      const cov = coveredCheck(m, 'EV-04', now);
 
-      const { fallos, dudas } = contrasta(
-        politica,
-        negociados.map(e => ({
-          uso: campo(e, 'uso'),
-          elemento: campo(e, 'algoritmo'),
-          donde: `${campo(e, 'servicio')} ${campo(e, 'identificador')} (${campo(e, 'veces')} vez/veces, última ${campo(e, 'ultima')})`,
+      const { fallos: failures, dudas: doubts } = checks(
+        policy,
+        negotiated.map(e => ({
+          uso: factField(e, 'uso'),
+          elemento: factField(e, 'algoritmo'),
+          donde: `${factField(e, 'servicio')} ${factField(e, 'identificador')} (${factField(e, 'veces')} vez/veces, última ${factField(e, 'ultima')})`,
         }))
       );
 
-      if (fallos.length) {
-        return noCumple(`${prefijo(m, varias)}Se han negociado algoritmos no autorizados en ${etiqueta(context, 'P-03')}: ${lista(fallos)}.`);
+      if (failures.length) {
+        return nonCompliant(`${prefix(m, several)}Se han negociado algoritmos no autorizados en ${parameterDisplayName(context, 'P-03')}: ${formatList(failures)}.`);
       }
 
-      if (!cob.si) {
-        return sinCobertura(
+      if (!cov.si) {
+        return withoutCoverage(
           m,
           'EV-04',
-          `${prefijo(m, varias)}${negociados.length ? `Lo observado (${negociados.length} algoritmo(s) negociados) está autorizado, pero` : 'No se ha observado ninguna negociación, y'} ${cob.motivo}.`
+          `${prefix(m, several)}${negotiated.length ? `Lo observado (${negotiated.length} algoritmo(s) negociados) está autorizado, pero` : 'No se ha observado ninguna negociación, y'} ${cov.motivo}.`
         );
       }
 
-      if (dudas.length) {
-        return sinMedir(`${prefijo(m, varias)}No se puede contrastar: ${lista(dudas)}.`);
+      if (doubts.length) {
+        return notMeasured(`${prefix(m, several)}No se puede contrastar: ${formatList(doubts)}.`);
       }
 
-      return cumple(
-        negociados.length
-          ? `${prefijo(m, varias)}Los ${negociados.length} algoritmo(s) negociados en la ventana figuran en ${etiqueta(context, 'P-03')}, y ${cob.motivo}.`
-          : `${prefijo(m, varias)}No se ha negociado nada en la ventana, y ${cob.motivo}.`
+      return compliant(
+        negotiated.length
+          ? `${prefix(m, several)}Los ${negotiated.length} algoritmo(s) negociados en la ventana figuran en ${parameterDisplayName(context, 'P-03')}, y ${cov.motivo}.`
+          : `${prefix(m, several)}No se ha negociado nada en la ventana, y ${cov.motivo}.`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// --- EV-05 · generación en explotación ------------------------------------
 
-const ev05 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const tabla = filas(context, 'P-05');
+const ev05 = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const table = tableParameterRows(context, 'P-05');
 
-  if (!tabla) {
-    return sinMedir(`${etiqueta(context, 'P-05')} está sin configurar: no se sabe qué máquinas son medios de explotación.`, 'CONFIGURATION');
+  if (!table) {
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} está sin configurar: no se sabe qué máquinas son medios de explotación.`, 'CONFIGURATION');
   }
 
-  const varias = todas.length > 1;
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const fila = tabla.find(f => sinTildes(f.medio || '') === sinTildes(m.nombre));
+  return combineMeasurements(
+    all.map(m => {
+      const row = table.find(f => stripAccents(f.medio || '') === stripAccents(m.nombre));
 
-      if (!fila) {
-        return sinMedir(`${prefijo(m, varias)}${m.nombre} no figura en ${etiqueta(context, 'P-05')}: su función (generación o explotación) no está declarada.`, 'CONFIGURATION');
+      if (!row) {
+        return notMeasured(`${prefix(m, several)}${m.nombre} no figura en ${parameterDisplayName(context, 'P-05')}: su función (generación o explotación) no está declarada.`, 'CONFIGURATION');
       }
 
-      const funcion = sinTildes(fila.funcion || '');
-      const generadas = hechos(m.eventos, 'key_generation_tool_executed');
+      const role = stripAccents(row.funcion || '');
+      const generated = facts(m.eventos, 'key_generation_tool_executed');
 
-      if (funcion === 'generacion') {
-        // En un medio de generación, generar es su función. Lo que exige
-        // op.exp.10.2 de ÉL es el aislamiento, y eso se declara en P-05 y no se
-        // mide: no hay nada que afirmar desde aquí.
-        return sinMedir(`${prefijo(m, varias)}${m.nombre} está declarado medio de GENERACIÓN en ${etiqueta(context, 'P-05')} (aislamiento: ${fila.aislamiento || 'sin declarar'}). Su aislamiento de los medios de explotación es declarativo y no se mide.`);
+      if (role === 'generacion') {
+        // In a generation medium, generating is its function; what op.exp.10.2 requires of IT is
+        // isolation, which is declared in P-05 and not measured: nothing to assert from here.
+        return notMeasured(`${prefix(m, several)}${m.nombre} está declarado medio de GENERACIÓN en ${parameterDisplayName(context, 'P-05')} (aislamiento: ${row.aislamiento || 'sin declarar'}). Su aislamiento de los medios de explotación es declarativo y no se mide.`);
       }
 
-      if (funcion !== 'explotacion') {
-        return sinMedir(`${prefijo(m, varias)}La fila de ${m.nombre} en ${etiqueta(context, 'P-05')} no declara una función reconocible ('${fila.funcion}').`, 'CONFIGURATION');
+      if (role !== 'explotacion') {
+        return notMeasured(`${prefix(m, several)}La fila de ${m.nombre} en ${parameterDisplayName(context, 'P-05')} no declara una función reconocible ('${row.funcion}').`, 'CONFIGURATION');
       }
 
-      if (generadas.length) {
-        return noCumple(
-          `${prefijo(m, varias)}${m.nombre} es un medio de EXPLOTACIÓN y en él se ha generado material criptográfico: ${lista(
-            generadas.map(e => `${campo(e, 'actor')} ejecutó ${campo(e, 'herramienta')} ${campo(e, 'operacion')} ${campo(e, 'veces')} vez/veces (última ${campo(e, 'ultima')})`)
+      if (generated.length) {
+        return nonCompliant(
+          `${prefix(m, several)}${m.nombre} es un medio de EXPLOTACIÓN y en él se ha generado material criptográfico: ${formatList(
+            generated.map(e => `${factField(e, 'actor')} ejecutó ${factField(e, 'herramienta')} ${factField(e, 'operacion')} ${factField(e, 'veces')} vez/veces (última ${factField(e, 'ultima')})`)
           )}.`
         );
       }
 
-      const cob = cubierta(m, 'EV-05', ahora);
+      const cov = coveredCheck(m, 'EV-05', now);
 
-      return cob.si
-        ? cumple(`${prefijo(m, varias)}${m.nombre} es un medio de explotación y no se ha generado ninguna clave en la ventana; ${cob.motivo}.`)
-        : sinCobertura(m, 'EV-05', `${prefijo(m, varias)}No se ha observado ninguna generación en ${m.nombre}, pero ${cob.motivo}.`);
+      return cov.si
+        ? compliant(`${prefix(m, several)}${m.nombre} es un medio de explotación y no se ha generado ninguna clave en la ventana; ${cov.motivo}.`)
+        : withoutCoverage(m, 'EV-05', `${prefix(m, several)}No se ha observado ninguna generación en ${m.nombre}, pero ${cov.motivo}.`);
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// --- EV-06 · claves retiradas presentes -----------------------------------
 
-const ev06 = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const inventario = filas(context, 'P-01');
+const ev06 = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const inventory = tableParameterRows(context, 'P-01');
 
-  if (!inventario) {
-    return sinMedir(`${etiqueta(context, 'P-01')} está sin configurar: sin inventario no se sabe qué claves están retiradas.`, 'CONFIGURATION');
+  if (!inventory) {
+    return notMeasured(`${parameterDisplayName(context, 'P-01')} está sin configurar: sin inventario no se sabe qué claves están retiradas.`, 'CONFIGURATION');
   }
 
-  const archivo = filas(context, 'P-06');
+  const file = tableParameterRows(context, 'P-06');
 
-  if (!archivo) {
-    return sinMedir(`${etiqueta(context, 'P-06')} está sin configurar: no consta dónde se archivan las claves retiradas.`, 'CONFIGURATION');
+  if (!file) {
+    return notMeasured(`${parameterDisplayName(context, 'P-06')} está sin configurar: no consta dónde se archivan las claves retiradas.`, 'CONFIGURATION');
   }
 
-  // Un destino de archivo que es una máquina de EXPLOTACIÓN contradice el
-  // requisito por sí mismo, se observe lo que se observe.
-  const explotacion = new Set(
-    (filas(context, 'P-05') || [])
-      .filter(f => sinTildes(f.funcion || '') === 'explotacion')
-      .map(f => sinTildes(f.medio || ''))
+  // An archive destination that is a PRODUCTION machine contradicts the requirement by itself,
+  // whatever is observed.
+  const production = new Set(
+    (tableParameterRows(context, 'P-05') || [])
+      .filter(f => stripAccents(f.funcion || '') === 'explotacion')
+      .map(f => stripAccents(f.medio || ''))
   );
-  const archivoEnExplotacion = archivo.filter(f => explotacion.has(sinTildes(f.destino || '')));
+  const productionFile = file.filter(f => production.has(stripAccents(f.destino || '')));
 
-  if (archivoEnExplotacion.length) {
-    return noCumple(`${etiqueta(context, 'P-06')} declara como archivo de claves retiradas ${lista(archivoEnExplotacion.map(f => f.destino))}, que ${etiqueta(context, 'P-05')} declara medio de explotación.`);
+  if (productionFile.length) {
+    return nonCompliant(`${parameterDisplayName(context, 'P-06')} declara como archivo de claves retiradas ${formatList(productionFile.map(f => f.destino))}, que ${parameterDisplayName(context, 'P-05')} declara medio de explotación.`);
   }
 
-  const retiradas = inventario.filter(f => sinTildes(f.estado || '') === 'retirada');
-  const varias = todas.length > 1;
+  const withdrawn = inventory.filter(f => stripAccents(f.estado || '') === 'retirada');
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const claves = hechos(m.eventos, 'key_material_found');
-      const cob = cubierta(m, 'EV-06', ahora);
+  return combineMeasurements(
+    all.map(m => {
+      const claves = facts(m.eventos, 'key_material_found');
+      const cov = coveredCheck(m, 'EV-06', now);
 
-      const presentes = retiradas.flatMap(f =>
+      const presentes = withdrawn.flatMap(f =>
         claves
           .filter(e =>
-            (f.huella && campo(e, 'huella') && f.huella.trim() === campo(e, 'huella')) ||
-            (f.ubicacion && f.ubicacion.trim() === campo(e, 'ruta'))
+            (f.huella && factField(e, 'huella') && f.huella.trim() === factField(e, 'huella')) ||
+            (f.ubicacion && f.ubicacion.trim() === factField(e, 'ruta'))
           )
-          .map(e => `'${f.clave}' sigue en ${campo(e, 'ruta')}`)
+          .map(e => `'${f.clave}' sigue en ${factField(e, 'ruta')}`)
       );
 
       if (presentes.length) {
-        return noCumple(`${prefijo(m, varias)}Claves declaradas RETIRADAS en ${etiqueta(context, 'P-01')} siguen presentes en esta máquina: ${lista(presentes)}.`);
+        return nonCompliant(`${prefix(m, several)}Claves declaradas RETIRADAS en ${parameterDisplayName(context, 'P-01')} siguen presentes en esta máquina: ${formatList(presentes)}.`);
       }
 
-      if (!cob.si) {
-        return sinCobertura(m, 'EV-06', `${prefijo(m, varias)}No se ha encontrado ninguna clave retirada, pero ${cob.motivo}.`);
+      if (!cov.si) {
+        return withoutCoverage(m, 'EV-06', `${prefix(m, several)}No se ha encontrado ninguna clave retirada, pero ${cov.motivo}.`);
       }
 
-      // Una retirada que solo se identifica por huella no se puede descartar
-      // frente a una clave cuya huella no se pudo leer (cifrada, PKCS#12).
-      const soloHuella = retiradas.filter(f => f.huella && !f.ubicacion);
-      const sinHuella = claves.filter(e => !campo(e, 'huella'));
+      // A withdrawal identified only by fingerprint cannot be ruled out against a key whose
+      // fingerprint could not be read (encrypted, PKCS#12).
+      const fingerprintOnly = withdrawn.filter(f => f.huella && !f.ubicacion);
+      const withoutFingerprint = claves.filter(e => !factField(e, 'huella'));
 
-      if (soloHuella.length && sinHuella.length) {
-        return sinMedir(`${prefijo(m, varias)}${soloHuella.length} clave(s) retirada(s) se identifican solo por huella, y de ${lista(sinHuella.map(e => campo(e, 'ruta')))} no se puede leer la huella: no se puede descartar que sean ellas.`);
+      if (fingerprintOnly.length && withoutFingerprint.length) {
+        return notMeasured(`${prefix(m, several)}${fingerprintOnly.length} clave(s) retirada(s) se identifican solo por huella, y de ${formatList(withoutFingerprint.map(e => factField(e, 'ruta')))} no se puede leer la huella: no se puede descartar que sean ellas.`);
       }
 
-      return cumple(
-        retiradas.length
-          ? `${prefijo(m, varias)}Ninguna de las ${retiradas.length} clave(s) retirada(s) de ${etiqueta(context, 'P-01')} está presente entre las ${claves.length} clave(s) privadas encontradas; ${cob.motivo}.`
-          : `${prefijo(m, varias)}${etiqueta(context, 'P-01')} no declara ninguna clave retirada, y el barrido de esta máquina está completo (${cob.motivo}).`
+      return compliant(
+        withdrawn.length
+          ? `${prefix(m, several)}Ninguna de las ${withdrawn.length} clave(s) retirada(s) de ${parameterDisplayName(context, 'P-01')} está presente entre las ${claves.length} clave(s) privadas encontradas; ${cov.motivo}.`
+          : `${prefix(m, several)}${parameterDisplayName(context, 'P-01')} no declara ninguna clave retirada, y el barrido de esta máquina está completo (${cov.motivo}).`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// --- EV-07 · certificados --------------------------------------------------
 
-const ev07Vigencia = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const p10 = parametro(context, 'P-10');
-  const antelacion = configurado(p10) && /^\d+$/.test(String(p10?.value).trim())
-    ? Number(p10?.value) * DIA
+const ev07Validity = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const p10 = findParameter(context, 'P-10');
+  const lead = configured(p10) && /^\d+$/.test(String(p10?.value).trim())
+    ? Number(p10?.value) * DAY_MS
     : undefined;
-  const varias = todas.length > 1;
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const certificados = hechos(m.eventos, 'certificate_observed');
-      const cob = cubierta(m, 'EV-07', ahora);
-      const caducados: string[] = [];
-      const proximos: string[] = [];
-      const ilegibles: string[] = [];
+  return combineMeasurements(
+    all.map(m => {
+      const certificates = facts(m.eventos, 'certificate_observed');
+      const cov = coveredCheck(m, 'EV-07', now);
+      const expired: string[] = [];
+      const next: string[] = [];
+      const unreadable: string[] = [];
 
-      certificados.forEach(e => {
-        const fin = instante(campo(e, 'caduca'));
-        const nombre = `${campo(e, 'sujeto')} (${campo(e, 'ruta')})`;
+      certificates.forEach(e => {
+        const end = parseInstant(factField(e, 'caduca'));
+        const name = `${factField(e, 'sujeto')} (${factField(e, 'ruta')})`;
 
-        if (fin === undefined) {
-          ilegibles.push(nombre);
-        } else if (fin < ahora) {
-          caducados.push(`${nombre} caducó el ${campo(e, 'caduca')}`);
-        } else if (antelacion !== undefined && fin - ahora <= antelacion) {
-          proximos.push(`${nombre} caduca el ${campo(e, 'caduca')} (${((fin - ahora) / DIA).toFixed(0)} días)`);
+        if (end === undefined) {
+          unreadable.push(name);
+        } else if (end < now) {
+          expired.push(`${name} caducó el ${factField(e, 'caduca')}`);
+        } else if (lead !== undefined && end - now <= lead) {
+          next.push(`${name} caduca el ${factField(e, 'caduca')} (${((end - now) / DAY_MS).toFixed(0)} días)`);
         }
       });
 
-      if (caducados.length) {
-        return noCumple(`${prefijo(m, varias)}Certificados CADUCADOS que siguen instalados: ${lista(caducados)}. La retirada (fase 4 del ciclo de vida) no se gestiona.`);
+      if (expired.length) {
+        return nonCompliant(`${prefix(m, several)}Certificados CADUCADOS que siguen instalados: ${formatList(expired)}. La retirada (fase 4 del ciclo de vida) no se gestiona.`);
       }
 
-      if (ilegibles.length) {
-        return sinMedir(`${prefijo(m, varias)}No se puede leer la caducidad de ${lista(ilegibles)}.`);
+      if (unreadable.length) {
+        return notMeasured(`${prefix(m, several)}No se puede leer la caducidad de ${formatList(unreadable)}.`);
       }
 
-      if (!cob.si) {
-        return sinCobertura(m, 'EV-07', `${prefijo(m, varias)}No hay certificados caducados entre los observados, pero ${cob.motivo}.`);
+      if (!cov.si) {
+        return withoutCoverage(m, 'EV-07', `${prefix(m, several)}No hay certificados caducados entre los observados, pero ${cov.motivo}.`);
       }
 
-      const aviso = proximos.length
-        ? ` PRÓXIMOS A CADUCAR según ${etiqueta(context, 'P-10')}: ${lista(proximos)}.`
-        : antelacion === undefined && certificados.length
-          ? ` Sin ${etiqueta(context, 'P-10')} no se avisa de los próximos a caducar.`
+      const notice = next.length
+        ? ` PRÓXIMOS A CADUCAR según ${parameterDisplayName(context, 'P-10')}: ${formatList(next)}.`
+        : lead === undefined && certificates.length
+          ? ` Sin ${parameterDisplayName(context, 'P-10')} no se avisa de los próximos a caducar.`
           : '';
 
-      return cumple(
-        certificados.length
-          ? `${prefijo(m, varias)}Ninguno de los ${certificados.length} certificado(s) en disco está caducado.${aviso}`
-          : `${prefijo(m, varias)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cob.motivo}.`
+      return compliant(
+        certificates.length
+          ? `${prefix(m, several)}Ninguno de los ${certificates.length} certificado(s) en disco está caducado.${notice}`
+          : `${prefix(m, several)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cov.motivo}.`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-const ev07Algoritmos = (context: ENSPolicyContext, todas: Maquina[], ahora: number): Medida => {
-  const politica = autorizados(context);
+const ev07Algorithms = (context: ENSPolicyContext, all: Machine[], now: number): Measurement => {
+  const policy = authorizedByKey(context);
 
-  if (!politica) {
-    return sinMedir(`${etiqueta(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar los certificados.`, 'CONFIGURATION');
+  if (!policy) {
+    return notMeasured(`${parameterDisplayName(context, 'P-03')} está sin configurar: no hay algoritmos autorizados contra los que contrastar los certificados.`, 'CONFIGURATION');
   }
 
-  const varias = todas.length > 1;
+  const several = all.length > 1;
 
-  return combina(
-    todas.map(m => {
-      const certificados = hechos(m.eventos, 'certificate_observed');
-      const cob = cubierta(m, 'EV-07', ahora);
+  return combineMeasurements(
+    all.map(m => {
+      const certificates = facts(m.eventos, 'certificate_observed');
+      const cov = coveredCheck(m, 'EV-07', now);
 
-      const elementos = certificados.flatMap(e => {
-        const donde = `certificado ${campo(e, 'sujeto')} (${campo(e, 'ruta')})`;
-        const hash = campo(e, 'hash_firma');
+      const items = certificates.flatMap(e => {
+        const where = `certificado ${factField(e, 'sujeto')} (${factField(e, 'ruta')})`;
+        const hash = factField(e, 'hash_firma');
 
         return [
-          { uso: 'firma', elemento: campo(e, 'algoritmo_clave'), donde },
-          ...(hash && hash !== 'INTRINSECO' ? [{ uso: 'hash', elemento: hash, donde }] : []),
+          { uso: 'firma', elemento: factField(e, 'algoritmo_clave'), donde: where },
+          ...(hash && hash !== 'INTRINSECO' ? [{ uso: 'hash', elemento: hash, donde: where }] : []),
         ];
       });
 
-      const { fallos, dudas } = contrasta(politica, elementos);
+      const { fallos: failures, dudas: doubts } = checks(policy, items);
 
-      if (fallos.length) {
-        return noCumple(`${prefijo(m, varias)}Certificados con clave o firma no autorizadas en ${etiqueta(context, 'P-03')}: ${lista(fallos)}.`);
+      if (failures.length) {
+        return nonCompliant(`${prefix(m, several)}Certificados con clave o firma no autorizadas en ${parameterDisplayName(context, 'P-03')}: ${formatList(failures)}.`);
       }
 
-      if (dudas.length) {
-        return sinMedir(`${prefijo(m, varias)}No se puede contrastar: ${lista(dudas)}.`);
+      if (doubts.length) {
+        return notMeasured(`${prefix(m, several)}No se puede contrastar: ${formatList(doubts)}.`);
       }
 
-      if (!cob.si) {
-        return sinCobertura(m, 'EV-07', `${prefijo(m, varias)}Los certificados observados están autorizados, pero ${cob.motivo}.`);
+      if (!cov.si) {
+        return withoutCoverage(m, 'EV-07', `${prefix(m, several)}Los certificados observados están autorizados, pero ${cov.motivo}.`);
       }
 
-      return cumple(
-        certificados.length
-          ? `${prefijo(m, varias)}La clave y la firma de los ${certificados.length} certificado(s) figuran en ${etiqueta(context, 'P-03')}.`
-          : `${prefijo(m, varias)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cob.motivo}.`
+      return compliant(
+        certificates.length
+          ? `${prefix(m, several)}La clave y la firma de los ${certificates.length} certificado(s) figuran en ${parameterDisplayName(context, 'P-03')}.`
+          : `${prefix(m, several)}No hay certificados en disco fuera del almacén de CA del sistema, y ${cov.motivo}.`
       );
     }),
-    sinRecolector()
+    withoutCollector()
   );
 };
 
-// La medida de una evidencia juzgada por primitiva, tal como la dejó su
-// primitiva. Aquí no se re-juzga.
-const deLaPrimitiva = (context: ENSPolicyContext, id: string): Medida => {
-  const evidencia = context.evidences.find(e => e.id === id);
-  const estado = evidencia?.status;
-  const motivo =
-    evidencia?.observations
+// Measurement of an evidence judged by a primitive, as its primitive left it; not re-judged here.
+const ofPrimitive = (context: ENSPolicyContext, id: string): Measurement => {
+  const evidence = context.evidences.find(e => e.id === id);
+  const status = evidence?.status;
+  const motive =
+    evidence?.observations
       ?.filter(o => !o.startsWith('Pregunta de auditoría'))
       .slice(1)
       .join(' ') || '';
 
-  if (estado === 'CUMPLE') return cumple(motivo);
-  if (estado === 'NO_CUMPLE' || estado === 'PARCIAL') return noCumple(motivo);
+  if (status === 'CUMPLE') return compliant(motive);
+  if (status === 'NO_CUMPLE' || status === 'PARCIAL') return nonCompliant(motive);
 
-  return sinMedir(motivo || `${id} no se ha podido medir.`, evidencia?.gapCause || 'COLLECTION');
+  return notMeasured(motive || `${id} no se ha podido medir.`, evidence?.gapCause || 'COLLECTION');
 };
 
-// --- decisiones -------------------------------------------------------------
 
-type TipoRegla = ENSPolicyDecision['trace']['ruleType'];
+type TypeRule = ENSPolicyDecision['trace']['ruleType'];
 
-const REQUISITOS: Record<string, { niveles: string[]; parametros: string[]; tipo: TipoRegla }> = {
+const REQUIREMENTS: Record<string, { niveles: string[]; parametros: string[]; tipo: TypeRule }> = {
   'op.exp.10.1': { niveles: ['BAJO', 'MEDIO', 'ALTO'], parametros: ['P-01', 'P-02', 'P-07', 'P-08', 'P-10'], tipo: 'WHITELIST' },
   'op.exp.10.2': { niveles: ['BAJO', 'MEDIO', 'ALTO'], parametros: ['P-05'], tipo: 'TOOL_MATCH' },
   'op.exp.10.3': { niveles: ['BAJO', 'MEDIO', 'ALTO'], parametros: ['P-01', 'P-05', 'P-06'], tipo: 'PATH_MATCH' },
@@ -836,138 +806,135 @@ const REQUISITOS: Record<string, { niveles: string[]; parametros: string[]; tipo
 };
 
 const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: TipoRegla,
+  requirement: string,
+  status: Measurement['estado'],
+  evidences: string[],
+  parameters: string[],
+  type: TypeRule,
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
-// Las que juzga su primitiva: ya tienen veredicto en la tabla de evidencias y
-// no se repiten como decisión propia.
-const DE_PRIMITIVA = ['EV-02', 'EV-08'];
+// Those judged by their primitive already have a verdict in the evidence table and are not repeated
+// as own decision.
+const PRIMITIVE_EVIDENCES = ['EV-02', 'EV-08'];
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const todas = maquinas(context);
+  const now = (context.now || new Date()).getTime();
+  const all = machines(context);
 
-  // op.exp.10.1 no se puede demostrar sin inventario ni procedimiento: lo dice
-  // la ficha (condición A6) y es independiente de lo que mida la máquina.
-  const faltanDocumentos = ['P-01', 'P-07'].filter(id => !configurado(parametro(context, id)));
-  const documental: Medida = faltanDocumentos.length
-    ? sinMedir(`Sin ${faltanDocumentos.map(id => etiqueta(context, id)).join(' ni ')} op.exp.10.1 no se puede evaluar: no hay inventario de claves o procedimiento de ciclo de vida contra el que contrastar la custodia medida.`, 'CONFIGURATION')
-    : cumple(`${etiqueta(context, 'P-01')} y ${etiqueta(context, 'P-07')} están declarados.`);
+  // op.exp.10.1 cannot be proven without inventory or procedure: the sheet says so (condition A6),
+  // independent of what the machine measures.
+  const missingDocuments = ['P-01', 'P-07'].filter(id => !configured(findParameter(context, id)));
+  const documental: Measurement = missingDocuments.length
+    ? notMeasured(`Sin ${missingDocuments.map(id => parameterDisplayName(context, id)).join(' ni ')} op.exp.10.1 no se puede evaluar: no hay inventario de claves o procedimiento de ciclo de vida contra el que contrastar la custodia medida.`, 'CONFIGURATION')
+    : compliant(`${parameterDisplayName(context, 'P-01')} y ${parameterDisplayName(context, 'P-07')} están declarados.`);
 
-  const vigencia = ev07Vigencia(context, todas, ahora);
-  const algoritmosCert = ev07Algoritmos(context, todas, ahora);
+  const validity = ev07Validity(context, all, now);
+  const algorithmsCert = ev07Algorithms(context, all, now);
 
-  const medidas: Record<string, Medida> = {
-    'EV-01': ev01(context, todas, ahora),
-    'EV-02': deLaPrimitiva(context, 'EV-02'),
-    'EV-03': ev03(context, todas),
-    'EV-04': ev04(context, todas, ahora),
-    'EV-05': ev05(context, todas, ahora),
-    'EV-06': ev06(context, todas, ahora),
-    'EV-08': deLaPrimitiva(context, 'EV-08'),
+  const measurements: Record<string, Measurement> = {
+    'EV-01': ev01(context, all, now),
+    'EV-02': ofPrimitive(context, 'EV-02'),
+    'EV-03': ev03(context, all),
+    'EV-04': ev04(context, all, now),
+    'EV-05': ev05(context, all, now),
+    'EV-06': ev06(context, all, now),
+    'EV-08': ofPrimitive(context, 'EV-08'),
   };
 
-  // EV-07 responde a dos requisitos con dos preguntas distintas.
-  const porRequisito: Record<string, { id: string; medida: Medida }[]> = {
+  // EV-07 answers two requirements with two different questions.
+  const byRequirement: Record<string, { id: string; medida: Measurement }[]> = {
     'op.exp.10.1': [
       { id: 'P-01/P-07', medida: documental },
-      { id: 'EV-01', medida: medidas['EV-01'] },
-      { id: 'EV-02', medida: medidas['EV-02'] },
-      { id: 'EV-07', medida: vigencia },
-      { id: 'EV-08', medida: medidas['EV-08'] },
+      { id: 'EV-01', medida: measurements['EV-01'] },
+      { id: 'EV-02', medida: measurements['EV-02'] },
+      { id: 'EV-07', medida: validity },
+      { id: 'EV-08', medida: measurements['EV-08'] },
     ],
-    'op.exp.10.2': [{ id: 'EV-05', medida: medidas['EV-05'] }],
-    'op.exp.10.3': [{ id: 'EV-06', medida: medidas['EV-06'] }],
+    'op.exp.10.2': [{ id: 'EV-05', medida: measurements['EV-05'] }],
+    'op.exp.10.3': [{ id: 'EV-06', medida: measurements['EV-06'] }],
     'op.exp.10.r1.1': [
-      { id: 'EV-03', medida: medidas['EV-03'] },
-      { id: 'EV-04', medida: medidas['EV-04'] },
-      { id: 'EV-07', medida: algoritmosCert },
+      { id: 'EV-03', medida: measurements['EV-03'] },
+      { id: 'EV-04', medida: measurements['EV-04'] },
+      { id: 'EV-07', medida: algorithmsCert },
     ],
   };
 
   const decisions: ENSPolicyDecision[] = [];
 
-  Object.entries(REQUISITOS).forEach(([requisito, { niveles, parametros, tipo }]) => {
-    // Un requisito que no aplica al nivel no decide nada: si lo hiciera, el
-    // puente pintaría sus evidencias con un veredicto que el nivel no exige.
-    if (!niveles.includes(context.level)) {
+  Object.entries(REQUIREMENTS).forEach(([requirement, { niveles: levels, parametros: parameters, tipo: type }]) => {
+    // A requirement not applying at the level decides nothing: otherwise the bridge would paint its
+    // evidences with a verdict the level does not require.
+    if (!levels.includes(context.level)) {
       return;
     }
 
-    const propias = porRequisito[requisito];
-    const estado = peor(propias.map(p => p.medida));
+    const own = byRequirement[requirement];
+    const status = worstStatus(own.map(p => p.medida));
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`
-    // (`find` devuelve la primera). Nombra solo las evidencias que la
-    // sostienen, para que el puente no pinte una evidencia sana con el color de
-    // otra.
-    //
-    // Si lo que la sostiene no es una evidencia sino un parámetro documental
-    // (P-01 o P-07 sin declarar), se nombra el parámetro: una lista vacía haría
-    // que el puente heredara TODAS las evidencias del requisito y pintara de
-    // gris una custodia que sí se ha medido.
-    const evidenciasResponsables = propias
-      .filter(p => p.medida.estado === estado && p.id.startsWith('EV-'))
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads; `find` returns
+    // the first). It names only the evidences that support it so the bridge does not paint a
+    // healthy one with another's color.
+    // If what supports it is a documentary parameter (P-01 or P-07 undeclared) the parameter is
+    // named: an empty list would make the bridge inherit ALL the requirement's evidences and paint
+    // a measured custody grey.
+    const evidencesOwners = own
+      .filter(p => p.medida.estado === status && p.id.startsWith('EV-'))
       .map(p => p.id);
-    const responsables = evidenciasResponsables.length
-      ? evidenciasResponsables
-      : faltanDocumentos.length
-        ? faltanDocumentos
-        : propias.map(p => p.id).filter(id => id.startsWith('EV-'));
+    const owners = evidencesOwners.length
+      ? evidencesOwners
+      : missingDocuments.length
+        ? missingDocuments
+        : own.map(p => p.id).filter(id => id.startsWith('EV-'));
 
     decisions.push(
       withReasonParts(decide(
-        requisito,
-        estado,
-        responsables,
-        parametros,
-        tipo,
-        requisito,
-        compositeReason(propias),
-        propias.map(p => `${p.id} CUMPLE`).join(' y '),
-        causaComun(propias.filter(p => p.medida.estado === estado).map(p => p.medida))
-      ), reasonPartsOf(propias))
+        requirement,
+        status,
+        owners,
+        parameters,
+        type,
+        requirement,
+        compositeReason(own),
+        own.map(p => `${p.id} CUMPLE`).join(' y '),
+        commonGapCause(own.filter(p => p.medida.estado === status).map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia medida aquí, con SU estado, para que la tabla de
-    // evidencias diga lo que se midió de cada una y no el agregado.
-    propias
-      .filter(p => p.id.startsWith('EV-') && !DE_PRIMITIVA.includes(p.id))
+    // And one per evidence measured here, with ITS status, so the evidence table shows what was
+    // measured of each and not the aggregate.
+    own
+      .filter(p => p.id.startsWith('EV-') && !PRIMITIVE_EVIDENCES.includes(p.id))
       .forEach(p =>
         decisions.push(
           decide(
-            requisito,
+            requirement,
             p.medida.estado,
             [p.id],
-            parametros,
-            tipo,
-            `${requisito}/${p.id}`,
+            parameters,
+            type,
+            `${requirement}/${p.id}`,
             p.medida.motivo,
             `${p.id} CUMPLE`,
             p.medida.causa
@@ -977,29 +944,29 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   });
 
   const variables: ENSRuntimeVariable[] = [
-    ...Object.entries(medidas).map(([id, medida]) => ({
+    ...Object.entries(measurements).map(([id, measurement]) => ({
       name: `medida_${id.replace('-', '')}`,
-      value: medida.estado,
+      value: measurement.estado,
       parameterIds: [],
       evidenceIds: [id],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
     {
       name: 'medida_EV07_vigencia',
-      value: vigencia.estado,
+      value: validity.estado,
       parameterIds: ['P-10'],
       evidenceIds: ['EV-07'],
       eventIds: [],
-      description: vigencia.motivo,
+      description: validity.motivo,
     },
     {
       name: 'medida_EV07_algoritmos',
-      value: algoritmosCert.estado,
+      value: algorithmsCert.estado,
       parameterIds: ['P-03'],
       evidenceIds: ['EV-07'],
       eventIds: [],
-      description: algoritmosCert.motivo,
+      description: algorithmsCert.motivo,
     },
   ];
 
@@ -1034,15 +1001,15 @@ export const opExp10PolicyDefinition: ENSPolicyDefinition = {
       ruleType: 'PATH_MATCH',
     },
     {
-      // MEDIA y ALTA exigen exactamente lo mismo: base + R1.
+      // MEDIA and ALTA require exactly the same: base + R1.
       requirementId: 'op.exp.10.r1.1',
       levels: ['MEDIO', 'ALTO'],
       parameterIds: ['P-03', 'P-04'],
       evidenceIds: ['EV-03', 'EV-04', 'EV-07'],
       ruleType: 'WHITELIST',
     },
-    // R2 lo define el ENS pero no lo exige en ninguna categoría: sin niveles,
-    // el motor lo evalúa NO_APLICA.
+    // The ENS defines R2 but requires it in no category: without levels the engine evaluates it
+    // NO_APLICA.
     {
       requirementId: 'op.exp.10.r2.1',
       levels: [],

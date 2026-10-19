@@ -28,11 +28,8 @@ export interface ENSPolicyContext {
   level: ENSLevel;
   events: ENSNormalizedEvent[];
   evidences: ENSEvidenceResolved[];
-  // El instante contra el que se mide la antigüedad de una evidencia. Por
-  // defecto es ahora, que es el caso del panel. Existe como parámetro porque
-  // la serie diaria evalúa el mismo motor A UNA FECHA PASADA: con un
-  // `Date.now()` suelto, la copia de hace tres días saldría vencida en el
-  // punto de hace tres días, y la línea contaría una historia falsa.
+  // Instant against which an evidence's age is measured; defaults to now. A parameter because the
+  // daily series evaluates the engine at a past date.
   now?: Date;
 }
 
@@ -70,19 +67,16 @@ export interface ENSPolicyTrace {
   result: boolean;
 }
 
-// Una parte de un motivo compuesto: lo que dijo UNA evidencia. El motivo de
-// texto (`reason`) es la unión de las partes, `<ID> <ESTADO>: <texto>` separadas
-// por ` | `, y no cambia: informes, PDF, el chatbot y las pruebas lo siguen
-// leyendo. Las partes son para la pantalla, que así no tiene que adivinar dónde
-// acaba una evidencia y empieza la siguiente (` | ` también aparece dentro de
-// valores como `srv | MEDIA`).
+// One part of a composite reason: what ONE evidence said. `reason` is the join of the parts (`<ID>
+// <STATUS>: <text>` separated by ` | `) and does not change; the parts are for the screen (` | `
+// also appears inside values).
 export interface ENSReasonPart {
   evidenceId: string;
   status: ENSComplianceStatus;
-  // El motivo de esa evidencia, sin lo de «Además:».
+  // The evidence's reason, without the «Además:» tail.
   text: string;
   cause?: ENSGapCause;
-  // Lo que `combineMeasurements` añade tras «Además:» (otros ejes que tampoco conforman).
+  // What `combineMeasurements` adds after «Además:» (other axes that also fail).
   secondary?: string[];
 }
 
@@ -96,56 +90,30 @@ export interface ENSPolicyDecision {
   runtimeVariables: string[];
   trace: ENSPolicyTrace;
   reason: string;
-  // Opcional: `reason` partido por evidencia (ver `ENSReasonPart`).
+  // Optional: `reason` split by evidence (see `ENSReasonPart`).
   reasonParts?: ENSReasonPart[];
-  // Solo con `status` NO_EVALUABLE: POR QUÉ la policy no ha podido medir. Es la
-  // misma causa que `ENSEvidenceResolved.gapCause`, y el puente la lleva a las
-  // evidencias que la decisión rellena. Sin ella, una evidencia que la policy
-  // mide con hechos que no son los suyos del modelo clásico se quedaba con la
-  // causa de ese modelo («no ha llegado nada», COLLECTION) aunque lo que
-  // faltara fuera un parámetro, o la causa que declaró el recolector.
+  // Only with `status` NO_EVALUABLE: WHY the policy could not measure; same as
+  // `ENSEvidenceResolved.gapCause`, carried by the bridge to the evidences the decision fills.
   cause?: ENSGapCause;
-  // Acreditado DOCUMENTALMENTE: la policy ha juzgado una DECLARACIÓN de la
-  // pantalla con su vigencia (un contrato no vencido, un plan aprobado dentro
-  // de su periodicidad, una certificación en vigor), no una medida de la
-  // máquina. Es la versión de `P-ATT` que sí vigila la vigencia.
-  //
-  // Solo cuenta con `status` CUMPLE: el requisito cumple marcado como
-  // acreditado documentalmente (`attested` en el resultado), para que la
-  // pantalla y el informe nunca lo presenten como medido. Con cualquier otro
-  // estado se ignora: un plan caducado es un NO_CUMPLE corriente.
-  //
-  // Y UNA MEDIDA EN CONTRA MANDA SIEMPRE. Si alguna evidencia del requisito
-  // (las del catálogo y las que nombra la decisión) está en NO_CUMPLE o
-  // PARCIAL, u otra decisión de la policy para el mismo requisito lo está, el
-  // requisito sale NO_CUMPLE y sin la marca. Ver `requirement-evaluator.ts`.
-  //
-  // Una policy debería emitir UNA decisión por requisito. Si emite varias, el
-  // evaluador lee la acreditada antes que la primera (salvo que la primera sea
-  // NO_APLICA), y las demás en contra siguen mandando.
-  //
-  // Una decisión acreditada NO rellena evidencias en el puente
-  // (`policy-evidence-bridge.ts`): un documento no mide ninguna, y su CUMPLE se
-  // filtraría como medido a otros requisitos que compartan la evidencia.
+  // Documentary accreditation: the policy judged a screen DECLARATION with its validity (unexpired
+  // contract, plan within its periodicity), not a machine measurement.
+  // Counts only with `status` CUMPLE: the requirement complies marked `attested`, never shown as
+  // measured. Any other status ignores it.
+  // A measurement against always wins: if any evidence of the requirement or another decision for
+  // it is NO_CUMPLE or PARCIAL, the requirement is NO_CUMPLE without the mark (see
+  // `requirement-evaluator.ts`).
+  // A policy should emit ONE decision per requirement; if several, the evaluator reads the
+  // accredited one before the first (unless that is NO_APLICA).
+  // An accredited decision does NOT fill evidences in the bridge (`policy-evidence-bridge.ts`): a
+  // document measures none.
   attested?: boolean;
-  // Decidida DESDE LA CONFIGURACIÓN, no desde los hechos: una tabla declarada
-  // en la pantalla con su vigencia (un contrato, una certificación, un plan),
-  // juzgada contra la fecha de la evaluación. Vale en CUALQUIER estado: un
-  // documento vencido es un NO_CUMPLE documental, uno vigente un CUMPLE
-  // (`attested`), uno sin declarar un NO_EVALUABLE por CONFIGURATION.
-  //
-  // Para qué existe. Un recolector parado (`markPolicyRuntimeStale`) o un
-  // alcance sin máquinas (`markPolicyRuntimeUnmatchedScope`) dejan sin valor
-  // las decisiones que salen de los HECHOS, no las que salen de la
-  // configuración: una certificación vencida sigue vencida aunque el
-  // recolector no lata. Antes se borraban todas, y en un requisito sin
-  // evidencias técnicas el NO_EVALUABLE resultante dejaba pasar a P-ATT: un
-  // NO_CUMPLE declarado salía CUMPLE. Esas dos funciones conservan las
-  // decisiones con esta marca.
-  //
-  // Y el informe no las presenta como medidas: un NO_CUMPLE documental no es
-  // algo que corregir en la máquina, sino un documento que renovar o completar
-  // (`documental` en el requisito y en la no conformidad).
+  // Decided FROM THE CONFIGURATION, not from facts: a table declared on screen with its validity,
+  // judged against the evaluation date. Valid in ANY status.
+  // Why: a stopped collector (`markPolicyRuntimeStale`) or a scope without machines
+  // (`markPolicyRuntimeUnmatchedScope`) void the decisions that come from FACTS, not those from the
+  // configuration; both keep decisions with this mark.
+  // The report does not present them as measurements: a documentary NO_CUMPLE is a document to
+  // renew (`documental` on the requirement and the nonconformity).
   documental?: boolean;
 }
 

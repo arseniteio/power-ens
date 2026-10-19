@@ -1,61 +1,30 @@
-// op.mon.2 · Sistema de métricas
-//
-// Por qué este control tiene policy propia. Es un METACONTROL: su materia prima
-// es el resultado de los demás controles, y la policy de un control solo ve
-// sus eventos y su configuración (`ENSPolicyContext`). El diseño (spec
-// 2026-10-09 §2) separa:
-//
-//   - lo que es SALIDA DEL MOTOR —el grado de implantación de todos los
-//     controles (EV-01), los grises (EV-05) y los datos del informe del art. 32
-//     (EV-07)—, que va al modelo de informe SIN veredicto (spec §2.6,
-//     pregunta 2). Aquí salen NO_APLICA con el motivo «dato del informe»;
-//   - lo que deja HUELLA y se puede fechar, medido en el manager (agent.id 000)
-//     con ficheros locales y sin credenciales, que es lo que decide.
-//
-// Qué decide cada requisito (spec §2.3):
-//
-//   op.mon.2.1     EV-02: el último ciclo de métricas validado por un
-//                  responsable de P-05 está dentro de la periodicidad de P-02
-//                  (que aquí se convierte en plazo), con la Declaración de
-//                  Aplicabilidad (P-01) configurada; y EV-04: la cobertura de
-//                  la monitorización del alcance ENS (sistemas con el agente
-//                  conectado y todos sus recolectores al día) alcanza el
-//                  objetivo de P-06.
-//   op.mon.2.r1.1  EV-03: cada indicador de P-03 se puede calcular con el
-//                  registro de incidentes de op.exp.7 en el periodo, y el
-//                  último ciclo de métricas está en plazo. Con cero incidentes
-//                  cumple si el registro existe y el ciclo está en plazo
-//                  (decisión del responsable 7): R1 pide recopilar datos, y
-//                  «cero incidentes» es un dato. La invariante de op.exp.7 («no
-//                  hubo incidentes no demuestra lo que se hace ante uno») sigue
-//                  valiendo allí, no aquí.
-//   op.mon.2.r2.1  EV-06: el último ciclo, en plazo, anota horas internas,
-//                  horas externas y presupuesto, con P-04 diciendo qué entra en
-//                  cada columna, y lo valida un responsable de recursos de
-//                  P-05. Es DATO DECLARADO: el CUMPLE sale marcado `attested`
-//                  («acreditado documentalmente»), nunca como medida.
-//
-// Los dos registros son de la organización y el recolector solo los lee:
-// `/etc/ensfacil/metrics-cycle-register.tsv` (nuevo) y
-// `/etc/ensfacil/incident-register.tsv` (el de op.exp.7, mismo formato de 13
-// columnas). Sin registro, NO_EVALUABLE con causa CONFIGURATION, nunca un
-// CUMPLE por vacío; con el registro vacío se juzga.
-//
-// Invariantes, las de `policy-kit.ts`:
-//   - el recolector emite instantes, no edades: toda antigüedad se mide aquí,
-//     contra el instante de la lectura (`eventTime` del hecho);
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo y causa;
-//   - lo que el recolector declara que no pudo medir se combina con lo medido
-//     sin taparlo;
-//   - la policy nunca inventa política: el plazo es el periodo de P-02 más el
-//     margen que declara la organización, y el umbral, el de P-06.
-//
-// Solo se emiten decisiones de los requisitos que aplican al nivel (la
-// categoría del sistema).
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
+// op.mon.2 · Metrics system. A METACONTROL: its raw material is the result of the other controls,
+// and a control's policy only sees its events and configuration (`ENSPolicyContext`). It separates
+// what is ENGINE OUTPUT (implementation degree of all controls EV-01, greys EV-05, article-32
+// report data EV-07), which goes to the report model WITHOUT verdict (NO_APLICA with the «dato del
+// informe» reason), from what leaves a dated TRACE, measured on the manager (agent.id 000) with
+// local files and no credentials, which decides.
+// op.mon.2.1: EV-02, the last metrics cycle validated by a P-05 owner is within P-02's periodicity
+// (turned into a deadline) with the Statement of Applicability (P-01) configured; and EV-04,
+// monitoring coverage of the ENS scope (systems with the agent connected and all collectors
+// current) reaches P-06's target. op.mon.2.r1.1: EV-03, each P-03 indicator can be computed from
+// op.exp.7's incident record in the period and the last cycle is on time; with zero incidents it
+// complies if the record exists and the cycle is on time (R1 asks to collect data and «zero
+// incidents» is data; op.exp.7's invariant «no incidents proves nothing about what is done on one»
+// holds there, not here). op.mon.2.r2.1: EV-06, the last cycle, on time, records internal hours,
+// external hours and budget, P-04 saying what goes in each column, validated by a resources owner
+// of P-05. It is DECLARED data: CUMPLE is marked `attested`, never as measurement.
+// Both records belong to the organization and the collector only reads them:
+// `/etc/ensfacil/metrics-cycle-register.tsv` and `/etc/ensfacil/incident-register.tsv` (op.exp.7's,
+// same 13-column format). Without a record, NO_EVALUABLE with cause CONFIGURATION, never CUMPLE by
+// emptiness; an empty record is judged.
+// Invariants (as in `policy-kit.ts`): the collector emits instants, not ages, so ages are measured
+// against the read instant (the fact's `eventTime`); no fact or parameter is NO_EVALUABLE with
+// reason and cause; what the collector declares unmeasurable is combined with what was measured
+// without hiding it; no default policy: the deadline is P-02's period plus the margin the
+// organization declares, the threshold P-06's.
+// Decisions are emitted only for requirements applying at the level (system category).
+// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
@@ -68,7 +37,6 @@ import type { ENSNormalizedEvent } from '../../data-source/types';
 import { toParameterListItems } from '../../../configuration/services/parameter-value-validator';
 import { ENS_SCOPE_GROUP } from '../../scope/engine';
 import { STALE_COLLECTOR_MAX_AGE_HOURS } from '../../evidence/stale-collector';
-// Por la ruta del fichero, nunca por el barrel (TDZ de Settings).
 import {
   HOUR_MS,
   DAY_MS,
@@ -102,75 +70,68 @@ import type { ENSDecisionRuleType, Measurement } from './policy-kit';
 const CONTROL = 'op.mon.2';
 const POLICY = 'policy.op.mon.2';
 
-// Todos los hechos de op.mon.2 son estados lentos: el recolector pasa cada 6 h
-// y reemite el estado entero. Frescura de 26 h, la del kit.
-const { hechos, estadoVigente, degradacion, sinHechos, conDegradacion } = createFactReader(CONTROL, {
+// All op.mon.2 facts are slow states: the collector runs every 6 h and re-emits the whole state.
+// Freshness 26 h, the kit's.
+const { hechos: facts, estadoVigente: currentStatus, degradacion: degradation, sinHechos: withoutFacts, conDegradacion: withDegradation } = createFactReader(CONTROL, {
   recolector: 'el recolector de op.mon.2 del manager',
 });
 
-// EV-06 (R2) lee el MISMO registro de ciclos que EV-02, y el recolector declara
-// los huecos de esa lectura con EV-02: con `log_alert_level` por encima de 3,
-// por ejemplo, degrada EV-02, EV-03 y EV-04 por CONFIGURATION y sus hechos no
-// llegan. EV-06 hereda esa degradación; si no, R2 saldría sin medir por
-// RECOGIDA un hueco que es de CONFIGURACIÓN. La suya propia, si la declara,
-// manda.
-const HEREDA_DEGRADACION: Record<string, string> = { 'EV-06': 'EV-02' };
+// EV-06 (R2) reads the SAME cycle record as EV-02, and the collector declares the gaps of that read
+// with EV-02: with `log_alert_level` above 3, for example, it degrades EV-02, EV-03 and EV-04 by
+// CONFIGURATION and their facts do not arrive. EV-06 inherits that degradation, otherwise R2 would
+// come out unmeasured by COLLECTION a gap that is CONFIGURATION. Its own, if declared, wins.
+const INHERITS_DEGRADATION: Record<string, string> = { 'EV-06': 'EV-02' };
 
 const decide = decisionBuilderFor(POLICY);
 
 const MANAGER = '000';
 
-const REGISTRO_CICLOS = '/etc/ensfacil/metrics-cycle-register.tsv';
-const REGISTRO_INCIDENTES = '/etc/ensfacil/incident-register.tsv';
+const CYCLE_RECORD = '/etc/ensfacil/metrics-cycle-register.tsv';
+const INCIDENT_RECORD = '/etc/ensfacil/incident-register.tsv';
 
-// Un recolector está al día si su último latido es, como mucho, tan viejo como
-// el que el motor admite antes de dar el control por parado en esa máquina
-// (`stale-collector.ts`). Medido contra el instante en que op.mon.2 leyó los
-// latidos, no contra el reloj de la evaluación.
-const LATIDO_VIGENTE_MS = STALE_COLLECTOR_MAX_AGE_HOURS * HOUR_MS;
+// A collector is current if its last heartbeat is at most as old as the engine allows before
+// declaring the control stopped on that machine (`stale-collector.ts`), measured against the
+// instant op.mon.2 read the heartbeats, not the evaluation clock.
+const CURRENT_HEARTBEAT_MS = STALE_COLLECTOR_MAX_AGE_HOURS * HOUR_MS;
 
-// La duración de cada periodicidad de P-02, en días: el plazo de un ciclo es
-// esto más el margen que declara la organización.
-const PERIODOS: Record<string, number> = {
+// Duration of each P-02 periodicity, in days: a cycle's deadline is this plus the margin the
+// organization declares.
+const PERIODS: Record<string, number> = {
   mensual: 31,
   trimestral: 92,
   semestral: 184,
   anual: 366,
 };
 
-// La ventana del informe anual del art. 32.
-const ANUAL_DIAS = 365;
+// Window of the article-32 annual report.
+const ANNUAL_DAYS = 365;
 
-const esMedida = (x: unknown): x is Measurement =>
+const isMeasurement = (x: unknown): x is Measurement =>
   typeof x === 'object' && x !== null && typeof (x as Measurement).estado === 'string';
 
-// Para comparar nombres y valores declarados: sin mayúsculas, sin tildes y con
-// los espacios plegados.
-const plegado = (texto: string): string => stripAccents(texto).replace(/\s+/g, ' ').trim();
+// To compare declared names and values: without case or accents and with folded spaces.
+const folded = (text: string): string => stripAccents(text).replace(/\s+/g, ' ').trim();
 
-const idDeAgente = (texto: string): string | undefined =>
-  /^\d+$/.test(texto.trim()) ? texto.trim().padStart(3, '0') : undefined;
+const agentId = (text: string): string | undefined =>
+  /^\d+$/.test(text.trim()) ? text.trim().padStart(3, '0') : undefined;
 
-// El ID del agente de un hecho, normalizado: «24» y «024» son el mismo agente.
-const idDelHecho = (e: ENSNormalizedEvent): string =>
-  idDeAgente(factField(e, 'agente_id')) || factField(e, 'agente_id');
+// A fact's agent ID, normalized: «24» and «024» are the same agent.
+const factId = (e: ENSNormalizedEvent): string =>
+  agentId(factField(e, 'agente_id')) || factField(e, 'agente_id');
 
-// Un enlace o referencia de la plantilla `.example`: no acredita nada.
-const esEjemplo = (texto: string): boolean => /ejemplo\.invalido|example\.invalid/i.test(texto);
+// A link or reference from the `.example` template: it accredits nothing.
+const isExample = (text: string): boolean => /ejemplo\.invalido|example\.invalid/i.test(text);
 
-const cifra = (n: number): string => String(Math.round(n * 10) / 10);
+const figure = (n: number): string => String(Math.round(n * 10) / 10);
 
-const fecha = (t: number): string => iso(t).slice(0, 10);
+const date = (t: number): string => iso(t).slice(0, 10);
 
-// --- los registros de la organización ----------------------------------------
-//
-// Cada pasada emite primero la LECTURA del registro (si existe, si se puede
-// leer, si su cabecera es la exigida, cuántas filas valen y cuántas emite) y
-// después una fila por hecho. La lectura ancla la pasada: solo cuentan las
-// filas emitidas junto a ella, y si llegan menos de las que dice haber
-// emitido, falta algo y no se afirma nada.
+// Organization records. Each run emits first the READING of the record (exists, readable, required
+// header, how many rows are valid and how many emitted) and then one row per fact. The reading
+// anchors the run: only rows emitted with it count, and if fewer arrive than it says it emitted
+// something is missing and nothing is asserted.
 
-interface Registro {
+interface LogRow {
   lectura: ENSNormalizedEvent;
   t: number;
   filas: ENSNormalizedEvent[];
@@ -178,87 +139,85 @@ interface Registro {
   descartadas: number;
 }
 
-const registro = (
+const record = (
   context: ENSPolicyContext,
-  ahora: number,
-  tipoLectura: string,
-  tipoFila: string,
-  evidencia: string,
-  nombre: string,
-  fichero: string
-): Registro | Measurement => {
-  const { vigentes, ultimo } = estadoVigente(context, tipoLectura, ahora);
+  now: number,
+  typeRead: string,
+  typeRow: string,
+  evidence: string,
+  name: string,
+  file: string
+): LogRow | Measurement => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, typeRead, now);
 
-  if (!vigentes.length || ultimo === undefined) {
-    const heredada = HEREDA_DEGRADACION[evidencia];
+  if (!current.length || last === undefined) {
+    const inherited = INHERITS_DEGRADATION[evidence];
 
     return (
-      degradacion(context, evidencia, ahora) ||
-      (heredada ? degradacion(context, heredada, ahora) : undefined) ||
-      sinHechos(context, evidencia, ahora, ultimo, `hecho de lectura del ${nombre}`)
+      degradation(context, evidence, now) ||
+      (inherited ? degradation(context, inherited, now) : undefined) ||
+      withoutFacts(context, evidence, now, last, `hecho de lectura del ${name}`)
     );
   }
 
-  const lectura = vigentes[vigentes.length - 1];
-  const t = eventTime(lectura);
-  const ruta = factField(lectura, 'fichero') || fichero;
-  const presente = factField(lectura, 'presente');
+  const read = current[current.length - 1];
+  const t = eventTime(read);
+  const path = factField(read, 'fichero') || file;
+  const present = factField(read, 'presente');
 
-  if (presente === 'no') {
+  if (present === 'no') {
     return notMeasured(
-      `No existe el ${nombre} (${ruta}): la organización no lo ha creado. Sin él no hay nada que juzgar, y un registro ausente no es un registro vacío. La plantilla con la cabecera exacta está junto a él, con extensión .example.`,
+      `No existe el ${name} (${path}): la organización no lo ha creado. Sin él no hay nada que juzgar, y un registro ausente no es un registro vacío. La plantilla con la cabecera exacta está junto a él, con extensión .example.`,
       'CONFIGURATION'
     );
   }
 
-  if (presente !== 'si') {
-    return notMeasured(`La lectura del ${nombre} de ${iso(t)} no dice si el fichero existe (presente=${presente || 'vacío'}).`, 'COLLECTION');
+  if (present !== 'si') {
+    return notMeasured(`La lectura del ${name} de ${iso(t)} no dice si el fichero existe (presente=${present || 'vacío'}).`, 'COLLECTION');
   }
 
-  if (factField(lectura, 'legible') !== 'si') {
-    return notMeasured(`El ${nombre} (${ruta}) existe, pero el recolector no lo ha podido leer en la pasada de ${iso(t)}.`, 'COLLECTION');
+  if (factField(read, 'legible') !== 'si') {
+    return notMeasured(`El ${name} (${path}) existe, pero el recolector no lo ha podido leer en la pasada de ${iso(t)}.`, 'COLLECTION');
   }
 
-  if (factField(lectura, 'formato') !== 'ok') {
+  if (factField(read, 'formato') !== 'ok') {
     return notMeasured(
-      `La primera línea del ${nombre} (${ruta}) no es la cabecera exigida (${factField(lectura, 'formato') || 'formato desconocido'}): no se interpreta ninguna fila. La cabecera exacta está en la plantilla .example.`,
+      `La primera línea del ${name} (${path}) no es la cabecera exigida (${factField(read, 'formato') || 'formato desconocido'}): no se interpreta ninguna fila. La cabecera exacta está en la plantilla .example.`,
       'CONFIGURATION'
     );
   }
 
-  const validas = parseNumber(factField(lectura, 'filas_validas')) ?? 0;
-  const descartadas = parseNumber(factField(lectura, 'filas_descartadas')) ?? 0;
-  const emitidas = parseNumber(factField(lectura, 'filas_emitidas')) ?? validas;
+  const valid = parseNumber(factField(read, 'filas_validas')) ?? 0;
+  const discarded = parseNumber(factField(read, 'filas_descartadas')) ?? 0;
+  const emitted = parseNumber(factField(read, 'filas_emitidas')) ?? valid;
 
-  // Las filas de ESTA pasada, una por línea del fichero (si la pasada se
-  // repitió, cuenta la última copia).
-  const porLinea = new Map<string, ENSNormalizedEvent>();
+  // Rows of THIS run, one per file line (if the run repeated, the last copy counts).
+  const byLine = new Map<string, ENSNormalizedEvent>();
 
-  hechos(context, tipoFila)
+  facts(context, typeRow)
     .filter(e => eventTime(e) >= t - SAME_RUN_WINDOW_MS && eventTime(e) <= t + HOUR_MS)
     .sort((a, b) => eventTime(a) - eventTime(b))
-    .forEach(e => porLinea.set(factField(e, 'linea') || String(e.id), e));
+    .forEach(e => byLine.set(factField(e, 'linea') || String(e.id), e));
 
-  const filasDeLaPasada = Array.from(porLinea.values());
+  const runRows = Array.from(byLine.values());
 
-  if (filasDeLaPasada.length < emitidas) {
+  if (runRows.length < emitted) {
     return notMeasured(
-      `De las ${emitidas} filas del ${nombre} que el recolector emitió en la pasada de ${iso(t)} han llegado ${filasDeLaPasada.length}: con filas perdidas no se puede afirmar nada del registro.`,
+      `De las ${emitted} filas del ${name} que el recolector emitió en la pasada de ${iso(t)} han llegado ${runRows.length}: con filas perdidas no se puede afirmar nada del registro.`,
       'COLLECTION'
     );
   }
 
-  return { lectura, t, filas: filasDeLaPasada, validas, descartadas };
+  return { lectura: read, t, filas: runRows, validas: valid, descartadas: discarded };
 };
 
-const notaDescartadas = (reg: Registro, nombre: string): string =>
+const discardedNote = (reg: LogRow, name: string): string =>
   reg.descartadas > 0
-    ? ` ${reg.descartadas} fila(s) del ${nombre} se descartaron por no tener el formato exigido (ver los avisos del recolector, regla 111398).`
+    ? ` ${reg.descartadas} fila(s) del ${name} se descartaron por no tener el formato exigido (ver los avisos del recolector, regla 111398).`
     : '';
 
-// --- los ciclos de métricas -----------------------------------------------------
 
-interface Ciclo {
+interface Cycle {
   periodo: string;
   fecha: number;
   implantacion?: number;
@@ -270,80 +229,79 @@ interface Ciclo {
   linea: string;
 }
 
-const LEE_CICLOS = (context: ENSPolicyContext, ahora: number, evidencia: string): Registro | Measurement =>
-  registro(context, ahora, 'metrics_register_read', 'metrics_cycle_recorded', evidencia, 'registro de ciclos de métricas', REGISTRO_CICLOS);
+const READS_CYCLES = (context: ENSPolicyContext, now: number, evidence: string): LogRow | Measurement =>
+  record(context, now, 'metrics_register_read', 'metrics_cycle_recorded', evidence, 'registro de ciclos de métricas', CYCLE_RECORD);
 
-// Los ciclos que cuentan, del más antiguo al más reciente, y lo que se dejó
-// fuera (ejemplos de la plantilla, fechados en el futuro, ilegibles).
-const ciclosDe = (reg: Registro): { ciclos: Ciclo[]; nota: string } => {
-  const ciclos: Ciclo[] = [];
-  const ejemplos: string[] = [];
-  const futuros: string[] = [];
-  const ilegibles: string[] = [];
+// Cycles that count, oldest to newest, and what was left out (template examples, future-dated,
+// unreadable).
+const cyclesOf = (reg: LogRow): { ciclos: Cycle[]; nota: string } => {
+  const cycles: Cycle[] = [];
+  const examples: string[] = [];
+  const future: string[] = [];
+  const unreadable: string[] = [];
 
-  const cantidad = (e: ENSNormalizedEvent, nombre: string): number | undefined => {
-    const texto = factField(e, nombre).replace(/%$/, '').trim();
+  const amount = (e: ENSNormalizedEvent, name: string): number | undefined => {
+    const text = factField(e, name).replace(/%$/, '').trim();
 
-    return isEmptyField(texto) ? undefined : parseNumber(texto);
+    return isEmptyField(text) ? undefined : parseNumber(text);
   };
 
   reg.filas.forEach(e => {
-    const linea = factField(e, 'linea') || '?';
+    const line = factField(e, 'linea') || '?';
     const t = parseInstant(factField(e, 'fecha_consolidacion'));
-    const periodo = factField(e, 'periodo') || '?';
+    const period = factField(e, 'periodo') || '?';
 
     if (t === undefined) {
-      ilegibles.push(`línea ${linea}`);
+      unreadable.push(`línea ${line}`);
 
       return;
     }
 
-    if (esEjemplo(factField(e, 'referencia'))) {
-      ejemplos.push(`${periodo} (línea ${linea})`);
+    if (isExample(factField(e, 'referencia'))) {
+      examples.push(`${period} (línea ${line})`);
 
       return;
     }
 
     if (t > reg.t + FUTURE_TOLERANCE_MS) {
-      futuros.push(`${periodo} del ${fecha(t)}`);
+      future.push(`${period} del ${date(t)}`);
 
       return;
     }
 
-    ciclos.push({
-      periodo,
+    cycles.push({
+      periodo: period,
       fecha: t,
-      implantacion: cantidad(e, 'implantacion_global'),
-      horasInternas: cantidad(e, 'horas_internas'),
-      horasExternas: cantidad(e, 'horas_externas'),
-      presupuesto: cantidad(e, 'presupuesto_ejecutado'),
+      implantacion: amount(e, 'implantacion_global'),
+      horasInternas: amount(e, 'horas_internas'),
+      horasExternas: amount(e, 'horas_externas'),
+      presupuesto: amount(e, 'presupuesto_ejecutado'),
       validadoPor: factField(e, 'validado_por'),
       referencia: factField(e, 'referencia'),
-      linea,
+      linea: line,
     });
   });
 
-  ciclos.sort((a, b) => a.fecha - b.fecha);
+  cycles.sort((a, b) => a.fecha - b.fecha);
 
-  const nota = [
-    ejemplos.length ? `No cuentan los ciclos con la referencia de ejemplo de la plantilla (EJEMPLO.invalido): ${formatList(ejemplos)}.` : '',
-    futuros.length ? `No cuentan los ciclos fechados en el futuro: ${formatList(futuros)}.` : '',
-    ilegibles.length ? `Sin fecha de consolidación legible: ${formatList(ilegibles)}.` : '',
+  const note = [
+    examples.length ? `No cuentan los ciclos con la referencia de ejemplo de la plantilla (EJEMPLO.invalido): ${formatList(examples)}.` : '',
+    future.length ? `No cuentan los ciclos fechados en el futuro: ${formatList(future)}.` : '',
+    unreadable.length ? `Sin fecha de consolidación legible: ${formatList(unreadable)}.` : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  return { ciclos, nota: nota ? ` ${nota}` : '' };
+  return { ciclos: cycles, nota: note ? ` ${note}` : '' };
 };
 
-const describeCiclo = (c: Ciclo): string =>
-  `${c.periodo} (consolidado el ${fecha(c.fecha)}${c.implantacion !== undefined ? `, implantación ${cifra(c.implantacion)} %` : ''}${
+const describeCycle = (c: Cycle): string =>
+  `${c.periodo} (consolidado el ${date(c.fecha)}${c.implantacion !== undefined ? `, implantación ${figure(c.implantacion)} %` : ''}${
     isEmptyField(c.validadoPor) ? ', sin validar' : `, validado por ${c.validadoPor}`
   })`;
 
-// --- P-02 · la periodicidad, convertida en plazo ------------------------------
 
-interface Periodicidad {
+interface Periodicity {
   nombre: string;
   dias: number;
   margen: number;
@@ -351,160 +309,157 @@ interface Periodicidad {
   cierre?: string;
 }
 
-const MES_DIA = /^(\d{2})-(\d{2})$/;
+const MONTH_DAY = /^(\d{2})-(\d{2})$/;
 
-const periodicidad = (context: ENSPolicyContext): Periodicidad | Measurement => {
-  const declaradas = tableParameterRows(context, 'P-02');
+const periodicity = (context: ENSPolicyContext): Periodicity | Measurement => {
+  const declared = tableParameterRows(context, 'P-02');
 
-  if (!declaradas) {
+  if (!declared) {
     return missingParameter(context, 'P-02', 'cada cuánto se tiene que consolidar un ciclo de métricas');
   }
 
-  if (declaradas.length > 1) {
-    return notMeasured(`${parameterDisplayName(context, 'P-02')} declara ${declaradas.length} periodicidades: se declara una sola fila.`, 'CONFIGURATION');
+  if (declared.length > 1) {
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} declara ${declared.length} periodicidades: se declara una sola fila.`, 'CONFIGURATION');
   }
 
-  const fila = declaradas[0];
-  const nombre = plegado(fila.periodicidad || '');
-  const problemas: string[] = [];
+  const row = declared[0];
+  const name = folded(row.periodicidad || '');
+  const problems: string[] = [];
 
-  if (!PERIODOS[nombre]) {
-    problemas.push(`la periodicidad «${fila.periodicidad || ''}» no es mensual, trimestral, semestral ni anual`);
+  if (!PERIODS[name]) {
+    problems.push(`la periodicidad «${row.periodicidad || ''}» no es mensual, trimestral, semestral ni anual`);
   }
 
-  const margenTexto = (fila.margen_dias || '').trim();
-  const margen = isEmptyField(margenTexto) ? 0 : /^\d+$/.test(margenTexto) ? Number(margenTexto) : undefined;
+  const marginText = (row.margen_dias || '').trim();
+  const margin = isEmptyField(marginText) ? 0 : /^\d+$/.test(marginText) ? Number(marginText) : undefined;
 
-  if (margen === undefined) {
-    problemas.push(`el margen «${margenTexto}» no es un número entero de días`);
+  if (margin === undefined) {
+    problems.push(`el margen «${marginText}» no es un número entero de días`);
   }
 
-  const cierreTexto = (fila.cierre_anual || '').trim();
-  let cierre: string | undefined;
+  const closingText = (row.cierre_anual || '').trim();
+  let closing: string | undefined;
 
-  if (!isEmptyField(cierreTexto)) {
-    const m = MES_DIA.exec(cierreTexto);
-    const mes = m ? Number(m[1]) : 0;
-    const dia = m ? Number(m[2]) : 0;
-    const maximo = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1] || 0;
+  if (!isEmptyField(closingText)) {
+    const m = MONTH_DAY.exec(closingText);
+    const month = m ? Number(m[1]) : 0;
+    const day = m ? Number(m[2]) : 0;
+    const max = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] || 0;
 
-    if (!m || dia < 1 || dia > maximo) {
-      problemas.push(`el cierre anual «${cierreTexto}» no es una fecha MM-DD`);
+    if (!m || day < 1 || day > max) {
+      problems.push(`el cierre anual «${closingText}» no es una fecha MM-DD`);
     } else {
-      cierre = cierreTexto;
+      closing = closingText;
     }
   }
 
-  if (problemas.length || margen === undefined) {
-    return notMeasured(`${parameterDisplayName(context, 'P-02')}, fila «${[fila.periodicidad, fila.margen_dias, fila.cierre_anual].filter(Boolean).join(' | ')}»: ${problemas.join('; ')}.`, 'CONFIGURATION');
+  if (problems.length || margin === undefined) {
+    return notMeasured(`${parameterDisplayName(context, 'P-02')}, fila «${[row.periodicidad, row.margen_dias, row.cierre_anual].filter(Boolean).join(' | ')}»: ${problems.join('; ')}.`, 'CONFIGURATION');
   }
 
-  return { nombre, dias: PERIODOS[nombre], margen, plazoDias: PERIODOS[nombre] + margen, cierre };
+  return { nombre: name, dias: PERIODS[name], margen: margin, plazoDias: PERIODS[name] + margin, cierre: closing };
 };
 
-const describePlazo = (p: Periodicidad): string =>
+const describeDeadline = (p: Periodicity): string =>
   `P-02 ${p.nombre}: ${p.dias} días${p.margen ? ` + ${p.margen} de margen` : ''} = ${p.plazoDias}`;
 
-// --- P-05 · quién valida --------------------------------------------------------
 
-type Ambito = 'metricas' | 'recursos';
+type Scope = 'metricas' | 'recursos';
 
-const validadores = (context: ENSPolicyContext, ambito: Ambito): Set<string> | Measurement => {
-  const declaradas = tableParameterRows(context, 'P-05');
-  const que = ambito === 'metricas' ? 'los ciclos de métricas' : 'los datos de recursos';
+const validators = (context: ENSPolicyContext, scope: Scope): Set<string> | Measurement => {
+  const declared = tableParameterRows(context, 'P-05');
+  const subject = scope === 'metricas' ? 'los ciclos de métricas' : 'los datos de recursos';
 
-  if (!declaradas) {
-    return missingParameter(context, 'P-05', `quién tiene que validar ${que}`);
+  if (!declared) {
+    return missingParameter(context, 'P-05', `quién tiene que validar ${subject}`);
   }
 
-  const malas = declaradas.filter(f => !['', 'metricas', 'recursos', 'ambos'].includes(plegado(f.ambito || '')));
+  const bad = declared.filter(f => !['', 'metricas', 'recursos', 'ambos'].includes(folded(f.ambito || '')));
 
-  if (malas.length) {
+  if (bad.length) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-05')}: ámbito que no es metricas, recursos ni ambos en ${formatList(malas.map(f => `«${f.responsable} | ${f.cargo || ''} | ${f.ambito}»`))}.`,
+      `${parameterDisplayName(context, 'P-05')}: ámbito que no es metricas, recursos ni ambos en ${formatList(bad.map(f => `«${f.responsable} | ${f.cargo || ''} | ${f.ambito}»`))}.`,
       'CONFIGURATION'
     );
   }
 
-  const suyas = declaradas.filter(f => ['', ambito, 'ambos'].includes(plegado(f.ambito || '')));
-  const nombres = new Set<string>();
+  const their = declared.filter(f => ['', scope, 'ambos'].includes(folded(f.ambito || '')));
+  const names = new Set<string>();
 
-  suyas.forEach(f => {
-    [f.responsable, f.cargo].filter(x => !isEmptyField((x || '').trim())).forEach(x => nombres.add(plegado(x)));
+  their.forEach(f => {
+    [f.responsable, f.cargo].filter(x => !isEmptyField((x || '').trim())).forEach(x => names.add(folded(x)));
   });
 
-  if (!nombres.size) {
-    return notMeasured(`${parameterDisplayName(context, 'P-05')} no designa a nadie para validar ${que} (ámbito ${ambito} o ambos).`, 'CONFIGURATION');
+  if (!names.size) {
+    return notMeasured(`${parameterDisplayName(context, 'P-05')} no designa a nadie para validar ${subject} (ámbito ${scope} o ambos).`, 'CONFIGURATION');
   }
 
-  return nombres;
+  return names;
 };
 
-const designados = (context: ENSPolicyContext, ambito: Ambito): string =>
+const designated = (context: ENSPolicyContext, scope: Scope): string =>
   (tableParameterRows(context, 'P-05') || [])
-    .filter(f => ['', ambito, 'ambos'].includes(plegado(f.ambito || '')))
+    .filter(f => ['', scope, 'ambos'].includes(folded(f.ambito || '')))
     .map(f => (f.cargo ? `${f.responsable} (${f.cargo})` : f.responsable))
     .join(', ');
 
-// --- P-01 · la Declaración de Aplicabilidad ---------------------------------------
 
-// Un identificador de medida del ENS: org.1, op.acc.1, mp.info.6.
-const MEDIDA_ENS = /^(org\.\d+|(op|mp)\.[a-z]+\.\d+)$/;
+// An ENS measure identifier: org.1, op.acc.1, mp.info.6.
+const ENS_MEASUREMENT = /^(org\.\d+|(op|mp)\.[a-z]+\.\d+)$/;
 
 export const parseStatementOfApplicability = (
-  declaradas: Record<string, string>[]
+  declared: Record<string, string>[]
 ): { aplicables: string[]; noAplicables: string[]; problemas: string[] } => {
-  const aplicables: string[] = [];
-  const noAplicables: string[] = [];
-  const problemas: string[] = [];
+  const applicable: string[] = [];
+  const notApplicable: string[] = [];
+  const problems: string[] = [];
 
-  declaradas.forEach(f => {
-    const medida = (f.medida || '').trim().toLowerCase();
-    const aplica = plegado(f.aplicable || '');
+  declared.forEach(f => {
+    const measurement = (f.medida || '').trim().toLowerCase();
+    const applies = folded(f.aplicable || '');
 
-    if (!MEDIDA_ENS.test(medida)) {
-      problemas.push(`«${f.medida}» no es el identificador de una medida del ENS (op.acc.1, mp.info.6, org.1)`);
+    if (!ENS_MEASUREMENT.test(measurement)) {
+      problems.push(`«${f.medida}» no es el identificador de una medida del ENS (op.acc.1, mp.info.6, org.1)`);
 
       return;
     }
 
-    if (aplica === 'si') {
-      aplicables.push(medida);
-    } else if (aplica === 'no') {
-      noAplicables.push(medida);
+    if (applies === 'si') {
+      applicable.push(measurement);
+    } else if (applies === 'no') {
+      notApplicable.push(measurement);
     } else {
-      problemas.push(`${medida}: «${f.aplicable || ''}» no dice si aplica (sí/no)`);
+      problems.push(`${measurement}: «${f.aplicable || ''}» no dice si aplica (sí/no)`);
     }
   });
 
-  return { aplicables, noAplicables, problemas };
+  return { aplicables: applicable, noAplicables: notApplicable, problemas: problems };
 };
 
-const declaracion = (context: ENSPolicyContext): Measurement | undefined => {
-  const declaradas = tableParameterRows(context, 'P-01');
+const statement = (context: ENSPolicyContext): Measurement | undefined => {
+  const declared = tableParameterRows(context, 'P-01');
 
-  if (!declaradas) {
+  if (!declared) {
     return missingParameter(context, 'P-01', 'el grado de implantación (no hay relación de medidas aplicables contra la que calcularlo)');
   }
 
-  const { aplicables, problemas } = parseStatementOfApplicability(declaradas);
+  const { aplicables: applicable, problemas: problems } = parseStatementOfApplicability(declared);
 
-  if (problemas.length) {
-    return notMeasured(`${parameterDisplayName(context, 'P-01')} tiene filas que no se pueden interpretar: ${formatList(problemas)}.`, 'CONFIGURATION');
+  if (problems.length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-01')} tiene filas que no se pueden interpretar: ${formatList(problems)}.`, 'CONFIGURATION');
   }
 
-  if (!aplicables.length) {
+  if (!applicable.length) {
     return notMeasured(`${parameterDisplayName(context, 'P-01')} no declara ninguna medida aplicable: el grado de implantación no tiene base.`, 'CONFIGURATION');
   }
 
   return undefined;
 };
 
-// --- P-06 · los objetivos ---------------------------------------------------------
 
-type Sentido = 'minimo' | 'maximo';
+type Sense = 'minimo' | 'maximo';
 
-const METRICAS: Record<string, { sentido: Sentido; unidad: string; porcentaje?: boolean }> = {
+const METRICS: Record<string, { sentido: Sense; unidad: string; porcentaje?: boolean }> = {
   cobertura_monitorizacion: { sentido: 'minimo', unidad: '%', porcentaje: true },
   implantacion_global: { sentido: 'minimo', unidad: '%', porcentaje: true },
   controles_no_evaluables: { sentido: 'maximo', unidad: '' },
@@ -516,298 +471,295 @@ export interface MetricTarget {
   metrica: string;
   objetivo: number;
   tolerancia: number;
-  // El valor a partir del cual la métrica deja de ser aceptable.
+  // The value from which the metric stops being acceptable.
   umbral: number;
-  sentido: Sentido;
+  sentido: Sense;
   unidad: string;
 }
 
-// Las filas de P-06 con su gramática: métrica del vocabulario, objetivo
-// numérico (con su unidad opcional) y tolerancia numérica o vacía.
+// P-06 rows with their grammar: metric from the vocabulary, numeric target (optional unit) and
+// numeric or empty tolerance.
 export const parseMetricTargets = (
-  declaradas: Record<string, string>[]
+  declared: Record<string, string>[]
 ): { objetivos: Map<string, MetricTarget>; problemas: string[] } => {
-  const objetivos = new Map<string, MetricTarget>();
-  const problemas: string[] = [];
+  const targets = new Map<string, MetricTarget>();
+  const problems: string[] = [];
 
-  const cantidad = (texto: string): number | undefined =>
-    parseNumber(texto.trim().replace(/\s*(%|h)$/i, ''));
+  const amount = (text: string): number | undefined =>
+    parseNumber(text.trim().replace(/\s*(%|h)$/i, ''));
 
-  declaradas.forEach(f => {
-    const metrica = plegado(f.metrica || '');
-    const definicion = METRICAS[metrica];
+  declared.forEach(f => {
+    const metric = folded(f.metrica || '');
+    const definition = METRICS[metric];
     const describe = `«${[f.metrica, f.objetivo, f.tolerancia].filter(x => x !== undefined && x !== '').join(' | ')}»`;
 
-    if (!definicion) {
-      problemas.push(`${describe}: la métrica no es ninguna de ${Object.keys(METRICAS).join(', ')}`);
+    if (!definition) {
+      problems.push(`${describe}: la métrica no es ninguna de ${Object.keys(METRICS).join(', ')}`);
 
       return;
     }
 
-    if (objetivos.has(metrica)) {
-      problemas.push(`${describe}: ${metrica} está declarada dos veces`);
+    if (targets.has(metric)) {
+      problems.push(`${describe}: ${metric} está declarada dos veces`);
 
       return;
     }
 
-    const objetivo = cantidad(f.objetivo || '');
-    const tolerancia = isEmptyField((f.tolerancia || '').trim()) ? 0 : cantidad(f.tolerancia || '');
+    const target = amount(f.objetivo || '');
+    const tolerance = isEmptyField((f.tolerancia || '').trim()) ? 0 : amount(f.tolerancia || '');
 
-    if (objetivo === undefined || objetivo < 0 || (definicion.porcentaje && objetivo > 100)) {
-      problemas.push(`${describe}: el objetivo no es un número${definicion.porcentaje ? ' entre 0 y 100' : ' positivo'}`);
-
-      return;
-    }
-
-    if (tolerancia === undefined || tolerancia < 0) {
-      problemas.push(`${describe}: la tolerancia no es un número positivo`);
+    if (target === undefined || target < 0 || (definition.porcentaje && target > 100)) {
+      problems.push(`${describe}: el objetivo no es un número${definition.porcentaje ? ' entre 0 y 100' : ' positivo'}`);
 
       return;
     }
 
-    // En una métrica de mínimo, una tolerancia igual o mayor que el objetivo
-    // deja el umbral en cero o por debajo: cualquier valor lo cumpliría.
-    if (definicion.sentido === 'minimo' && tolerancia >= objetivo) {
-      problemas.push(`${describe}: la tolerancia iguala o supera el objetivo, y cualquier valor lo cumpliría`);
+    if (tolerance === undefined || tolerance < 0) {
+      problems.push(`${describe}: la tolerancia no es un número positivo`);
 
       return;
     }
 
-    objetivos.set(metrica, {
-      metrica,
-      objetivo,
-      tolerancia,
-      umbral: definicion.sentido === 'minimo' ? objetivo - tolerancia : objetivo + tolerancia,
-      sentido: definicion.sentido,
-      unidad: definicion.unidad,
+    // On a minimum metric, a tolerance equal to or above the target leaves the threshold at zero or
+    // below: any value would comply.
+    if (definition.sentido === 'minimo' && tolerance >= target) {
+      problems.push(`${describe}: la tolerancia iguala o supera el objetivo, y cualquier valor lo cumpliría`);
+
+      return;
+    }
+
+    targets.set(metric, {
+      metrica: metric,
+      objetivo: target,
+      tolerancia: tolerance,
+      umbral: definition.sentido === 'minimo' ? target - tolerance : target + tolerance,
+      sentido: definition.sentido,
+      unidad: definition.unidad,
     });
   });
 
-  return { objetivos, problemas };
+  return { objetivos: targets, problemas: problems };
 };
 
-const objetivoDe = (context: ENSPolicyContext, metrica: string, para: string): MetricTarget | Measurement => {
-  const declaradas = tableParameterRows(context, 'P-06');
+const targetOf = (context: ENSPolicyContext, metric: string, purpose: string): MetricTarget | Measurement => {
+  const declared = tableParameterRows(context, 'P-06');
 
-  if (!declaradas) {
-    return missingParameter(context, 'P-06', para);
+  if (!declared) {
+    return missingParameter(context, 'P-06', purpose);
   }
 
-  const { objetivos, problemas } = parseMetricTargets(declaradas);
+  const { objetivos: targets, problemas: problems } = parseMetricTargets(declared);
 
-  if (problemas.length) {
-    return notMeasured(`${parameterDisplayName(context, 'P-06')} tiene filas que no se pueden interpretar: ${formatList(problemas)}.`, 'CONFIGURATION');
+  if (problems.length) {
+    return notMeasured(`${parameterDisplayName(context, 'P-06')} tiene filas que no se pueden interpretar: ${formatList(problems)}.`, 'CONFIGURATION');
   }
 
-  const objetivo = objetivos.get(metrica);
+  const target = targets.get(metric);
 
-  return objetivo || notMeasured(`${parameterDisplayName(context, 'P-06')} no declara el objetivo de ${metrica}: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
+  return target || notMeasured(`${parameterDisplayName(context, 'P-06')} no declara el objetivo de ${metric}: no hay contra qué juzgar ${purpose}.`, 'CONFIGURATION');
 };
 
-const describeObjetivo = (o: MetricTarget): string =>
-  `${o.sentido === 'minimo' ? '≥' : '≤'} ${cifra(o.objetivo)}${o.unidad ? ` ${o.unidad}` : ''}${o.tolerancia ? `, tolerancia ${cifra(o.tolerancia)}` : ''}`;
+const describeTarget = (o: MetricTarget): string =>
+  `${o.sentido === 'minimo' ? '≥' : '≤'} ${figure(o.objetivo)}${o.unidad ? ` ${o.unidad}` : ''}${o.tolerancia ? `, tolerancia ${figure(o.tolerancia)}` : ''}`;
 
-// --- EV-02 · el último ciclo validado, dentro del plazo ----------------------------
 
-const juzgaCiclos = (reg: Registro, per: Periodicidad, quienes: Set<string>, quienesTexto: string): Measurement => {
-  const { ciclos, nota } = ciclosDe(reg);
-  const notas = `${nota}${notaDescartadas(reg, 'registro de ciclos')}`;
-  const ultimo = ciclos[ciclos.length - 1];
-  const validados = ciclos.filter(c => !isEmptyField(c.validadoPor) && quienes.has(plegado(c.validadoPor)));
-  const ultimoValidado = validados[validados.length - 1];
-  const plazo = per.plazoDias * DAY_MS;
+const judgesCycles = (reg: LogRow, per: Periodicity, who: Set<string>, whoText: string): Measurement => {
+  const { ciclos: cycles, nota: note } = cyclesOf(reg);
+  const notes = `${note}${discardedNote(reg, 'registro de ciclos')}`;
+  const last = cycles[cycles.length - 1];
+  const validated = cycles.filter(c => !isEmptyField(c.validadoPor) && who.has(folded(c.validadoPor)));
+  const lastValidated = validated[validated.length - 1];
+  const deadline = per.plazoDias * DAY_MS;
 
-  if (!ultimoValidado) {
+  if (!lastValidated) {
     return nonCompliant(
-      `Ningún ciclo del registro está validado por un responsable de métricas de P-05 (${quienesTexto}): el último, ${describeCiclo(ultimo)}, ${
-        isEmptyField(ultimo.validadoPor) ? 'no tiene quién lo validó' : `lo validó «${ultimo.validadoPor}», que P-05 no designa`
-      }. Un dato que se reporta fuera sin validación formal no tiene responsable.${notas}`
+      `Ningún ciclo del registro está validado por un responsable de métricas de P-05 (${whoText}): el último, ${describeCycle(last)}, ${
+        isEmptyField(last.validadoPor) ? 'no tiene quién lo validó' : `lo validó «${last.validadoPor}», que P-05 no designa`
+      }. Un dato que se reporta fuera sin validación formal no tiene responsable.${notes}`
     );
   }
 
-  const edad = reg.t - ultimoValidado.fecha;
+  const age = reg.t - lastValidated.fecha;
 
-  if (edad > plazo) {
+  if (age > deadline) {
     return nonCompliant(
-      `El último ciclo validado es ${describeCiclo(ultimoValidado)}, de hace ${wholeDays(edad)} días: fuera del plazo (${describePlazo(per)} días). Los datos del grado de implantación no se consolidan con la periodicidad declarada.${
-        ultimo !== ultimoValidado ? ` Después hay ${describeCiclo(ultimo)}, pendiente de una validación de P-05.` : ''
-      }${notas}`
+      `El último ciclo validado es ${describeCycle(lastValidated)}, de hace ${wholeDays(age)} días: fuera del plazo (${describeDeadline(per)} días). Los datos del grado de implantación no se consolidan con la periodicidad declarada.${
+        last !== lastValidated ? ` Después hay ${describeCycle(last)}, pendiente de una validación de P-05.` : ''
+      }${notes}`
     );
   }
 
-  const conImplantacion = validados.filter(c => c.implantacion !== undefined);
-  const tendencia =
-    conImplantacion.length >= 2
-      ? ` Tendencia de la implantación: ${conImplantacion
+  const withDeployment = validated.filter(c => c.implantacion !== undefined);
+  const trend =
+    withDeployment.length >= 2
+      ? ` Tendencia de la implantación: ${withDeployment
           .slice(-3)
-          .map(c => `${c.periodo} ${cifra(c.implantacion as number)} %`)
+          .map(c => `${c.periodo} ${figure(c.implantacion as number)} %`)
           .join(' → ')}.`
       : '';
 
   return compliant(
-    `Último ciclo validado: ${describeCiclo(ultimoValidado)}, hace ${wholeDays(edad)} días, dentro del plazo (${describePlazo(per)} días). Serie: ${ciclos.length} ciclo(s) anotados.${tendencia}${
-      ultimo !== ultimoValidado ? ` El ciclo ${describeCiclo(ultimo)} está pendiente de validar.` : ''
-    }${notas}`
+    `Último ciclo validado: ${describeCycle(lastValidated)}, hace ${wholeDays(age)} días, dentro del plazo (${describeDeadline(per)} días). Serie: ${cycles.length} ciclo(s) anotados.${trend}${
+      last !== lastValidated ? ` El ciclo ${describeCycle(last)} está pendiente de validar.` : ''
+    }${notes}`
   );
 };
 
-const ev02Hechos = (context: ENSPolicyContext, ahora: number): Measurement => {
-  const partes: Measurement[] = [];
-  const soa = declaracion(context);
+const ev02Facts = (context: ENSPolicyContext, now: number): Measurement => {
+  const pieces: Measurement[] = [];
+  const soa = statement(context);
 
   if (soa) {
-    partes.push(soa);
+    pieces.push(soa);
   }
 
-  const reg = LEE_CICLOS(context, ahora, 'EV-02');
+  const reg = READS_CYCLES(context, now, 'EV-02');
 
-  if (esMedida(reg)) {
-    return combineMeasurements([...partes, reg]);
+  if (isMeasurement(reg)) {
+    return combineMeasurements([...pieces, reg]);
   }
 
-  const { ciclos, nota } = ciclosDe(reg);
+  const { ciclos: cycles, nota: note } = cyclesOf(reg);
 
-  if (!ciclos.length) {
-    // Registro presente y sin ningún ciclo: es un dato medido, sin plazo que valga.
+  if (!cycles.length) {
+    // Record present with no cycle: a measured fact, with no deadline that applies.
     return combineMeasurements([
-      ...partes,
+      ...pieces,
       nonCompliant(
-        `El registro de ciclos de métricas existe pero no tiene ningún ciclo anotado: los datos del grado de implantación no se consolidan con ninguna periodicidad y no hay serie histórica.${nota}${notaDescartadas(reg, 'registro de ciclos')}`
+        `El registro de ciclos de métricas existe pero no tiene ningún ciclo anotado: los datos del grado de implantación no se consolidan con ninguna periodicidad y no hay serie histórica.${note}${discardedNote(reg, 'registro de ciclos')}`
       ),
     ]);
   }
 
-  const per = periodicidad(context);
-  const quienes = validadores(context, 'metricas');
+  const per = periodicity(context);
+  const who = validators(context, 'metricas');
 
-  if (esMedida(per)) {
-    partes.push(per);
+  if (isMeasurement(per)) {
+    pieces.push(per);
   }
 
-  if (esMedida(quienes)) {
-    partes.push(quienes);
+  if (isMeasurement(who)) {
+    pieces.push(who);
   }
 
-  if (!esMedida(per) && !esMedida(quienes)) {
-    partes.push(juzgaCiclos(reg, per, quienes, designados(context, 'metricas')));
+  if (!isMeasurement(per) && !isMeasurement(who)) {
+    pieces.push(judgesCycles(reg, per, who, designated(context, 'metricas')));
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Measurement =>
-  conDegradacion(context, ahora, 'EV-02', 'metrics_register_read', ev02Hechos(context, ahora));
+const ev02 = (context: ENSPolicyContext, now: number): Measurement =>
+  withDegradation(context, now, 'EV-02', 'metrics_register_read', ev02Facts(context, now));
 
-// --- EV-04 · la fiabilidad de la medición -------------------------------------------
 
-interface Pasada {
+interface Run {
   control: string;
   t: number;
   resultado: string;
 }
 
-// `control|instante|resultado`, separadas por comas; `-` si no hay ninguna.
-// Cualquier otra forma es una lista ilegible (undefined), nunca una vacía.
-const pasadasDe = (texto: string): Pasada[] | undefined => {
-  if (isEmptyField(texto)) {
+// `control|instant|result`, comma-separated; `-` if none. Any other shape is an unreadable list
+// (undefined), never an empty one.
+const runsOf = (text: string): Run[] | undefined => {
+  if (isEmptyField(text)) {
     return [];
   }
 
-  const pasadas: Pasada[] = [];
+  const runs: Run[] = [];
 
-  for (const entrada of texto.split(',')) {
-    const m = /^([^|\s]+)\|([^|]+)\|(completada|parcial|fallida|-)$/.exec(entrada.trim());
+  for (const entry of text.split(',')) {
+    const m = /^([^|\s]+)\|([^|]+)\|(completada|parcial|fallida|-)$/.exec(entry.trim());
     const t = m ? parseInstant(m[2].trim()) : undefined;
 
     if (!m || t === undefined) {
       return undefined;
     }
 
-    pasadas.push({ control: m[1], t, resultado: m[3] });
+    runs.push({ control: m[1], t, resultado: m[3] });
   }
 
-  return pasadas;
+  return runs;
 };
 
-const enAlcance = (e: ENSNormalizedEvent): boolean =>
-  idDelHecho(e) === MANAGER ||
+const inScope = (e: ENSNormalizedEvent): boolean =>
+  factId(e) === MANAGER ||
   factField(e, 'grupos')
     .split(',')
-    .map(g => plegado(g))
+    .map(g => folded(g))
     .includes(ENS_SCOPE_GROUP);
 
-interface Cobertura {
+interface Coverage {
   medida: Measurement;
   porcentaje?: number;
   alcance: number;
   cubiertos: number;
 }
 
-const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
-  const { vigentes, ultimo } = estadoVigente(context, 'agent_keepalive_observed', ahora);
+const ev04Coverage = (context: ENSPolicyContext, now: number): Coverage => {
+  const { vigentes: current, ultimo: last } = currentStatus(context, 'agent_keepalive_observed', now);
 
-  if (!vigentes.length) {
-    return { medida: sinHechos(context, 'EV-04', ahora, ultimo, 'estado de los agentes leído en el manager'), alcance: 0, cubiertos: 0 };
+  if (!current.length) {
+    return { medida: withoutFacts(context, 'EV-04', now, last, 'estado de los agentes leído en el manager'), alcance: 0, cubiertos: 0 };
   }
 
-  // Un hecho por agente: el último, con su ID normalizado.
-  const agentes = new Map<string, ENSNormalizedEvent>();
+  // One fact per agent: the last, with its normalized ID.
+  const agents = new Map<string, ENSNormalizedEvent>();
 
-  vigentes.forEach(e => agentes.set(idDelHecho(e), e));
+  current.forEach(e => agents.set(factId(e), e));
 
-  // Cuántos agentes dice el recolector que emitió: si llegan menos, faltan
-  // líneas, y un agente perdido no puede desaparecer del alcance sin decirlo.
-  // Cuentan como sistemas del alcance sin determinar, que es la cota segura
-  // (si fueran de fuera del alcance, la cobertura real solo sería mejor).
-  const emitidos = Math.max(0, ...vigentes.map(e => parseNumber(factField(e, 'agentes_emitidos')) ?? 0));
-  const perdidos = Math.max(0, emitidos - agentes.size);
+  // How many agents the collector says it emitted: if fewer arrive, lines are missing and a lost
+  // agent cannot vanish from the scope unreported. They count as scope systems undetermined, the
+  // safe bound (if outside the scope the real coverage could only be better).
+  const emitted = Math.max(0, ...current.map(e => parseNumber(factField(e, 'agentes_emitidos')) ?? 0));
+  const lost = Math.max(0, emitted - agents.size);
 
-  const latidos = estadoVigente(context, 'collector_heartbeat_observed', ahora).vigentes;
-  const latidoDe = new Map<string, ENSNormalizedEvent>();
+  const heartbeats = currentStatus(context, 'collector_heartbeat_observed', now).vigentes;
+  const heartbeatOf = new Map<string, ENSNormalizedEvent>();
 
-  latidos.forEach(e => latidoDe.set(idDelHecho(e), e));
+  heartbeats.forEach(e => heartbeatOf.set(factId(e), e));
 
-  const alcance = Array.from(agentes.values()).filter(enAlcance);
-  const fuera = Array.from(agentes.values()).filter(e => !enAlcance(e));
-  const cubiertos: string[] = [];
-  const descubiertos: string[] = [];
-  const indeterminados: Measurement[] = [];
+  const scope = Array.from(agents.values()).filter(inScope);
+  const outside = Array.from(agents.values()).filter(e => !inScope(e));
+  const covered: string[] = [];
+  const uncovered: string[] = [];
+  const undetermined: Measurement[] = [];
 
-  alcance.forEach(e => {
-    const id = idDelHecho(e);
-    const nombre = `${factField(e, 'agente') || '?'} (${id})`;
-    const estado = factField(e, 'estado_conexion');
+  scope.forEach(e => {
+    const id = factId(e);
+    const name = `${factField(e, 'agente') || '?'} (${id})`;
+    const status = factField(e, 'estado_conexion');
 
-    if (estado !== 'active') {
-      descubiertos.push(`${nombre}: agente ${estado || 'en estado desconocido'}, último keepalive ${isEmptyField(factField(e, 'ultimo_keepalive')) ? 'nunca' : factField(e, 'ultimo_keepalive')}`);
-
-      return;
-    }
-
-    if (!latidos.length) {
-      indeterminados.push(notMeasured(`${nombre}: no han llegado los latidos de los recolectores leídos en alerts.json`, 'COLLECTION'));
+    if (status !== 'active') {
+      uncovered.push(`${name}: agente ${status || 'en estado desconocido'}, último keepalive ${isEmptyField(factField(e, 'ultimo_keepalive')) ? 'nunca' : factField(e, 'ultimo_keepalive')}`);
 
       return;
     }
 
-    const latido = latidoDe.get(id);
-
-    if (!latido) {
-      indeterminados.push(notMeasured(`${nombre}: no ha llegado su hecho de latidos (111306) en la última pasada`, 'COLLECTION'));
+    if (!heartbeats.length) {
+      undetermined.push(notMeasured(`${name}: no han llegado los latidos de los recolectores leídos en alerts.json`, 'COLLECTION'));
 
       return;
     }
 
-    // En un clúster de Wazuh, alerts.json es de cada nodo: el recolector solo
-    // ve los latidos de los agentes conectados a SU nodo. Un agente de otro nodo
-    // no está ni cubierto ni descubierto: no se ha podido mirar.
-    const nodoAgente = factField(e, 'nodo');
-    const nodoLocal = factField(latido, 'nodo');
+    const heartbeat = heartbeatOf.get(id);
 
-    if (!isEmptyField(nodoAgente) && !isEmptyField(nodoLocal) && !equalsIgnoreCase(nodoAgente, nodoLocal)) {
-      indeterminados.push(
+    if (!heartbeat) {
+      undetermined.push(notMeasured(`${name}: no ha llegado su hecho de latidos (111306) en la última pasada`, 'COLLECTION'));
+
+      return;
+    }
+
+    // In a Wazuh cluster, alerts.json is per node: the collector only sees heartbeats of agents
+    // connected to ITS node. An agent of another node is neither covered nor uncovered: it could
+    // not be looked at.
+    const agentNode = factField(e, 'nodo');
+    const localNode = factField(heartbeat, 'nodo');
+
+    if (!isEmptyField(agentNode) && !isEmptyField(localNode) && !equalsIgnoreCase(agentNode, localNode)) {
+      undetermined.push(
         notMeasured(
-          `${nombre}: está conectado al nodo ${nodoAgente} del clúster, y op.mon.2 lee los latidos en el alerts.json del nodo ${nodoLocal}, que no recibe los suyos`,
+          `${name}: está conectado al nodo ${agentNode} del clúster, y op.mon.2 lee los latidos en el alerts.json del nodo ${localNode}, que no recibe los suyos`,
           'COLLECTION'
         )
       );
@@ -815,42 +767,41 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
       return;
     }
 
-    const pasadas = pasadasDe(factField(latido, 'pasadas'));
-    const leido = eventTime(latido);
+    const runs = runsOf(factField(heartbeat, 'pasadas'));
+    const read = eventTime(heartbeat);
 
-    if (!pasadas) {
-      indeterminados.push(notMeasured(`${nombre}: su lista de pasadas no se puede interpretar («${factField(latido, 'pasadas')}»)`, 'COLLECTION'));
+    if (!runs) {
+      undetermined.push(notMeasured(`${name}: su lista de pasadas no se puede interpretar («${factField(heartbeat, 'pasadas')}»)`, 'COLLECTION'));
 
       return;
     }
 
-    if (!pasadas.length) {
-      const desde = parseInstant(factField(latido, 'observado_desde'));
+    if (!runs.length) {
+      const since = parseInstant(factField(heartbeat, 'observado_desde'));
 
-      if (desde !== undefined && leido - desde > LATIDO_VIGENTE_MS) {
-        descubiertos.push(`${nombre}: ningún recolector de ENSFácil ha informado desde él desde ${fecha(desde)}`);
+      if (since !== undefined && read - since > CURRENT_HEARTBEAT_MS) {
+        uncovered.push(`${name}: ningún recolector de ENSFácil ha informado desde él desde ${date(since)}`);
       } else {
-        indeterminados.push(
-          notMeasured(`${nombre}: todavía no ha informado ningún recolector de ENSFácil desde que op.mon.2 lee los latidos${desde !== undefined ? ` (${iso(desde)})` : ''}`)
+        undetermined.push(
+          notMeasured(`${name}: todavía no ha informado ningún recolector de ENSFácil desde que op.mon.2 lee los latidos${since !== undefined ? ` (${iso(since)})` : ''}`)
         );
       }
 
       return;
     }
 
-    // Una pasada fechada DESPUÉS de la lectura no prueba que el recolector
-    // esté al día: es un reloj adelantado (el de la máquina, si el instante
-    // salió de `data.ts`). Lo medido en contra manda; si no hay nada en contra,
-    // esa máquina queda sin determinar.
-    const futuras = pasadas.filter(p => p.t > leido + FUTURE_TOLERANCE_MS);
-    const parados = pasadas.filter(
-      p => p.t <= leido + FUTURE_TOLERANCE_MS && (leido - p.t > LATIDO_VIGENTE_MS || p.resultado === 'fallida')
+    // A run dated AFTER the read does not prove the collector is current: it is a fast clock (the
+    // machine's, if the instant came from `data.ts`). What is measured against wins; with nothing
+    // against, that machine stays undetermined.
+    const future = runs.filter(p => p.t > read + FUTURE_TOLERANCE_MS);
+    const stopped = runs.filter(
+      p => p.t <= read + FUTURE_TOLERANCE_MS && (read - p.t > CURRENT_HEARTBEAT_MS || p.resultado === 'fallida')
     );
 
-    if (parados.length) {
-      descubiertos.push(
-        `${nombre}: ${formatList(
-          parados.map(p =>
+    if (stopped.length) {
+      uncovered.push(
+        `${name}: ${formatList(
+          stopped.map(p =>
             p.resultado === 'fallida'
               ? `${p.control} falló en su última pasada (${iso(p.t)})`
               : `${p.control} sin pasada desde ${iso(p.t)}`
@@ -861,90 +812,89 @@ const ev04Cobertura = (context: ENSPolicyContext, ahora: number): Cobertura => {
       return;
     }
 
-    if (futuras.length) {
-      indeterminados.push(
+    if (future.length) {
+      undetermined.push(
         notMeasured(
-          `${nombre}: ${formatList(futuras.map(p => `${p.control} con su última pasada en el futuro (${iso(p.t)})`))}, después de la lectura de ${iso(leido)}: reloj adelantado, no se puede afirmar que esté al día`
+          `${name}: ${formatList(future.map(p => `${p.control} con su última pasada en el futuro (${iso(p.t)})`))}, después de la lectura de ${iso(read)}: reloj adelantado, no se puede afirmar que esté al día`
         )
       );
 
       return;
     }
 
-    cubiertos.push(`${nombre}, ${pasadas.length} recolector(es)`);
+    covered.push(`${name}, ${runs.length} recolector(es)`);
   });
 
-  if (perdidos) {
-    indeterminados.push(
+  if (lost) {
+    undetermined.push(
       notMeasured(
-        `de los ${emitidos} agentes que el recolector emitió en la última pasada han llegado ${agentes.size}; los ${perdidos} que faltan se cuentan como del alcance y sin determinar`,
+        `de los ${emitted} agentes que el recolector emitió en la última pasada han llegado ${agents.size}; los ${lost} que faltan se cuentan como del alcance y sin determinar`,
         'COLLECTION'
       )
     );
   }
 
-  const n = alcance.length + perdidos;
-  const cuantosSinDeterminar = indeterminados.length - (perdidos ? 1 : 0) + perdidos;
-  const notaFuera = fuera.length
-    ? ` Fuera del alcance ENS (sin el grupo ${ENS_SCOPE_GROUP}) hay ${fuera.length} agente(s) que no cuentan: ${formatList(fuera.map(e => `${factField(e, 'agente')} (${idDelHecho(e)}) ${factField(e, 'estado_conexion')}`))}.`
+  const n = scope.length + lost;
+  const undeterminedCount = undetermined.length - (lost ? 1 : 0) + lost;
+  const noteOutside = outside.length
+    ? ` Fuera del alcance ENS (sin el grupo ${ENS_SCOPE_GROUP}) hay ${outside.length} agente(s) que no cuentan: ${formatList(outside.map(e => `${factField(e, 'agente')} (${factId(e)}) ${factField(e, 'estado_conexion')}`))}.`
     : '';
 
   if (!n) {
     return {
-      medida: notMeasured(`La base de agentes del manager no tiene ningún sistema del alcance ENS (el grupo ${ENS_SCOPE_GROUP} y el manager).${notaFuera}`),
+      medida: notMeasured(`La base de agentes del manager no tiene ningún sistema del alcance ENS (el grupo ${ENS_SCOPE_GROUP} y el manager).${noteOutside}`),
       alcance: 0,
       cubiertos: 0,
     };
   }
 
-  const porcentaje = (cubiertos.length / n) * 100;
-  const maximo = ((cubiertos.length + cuantosSinDeterminar) / n) * 100;
-  const medido = `${cifra(porcentaje)} % (${cubiertos.length} de ${n} sistemas del alcance ENS con el agente conectado y todos sus recolectores al día)`;
-  const objetivo = objetivoDe(context, 'cobertura_monitorizacion', 'si la cobertura de la monitorización es suficiente');
+  const percentage = (covered.length / n) * 100;
+  const max = ((covered.length + undeterminedCount) / n) * 100;
+  const measured = `${figure(percentage)} % (${covered.length} de ${n} sistemas del alcance ENS con el agente conectado y todos sus recolectores al día)`;
+  const target = targetOf(context, 'cobertura_monitorizacion', 'si la cobertura de la monitorización es suficiente');
 
-  if (esMedida(objetivo)) {
-    return { medida: notMeasured(`${objetivo.motivo} Cobertura medida: ${medido}.`, objetivo.causa), porcentaje, alcance: n, cubiertos: cubiertos.length };
+  if (isMeasurement(target)) {
+    return { medida: notMeasured(`${target.motivo} Cobertura medida: ${measured}.`, target.causa), porcentaje: percentage, alcance: n, cubiertos: covered.length };
   }
 
-  const sinCubrir = descubiertos.length ? ` Sin cubrir: ${formatList(descubiertos)}.` : '';
-  const sinDeterminar = indeterminados.length ? ` Sin determinar: ${formatList(indeterminados.map(m => m.motivo))}.` : '';
+  const withoutCover = uncovered.length ? ` Sin cubrir: ${formatList(uncovered)}.` : '';
+  const withoutDetermine = undetermined.length ? ` Sin determinar: ${formatList(undetermined.map(m => m.motivo))}.` : '';
 
-  if (maximo < objetivo.umbral) {
+  if (max < target.umbral) {
     return {
       medida: nonCompliant(
-        `Cobertura de la monitorización ${medido}${cuantosSinDeterminar ? `, como mucho ${cifra(maximo)} % con los ${cuantosSinDeterminar} sin determinar` : ''}: por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}). Un grado de implantación calculado sobre esta monitorización no es un dato sólido.${sinCubrir}${sinDeterminar}${notaFuera}`
+        `Cobertura de la monitorización ${measured}${undeterminedCount ? `, como mucho ${figure(max)} % con los ${undeterminedCount} sin determinar` : ''}: por debajo del objetivo de P-06 (${describeTarget(target)}). Un grado de implantación calculado sobre esta monitorización no es un dato sólido.${withoutCover}${withoutDetermine}${noteOutside}`
       ),
-      porcentaje,
+      porcentaje: percentage,
       alcance: n,
-      cubiertos: cubiertos.length,
+      cubiertos: covered.length,
     };
   }
 
-  if (porcentaje >= objetivo.umbral) {
+  if (percentage >= target.umbral) {
     return {
       medida: compliant(
-        `Cobertura de la monitorización ${medido}, frente al objetivo de P-06 (${describeObjetivo(objetivo)})${
-          porcentaje < objetivo.objetivo ? ': por debajo del objetivo, dentro de la tolerancia' : ''
-        }.${sinCubrir}${sinDeterminar}${notaFuera}`
+        `Cobertura de la monitorización ${measured}, frente al objetivo de P-06 (${describeTarget(target)})${
+          percentage < target.objetivo ? ': por debajo del objetivo, dentro de la tolerancia' : ''
+        }.${withoutCover}${withoutDetermine}${noteOutside}`
       ),
-      porcentaje,
+      porcentaje: percentage,
       alcance: n,
-      cubiertos: cubiertos.length,
+      cubiertos: covered.length,
     };
   }
 
   return {
     medida: notMeasured(
-      `Cobertura de la monitorización ${medido}, por debajo del objetivo de P-06 (${describeObjetivo(objetivo)}), pero ${cuantosSinDeterminar} sistema(s) sin determinar podrían alcanzarlo.${sinCubrir}${sinDeterminar}${notaFuera}`,
-      commonGapCause(indeterminados)
+      `Cobertura de la monitorización ${measured}, por debajo del objetivo de P-06 (${describeTarget(target)}), pero ${undeterminedCount} sistema(s) sin determinar podrían alcanzarlo.${withoutCover}${withoutDetermine}${noteOutside}`,
+      commonGapCause(undetermined)
     ),
-    porcentaje,
+    porcentaje: percentage,
     alcance: n,
-    cubiertos: cubiertos.length,
+    cubiertos: covered.length,
   };
 };
 
-// --- EV-03 · los indicadores de la gestión de incidentes ------------------------------
 
 export const INCIDENT_INDICATORS = [
   'incidentes_por_tipo',
@@ -955,14 +905,14 @@ export const INCIDENT_INDICATORS = [
   'notificados_aepd',
 ];
 
-const SEVERIDADES = ['baja', 'media', 'alta', 'critica'];
+const SEVERITIES = ['baja', 'media', 'alta', 'critica'];
 
-interface Incidente {
+interface Incident {
   id: string;
   severidad: string;
-  // La fase inicial más temprana: el registro del incidente.
+  // The earliest initial phase: the incident's record.
   apertura?: number;
-  // La fecha más temprana de cualquier fase (para la ventana).
+  // The earliest date of any phase (for the window).
   primera: number;
   contencion?: number;
   cierre?: number;
@@ -972,14 +922,13 @@ interface Incidente {
   ccnCert?: number;
 }
 
-const LEE_INCIDENTES = (context: ENSPolicyContext, ahora: number): Registro | Measurement =>
-  registro(context, ahora, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', REGISTRO_INCIDENTES);
+const READS_INCIDENTS = (context: ENSPolicyContext, now: number): LogRow | Measurement =>
+  record(context, now, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', INCIDENT_RECORD);
 
-// Las fases del registro agrupadas por incidente, con las mismas reglas que
-// op.exp.7: la severidad es la más alta de sus fases; la contención, la primera
-// fase intermedia; el cierre, la última final.
-const incidentesDe = (reg: Registro): Incidente[] => {
-  const porId = new Map<string, Incidente>();
+// Record phases grouped by incident with op.exp.7's rules: severity is the highest of its phases;
+// containment, the first intermediate phase; closing, the last final one.
+const incidentsOf = (reg: LogRow): Incident[] => {
+  const byId = new Map<string, Incident>();
 
   reg.filas.forEach(e => {
     const id = factField(e, 'incidente_id');
@@ -989,21 +938,21 @@ const incidentesDe = (reg: Registro): Incidente[] => {
       return;
     }
 
-    const actual: Incidente = porId.get(id) || { id, severidad: '', primera: t, datosPersonales: '-', aepd: false };
-    const severidad = stripAccents(factField(e, 'severidad'));
-    const fase = factField(e, 'fase');
+    const actual: Incident = byId.get(id) || { id, severidad: '', primera: t, datosPersonales: '-', aepd: false };
+    const severity = stripAccents(factField(e, 'severidad'));
+    const phase = factField(e, 'fase');
 
-    if (SEVERIDADES.indexOf(severidad) > SEVERIDADES.indexOf(actual.severidad)) {
-      actual.severidad = severidad;
+    if (SEVERITIES.indexOf(severity) > SEVERITIES.indexOf(actual.severidad)) {
+      actual.severidad = severity;
     }
 
     actual.primera = Math.min(actual.primera, t);
 
-    if (fase === 'inicial') {
+    if (phase === 'inicial') {
       actual.apertura = Math.min(actual.apertura ?? t, t);
-    } else if (fase === 'intermedio') {
+    } else if (phase === 'intermedio') {
       actual.contencion = Math.min(actual.contencion ?? t, t);
-    } else if (fase === 'final') {
+    } else if (phase === 'final') {
       actual.cierre = Math.max(actual.cierre ?? t, t);
     }
 
@@ -1017,7 +966,7 @@ const incidentesDe = (reg: Registro): Incidente[] => {
       actual.datosPersonales = dp;
     }
 
-    if (plegado(factField(e, 'notificado_a')).includes('aepd')) {
+    if (folded(factField(e, 'notificado_a')).includes('aepd')) {
       actual.aepd = true;
     }
 
@@ -1027,20 +976,20 @@ const incidentesDe = (reg: Registro): Incidente[] => {
       actual.ccnCert = Math.min(actual.ccnCert ?? ccn, ccn);
     }
 
-    porId.set(id, actual);
+    byId.set(id, actual);
   });
 
-  return Array.from(porId.values()).sort((a, b) => a.primera - b.primera);
+  return Array.from(byId.values()).sort((a, b) => a.primera - b.primera);
 };
 
-// Vivos en la ventana [desde, hasta]: empezados antes de su fin y no cerrados
-// antes de su principio. Un incidente fechado en el futuro no cuenta.
-const vivosEn = (incidentes: Incidente[], desde: number, hasta: number): Incidente[] =>
-  incidentes.filter(i => i.primera <= hasta + FUTURE_TOLERANCE_MS && (i.cierre === undefined || i.cierre >= desde));
+// Alive in the window [desde, hasta]: started before its end and not closed before its start. A
+// future-dated incident does not count.
+const aliveIn = (incidents: Incident[], since: number, until: number): Incident[] =>
+  incidents.filter(i => i.primera <= until + FUTURE_TOLERANCE_MS && (i.cierre === undefined || i.cierre >= since));
 
-// Qué le falta a un incidente para calcular un indicador, o undefined.
-const faltaPara = (indicador: string, i: Incidente): string | undefined => {
-  switch (indicador) {
+// What an incident lacks to compute an indicator, or undefined.
+const missingFor = (indicator: string, i: Incident): string | undefined => {
+  switch (indicator) {
     case 'incidentes_por_tipo':
       return i.clasificacion ? undefined : 'sin clasificación';
     case 'tiempo_medio_contencion':
@@ -1070,291 +1019,285 @@ const faltaPara = (indicador: string, i: Incidente): string | undefined => {
   }
 };
 
-const media = (valores: number[]): string =>
-  valores.length ? `${cifra(valores.reduce((a, b) => a + b, 0) / valores.length / HOUR_MS)} h` : 'sin datos';
+const average = (values: number[]): string =>
+  values.length ? `${figure(values.reduce((a, b) => a + b, 0) / values.length / HOUR_MS)} h` : 'sin datos';
 
-const cuenta = (valores: string[]): string => {
-  const mapa = new Map<string, number>();
+const account = (values: string[]): string => {
+  const map = new Map<string, number>();
 
-  valores.forEach(v => mapa.set(v, (mapa.get(v) || 0) + 1));
+  values.forEach(v => map.set(v, (map.get(v) || 0) + 1));
 
-  return mapa.size
-    ? Array.from(mapa.entries())
+  return map.size
+    ? Array.from(map.entries())
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([v, n]) => `${v} ${n}`)
         .join(', ')
     : 'ninguno';
 };
 
-// El valor de un indicador sobre unos incidentes (los que tienen el dato).
-const valorDeIndicador = (indicador: string, incidentes: Incidente[]): string => {
-  switch (indicador) {
+// An indicator's value over some incidents (those with the datum).
+const indicatorValue = (indicator: string, incidents: Incident[]): string => {
+  switch (indicator) {
     case 'incidentes_por_tipo':
-      return cuenta(incidentes.map(i => i.clasificacion || 'sin clasificar'));
+      return account(incidents.map(i => i.clasificacion || 'sin clasificar'));
     case 'incidentes_por_severidad':
-      return cuenta(incidentes.map(i => i.severidad || 'sin severidad'));
+      return account(incidents.map(i => i.severidad || 'sin severidad'));
     case 'tiempo_medio_contencion': {
-      const contenidos = incidentes.filter(i => i.apertura !== undefined && i.contencion !== undefined && i.contencion >= i.apertura);
+      const contents = incidents.filter(i => i.apertura !== undefined && i.contencion !== undefined && i.contencion >= i.apertura);
 
-      return `${media(contenidos.map(i => (i.contencion as number) - (i.apertura as number)))} (${contenidos.length} contenidos)`;
+      return `${average(contents.map(i => (i.contencion as number) - (i.apertura as number)))} (${contents.length} contenidos)`;
     }
     case 'tiempo_medio_resolucion': {
-      const cerrados = incidentes.filter(i => i.apertura !== undefined && i.cierre !== undefined && i.cierre >= i.apertura);
+      const closed = incidents.filter(i => i.apertura !== undefined && i.cierre !== undefined && i.cierre >= i.apertura);
 
-      return `${media(cerrados.map(i => (i.cierre as number) - (i.apertura as number)))} (${cerrados.length} cerrados)`;
+      return `${average(closed.map(i => (i.cierre as number) - (i.apertura as number)))} (${closed.length} cerrados)`;
     }
     case 'notificados_ccn_cert':
-      return `${incidentes.filter(i => i.ccnCert !== undefined).length} de ${incidentes.length}`;
+      return `${incidents.filter(i => i.ccnCert !== undefined).length} de ${incidents.length}`;
     case 'notificados_aepd': {
-      const personales = incidentes.filter(i => i.datosPersonales === 'si');
+      const personal = incidents.filter(i => i.datosPersonales === 'si');
 
-      return `${personales.filter(i => i.aepd).length} de ${personales.length} con datos personales`;
+      return `${personal.filter(i => i.aepd).length} de ${personal.length} con datos personales`;
     }
     default:
       return 'indicador desconocido';
   }
 };
 
-// P-03: una lista de indicadores del vocabulario. Cualquier otro texto deja R1
-// sin evaluar, nombrándolo.
-const indicadores = (context: ENSPolicyContext): string[] | Measurement => {
+// P-03: a list of indicators from the vocabulary. Any other text leaves R1 unevaluated, naming it.
+const indicators = (context: ENSPolicyContext): string[] | Measurement => {
   const p = findParameter(context, 'P-03');
-  const elementos = p && p.value !== undefined ? toParameterListItems(p.value).map(x => x.trim()).filter(Boolean) : [];
+  const items = p && p.value !== undefined ? toParameterListItems(p.value).map(x => x.trim()).filter(Boolean) : [];
 
-  if (!elementos.length) {
+  if (!items.length) {
     return missingParameter(context, 'P-03', 'qué indicadores de la gestión de incidentes se consolidan');
   }
 
-  const malos = elementos.filter(x => !INCIDENT_INDICATORS.includes(plegado(x)));
+  const bad = items.filter(x => !INCIDENT_INDICATORS.includes(folded(x)));
 
-  if (malos.length) {
+  if (bad.length) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-03')} tiene indicadores que ENSFácil no sabe calcular con el registro de incidentes: ${formatList(malos.map(x => `«${x}»`))}. Los que sabe: ${INCIDENT_INDICATORS.join(', ')}.`,
+      `${parameterDisplayName(context, 'P-03')} tiene indicadores que ENSFácil no sabe calcular con el registro de incidentes: ${formatList(bad.map(x => `«${x}»`))}. Los que sabe: ${INCIDENT_INDICATORS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
 
-  return Array.from(new Set(elementos.map(plegado)));
+  return Array.from(new Set(items.map(folded)));
 };
 
-// Decisión del responsable 7: los datos de incidentes se dan por consolidados
-// si el último ciclo de métricas está dentro de su plazo.
-//
-// El registro de ciclos es de EV-02: se lee como EV-02 (su falta de hechos
-// busca la degradación de EV-02) y lo que el recolector declare de él después
-// de su lectura se combina igual que en EV-02.
-const cicloEnPlazo = (context: ENSPolicyContext, ahora: number, per: Periodicidad): Measurement =>
-  conDegradacion(context, ahora, 'EV-02', 'metrics_register_read', cicloEnPlazoHechos(context, ahora, per));
+// Incident data are taken as consolidated if the last metrics cycle is within its deadline. The
+// cycle record belongs to EV-02: it is read as EV-02 (its lack of facts looks for EV-02's
+// degradation) and what the collector declares about it after its read is combined as in EV-02.
+const cycleWithinDeadline = (context: ENSPolicyContext, now: number, per: Periodicity): Measurement =>
+  withDegradation(context, now, 'EV-02', 'metrics_register_read', cycleWithinDeadlineFacts(context, now, per));
 
-const cicloEnPlazoHechos = (context: ENSPolicyContext, ahora: number, per: Periodicidad): Measurement => {
-  const reg = LEE_CICLOS(context, ahora, 'EV-02');
+const cycleWithinDeadlineFacts = (context: ENSPolicyContext, now: number, per: Periodicity): Measurement => {
+  const reg = READS_CYCLES(context, now, 'EV-02');
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg.estado === 'NO_EVALUABLE'
       ? notMeasured(`Sin el registro de ciclos de métricas no consta que los datos de incidentes se consoliden: ${reg.motivo}`, reg.causa)
       : reg;
   }
 
-  const { ciclos } = ciclosDe(reg);
-  const ultimo = ciclos[ciclos.length - 1];
+  const { ciclos: cycles } = cyclesOf(reg);
+  const last = cycles[cycles.length - 1];
 
-  if (!ultimo) {
+  if (!last) {
     return nonCompliant('El registro de ciclos de métricas no tiene ningún ciclo anotado: los datos de incidentes no se consolidan en ningún ciclo.');
   }
 
-  const edad = reg.t - ultimo.fecha;
+  const age = reg.t - last.fecha;
 
-  return edad > per.plazoDias * DAY_MS
-    ? nonCompliant(`El último ciclo de métricas, ${describeCiclo(ultimo)}, es de hace ${wholeDays(edad)} días: fuera del plazo (${describePlazo(per)} días), así que los datos de incidentes no se están consolidando.`)
-    : compliant(`Se consolidan en el ciclo ${describeCiclo(ultimo)}, dentro del plazo (${describePlazo(per)} días).`);
+  return age > per.plazoDias * DAY_MS
+    ? nonCompliant(`El último ciclo de métricas, ${describeCycle(last)}, es de hace ${wholeDays(age)} días: fuera del plazo (${describeDeadline(per)} días), así que los datos de incidentes no se están consolidando.`)
+    : compliant(`Se consolidan en el ciclo ${describeCycle(last)}, dentro del plazo (${describeDeadline(per)} días).`);
 };
 
-const ev03Hechos = (context: ENSPolicyContext, ahora: number): Measurement => {
-  const reg = LEE_INCIDENTES(context, ahora);
+const ev03Facts = (context: ENSPolicyContext, now: number): Measurement => {
+  const reg = READS_INCIDENTS(context, now);
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  const partes: Measurement[] = [];
-  const declarados = indicadores(context);
-  const per = periodicidad(context);
+  const pieces: Measurement[] = [];
+  const declared = indicators(context);
+  const per = periodicity(context);
 
-  if (esMedida(declarados)) {
-    partes.push(declarados);
+  if (isMeasurement(declared)) {
+    pieces.push(declared);
   }
 
-  if (esMedida(per)) {
-    partes.push(per);
+  if (isMeasurement(per)) {
+    pieces.push(per);
   }
 
-  if (esMedida(declarados) || esMedida(per)) {
-    return combineMeasurements(partes);
+  if (isMeasurement(declared) || isMeasurement(per)) {
+    return combineMeasurements(pieces);
   }
 
-  partes.push(cicloEnPlazo(context, ahora, per));
+  pieces.push(cycleWithinDeadline(context, now, per));
 
-  const desde = reg.t - per.dias * DAY_MS;
-  const delPeriodo = vivosEn(incidentesDe(reg), desde, reg.t);
-  const ventana = `el periodo ${per.nombre} hasta la lectura (desde ${fecha(desde)})`;
+  const since = reg.t - per.dias * DAY_MS;
+  const ofPeriod = aliveIn(incidentsOf(reg), since, reg.t);
+  const window = `el periodo ${per.nombre} hasta la lectura (desde ${date(since)})`;
 
   if (reg.descartadas > 0) {
-    partes.push(
+    pieces.push(
       notMeasured(
         `${reg.descartadas} fila(s) del registro de incidentes se descartaron por no tener el formato exigido (ver los avisos del recolector): no se puede afirmar que los indicadores estén completos.`
       )
     );
   }
 
-  if (!delPeriodo.length) {
-    partes.push(
+  if (!ofPeriod.length) {
+    pieces.push(
       compliant(
-        `Ningún incidente registrado en ${ventana}: los indicadores de P-03 (${declarados.join(', ')}) valen cero. Con el registro presente, cero incidentes es un dato.`
+        `Ningún incidente registrado en ${window}: los indicadores de P-03 (${declared.join(', ')}) valen cero. Con el registro presente, cero incidentes es un dato.`
       )
     );
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
-  const faltas: string[] = [];
+  const missing: string[] = [];
 
-  declarados.forEach(indicador => {
-    const sin = delPeriodo
-      .map(i => ({ i, falta: faltaPara(indicador, i) }))
+  declared.forEach(indicator => {
+    const without = ofPeriod
+      .map(i => ({ i, falta: missingFor(indicator, i) }))
       .filter(x => x.falta);
 
-    if (sin.length) {
-      faltas.push(`${indicador}: ${formatList(sin.map(x => `${x.i.id} ${x.falta}`))}`);
+    if (without.length) {
+      missing.push(`${indicator}: ${formatList(without.map(x => `${x.i.id} ${x.falta}`))}`);
     }
   });
 
-  partes.push(
-    faltas.length
+  pieces.push(
+    missing.length
       ? nonCompliant(
-          `Faltan datos en el registro de incidentes para calcular los indicadores de P-03 de ${ventana} (${delPeriodo.length} incidente(s)): ${faltas.join(' | ')}. Sin ellos no se puede evaluar el comportamiento de la gestión de incidentes.`
+          `Faltan datos en el registro de incidentes para calcular los indicadores de P-03 de ${window} (${ofPeriod.length} incidente(s)): ${missing.join(' | ')}. Sin ellos no se puede evaluar el comportamiento de la gestión de incidentes.`
         )
       : compliant(
-          `Indicadores de P-03 de ${ventana}, ${delPeriodo.length} incidente(s): ${declarados.map(x => `${x}: ${valorDeIndicador(x, delPeriodo)}`).join('; ')}.`
+          `Indicadores de P-03 de ${window}, ${ofPeriod.length} incidente(s): ${declared.map(x => `${x}: ${indicatorValue(x, ofPeriod)}`).join('; ')}.`
         )
   );
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
-const ev03 = (context: ENSPolicyContext, ahora: number): Measurement =>
-  conDegradacion(context, ahora, 'EV-03', 'incident_register_read', ev03Hechos(context, ahora));
+const ev03 = (context: ENSPolicyContext, now: number): Measurement =>
+  withDegradation(context, now, 'EV-03', 'incident_register_read', ev03Facts(context, now));
 
-// --- EV-06 · los recursos del último ciclo (dato declarado) ------------------------
 
-const COLUMNAS_RECURSOS = ['horas_internas', 'horas_externas', 'presupuesto_ejecutado'];
+const RESOURCE_COLUMNS = ['horas_internas', 'horas_externas', 'presupuesto_ejecutado'];
 
-const partidas = (context: ENSPolicyContext): Measurement | undefined => {
-  const declaradas = tableParameterRows(context, 'P-04');
+const entries = (context: ENSPolicyContext): Measurement | undefined => {
+  const declared = tableParameterRows(context, 'P-04');
 
-  if (!declaradas) {
+  if (!declared) {
     return missingParameter(context, 'P-04', 'qué partidas entran en las horas y el presupuesto que anota el registro');
   }
 
-  const malas = declaradas.filter(f => !COLUMNAS_RECURSOS.includes(plegado(f.columna || '')));
+  const bad = declared.filter(f => !RESOURCE_COLUMNS.includes(folded(f.columna || '')));
 
-  if (malas.length) {
+  if (bad.length) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-04')}: la columna de ${formatList(malas.map(f => `«${f.partida}» («${f.columna || ''}»)`))} no es ${COLUMNAS_RECURSOS.join(', ')}.`,
+      `${parameterDisplayName(context, 'P-04')}: la columna de ${formatList(bad.map(f => `«${f.partida}» («${f.columna || ''}»)`))} no es ${RESOURCE_COLUMNS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
 
-  const faltan = COLUMNAS_RECURSOS.filter(c => !declaradas.some(f => plegado(f.columna || '') === c));
+  const missing = RESOURCE_COLUMNS.filter(c => !declared.some(f => folded(f.columna || '') === c));
 
-  return faltan.length
-    ? notMeasured(`${parameterDisplayName(context, 'P-04')} no declara ninguna partida para ${faltan.join(', ')}: esa cifra del registro no tiene un significado declarado.`, 'CONFIGURATION')
+  return missing.length
+    ? notMeasured(`${parameterDisplayName(context, 'P-04')} no declara ninguna partida para ${missing.join(', ')}: esa cifra del registro no tiene un significado declarado.`, 'CONFIGURATION')
     : undefined;
 };
 
-const ev06Hechos = (context: ENSPolicyContext, ahora: number): Measurement => {
-  const partes: Measurement[] = [];
-  const reg = LEE_CICLOS(context, ahora, 'EV-06');
+const ev06Facts = (context: ENSPolicyContext, now: number): Measurement => {
+  const pieces: Measurement[] = [];
+  const reg = READS_CYCLES(context, now, 'EV-06');
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return reg;
   }
 
-  const { ciclos, nota } = ciclosDe(reg);
-  const notas = `${nota}${notaDescartadas(reg, 'registro de ciclos')}`;
-  const ultimo = ciclos[ciclos.length - 1];
-  const sinPartidas = partidas(context);
+  const { ciclos: cycles, nota: note } = cyclesOf(reg);
+  const notes = `${note}${discardedNote(reg, 'registro de ciclos')}`;
+  const last = cycles[cycles.length - 1];
+  const withoutEntries = entries(context);
 
-  if (sinPartidas) {
-    partes.push(sinPartidas);
+  if (withoutEntries) {
+    pieces.push(withoutEntries);
   }
 
-  if (!ultimo) {
-    return combineMeasurements([...partes, nonCompliant(`El registro de ciclos de métricas no tiene ningún ciclo anotado: no hay datos de horas ni de presupuesto.${notas}`)]);
+  if (!last) {
+    return combineMeasurements([...pieces, nonCompliant(`El registro de ciclos de métricas no tiene ningún ciclo anotado: no hay datos de horas ni de presupuesto.${notes}`)]);
   }
 
-  const per = periodicidad(context);
-  const quienes = validadores(context, 'recursos');
+  const per = periodicity(context);
+  const who = validators(context, 'recursos');
 
-  if (esMedida(per)) {
-    partes.push(per);
+  if (isMeasurement(per)) {
+    pieces.push(per);
   }
 
-  if (esMedida(quienes)) {
-    partes.push(quienes);
+  if (isMeasurement(who)) {
+    pieces.push(who);
   }
 
-  if (esMedida(per) || esMedida(quienes)) {
-    return combineMeasurements(partes);
+  if (isMeasurement(per) || isMeasurement(who)) {
+    return combineMeasurements(pieces);
   }
 
-  const edad = reg.t - ultimo.fecha;
+  const age = reg.t - last.fecha;
 
-  if (edad > per.plazoDias * DAY_MS) {
-    partes.push(nonCompliant(`El último ciclo, ${describeCiclo(ultimo)}, es de hace ${wholeDays(edad)} días: fuera del plazo (${describePlazo(per)} días). Los datos de recursos no están al día.${notas}`));
+  if (age > per.plazoDias * DAY_MS) {
+    pieces.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, es de hace ${wholeDays(age)} días: fuera del plazo (${describeDeadline(per)} días). Los datos de recursos no están al día.${notes}`));
 
-    return combineMeasurements(partes);
+    return combineMeasurements(pieces);
   }
 
-  const faltan = [
-    ultimo.horasInternas === undefined ? 'horas internas' : '',
-    ultimo.horasExternas === undefined ? 'horas externas' : '',
-    ultimo.presupuesto === undefined ? 'presupuesto ejecutado' : '',
+  const missing = [
+    last.horasInternas === undefined ? 'horas internas' : '',
+    last.horasExternas === undefined ? 'horas externas' : '',
+    last.presupuesto === undefined ? 'presupuesto ejecutado' : '',
   ].filter(Boolean);
 
-  if (faltan.length) {
-    partes.push(nonCompliant(`El último ciclo, ${describeCiclo(ultimo)}, no anota ${faltan.join(', ')}: R2 pide los recursos consumidos en horas y presupuesto.${notas}`));
-  } else if (isEmptyField(ultimo.validadoPor) || !quienes.has(plegado(ultimo.validadoPor))) {
-    partes.push(
+  if (missing.length) {
+    pieces.push(nonCompliant(`El último ciclo, ${describeCycle(last)}, no anota ${missing.join(', ')}: R2 pide los recursos consumidos en horas y presupuesto.${notes}`));
+  } else if (isEmptyField(last.validadoPor) || !who.has(folded(last.validadoPor))) {
+    pieces.push(
       nonCompliant(
-        `Los recursos del último ciclo, ${describeCiclo(ultimo)}, no están validados por un responsable de recursos de P-05 (${designados(context, 'recursos')}).${notas}`
+        `Los recursos del último ciclo, ${describeCycle(last)}, no están validados por un responsable de recursos de P-05 (${designated(context, 'recursos')}).${notes}`
       )
     );
   } else {
-    partes.push(
+    pieces.push(
       compliant(
-        `Ciclo ${ultimo.periodo}, consolidado el ${fecha(ultimo.fecha)}: ${cifra(ultimo.horasInternas as number)} h internas, ${cifra(ultimo.horasExternas as number)} h externas y ${cifra(ultimo.presupuesto as number)} € de presupuesto ejecutado, validado por ${ultimo.validadoPor} (P-05). DATO DECLARADO: ENSFácil lo registra y lo presenta, pero no lo verifica.${notas}`
+        `Ciclo ${last.periodo}, consolidado el ${date(last.fecha)}: ${figure(last.horasInternas as number)} h internas, ${figure(last.horasExternas as number)} h externas y ${figure(last.presupuesto as number)} € de presupuesto ejecutado, validado por ${last.validadoPor} (P-05). DATO DECLARADO: ENSFácil lo registra y lo presenta, pero no lo verifica.${notes}`
       )
     );
   }
 
-  return combineMeasurements(partes);
+  return combineMeasurements(pieces);
 };
 
-// Lo que el recolector declare después de la última lectura se combina con lo
-// medido: la degradación de EV-06 si la hay, y si no la de EV-02 (el mismo
-// registro). Nunca las dos: la misma línea puede nombrar «EV-02,EV-06».
-const ev06 = (context: ENSPolicyContext, ahora: number): Measurement => {
-  const medida = ev06Hechos(context, ahora);
-  const propia = conDegradacion(context, ahora, 'EV-06', 'metrics_register_read', medida);
+// What the collector declares after the last read is combined with what was measured: EV-06's
+// degradation if any, otherwise EV-02's (same record). Never both: the same line may name
+// «EV-02,EV-06».
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const measurement = ev06Facts(context, now);
+  const own = withDegradation(context, now, 'EV-06', 'metrics_register_read', measurement);
 
-  return propia !== medida
-    ? propia
-    : conDegradacion(context, ahora, HEREDA_DEGRADACION['EV-06'], 'metrics_register_read', medida);
+  return own !== measurement
+    ? own
+    : withDegradation(context, now, INHERITS_DEGRADATION['EV-06'], 'metrics_register_read', measurement);
 };
 
-// --- datos para el informe (sin veredicto) ----------------------------------------
 
-const DATO_DEL_INFORME: Record<string, string> = {
+const REPORT_DATA: Record<string, string> = {
   'EV-01':
     'Dato del informe, sin veredicto: el grado de implantación de cada medida aplicable de P-01 es salida del motor sobre el resultado de todos los controles, y lo calcula el informe de op.mon.2. Que se consolida con su periodicidad lo acredita EV-02.',
   'EV-05':
@@ -1363,23 +1306,23 @@ const DATO_DEL_INFORME: Record<string, string> = {
     'Dato del informe, sin veredicto: los datos del informe anual del art. 32 son el propio informe de op.mon.2, que combina EV-01 a EV-06 con el origen de cada cifra.',
 };
 
-// La serie de ciclos para el informe, del más reciente al más antiguo.
-const serieDeCiclos = (context: ENSPolicyContext, ahora: number): string[] => {
-  const reg = LEE_CICLOS(context, ahora, 'EV-02');
+// The cycle series for the report, newest to oldest.
+const cyclesSeries = (context: ENSPolicyContext, now: number): string[] => {
+  const reg = READS_CYCLES(context, now, 'EV-02');
 
-  if (esMedida(reg)) {
+  if (isMeasurement(reg)) {
     return [];
   }
 
-  return ciclosDe(reg)
+  return cyclesOf(reg)
     .ciclos.slice()
     .reverse()
     .map(c =>
       [
-        describeCiclo(c),
+        describeCycle(c),
         c.horasInternas !== undefined || c.horasExternas !== undefined || c.presupuesto !== undefined
-          ? `recursos: ${c.horasInternas !== undefined ? cifra(c.horasInternas) : '-'} h internas, ${c.horasExternas !== undefined ? cifra(c.horasExternas) : '-'} h externas, ${
-              c.presupuesto !== undefined ? cifra(c.presupuesto) : '-'
+          ? `recursos: ${c.horasInternas !== undefined ? figure(c.horasInternas) : '-'} h internas, ${c.horasExternas !== undefined ? figure(c.horasExternas) : '-'} h externas, ${
+              c.presupuesto !== undefined ? figure(c.presupuesto) : '-'
             } €`
           : '',
         isEmptyField(c.referencia) ? '' : `ref. ${c.referencia}`,
@@ -1389,26 +1332,25 @@ const serieDeCiclos = (context: ENSPolicyContext, ahora: number): string[] => {
     );
 };
 
-// Los seis indicadores sobre una ventana, para el informe (con P-03 o sin ella).
-const indicadoresDelInforme = (context: ENSPolicyContext, ahora: number, diasVentana: number | undefined): string[] => {
-  const reg = LEE_INCIDENTES(context, ahora);
+// The six indicators over a window, for the report (with or without P-03).
+const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: number | undefined): string[] => {
+  const reg = READS_INCIDENTS(context, now);
 
-  if (esMedida(reg) || diasVentana === undefined) {
+  if (isMeasurement(reg) || daysWindow === undefined) {
     return [];
   }
 
-  const desde = reg.t - diasVentana * DAY_MS;
-  const vivos = vivosEn(incidentesDe(reg), desde, reg.t);
+  const since = reg.t - daysWindow * DAY_MS;
+  const alive = aliveIn(incidentsOf(reg), since, reg.t);
 
   return [
-    `Ventana: ${fecha(desde)} a ${fecha(reg.t)}, ${vivos.length} incidente(s)`,
-    ...INCIDENT_INDICATORS.map(x => `${x}: ${vivos.length ? valorDeIndicador(x, vivos) : 'cero'}`),
+    `Ventana: ${date(since)} a ${date(reg.t)}, ${alive.length} incidente(s)`,
+    ...INCIDENT_INDICATORS.map(x => `${x}: ${alive.length ? indicatorValue(x, alive) : 'cero'}`),
   ];
 };
 
-// --- decisiones ------------------------------------------------------------
 
-interface Tecnico {
+interface Technician {
   requisito: string;
   evidencias: string[];
   parametros: string[];
@@ -1416,121 +1358,120 @@ interface Tecnico {
   acreditado?: boolean;
 }
 
-const TECNICOS: Tecnico[] = [
+const TECHNICIANS: Technician[] = [
   { requisito: 'op.mon.2.1', evidencias: ['EV-02', 'EV-04'], parametros: ['P-01', 'P-02', 'P-05', 'P-06'], tipo: 'MAX_AGE' },
   { requisito: 'op.mon.2.r1.1', evidencias: ['EV-03'], parametros: ['P-02', 'P-03'], tipo: 'COVERAGE_REQUIRED' },
-  // R2 es dato declarado: su CUMPLE se marca acreditado documentalmente.
+  // R2 is declared data: its CUMPLE is marked accredited documentarily.
   { requisito: 'op.mon.2.r2.1', evidencias: ['EV-06'], parametros: ['P-02', 'P-04', 'P-05'], tipo: 'MAX_AGE', acreditado: true },
 ];
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const aplica = (requisito: string): boolean =>
+  const now = (context.now || new Date()).getTime();
+  const applies = (requirement: string): boolean =>
     Boolean(
       context.control.requirements
-        .find(r => r.id === requisito)
+        .find(r => r.id === requirement)
         ?.applicability.levels.includes(context.level)
     );
 
-  // Cada medida se calcula una vez y solo si algún requisito que aplica la usa.
+  // Each measure is computed once and only if some applying requirement uses it.
   const cache: Record<string, Measurement> = {};
-  const ev04: { cobertura?: Cobertura } = {};
+  const ev04: { cobertura?: Coverage } = {};
 
-  const medidaDe = (evidencia: string): Measurement => {
-    if (!cache[evidencia]) {
-      switch (evidencia) {
+  const measurementOf = (evidence: string): Measurement => {
+    if (!cache[evidence]) {
+      switch (evidence) {
         case 'EV-02':
-          cache[evidencia] = ev02(context, ahora);
+          cache[evidence] = ev02(context, now);
           break;
         case 'EV-03':
-          cache[evidencia] = ev03(context, ahora);
+          cache[evidence] = ev03(context, now);
           break;
         case 'EV-04':
-          ev04.cobertura = ev04Cobertura(context, ahora);
-          cache[evidencia] = conDegradacion(context, ahora, 'EV-04', 'agent_keepalive_observed', ev04.cobertura.medida);
+          ev04.cobertura = ev04Coverage(context, now);
+          cache[evidence] = withDegradation(context, now, 'EV-04', 'agent_keepalive_observed', ev04.cobertura.medida);
           break;
         default:
-          cache[evidencia] = ev06(context, ahora);
+          cache[evidence] = ev06(context, now);
       }
     }
 
-    return cache[evidencia];
+    return cache[evidence];
   };
 
-  const requisitoDecisions: ENSPolicyDecision[] = [];
-  const evidenciaDecisions: ENSPolicyDecision[] = [];
+  const requirementDecisions: ENSPolicyDecision[] = [];
+  const evidenceDecisions: ENSPolicyDecision[] = [];
 
-  TECNICOS.filter(r => aplica(r.requisito)).forEach(definicion => {
-    const propias = definicion.evidencias.map(id => ({ id, medida: medidaDe(id) }));
-    const estado = worstStatus(propias.map(p => p.medida));
-    const responsables = propias.filter(p => p.medida.estado === estado);
+  TECHNICIANS.filter(r => applies(r.requisito)).forEach(definition => {
+    const own = definition.evidencias.map(id => ({ id, medida: measurementOf(id) }));
+    const status = worstStatus(own.map(p => p.medida));
+    const owners = own.filter(p => p.medida.estado === status);
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
-    requisitoDecisions.push(
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads).
+    requirementDecisions.push(
       withReasonParts(decide(
-        definicion.requisito,
-        estado,
-        responsables.map(p => p.id),
-        definicion.parametros,
-        definicion.tipo,
-        definicion.requisito,
-        compositeReason(propias),
-        definicion.evidencias.map(id => `${id} CUMPLE`).join(' y '),
-        commonGapCause(responsables.map(p => p.medida)),
-        Boolean(definicion.acreditado)
-      ), reasonPartsOf(propias))
+        definition.requisito,
+        status,
+        owners.map(p => p.id),
+        definition.parametros,
+        definition.tipo,
+        definition.requisito,
+        compositeReason(own),
+        definition.evidencias.map(id => `${id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida)),
+        Boolean(definition.acreditado)
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia, con SU estado. La de un requisito acreditado lleva la
-    // misma marca: el puente no rellena una evidencia con una acreditación, así
-    // que EV-06 no se presenta como medida (es dato declarado).
-    propias.forEach(p =>
-      evidenciaDecisions.push(
+    // And one per evidence, with ITS status. An accredited requirement's carries the same mark: the
+    // bridge does not fill an evidence with an accreditation, so EV-06 is not presented as
+    // measured.
+    own.forEach(p =>
+      evidenceDecisions.push(
         decide(
-          definicion.requisito,
+          definition.requisito,
           p.medida.estado,
           [p.id],
-          definicion.parametros,
-          definicion.tipo,
-          `${definicion.requisito}/${p.id}`,
+          definition.parametros,
+          definition.tipo,
+          `${definition.requisito}/${p.id}`,
           p.medida.motivo,
           `${p.id} CUMPLE`,
           p.medida.causa,
-          Boolean(definicion.acreditado)
+          Boolean(definition.acreditado)
         )
       )
     );
   });
 
-  // EV-01, EV-05 y EV-07: datos del informe, sin veredicto. op.mon.2.1 aplica
-  // en las tres categorías.
+  // EV-01, EV-05 and EV-07: report data, no verdict. op.mon.2.1 applies in the three categories.
   ['EV-01', 'EV-05', 'EV-07'].forEach(id =>
-    evidenciaDecisions.push(decide('op.mon.2.1', 'NO_APLICA', [id], ['P-01', 'P-06'], 'MAX_AGE', `op.mon.2.1/${id}`, DATO_DEL_INFORME[id], 'dato del informe'))
+    evidenceDecisions.push(decide('op.mon.2.1', 'NO_APLICA', [id], ['P-01', 'P-06'], 'MAX_AGE', `op.mon.2.1/${id}`, REPORT_DATA[id], 'dato del informe'))
   );
 
-  const per = periodicidad(context);
+  const per = periodicity(context);
   const variables: ENSRuntimeVariable[] = [
-    ...Object.entries(cache).map(([evidencia, medida]) => ({
-      name: `medida_${evidencia.replace('-', '')}`,
-      value: medida.estado,
+    ...Object.entries(cache).map(([evidence, measurement]) => ({
+      name: `medida_${evidence.replace('-', '')}`,
+      value: measurement.estado,
       parameterIds: [],
-      evidenceIds: [evidencia],
+      evidenceIds: [evidence],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
     {
       name: 'periodicidad_metricas',
-      value: esMedida(per) ? undefined : per.nombre,
+      value: isMeasurement(per) ? undefined : per.nombre,
       parameterIds: ['P-02'],
       evidenceIds: ['EV-02'],
       eventIds: [],
-      description: esMedida(per)
+      description: isMeasurement(per)
         ? per.motivo
-        : `${describePlazo(per)} días de plazo por ciclo${per.cierre ? `; cierre anual del art. 32 el ${per.cierre}` : ''}.`,
+        : `${describeDeadline(per)} días de plazo por ciclo${per.cierre ? `; cierre anual del art. 32 el ${per.cierre}` : ''}.`,
     },
     {
       name: 'serie_ciclos_metricas',
-      value: serieDeCiclos(context, ahora),
+      value: cyclesSeries(context, now),
       parameterIds: ['P-02', 'P-05'],
       evidenceIds: ['EV-02', 'EV-06'],
       eventIds: [],
@@ -1538,7 +1479,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
     {
       name: 'indicadores_incidentes_periodo',
-      value: indicadoresDelInforme(context, ahora, esMedida(per) ? undefined : per.dias),
+      value: reportIndicators(context, now, isMeasurement(per) ? undefined : per.dias),
       parameterIds: ['P-02', 'P-03'],
       evidenceIds: ['EV-03'],
       eventIds: [],
@@ -1546,7 +1487,7 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
     {
       name: 'indicadores_incidentes_anual',
-      value: indicadoresDelInforme(context, ahora, ANUAL_DIAS),
+      value: reportIndicators(context, now, ANNUAL_DAYS),
       parameterIds: ['P-03'],
       evidenceIds: ['EV-03'],
       eventIds: [],
@@ -1554,20 +1495,20 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
     },
   ];
 
-  const cobertura = ev04.cobertura;
+  const coverage = ev04.cobertura;
 
-  if (cobertura && cobertura.porcentaje !== undefined) {
+  if (coverage && coverage.porcentaje !== undefined) {
     variables.push({
       name: 'cobertura_monitorizacion',
-      value: Math.round(cobertura.porcentaje * 10) / 10,
+      value: Math.round(coverage.porcentaje * 10) / 10,
       parameterIds: ['P-06'],
       evidenceIds: ['EV-04'],
       eventIds: [],
-      description: `${cobertura.cubiertos} de ${cobertura.alcance} sistemas del alcance ENS con el agente conectado y todos sus recolectores al día.`,
+      description: `${coverage.cubiertos} de ${coverage.alcance} sistemas del alcance ENS con el agente conectado y todos sus recolectores al día.`,
     });
   }
 
-  return { decisions: [...requisitoDecisions, ...evidenciaDecisions], runtimeVariables: variables };
+  return { decisions: [...requirementDecisions, ...evidenceDecisions], runtimeVariables: variables };
 };
 
 export const opMon2PolicyDefinition: ENSPolicyDefinition = {
@@ -1575,8 +1516,7 @@ export const opMon2PolicyDefinition: ENSPolicyDefinition = {
   controlId: CONTROL,
   version: '1.0.0',
   evaluator: evaluate,
-  // Por categoría del sistema: la base en las tres; R1 y R2 desde MEDIA, que
-  // exige lo mismo que ALTA.
+  // By system category: base in all three; R1 and R2 from MEDIA, which requires the same as ALTA.
   requirements: [
     {
       requirementId: 'op.mon.2.1',

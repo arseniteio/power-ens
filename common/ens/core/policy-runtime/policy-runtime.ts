@@ -6,15 +6,8 @@ import {
   getPolicyDefinition,
 } from './policies';
 
-// Ejecuta la policy de un control. Si su definición trae `evaluator`, ella
-// decide los requisitos y mide las evidencias que declara. Si no lo trae, el
-// control se evalúa solo por sus evidencias (primitivas del catálogo o el
-// `evidence_state` del agente) y aquí no se produce ninguna decisión.
-//
-// Aquí vivía el juicio imperativo de mp.info.6 (umbrales de periodicidad,
-// retención, lista blanca de acceso, edad de la restauración y copia offsite).
-// Se retiró cuando mp.info.6 pasó a juzgar hechos en su propia policy, como
-// los demás controles: ver `policies/mp-info-6.policy.ts`.
+// Runs a control's policy. With `evaluator` it decides the requirements and measures its evidences;
+// without it the control is evaluated by its evidences alone and no decision is produced here.
 export const runPolicyRuntime = (
   context: ENSPolicyContext
 ): ENSPolicyRuntimeResult => {

@@ -167,7 +167,7 @@ const correlationString = (
   return undefined;
 };
 
-const RAW_OP_ACC_1_REQUIRED_ATTRIBUTES = [
+const RAW_OP_ACC1_REQUIRED_ATTRIBUTES = [
   'event_id',
   'execution_id',
   'schema_version',
@@ -175,7 +175,7 @@ const RAW_OP_ACC_1_REQUIRED_ATTRIBUTES = [
   'collector_version',
 ] as const;
 
-const RAW_OP_ACC_1_FORBIDDEN_ATTRIBUTES = [
+const RAW_OP_ACC1_FORBIDDEN_ATTRIBUTES = [
   'estado',
   'status',
   'score',
@@ -183,7 +183,7 @@ const RAW_OP_ACC_1_FORBIDDEN_ATTRIBUTES = [
   'nivel',
 ] as const;
 
-const RAW_OP_ACC_1_FORBIDDEN_EVENT_TYPES = [
+const RAW_OP_ACC1_FORBIDDEN_EVENT_TYPES = [
   'evidence_state',
   'control_state',
   'score_snapshot',
@@ -229,21 +229,21 @@ const isRawOpAcc1TechnicalFact = (
   isExplicitFalseAttribute(
     attribute(event, 'synthetic')
   ) &&
-  RAW_OP_ACC_1_REQUIRED_ATTRIBUTES.every(
+  RAW_OP_ACC1_REQUIRED_ATTRIBUTES.every(
     key => hasMeaningfulAttribute(
       event,
       key
     )
   ) &&
-  !RAW_OP_ACC_1_FORBIDDEN_ATTRIBUTES.some(
+  !RAW_OP_ACC1_FORBIDDEN_ATTRIBUTES.some(
     key => hasMeaningfulAttribute(
       event,
       key
     )
   ) &&
-  !RAW_OP_ACC_1_FORBIDDEN_EVENT_TYPES.includes(
+  !RAW_OP_ACC1_FORBIDDEN_EVENT_TYPES.includes(
     event.eventType as
-      typeof RAW_OP_ACC_1_FORBIDDEN_EVENT_TYPES[number]
+      typeof RAW_OP_ACC1_FORBIDDEN_EVENT_TYPES[number]
   );
 
 
@@ -752,21 +752,10 @@ const evaluateRequirement1 = (
     )
   );
 
-  // DESAJUSTE DE TIPO (pendiente, 2026-07-30).
-  //
-  // P-04 (`cuentas_genericas_prohibidas`) es `type: 'list'` en la ficha del
-  // auditor, en configuration/data/op-acc-1-parameters.ts y en
-  // config/op-acc-1-control-block.json: es la lista de nombres de cuenta
-  // prohibidos (admin, guest, test...), no un interruptor.
-  //
-  // Aqui se lee con `toBoolean`, que acepta 'si'/'true'/'1'. En el despliegue
-  // real hubo que escribir "si" en P-04 para desbloquear la evaluacion, y con
-  // ello se perdio la lista: el motor dejo de saber que cuentas estaban
-  // prohibidas y solo supo que "hay prohibidas".
-  //
-  // La ficha manda: cuando se retome este evaluador, P-04 debe leerse como
-  // lista (nombres contra los que contrastar `generic_account_login`) y P-04
-  // debe volver a contener la lista real en la configuracion desplegada.
+  // Type mismatch (pending): P-04 (`cuentas_genericas_prohibidas`) is `type: 'list'` (forbidden
+  // account names) in the sheet, `configuration/data/op-acc-1-parameters.ts` and
+  // `config/op-acc-1-control-block.json`, but is read here with `toBoolean`. When this evaluator is
+  // resumed, read it as a list and restore the real list in the deployed configuration.
   const genericProhibited = toBoolean(
     parameterValue(context, 'P-04')
   );
@@ -1250,21 +1239,7 @@ const evaluateRequirement3 = (
       parameterIds
     );
 
-  // DESAJUSTE DE TIPO (pendiente, 2026-07-30).
-  //
-  // P-04 (`cuentas_genericas_prohibidas`) es `type: 'list'` en la ficha del
-  // auditor, en configuration/data/op-acc-1-parameters.ts y en
-  // config/op-acc-1-control-block.json: es la lista de nombres de cuenta
-  // prohibidos (admin, guest, test...), no un interruptor.
-  //
-  // Aqui se lee con `toBoolean`, que acepta 'si'/'true'/'1'. En el despliegue
-  // real hubo que escribir "si" en P-04 para desbloquear la evaluacion, y con
-  // ello se perdio la lista: el motor dejo de saber que cuentas estaban
-  // prohibidas y solo supo que "hay prohibidas".
-  //
-  // La ficha manda: cuando se retome este evaluador, P-04 debe leerse como
-  // lista (nombres contra los que contrastar `generic_account_login`) y P-04
-  // debe volver a contener la lista real en la configuracion desplegada.
+  // Same type mismatch as above (P-04 read with `toBoolean`, must be a list).
   const genericProhibited = toBoolean(
     parameterValue(context, 'P-04')
   );

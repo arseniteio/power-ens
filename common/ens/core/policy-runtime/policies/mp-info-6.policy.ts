@@ -1,55 +1,20 @@
-// mp.info.6 · Copias de seguridad
-//
-// El agente OBSERVA y esta policy JUZGA. El recolector de cada origen de copia
-// (el PBS de Proxmox o Zimbra 10 Network Edition con zmbackup) emite los mismos
-// hechos con el mismo contrato:
-//
-//   backup_run        estado   la última copia: correcta, fallida, resultado
-//   backup_schedule   estado   su planificación y cada cuántas horas
-//   backup_retention  estado   la retención configurada y la copia más antigua
-//   backup_access     estado   quién puede leer el repositorio y la clave
-//   backup_storage    estado   sus destinos: en la misma máquina o fuera
-//   restore_test      acción   una prueba de restauración sobre el testigo
-//   evidence_state             solo NO_EVALUABLE: no pudo mirar, y por qué
-//   collector_run              el latido de la pasada
-//
-// Todos llevan `origen` (`pbs`, `zimbra-ne`) y `objeto` (`fichero`, `buzones`,
-// `directorio`), y pueden llevar `backup_id` cuando una máquina tiene varios
-// trabajos de copia del mismo objeto. Cada combinación es UNA COPIA y se juzga
-// por separado: el peor resultado manda, porque una copia del directorio que
-// falla no la tapa la de los buzones que funciona. Un campo que el contrato no
-// nombra no molesta: se ignora. Un origen que no está en esa lista se juzga
-// igual: la policy no lo filtra.
-//
-// Una misma máquina puede tener dos recolectores (un servidor de buzones copia
-// sus ficheros con el PBS y sus buzones con Zimbra), cada uno con su latido y
-// a su minuto: la última pasada se busca por `origen`, y ninguno de los dos
-// esconde los hechos del otro.
-//
-// Por qué policy y no primitivas del catálogo: el juicio es copia a copia, con
-// varios ejes por evidencia (EV-01 cruza la última correcta con el resultado de
-// la última ejecución; EV-05 cruza resultado, contenido, plazo y limpieza), y
-// ninguna primitiva agrupa por copia ni hace ganar al peor.
-//
-// Invariantes, las mismas que en `op-exp-8.policy.ts`:
-//   - el agente emite instantes, no edades: toda antigüedad se mide aquí contra
-//     `context.now`;
-//   - sin hecho o sin parámetro, NO_EVALUABLE con motivo; nunca un CUMPLE por
-//     ausencia, ni un NO_CUMPLE por ausencia;
-//   - lo que el recolector declara que no pudo medir (evidence_state
-//     NO_EVALUABLE) sale NO_EVALUABLE con SU causa; un evidence_state con
-//     veredicto no se lee;
-//   - la policy nunca inventa política: ningún plazo, umbral o lista tiene
-//     valor por defecto (P-02, el margen, vale cero si falta: es lo que declara
-//     su ficha).
-//
-// El alcance: el motor solo evalúa este control en la fila de las máquinas que
-// declara P-04 (`scopeParameter` del catálogo). Si P-04 no declara ninguna, no
-// hay qué medir y todo sale NO_EVALUABLE por CONFIGURACIÓN.
-//
-// Tipos y utilidades desde el fichero, nunca desde un barrel: por ahí vuelve el
-// ciclo del TDZ de Settings.
-// El motivo compuesto, en texto y por partes (`reasonParts`).
+// mp.info.6 · Backups. The agent OBSERVES and this policy JUDGES; each backup origin's collector
+// (Proxmox PBS, Zimbra 10 Network Edition with zmbackup) emits the same facts: backup_run,
+// backup_schedule, backup_retention, backup_access, backup_storage (state), restore_test (action),
+// evidence_state (only NO_EVALUABLE), collector_run (heartbeat).
+// Every fact carries `origen` and `objeto` and may carry `backup_id`; each combination is ONE
+// BACKUP judged separately and the worst result wins. Unknown fields and origins are not filtered.
+// One machine may have two collectors (PBS and Zimbra), each with its own heartbeat: the last run
+// is looked up per `origen`.
+// Why a policy and not catalog primitives: the judgment is backup by backup with several axes per
+// evidence, and no primitive groups by backup or lets the worst win.
+// Invariants as in `op-exp-8.policy.ts`: ages are measured against `context.now`; no fact or
+// parameter is NO_EVALUABLE, never CUMPLE or NO_CUMPLE by absence; what the collector declares
+// unmeasurable (evidence_state NO_EVALUABLE) keeps its own cause and a verdict evidence_state is
+// not read; no default deadline, threshold or list (P-02, the margin, is zero if missing per its
+// sheet).
+// Scope: only the machines P-04 declares are evaluated; none means NO_EVALUABLE by CONFIGURATION.
+// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
@@ -70,167 +35,161 @@ import { getEvidenceDefinitions } from '../../evidence/registry';
 const CONTROL = 'mp.info.6';
 const POLICY = 'policy.mp.info.6';
 
-const HORA = 60 * 60 * 1000;
-const DIA = 24 * HORA;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-// Frescura de un hecho de estado. El recolector corre cada hora y reemite el
-// estado entero en cada pasada: 26 h tolera un día de fallos sin convertir una
-// foto vieja en la situación de hoy. Es tolerancia de OBSERVACIÓN, no política.
-const FRESCURA_HORAS = 26;
+// Freshness of a state fact: the collector runs hourly and re-emits the whole state; 26 h tolerates
+// a day of failures. Observation tolerance, not policy.
+const FRESHNESS_HOURS = 26;
 
-// Hechos de una misma pasada: el recolector los emite en pocos minutos.
-const MISMA_PASADA = 5 * 60 * 1000;
+// Facts of one run are emitted within a few minutes.
+const SAME_RUN_WINDOW_MS = 5 * 60 * 1000;
 
-// Un hecho del futuro no acredita nada (misma tolerancia de reloj que el latido).
-const TOLERANCIA_FUTURO = 5 * 60 * 1000;
+// A fact from the future proves nothing (same clock tolerance as the heartbeat).
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// `causa` solo con NO_EVALUABLE: de quién es el hueco (ver `ENSGapCause`).
-type Medida = {
+// `causa` only with NO_EVALUABLE: whose gap it is (see `ENSGapCause`).
+type Measurement = {
   estado: Exclude<ENSComplianceStatus, 'PARCIAL'>;
   motivo: string;
   causa?: ENSGapCause;
 };
 
-const cumple = (motivo: string): Medida => ({ estado: 'CUMPLE', motivo });
-const noCumple = (motivo: string): Medida => ({ estado: 'NO_CUMPLE', motivo });
-// Por defecto EVIDENCE: el dato llegó y no basta. Falta de parámetro y falta de
-// hechos lo dicen expresamente, y lo que el recolector declara llega con SU
-// causa.
-const sinMedir = (motivo: string, causa: ENSGapCause = 'EVIDENCE'): Medida => ({
+const compliant = (motive: string): Measurement => ({ estado: 'CUMPLE', motivo: motive });
+const nonCompliant = (motive: string): Measurement => ({ estado: 'NO_CUMPLE', motivo: motive });
+// Defaults to EVIDENCE: the data arrived and is not enough; missing parameter and missing facts say
+// so explicitly and the collector's declarations carry its own cause.
+const notMeasured = (motive: string, cause: ENSGapCause = 'EVIDENCE'): Measurement => ({
   estado: 'NO_EVALUABLE',
-  motivo,
-  causa,
+  motivo: motive,
+  causa: cause,
 });
 
-// La causa de varias medidas sin medir, con el mismo orden que el motor
-// (`resolveGapCause`): COLLECTION solo si lo dicen todas; CONFIGURATION si lo
-// dice alguna; si no, EVIDENCE.
-const causaComun = (medidas: Medida[]): ENSGapCause | undefined => {
-  const causas = medidas
+// Cause of several unmeasured measurements, same order as the engine (`resolveGapCause`):
+// COLLECTION only if all say so, CONFIGURATION if any does, otherwise EVIDENCE.
+const commonGapCause = (measurements: Measurement[]): ENSGapCause | undefined => {
+  const causes = measurements
     .filter(m => m.estado === 'NO_EVALUABLE')
     .map(m => m.causa || 'EVIDENCE');
 
-  if (!causas.length) {
+  if (!causes.length) {
     return undefined;
   }
 
-  if (causas.every(c => c === 'COLLECTION')) {
+  if (causes.every(c => c === 'COLLECTION')) {
     return 'COLLECTION';
   }
 
-  return causas.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
+  return causes.includes('CONFIGURATION') ? 'CONFIGURATION' : 'EVIDENCE';
 };
 
-const GRAVEDAD: Record<Medida['estado'], number> = {
+const SEVERITY: Record<Measurement['estado'], number> = {
   NO_APLICA: -1,
   CUMPLE: 0,
   NO_EVALUABLE: 1,
   NO_CUMPLE: 2,
 };
 
-const peor = (medidas: Medida[]): Medida['estado'] =>
-  medidas.reduce<Medida['estado']>(
-    (actual, medida) =>
-      GRAVEDAD[medida.estado] > GRAVEDAD[actual] ? medida.estado : actual,
+const worstStatus = (measurements: Measurement[]): Measurement['estado'] =>
+  measurements.reduce<Measurement['estado']>(
+    (actual, measurement) =>
+      SEVERITY[measurement.estado] > SEVERITY[actual] ? measurement.estado : actual,
     'CUMPLE'
   );
 
-// Varias medidas en una: el estado de la peor, y en el motivo lo que lo explica
-// (lo que falla o falta; si todo cumple, lo medido).
-const combina = (partes: Medida[]): Medida => {
-  const estado = peor(partes);
+// Several measurements into one: worst status, with the reason that explains it (what fails or is
+// missing; if all comply, what was measured).
+const combineMeasurements = (pieces: Measurement[]): Measurement => {
+  const status = worstStatus(pieces);
 
-  if (estado === 'CUMPLE') {
-    return cumple(partes.map(p => p.motivo).join(' '));
+  if (status === 'CUMPLE') {
+    return compliant(pieces.map(p => p.motivo).join(' '));
   }
 
-  const responsables = partes.filter(p => p.estado === estado);
-  const ademas = partes
-    .filter(p => p.estado !== estado && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
+  const owners = pieces.filter(p => p.estado === status);
+  const also = pieces
+    .filter(p => p.estado !== status && p.estado !== 'CUMPLE' && p.estado !== 'NO_APLICA')
     .map(p => p.motivo);
 
   return {
-    estado,
-    motivo: [...responsables.map(p => p.motivo), ...(ademas.length ? [`Además: ${ademas.join(' ')}`] : [])].join(' '),
-    ...(estado === 'NO_EVALUABLE' ? { causa: causaComun(responsables) } : {}),
+    estado: status,
+    motivo: [...owners.map(p => p.motivo), ...(also.length ? [`Además: ${also.join(' ')}`] : [])].join(' '),
+    ...(status === 'NO_EVALUABLE' ? { causa: commonGapCause(owners) } : {}),
   };
 };
 
-// --- lectura de hechos -----------------------------------------------------
 
-// El normalizador parte un evento con `evidence_id=A,B` en uno por evidencia
-// (`<id>#A`, `<id>#B`). Aquí se juzga el HECHO, así que se cuenta una vez.
-const hechos = (
+// The normalizer splits an event with `evidence_id=A,B` into one per evidence (`<id>#A`, `<id>#B`);
+// the FACT is judged here, so it counts once.
+const facts = (
   context: ENSPolicyContext,
-  tipo: string
+  type: string
 ): ENSNormalizedEvent[] => {
-  const vistos = new Set<string>();
+  const seen = new Set<string>();
 
   return context.events.filter(event => {
-    if (event.controlId !== CONTROL || event.eventType !== tipo) {
+    if (event.controlId !== CONTROL || event.eventType !== type) {
       return false;
     }
 
-    // Un hecho sin `origen` es del vocabulario anterior (el latido y los
-    // estados que emitía el recolector de la versión previa): no se juzga. Si
-    // contara, el latido viejo de una máquina ya actualizada saldría como un
-    // recolector más que dejó de informar.
-    if (!campo(event, 'origen')) {
+    // A fact without `origen` is from the previous vocabulary (heartbeat and states of the former
+    // collector) and is not judged; otherwise an updated machine's old heartbeat would show as one
+    // more collector that stopped reporting.
+    if (!factField(event, 'origen')) {
       return false;
     }
 
     const base = String(event.id || '').split('#')[0];
 
-    if (vistos.has(base)) {
+    if (seen.has(base)) {
       return false;
     }
 
-    vistos.add(base);
+    seen.add(base);
 
     return true;
   });
 };
 
-const campo = (event: ENSNormalizedEvent, nombre: string): string => {
-  const valor =
-    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, nombre)
-      ? event.attributes[nombre]
+const factField = (event: ENSNormalizedEvent, name: string): string => {
+  const value =
+    event.attributes && Object.prototype.hasOwnProperty.call(event.attributes, name)
+      ? event.attributes[name]
       : undefined;
 
-  return valor === undefined || valor === null ? '' : String(valor).trim();
+  return value === undefined || value === null ? '' : String(value).trim();
 };
 
-// `-` es como el contrato dice «no hay»: ninguna copia correcta, ninguna
-// retención configurada, ninguna clave.
-const vacio = (texto: string): boolean => texto === '' || texto === '-';
+// `-` is the contract's «nothing there»: no good backup, no retention, no key.
+const isEmptyField = (text: string): boolean => text === '' || text === '-';
 
-const numero = (texto: string): number | undefined => {
-  const limpio = String(texto).trim().replace(',', '.');
+const parseNumber = (text: string): number | undefined => {
+  const clean = String(text).trim().replace(',', '.');
 
-  if (!/^[+-]?\d+(\.\d+)?$/.test(limpio)) {
+  if (!/^[+-]?\d+(\.\d+)?$/.test(clean)) {
     return undefined;
   }
 
-  const valor = Number(limpio);
+  const value = Number(clean);
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-const instante = (texto: string): number | undefined => {
-  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(texto)) {
+const parseInstant = (text: string): number | undefined => {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/.test(text)) {
     return undefined;
   }
 
-  const valor = new Date(texto).getTime();
+  const value = new Date(text).getTime();
 
-  return Number.isFinite(valor) ? valor : undefined;
+  return Number.isFinite(value) ? value : undefined;
 };
 
-// Modo de permisos en octal (`750`, `0600`).
-const octal = (texto: string): number | undefined =>
-  /^[0-7]{3,4}$/.test(texto) ? parseInt(texto, 8) : undefined;
+// Permission mode in octal (`750`, `0600`).
+const octal = (text: string): number | undefined =>
+  /^[0-7]{3,4}$/.test(text) ? parseInt(text, 8) : undefined;
 
-const momento = (event: ENSNormalizedEvent): number => {
+const eventTime = (event: ENSNormalizedEvent): number => {
   const t = Date.parse(event.timestamp);
 
   return Number.isNaN(t) ? 0 : t;
@@ -238,892 +197,858 @@ const momento = (event: ENSNormalizedEvent): number => {
 
 const iso = (t: number): string => new Date(t).toISOString().replace('.000Z', 'Z');
 
-const horas = (ms: number): string => (ms / HORA).toFixed(1);
+const formatHours = (ms: number): string => (ms / HOUR_MS).toFixed(1);
 
-const dias = (ms: number): number => Math.floor(ms / DIA);
+const wholeDays = (ms: number): number => Math.floor(ms / DAY_MS);
 
-const lista = (elementos: string[], maximo = 5): string =>
-  elementos.length > maximo
-    ? `${elementos.slice(0, maximo).join('; ')} y ${elementos.length - maximo} más`
-    : elementos.join('; ');
+const formatList = (items: string[], max = 5): string =>
+  items.length > max
+    ? `${items.slice(0, max).join('; ')} y ${items.length - max} más`
+    : items.join('; ');
 
-const masReciente = (eventos: ENSNormalizedEvent[]): ENSNormalizedEvent =>
-  [...eventos].sort((a, b) => momento(b) - momento(a))[0];
+const mostRecent = (events: ENSNormalizedEvent[]): ENSNormalizedEvent =>
+  [...events].sort((a, b) => eventTime(b) - eventTime(a))[0];
 
-// A4 · los puntos de montaje separados por comas de `montajes_omitidos` y de
-// `montajes_omitidos_aceptados`. `-` es que no hay log de esa pasada (se
-// desconoce, no es que no haya ninguno) y vacío es que no dejó ninguno fuera:
-// los dos se leen igual, como conjunto vacío.
-const montajesOmitidos = (texto: string): string[] =>
-  vacio(texto) ? [] : texto.split(',').map(m => m.trim()).filter(Boolean);
+// A4 · the comma-separated mount points of `montajes_omitidos` and `montajes_omitidos_aceptados`.
+// `-` (no log for that run) and empty (none left out) read the same: empty set.
+const omittedMounts = (text: string): string[] =>
+  isEmptyField(text) ? [] : text.split(',').map(m => m.trim()).filter(Boolean);
 
-// --- la copia a la que se refiere un hecho ---------------------------------
 
-const OBJETO: Record<string, string> = {
+const OBJECT: Record<string, string> = {
   fichero: 'copia de ficheros',
   buzones: 'copia de los buzones',
   directorio: 'copia del directorio',
 };
 
-// Un hecho es de un ORIGEN y de un OBJETO (el par) y, si el recolector lo
-// distingue, de un trabajo de copia concreto (`backup_id`). Un hecho sin
-// `backup_id` es del par entero: la planificación que lee el recolector del
-// PBS en el cron vale para todos sus backup-id, y un `evidence_state` sin
-// `backup_id` habla de todo el par.
-const parDe = (e: ENSNormalizedEvent): string => `${campo(e, 'origen')}|${campo(e, 'objeto')}`;
+// A fact belongs to an ORIGIN and an OBJECT (the pair) and, if the collector distinguishes it, to
+// one backup job (`backup_id`). A fact without `backup_id` covers the whole pair (the PBS schedule
+// read from cron applies to all its backup-ids).
+const pairOf = (e: ENSNormalizedEvent): string => `${factField(e, 'origen')}|${factField(e, 'objeto')}`;
 
-const backupId = (e: ENSNormalizedEvent): string => campo(e, 'backup_id');
+const backupId = (e: ENSNormalizedEvent): string => factField(e, 'backup_id');
 
-// La copia de un hecho, para los que se agrupan por copia (EV-05).
-const claveDe = (e: ENSNormalizedEvent): string => `${parDe(e)}|${backupId(e)}`;
+// The backup of a fact, for those grouped by backup (EV-05).
+const keyOf = (e: ENSNormalizedEvent): string => `${pairOf(e)}|${backupId(e)}`;
 
-const nombreDe = (e: ENSNormalizedEvent): string => {
-  const objeto = campo(e, 'objeto');
+const nameOf = (e: ENSNormalizedEvent): string => {
+  const object = factField(e, 'objeto');
   const id = backupId(e);
 
-  return `${OBJETO[objeto] || (objeto ? `copia de ${objeto}` : 'copia sin objeto declarado')}${id ? ` «${id}»` : ''} (${campo(e, 'origen') || 'origen sin declarar'})`;
+  return `${OBJECT[object] || (object ? `copia de ${object}` : 'copia sin objeto declarado')}${id ? ` «${id}»` : ''} (${factField(e, 'origen') || 'origen sin declarar'})`;
 };
 
-// El par, sin el trabajo de copia: la prueba de restauración es del par.
-const nombreDelPar = (e: ENSNormalizedEvent): string => {
-  const objeto = campo(e, 'objeto');
+// The pair without the backup job: the restore test belongs to the pair.
+const pairName = (e: ENSNormalizedEvent): string => {
+  const object = factField(e, 'objeto');
 
-  return `${OBJETO[objeto] || (objeto ? `copia de ${objeto}` : 'copia sin objeto declarado')} (${campo(e, 'origen') || 'origen sin declarar'})`;
+  return `${OBJECT[object] || (object ? `copia de ${object}` : 'copia sin objeto declarado')} (${factField(e, 'origen') || 'origen sin declarar'})`;
 };
 
-const DE_OBJETO: Record<string, string> = {
+const OBJECT_LABEL: Record<string, string> = {
   fichero: 'los ficheros',
   buzones: 'los buzones',
   directorio: 'el directorio',
 };
 
-// Los hechos de ESTADO del contrato: los que el recolector reemite enteros en
-// cada pasada y dicen qué copias tiene hoy la máquina.
-const TIPOS_DE_ESTADO = ['backup_run', 'backup_schedule', 'backup_retention', 'backup_access', 'backup_storage'];
+// STATE facts of the contract: re-emitted whole each run, they say which backups the machine has
+// today.
+const STATUS_TYPES = ['backup_run', 'backup_schedule', 'backup_retention', 'backup_access', 'backup_storage'];
 
-// --- la última pasada de cada origen y las degradaciones -------------------
 
-// En una misma máquina puede haber DOS recolectores de mp.info.6: un servidor
-// de buzones copia sus ficheros con el PBS y sus buzones con Zimbra, y cada
-// recolector pasa cada hora a su minuto. La pasada de uno no dice nada del
-// estado que mide el otro, así que la última pasada se busca POR ORIGEN (el
-// motor hace lo mismo al recortar por latidos, ver `stateFactCollectorField`).
-type PasadaDeOrigen = {
+// A machine may have TWO mp.info.6 collectors (PBS and Zimbra, each hourly at its own minute);
+// one's run says nothing about the other's state, so the last run is looked up PER ORIGIN (as the
+// engine does when trimming by heartbeat, see `stateFactCollectorField`).
+type OriginRun = {
   origen: string;
-  // Los hechos de estado de su última pasada: por tipo, lo emitido en la hora
-  // anterior a su último hecho, si no es más viejo que FRESCURA_HORAS.
+  // State facts of its last run: per type, what was emitted in the hour before its last fact, if
+  // not older than FRESHNESS_HOURS.
   vigentes: ENSNormalizedEvent[];
-  // Su último hecho de estado, vigente o no.
+  // Its last state fact, current or not.
   ultimo: number;
 };
 
-const pasadasPorOrigen = (
+const runsByOrigin = (
   context: ENSPolicyContext,
-  tipos: string[],
-  ahora: number
-): PasadaDeOrigen[] => {
-  const todos = tipos
-    .flatMap(tipo => hechos(context, tipo))
-    .filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+  types: string[],
+  now: number
+): OriginRun[] => {
+  const all = types
+    .flatMap(type => facts(context, type))
+    .filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
 
-  return Array.from(new Set(todos.map(e => campo(e, 'origen')))).map(origen => {
-    const suyos = todos.filter(e => campo(e, 'origen') === origen);
+  return Array.from(new Set(all.map(e => factField(e, 'origen')))).map(origin => {
+    const their = all.filter(e => factField(e, 'origen') === origin);
 
     return {
-      origen,
-      ultimo: Math.max(...suyos.map(momento)),
-      vigentes: tipos.flatMap(tipo => {
-        const delTipo = suyos.filter(e => e.eventType === tipo);
+      origen: origin,
+      ultimo: Math.max(...their.map(eventTime)),
+      vigentes: types.flatMap(type => {
+        const ofType = their.filter(e => e.eventType === type);
 
-        if (!delTipo.length) {
+        if (!ofType.length) {
           return [];
         }
 
-        const ultimoDelTipo = Math.max(...delTipo.map(momento));
+        const lastOfType = Math.max(...ofType.map(eventTime));
 
-        return ahora - ultimoDelTipo > FRESCURA_HORAS * HORA
+        return now - lastOfType > FRESHNESS_HOURS * HOUR_MS
           ? []
-          : delTipo.filter(e => ultimoDelTipo - momento(e) < HORA);
+          : ofType.filter(e => lastOfType - eventTime(e) < HOUR_MS);
       }),
     };
   });
 };
 
-// Los hechos de estado vigentes de todos los orígenes.
-const vigentes = (context: ENSPolicyContext, tipo: string, ahora: number): ENSNormalizedEvent[] =>
-  pasadasPorOrigen(context, [tipo], ahora).flatMap(p => p.vigentes);
+// Current state facts of all origins.
+const current = (context: ENSPolicyContext, type: string, now: number): ENSNormalizedEvent[] =>
+  runsByOrigin(context, [type], now).flatMap(p => p.vigentes);
 
-// Lo que el recolector declaró que no pudo medir de una evidencia. Solo cuenta
-// un `evidence_state` con `estado=NO_EVALUABLE`: el recolector no pone
-// veredictos, y si alguno antiguo lo hace, no se lee.
-const degradaciones = (
+// What the collector declared it could not measure for an evidence. Only an `evidence_state` with
+// `estado=NO_EVALUABLE` counts: the collector sets no verdicts and an old one that does is not
+// read.
+const degradations = (
   context: ENSPolicyContext,
-  evidencia: string,
-  ahora: number
+  evidence: string,
+  now: number
 ): ENSNormalizedEvent[] =>
-  hechos(context, 'evidence_state').filter(
+  facts(context, 'evidence_state').filter(
     e =>
-      campo(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidencia) &&
-      String(e.status || campo(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
-      momento(e) <= ahora + TOLERANCIA_FUTURO
+      factField(e, 'evidence_id').split(',').map(x => x.trim()).includes(evidence) &&
+      String(e.status || factField(e, 'estado')).toUpperCase() === 'NO_EVALUABLE' &&
+      eventTime(e) <= now + FUTURE_TOLERANCE_MS
   );
 
-// Con la causa que ÉL declara: es quien sabe si falta un registro que la
-// organización no mantiene (CONFIGURATION) o una fuente que no pudo leer
-// (COLLECTION). Sin causa declarada, COLLECTION.
-const comoDegradacion = (e: ENSNormalizedEvent): Medida => {
-  const declarada = campo(e, 'causa').toUpperCase();
-  const causa: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declarada)
-    ? (declarada as ENSGapCause)
+// With the cause IT declares (it knows whether a record is missing in the organization,
+// CONFIGURATION, or a source could not be read, COLLECTION); COLLECTION if none.
+const asDegradation = (e: ENSNormalizedEvent): Measurement => {
+  const declared = factField(e, 'causa').toUpperCase();
+  const cause: ENSGapCause = ['CONFIGURATION', 'COLLECTION', 'EVIDENCE'].includes(declared)
+    ? (declared as ENSGapCause)
     : 'COLLECTION';
 
-  return sinMedir(
-    `${nombreDe(e)}: el recolector no ha podido medirlo${declarada ? ` (${declarada})` : ''}: ${campo(e, 'motivo') || 'sin motivo declarado'}.`,
-    causa
+  return notMeasured(
+    `${nameOf(e)}: el recolector no ha podido medirlo${declared ? ` (${declared})` : ''}: ${factField(e, 'motivo') || 'sin motivo declarado'}.`,
+    cause
   );
 };
 
-const sinHechos = (ultimo: number | undefined, queFalta: string): Medida =>
-  sinMedir(
-    ultimo
-      ? `El último ${queFalta} es del ${iso(ultimo)}, hace más de ${FRESCURA_HORAS} h: el recolector de mp.info.6 no está informando.`
-      : `No consta ningún ${queFalta} de esta máquina: el recolector de mp.info.6 no está desplegado en ella o no informa.`,
+const withoutFacts = (last: number | undefined, whatIsMissing: string): Measurement =>
+  notMeasured(
+    last
+      ? `El último ${whatIsMissing} es del ${iso(last)}, hace más de ${FRESHNESS_HOURS} h: el recolector de mp.info.6 no está informando.`
+      : `No consta ningún ${whatIsMissing} de esta máquina: el recolector de mp.info.6 no está desplegado en ella o no informa.`,
     'COLLECTION'
   );
 
-// Una degradación frente a los hechos de lo que declara. De una pasada
-// POSTERIOR a todos ellos, los SUSTITUYE: el estado de hoy no se ha podido
-// ver. De la MISMA pasada, se SUMA a lo medido (una parte se midió y otra no).
-// Si hay un hecho posterior, ya NO CUENTA: la pasada siguiente sí pudo mirar.
-const frenteALosHechos = (
-  hechosQueCubre: ENSNormalizedEvent[],
-  degradacion: ENSNormalizedEvent | undefined
+// A degradation against the facts it declares. From a run AFTER all of them it REPLACES them
+// (today's state could not be seen); from the SAME run it is ADDED to what was measured; with a
+// later fact it no longer counts.
+const againstFacts = (
+  coveredFacts: ENSNormalizedEvent[],
+  degradation: ENSNormalizedEvent | undefined
 ): 'sustituye' | 'suma' | 'no_cuenta' => {
-  if (!degradacion) {
+  if (!degradation) {
     return 'no_cuenta';
   }
 
-  if (!hechosQueCubre.length) {
+  if (!coveredFacts.length) {
     return 'sustituye';
   }
 
-  const ultimo = Math.max(...hechosQueCubre.map(momento));
-  const t = momento(degradacion);
+  const last = Math.max(...coveredFacts.map(eventTime));
+  const t = eventTime(degradation);
 
-  if (t > ultimo + MISMA_PASADA) {
+  if (t > last + SAME_RUN_WINDOW_MS) {
     return 'sustituye';
   }
 
-  return t >= ultimo - MISMA_PASADA ? 'suma' : 'no_cuenta';
+  return t >= last - SAME_RUN_WINDOW_MS ? 'suma' : 'no_cuenta';
 };
 
-// Juzga una evidencia de ESTADO copia a copia. Por cada origen, los hechos de
-// su última pasada se reparten por par (origen y objeto) y, dentro del par, por
-// `backup_id`; un hecho sin `backup_id` vale para todas las copias del par.
-// Cada copia la juzga `juzga` con TODOS sus hechos de esa pasada; manda el peor.
-//
-// Las degradaciones cuentan si tienen menos de FRESCURA_HORAS y según
-// `frenteALosHechos`: la de una copia frente a los hechos de esa copia, y la
-// del par entero frente a los de todo el par. Un origen cuyo recolector ha
-// dejado de informar sale NO_EVALUABLE aunque el otro informe cada hora.
-const porCopia = (
+// Judges a STATE evidence backup by backup: per origin, the facts of its last run are split by pair
+// and then by `backup_id` (a fact without it applies to all backups of the pair); each backup is
+// judged by `judges` with all its facts of that run and the worst wins.
+// Degradations count if younger than FRESHNESS_HOURS and per `againstFacts`: a backup's against its
+// own facts, the whole pair's against all the pair's. An origin whose collector stopped reporting
+// is NO_EVALUABLE even if the other reports hourly.
+const byBackup = (
   context: ENSPolicyContext,
-  evidencia: string,
-  tipos: string[],
-  ahora: number,
-  queFalta: string,
-  juzga: (nombre: string, hechosDeLaCopia: ENSNormalizedEvent[]) => Medida
-): Medida => {
-  const pasadas = pasadasPorOrigen(context, tipos, ahora);
-  const declaradas = degradaciones(context, evidencia, ahora);
-  const recientes = declaradas.filter(e => ahora - momento(e) <= FRESCURA_HORAS * HORA);
-  const origenes = Array.from(
-    new Set([...pasadas.map(p => p.origen), ...recientes.map(e => campo(e, 'origen'))])
+  evidence: string,
+  types: string[],
+  now: number,
+  whatIsMissing: string,
+  judges: (name: string, backupFacts: ENSNormalizedEvent[]) => Measurement
+): Measurement => {
+  const runs = runsByOrigin(context, types, now);
+  const declared = degradations(context, evidence, now);
+  const recent = declared.filter(e => now - eventTime(e) <= FRESHNESS_HOURS * HOUR_MS);
+  const origins = Array.from(
+    new Set([...runs.map(p => p.origen), ...recent.map(e => factField(e, 'origen'))])
   );
 
-  if (!origenes.length) {
-    const ultimo = declaradas.length ? Math.max(...declaradas.map(momento)) : undefined;
+  if (!origins.length) {
+    const last = declared.length ? Math.max(...declared.map(eventTime)) : undefined;
 
-    return sinHechos(ultimo, queFalta);
+    return withoutFacts(last, whatIsMissing);
   }
 
-  const ultimaDe = (eventos: ENSNormalizedEvent[]): ENSNormalizedEvent | undefined =>
-    eventos.length ? masReciente(eventos) : undefined;
+  const lastOf = (events: ENSNormalizedEvent[]): ENSNormalizedEvent | undefined =>
+    events.length ? mostRecent(events) : undefined;
 
-  const medidas = origenes.flatMap(origen => {
-    const pasada = pasadas.find(p => p.origen === origen);
-    const suyos = pasada ? pasada.vigentes : [];
-    const susDegradaciones = recientes.filter(e => campo(e, 'origen') === origen);
+  const measurements = origins.flatMap(origin => {
+    const run = runs.find(p => p.origen === origin);
+    const their = run ? run.vigentes : [];
+    const ownDegradations = recent.filter(e => factField(e, 'origen') === origin);
 
-    if (!suyos.length && !susDegradaciones.length) {
-      return [sinHechos(pasada?.ultimo, `${queFalta} de origen ${origen || 'sin declarar'}`)];
+    if (!their.length && !ownDegradations.length) {
+      return [withoutFacts(run?.ultimo, `${whatIsMissing} de origen ${origin || 'sin declarar'}`)];
     }
 
-    const pares = Array.from(new Set([...suyos, ...susDegradaciones].map(parDe)));
+    const pairs = Array.from(new Set([...their, ...ownDegradations].map(pairOf)));
 
-    return pares.flatMap(par => {
-      const delPar = suyos.filter(e => parDe(e) === par);
-      const degradacionesDelPar = susDegradaciones.filter(e => parDe(e) === par);
-      const generales = delPar.filter(e => !backupId(e));
+    return pairs.flatMap(pair => {
+      const ofPair = their.filter(e => pairOf(e) === pair);
+      const pairDegradations = ownDegradations.filter(e => pairOf(e) === pair);
+      const generales = ofPair.filter(e => !backupId(e));
       const ids = Array.from(
-        new Set([...delPar, ...degradacionesDelPar].map(backupId).filter(Boolean))
+        new Set([...ofPair, ...pairDegradations].map(backupId).filter(Boolean))
       );
 
-      const copias = ids.length
-        ? ids.map(id => ({ id, hechos: [...delPar.filter(e => backupId(e) === id), ...generales] }))
+      const backups = ids.length
+        ? ids.map(id => ({ id, hechos: [...ofPair.filter(e => backupId(e) === id), ...generales] }))
         : generales.length
         ? [{ id: '', hechos: generales }]
         : [];
 
-      const medidasDelPar = copias.map(copia => {
-        const propios = copia.hechos.filter(e => backupId(e) === copia.id);
-        const degradacion = copia.id
-          ? ultimaDe(degradacionesDelPar.filter(e => backupId(e) === copia.id))
+      const pairMeasurements = backups.map(backup => {
+        const own = backup.hechos.filter(e => backupId(e) === backup.id);
+        const degradation = backup.id
+          ? lastOf(pairDegradations.filter(e => backupId(e) === backup.id))
           : undefined;
-        const frente = frenteALosHechos(propios, degradacion);
+        const against = againstFacts(own, degradation);
 
-        if (frente === 'sustituye') {
-          return comoDegradacion(degradacion as ENSNormalizedEvent);
+        if (against === 'sustituye') {
+          return asDegradation(degradation as ENSNormalizedEvent);
         }
 
-        const medida = propios.length
-          ? juzga(nombreDe(propios[0]), deLaUltimaPasada(copia.hechos, tipos))
-          : juzga(nombreDe(copia.hechos[0]), deLaUltimaPasada(copia.hechos, tipos));
+        const measurement = own.length
+          ? judges(nameOf(own[0]), ofLastRun(backup.hechos, types))
+          : judges(nameOf(backup.hechos[0]), ofLastRun(backup.hechos, types));
 
-        return frente === 'suma' ? combina([medida, comoDegradacion(degradacion as ENSNormalizedEvent)]) : medida;
+        return against === 'suma' ? combineMeasurements([measurement, asDegradation(degradation as ENSNormalizedEvent)]) : measurement;
       });
 
-      // La degradación del par entero, frente a todos los hechos del par.
-      const general = ultimaDe(degradacionesDelPar.filter(e => !backupId(e)));
-      const frente = frenteALosHechos(delPar, general);
+      // The whole pair's degradation, against all the pair's facts.
+      const general = lastOf(pairDegradations.filter(e => !backupId(e)));
+      const against = againstFacts(ofPair, general);
 
-      if (frente === 'sustituye') {
-        return [comoDegradacion(general as ENSNormalizedEvent)];
+      if (against === 'sustituye') {
+        return [asDegradation(general as ENSNormalizedEvent)];
       }
 
-      return frente === 'suma' ? [...medidasDelPar, comoDegradacion(general as ENSNormalizedEvent)] : medidasDelPar;
+      return against === 'suma' ? [...pairMeasurements, asDegradation(general as ENSNormalizedEvent)] : pairMeasurements;
     });
   });
 
-  return combina(medidas);
+  return combineMeasurements(measurements);
 };
 
-// Los hechos de una copia en su última pasada, tipo a tipo: la planificación
-// puede llegar en otra pasada que el estado de la copia.
-const deLaUltimaPasada = (copia: ENSNormalizedEvent[], tipos: string[]): ENSNormalizedEvent[] =>
-  tipos.flatMap(tipo => {
-    const delTipo = copia.filter(e => e.eventType === tipo);
-    const ultimoDelTipo = Math.max(...delTipo.map(momento));
+// A backup's facts in its last run, type by type: the schedule may arrive in another run than the
+// backup state.
+const ofLastRun = (backup: ENSNormalizedEvent[], types: string[]): ENSNormalizedEvent[] =>
+  types.flatMap(type => {
+    const ofType = backup.filter(e => e.eventType === type);
+    const lastOfType = Math.max(...ofType.map(eventTime));
 
-    return delTipo.filter(e => ultimoDelTipo - momento(e) <= MISMA_PASADA);
+    return ofType.filter(e => lastOfType - eventTime(e) <= SAME_RUN_WINDOW_MS);
   });
 
-// --- lectura de parámetros -------------------------------------------------
 
-const parametro = (
+const findParameter = (
   context: ENSPolicyContext,
   id: string
 ): ENSControlParameter | undefined =>
   context.configuration?.parameters.find(p => p.id === id);
 
-const etiqueta = (context: ENSPolicyContext, id: string): string => {
-  const p = parametro(context, id);
+const parameterDisplayName = (context: ENSPolicyContext, id: string): string => {
+  const p = findParameter(context, id);
 
   return p ? `${id} (${p.label || p.name})` : id;
 };
 
-const escalar = (context: ENSPolicyContext, id: string): number | undefined => {
-  const valor = parametro(context, id)?.value;
+const positiveScalar = (context: ENSPolicyContext, id: string): number | undefined => {
+  const value = findParameter(context, id)?.value;
 
-  if (valor === undefined || valor === null || Array.isArray(valor)) {
+  if (value === undefined || value === null || Array.isArray(value)) {
     return undefined;
   }
 
-  return numero(String(valor));
+  return parseNumber(String(value));
 };
 
-// Las entradas de un parámetro lista, sin repetir. Un número o un booleano
-// sueltos no son una lista (no nombran ninguna cuenta ni ninguna máquina).
-const entradas = (context: ENSPolicyContext, id: string): string[] => {
-  const valor = parametro(context, id)?.value;
+// Entries of a list parameter without repeats. A lone number or boolean is not a list.
+const entries = (context: ENSPolicyContext, id: string): string[] => {
+  const value = findParameter(context, id)?.value;
 
-  if (!Array.isArray(valor) && typeof valor !== 'string') {
+  if (!Array.isArray(value) && typeof value !== 'string') {
     return [];
   }
 
-  return Array.from(new Set(toParameterListItems(valor)));
+  return Array.from(new Set(toParameterListItems(value)));
 };
 
-const faltaParametro = (context: ENSPolicyContext, id: string, para: string): Medida =>
-  sinMedir(`${etiqueta(context, id)} está sin configurar: no hay contra qué juzgar ${para}.`, 'CONFIGURATION');
+const missingParameter = (context: ENSPolicyContext, id: string, purpose: string): Measurement =>
+  notMeasured(`${parameterDisplayName(context, id)} está sin configurar: no hay contra qué juzgar ${purpose}.`, 'CONFIGURATION');
 
-// Las máquinas de P-04, cada una con su criticidad (`srv-bd01 | ALTA`).
-const alcance = (context: ENSPolicyContext): { maquina: string; criticidad: string }[] =>
-  entradas(context, 'P-04')
-    .map(entrada => {
-      const [maquina, criticidad] = toTableRowCells(entrada);
+// P-04 machines, each with its criticality (`srv-bd01 | ALTA`).
+const scope = (context: ENSPolicyContext): { maquina: string; criticidad: string }[] =>
+  entries(context, 'P-04')
+    .map(entry => {
+      const [machine, criticality] = toTableRowCells(entry);
 
-      return { maquina: maquina || '', criticidad: (criticidad || '').toUpperCase() };
+      return { maquina: machine || '', criticidad: (criticality || '').toUpperCase() };
     })
-    .filter(fila => fila.maquina);
+    .filter(row => row.maquina);
 
-// La máquina de la fila: la de sus propios hechos.
-const maquinaDeLaFila = (context: ENSPolicyContext): string | undefined =>
+// The row's machine: that of its own facts.
+const rowMachine = (context: ENSPolicyContext): string | undefined =>
   context.events.find(e => e.controlId === CONTROL && e.agentName)?.agentName;
 
-// --- las evidencias --------------------------------------------------------
 
-// EV-01 · la última copia correcta existe y la última ejecución no la
-// contradice. `ultima_correcta=-` es un hecho medido: el recolector leyó el
-// sistema de copias y no hay ninguna buena (recién instalado, o solo fallos).
-const ev01 = (context: ENSPolicyContext, ahora: number): Medida =>
-  porCopia(context, 'EV-01', ['backup_run'], ahora, 'estado de las copias', (nombre, copias) =>
-    combina(
-      copias.map(e => {
-        const correcta = campo(e, 'ultima_correcta');
-        const fallida = campo(e, 'ultima_fallida');
-        const conError = campo(e, 'resultado_ultima') === 'error';
-        const cuandoFallo = !vacio(fallida) ? ` el ${fallida}` : '';
-        const partes: Medida[] = [];
+// EV-01 · the last good backup exists and the last run does not contradict it. `ultima_correcta=-`
+// is a measured fact: the collector read the backup system and there is no good one.
+const ev01 = (context: ENSPolicyContext, now: number): Measurement =>
+  byBackup(context, 'EV-01', ['backup_run'], now, 'estado de las copias', (name, backups) =>
+    combineMeasurements(
+      backups.map(e => {
+        const correct = factField(e, 'ultima_correcta');
+        const failed = factField(e, 'ultima_fallida');
+        const withError = factField(e, 'resultado_ultima') === 'error';
+        const onFailure = !isEmptyField(failed) ? ` el ${failed}` : '';
+        const pieces: Measurement[] = [];
 
-        if (vacio(correcta)) {
-          partes.push(
-            noCumple(
-              `${nombre}: no consta ninguna copia terminada correctamente${conError ? `; la última terminó con error${cuandoFallo}` : ''}.`
+        if (isEmptyField(correct)) {
+          pieces.push(
+            nonCompliant(
+              `${name}: no consta ninguna copia terminada correctamente${withError ? `; la última terminó con error${onFailure}` : ''}.`
             )
           );
         } else {
-          const tc = instante(correcta);
+          const tc = parseInstant(correct);
 
           if (tc === undefined) {
-            partes.push(sinMedir(`${nombre}: la fecha de la última copia correcta no se puede leer (${correcta}).`));
+            pieces.push(notMeasured(`${name}: la fecha de la última copia correcta no se puede leer (${correct}).`));
           } else {
-            const tf = instante(fallida);
+            const tf = parseInstant(failed);
 
-            if (conError || (tf !== undefined && tf > tc)) {
-              partes.push(noCumple(`${nombre}: la última ejecución de la copia terminó con error${cuandoFallo}; la última correcta es del ${correcta}.`));
+            if (withError || (tf !== undefined && tf > tc)) {
+              pieces.push(nonCompliant(`${name}: la última ejecución de la copia terminó con error${onFailure}; la última correcta es del ${correct}.`));
             } else {
-              const tipo = campo(e, 'tipo');
-              const destino = campo(e, 'destino');
+              const type = factField(e, 'tipo');
+              const destination = factField(e, 'destino');
 
-              partes.push(
-                cumple(
-                  `${nombre}: última copia correcta el ${correcta}${tipo || destino ? ` (${[tipo, destino ? `destino ${destino}` : ''].filter(Boolean).join(', ')})` : ''}.`
+              pieces.push(
+                compliant(
+                  `${name}: última copia correcta el ${correct}${type || destination ? ` (${[type, destination ? `destino ${destination}` : ''].filter(Boolean).join(', ')})` : ''}.`
                 )
               );
             }
           }
         }
 
-        // A4 · los discos montados aparte que la última ejecución dejó fuera
-        // de la copia: no basta con que la copia haya terminado bien, porque
-        // deja datos sin proteger. Los que la organización acepta a propósito
-        // no cuentan, pero se citan igual.
-        const omitidos = montajesOmitidos(campo(e, 'montajes_omitidos'));
+        // A4 · separately mounted disks the last run left out of the backup leave data unprotected
+        // even if the backup ended well; those the organization accepts on purpose do not count but
+        // are cited.
+        const omitted = omittedMounts(factField(e, 'montajes_omitidos'));
 
-        if (omitidos.length) {
-          partes.push(
-            noCumple(
-              `${nombre}: deja fuera de la copia ${lista(omitidos)}: están en otro disco montado aparte y no se incluyeron en la copia.`
+        if (omitted.length) {
+          pieces.push(
+            nonCompliant(
+              `${name}: deja fuera de la copia ${formatList(omitted)}: están en otro disco montado aparte y no se incluyeron en la copia.`
             )
           );
         }
 
-        const medida = combina(partes);
-        const aceptados = montajesOmitidos(campo(e, 'montajes_omitidos_aceptados'));
+        const measurement = combineMeasurements(pieces);
+        const accepted = omittedMounts(factField(e, 'montajes_omitidos_aceptados'));
 
-        return aceptados.length
-          ? { ...medida, motivo: `${medida.motivo} La organización acepta la omisión de ${lista(aceptados)}.` }
-          : medida;
+        return accepted.length
+          ? { ...measurement, motivo: `${measurement.motivo} La organización acepta la omisión de ${formatList(accepted)}.` }
+          : measurement;
       })
     )
   );
 
-// EV-02 · la antigüedad de la última copia correcta, contra P-01 + P-02; y la
-// planificación, si la hay, contra P-01.
-// El plazo de la copia: P-01 más el margen de P-02. P-02 sin valor se aplica
-// sin margen, como dice su ficha; con un valor que no se puede leer no es un
-// margen ausente, es uno ilegible.
-const plazoDeCopia = (
+// EV-02 · age of the last good backup against P-01 + P-02, and the schedule, if any, against P-01.
+// Backup deadline: P-01 plus the P-02 margin. P-02 without value applies no margin (per its sheet);
+// an unreadable value is an illegible margin, not a missing one.
+const backupDeadline = (
   context: ENSPolicyContext
-): { frecuencia: number; margen: number; plazo: number } | Medida => {
-  const frecuencia = escalar(context, 'P-01');
+): { frecuencia: number; margen: number; plazo: number } | Measurement => {
+  const frequency = positiveScalar(context, 'P-01');
 
-  if (frecuencia === undefined || frecuencia <= 0) {
-    return faltaParametro(context, 'P-01', 'la antigüedad de la última copia');
+  if (frequency === undefined || frequency <= 0) {
+    return missingParameter(context, 'P-01', 'la antigüedad de la última copia');
   }
 
-  const margenDeclarado = parametro(context, 'P-02')?.value;
-  const margen =
-    margenDeclarado === undefined || String(margenDeclarado).trim() === ''
+  const declaredMargin = findParameter(context, 'P-02')?.value;
+  const margin =
+    declaredMargin === undefined || String(declaredMargin).trim() === ''
       ? 0
-      : escalar(context, 'P-02');
+      : positiveScalar(context, 'P-02');
 
-  if (margen === undefined || margen < 0) {
-    return sinMedir(`${etiqueta(context, 'P-02')} tiene un valor que no es un número de horas (${String(margenDeclarado)}).`, 'CONFIGURATION');
+  if (margin === undefined || margin < 0) {
+    return notMeasured(`${parameterDisplayName(context, 'P-02')} tiene un valor que no es un número de horas (${String(declaredMargin)}).`, 'CONFIGURATION');
   }
 
-  return { frecuencia, margen, plazo: frecuencia + margen };
+  return { frecuencia: frequency, margen: margin, plazo: frequency + margin };
 };
 
-const ev02 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const plazoLeido = plazoDeCopia(context);
+const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
+  const readDeadline = backupDeadline(context);
 
-  if ('estado' in plazoLeido) {
-    return plazoLeido;
+  if ('estado' in readDeadline) {
+    return readDeadline;
   }
 
-  const { frecuencia, margen, plazo } = plazoLeido;
-  const plazoTexto = `las ${plazo} h de P-01 (${frecuencia} h) + P-02 (${margen} h)`;
+  const { frecuencia: frequency, margen: margin, plazo: deadline } = readDeadline;
+  const deadlineText = `las ${deadline} h de P-01 (${frequency} h) + P-02 (${margin} h)`;
 
-  return porCopia(context, 'EV-02', ['backup_run', 'backup_schedule'], ahora, 'estado de las copias', (nombre, copias) => {
-    const ejecuciones = copias.filter(e => e.eventType === 'backup_run');
-    const planes = copias.filter(e => e.eventType === 'backup_schedule');
-    const partes: Medida[] = [];
+  return byBackup(context, 'EV-02', ['backup_run', 'backup_schedule'], now, 'estado de las copias', (name, backups) => {
+    const runs = backups.filter(e => e.eventType === 'backup_run');
+    const plans = backups.filter(e => e.eventType === 'backup_schedule');
+    const pieces: Measurement[] = [];
 
-    // Sin el estado de la copia, lo que falta es un hecho que el recolector no
-    // ha entregado: es de RECOGIDA, como la degradación que suele acompañarlo.
-    if (!ejecuciones.length) {
-      partes.push(sinMedir(`${nombre}: consta su planificación pero no el estado de la última copia.`, 'COLLECTION'));
+    // Without the backup state, what is missing is a fact the collector did not deliver:
+    // COLLECTION, like the degradation that usually accompanies it.
+    if (!runs.length) {
+      pieces.push(notMeasured(`${name}: consta su planificación pero no el estado de la última copia.`, 'COLLECTION'));
     }
 
-    ejecuciones.forEach(e => {
-      const correcta = campo(e, 'ultima_correcta');
+    runs.forEach(e => {
+      const correct = factField(e, 'ultima_correcta');
 
-      if (vacio(correcta)) {
-        partes.push(noCumple(`${nombre}: no consta ninguna copia correcta, así que ninguna está dentro de ${plazoTexto}.`));
-
-        return;
-      }
-
-      const tc = instante(correcta);
-
-      if (tc === undefined || tc > ahora + TOLERANCIA_FUTURO) {
-        partes.push(sinMedir(`${nombre}: la fecha de la última copia correcta no es válida (${correcta}).`));
+      if (isEmptyField(correct)) {
+        pieces.push(nonCompliant(`${name}: no consta ninguna copia correcta, así que ninguna está dentro de ${deadlineText}.`));
 
         return;
       }
 
-      const edad = ahora - tc;
+      const tc = parseInstant(correct);
 
-      partes.push(
-        edad > plazo * HORA
-          ? noCumple(`${nombre}: la última copia correcta es del ${correcta}, hace ${horas(edad)} h, más que ${plazoTexto}.`)
-          : cumple(`${nombre}: última copia correcta hace ${horas(edad)} h, dentro de ${plazoTexto}.`)
+      if (tc === undefined || tc > now + FUTURE_TOLERANCE_MS) {
+        pieces.push(notMeasured(`${name}: la fecha de la última copia correcta no es válida (${correct}).`));
+
+        return;
+      }
+
+      const age = now - tc;
+
+      pieces.push(
+        age > deadline * HOUR_MS
+          ? nonCompliant(`${name}: la última copia correcta es del ${correct}, hace ${formatHours(age)} h, más que ${deadlineText}.`)
+          : compliant(`${name}: última copia correcta hace ${formatHours(age)} h, dentro de ${deadlineText}.`)
       );
     });
 
-    // `planificacion=-` es una ausencia MEDIDA: el recolector ha leído dónde se
-    // planifica y no hay ninguna copia programada.
-    const conPlan = planes.filter(e => !vacio(campo(e, 'planificacion')));
-    const sinPlan = planes.filter(e => vacio(campo(e, 'planificacion')));
+    // `planificacion=-` is a MEASURED absence: the collector read where it is scheduled and nothing
+    // is.
+    const withPlan = plans.filter(e => !isEmptyField(factField(e, 'planificacion')));
+    const withoutPlan = plans.filter(e => isEmptyField(factField(e, 'planificacion')));
 
-    if (!conPlan.length && sinPlan.length) {
-      const fuente = campo(sinPlan[0], 'fuente');
+    if (!withPlan.length && withoutPlan.length) {
+      const source = factField(withoutPlan[0], 'fuente');
 
-      partes.push(noCumple(`${nombre}: no hay ninguna copia planificada${fuente ? ` (según ${fuente})` : ''}.`));
+      pieces.push(nonCompliant(`${name}: no hay ninguna copia planificada${source ? ` (según ${source})` : ''}.`));
     }
 
-    // La planificación: la más frecuente de la copia (una completa semanal y
-    // una incremental diaria planifican una copia al día).
-    const intervalos = conPlan
-      .map(e => ({ e, cada: numero(campo(e, 'intervalo_horas')) }))
+    // The schedule: the backup's most frequent one (weekly full plus daily incremental schedule one
+    // a day).
+    const intervals = withPlan
+      .map(e => ({ e, cada: parseNumber(factField(e, 'intervalo_horas')) }))
       .filter((p): p is { e: ENSNormalizedEvent; cada: number } => p.cada !== undefined && p.cada > 0)
       .sort((a, b) => a.cada - b.cada);
 
-    if (intervalos.length) {
-      const { e, cada } = intervalos[0];
-      const como = `${campo(e, 'planificacion') || 'sin describir'}, ${campo(e, 'fuente') || 'fuente sin declarar'}`;
+    if (intervals.length) {
+      const { e, cada: each } = intervals[0];
+      const asWhat = `${factField(e, 'planificacion') || 'sin describir'}, ${factField(e, 'fuente') || 'fuente sin declarar'}`;
 
-      partes.push(
-        cada > frecuencia
-          ? noCumple(`${nombre}: está planificada cada ${cada} h (${como}), más espaciada que las ${frecuencia} h de P-01.`)
-          : cumple(`${nombre}: planificada cada ${cada} h (${como}).`)
+      pieces.push(
+        each > frequency
+          ? nonCompliant(`${name}: está planificada cada ${each} h (${asWhat}), más espaciada que las ${frequency} h de P-01.`)
+          : compliant(`${name}: planificada cada ${each} h (${asWhat}).`)
       );
     }
 
-    return combina(partes);
+    return combineMeasurements(pieces);
   });
 };
 
-// EV-03 · la retención configurada contra P-03, con la copia más antigua que
-// se conserva. Sin retención configurada, la única prueba de que se conserva
-// el plazo es que quede una copia así de antigua.
-const ev03 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const minimo = escalar(context, 'P-03');
+// EV-03 · configured retention against P-03, with the oldest backup kept. Without configured
+// retention the only proof the period is kept is such an old backup.
+const ev03 = (context: ENSPolicyContext, now: number): Measurement => {
+  const min = positiveScalar(context, 'P-03');
 
-  if (minimo === undefined || minimo <= 0) {
-    return faltaParametro(context, 'P-03', 'cuánto tiempo se conservan las copias');
+  if (min === undefined || min <= 0) {
+    return missingParameter(context, 'P-03', 'cuánto tiempo se conservan las copias');
   }
 
-  return porCopia(context, 'EV-03', ['backup_retention'], ahora, 'estado de la retención de las copias', (nombre, copias) =>
-    combina(
-      copias.map(e => {
-        const configurada = campo(e, 'retencion_dias');
-        const retencion = numero(configurada);
-        const antigua = campo(e, 'copia_mas_antigua');
-        const ta = instante(antigua);
-        const conserva = ta !== undefined ? ` La copia más antigua que se conserva es del ${antigua} (${dias(ahora - ta)} días).` : '';
+  return byBackup(context, 'EV-03', ['backup_retention'], now, 'estado de la retención de las copias', (name, backups) =>
+    combineMeasurements(
+      backups.map(e => {
+        const configured = factField(e, 'retencion_dias');
+        const retention = parseNumber(configured);
+        const old = factField(e, 'copia_mas_antigua');
+        const ta = parseInstant(old);
+        const keeps = ta !== undefined ? ` La copia más antigua que se conserva es del ${old} (${wholeDays(now - ta)} días).` : '';
 
-        if (retencion !== undefined) {
-          return retencion < minimo
-            ? noCumple(`${nombre}: retención configurada de ${retencion} días, menos que los ${minimo} de P-03.${conserva}`)
-            : cumple(`${nombre}: retención configurada de ${retencion} días, al menos los ${minimo} de P-03.${conserva}`);
+        if (retention !== undefined) {
+          return retention < min
+            ? nonCompliant(`${name}: retención configurada de ${retention} días, menos que los ${min} de P-03.${keeps}`)
+            : compliant(`${name}: retención configurada de ${retention} días, al menos los ${min} de P-03.${keeps}`);
         }
 
-        if (!vacio(configurada)) {
-          return sinMedir(`${nombre}: la retención configurada no es un número de días (${configurada}).`);
+        if (!isEmptyField(configured)) {
+          return notMeasured(`${name}: la retención configurada no es un número de días (${configured}).`);
         }
 
-        if (ta !== undefined && ahora - ta >= minimo * DIA) {
-          return cumple(`${nombre}: no consta una retención configurada, y se conservan copias desde el ${antigua} (${dias(ahora - ta)} días), al menos los ${minimo} de P-03.`);
+        if (ta !== undefined && now - ta >= min * DAY_MS) {
+          return compliant(`${name}: no consta una retención configurada, y se conservan copias desde el ${old} (${wholeDays(now - ta)} días), al menos los ${min} de P-03.`);
         }
 
-        return sinMedir(
-          `${nombre}: no consta una retención configurada${ta !== undefined ? ` y la copia más antigua (${antigua}, ${dias(ahora - ta)} días) no llega a los ${minimo} de P-03` : ''}: no se puede afirmar que las copias se conserven ese plazo.`
+        return notMeasured(
+          `${name}: no consta una retención configurada${ta !== undefined ? ` y la copia más antigua (${old}, ${wholeDays(now - ta)} días) no llega a los ${min} de P-03` : ''}: no se puede afirmar que las copias se conserven ese plazo.`
         );
       })
     )
   );
 };
 
-// EV-04 · quién puede leer el repositorio, contra P-07; y que la clave de
-// cifrado solo la pueda leer su dueño.
-const ev04 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const autorizadas = entradas(context, 'P-07');
+// EV-04 · who can read the repository against P-07, and that the encryption key is readable only by
+// its owner.
+const ev04 = (context: ENSPolicyContext, now: number): Measurement => {
+  const authorized = entries(context, 'P-07');
 
-  if (!autorizadas.length) {
-    return faltaParametro(context, 'P-07', 'quién puede leer las copias');
+  if (!authorized.length) {
+    return missingParameter(context, 'P-07', 'quién puede leer las copias');
   }
 
-  return porCopia(context, 'EV-04', ['backup_access'], ahora, 'estado del acceso a las copias', (nombre, copias) =>
-    combina(
-      copias.map(e => {
-        const ruta = campo(e, 'ruta') || '(ruta sin declarar)';
-        const modo = campo(e, 'modo');
-        const permisos = octal(modo);
-        // `-` es el conjunto vacío (nadie, además de root, que lo lee todo);
-        // un campo vacío es que el recolector no lo ha informado.
-        const declaradas = campo(e, 'cuentas_con_lectura');
-        const cuentas = declaradas
+  return byBackup(context, 'EV-04', ['backup_access'], now, 'estado del acceso a las copias', (name, backups) =>
+    combineMeasurements(
+      backups.map(e => {
+        const path = factField(e, 'ruta') || '(ruta sin declarar)';
+        const mode = factField(e, 'modo');
+        const permissions = octal(mode);
+        // `-` is the empty set (nobody besides root, who reads everything); an empty field means
+        // the collector did not report it.
+        const declared = factField(e, 'cuentas_con_lectura');
+        const accounts = declared
           .split(',')
           .map(c => c.trim())
           .filter(c => c && c !== '-');
-        const partes: Medida[] = [];
+        const pieces: Measurement[] = [];
 
-        if (cuentas.includes('*') || (permisos !== undefined && (permisos & 0o004) !== 0)) {
-          partes.push(noCumple(`${nombre}: el repositorio ${ruta}${modo ? ` (modo ${modo})` : ''} lo puede leer cualquier cuenta de la máquina.`));
+        if (accounts.includes('*') || (permissions !== undefined && (permissions & 0o004) !== 0)) {
+          pieces.push(nonCompliant(`${name}: el repositorio ${path}${mode ? ` (modo ${mode})` : ''} lo puede leer cualquier cuenta de la máquina.`));
         }
 
-        // Comparación LITERAL: en Linux 'Backup' y 'backup' son dos cuentas.
-        const ajenas = cuentas.filter(c => c !== '*' && !autorizadas.includes(c));
+        // LITERAL comparison: on Linux 'Backup' and 'backup' are two accounts.
+        const foreign = accounts.filter(c => c !== '*' && !authorized.includes(c));
 
-        if (ajenas.length) {
-          partes.push(noCumple(`${nombre}: el repositorio ${ruta} lo pueden leer cuentas que P-07 no autoriza: ${ajenas.join(', ')}.`));
+        if (foreign.length) {
+          pieces.push(nonCompliant(`${name}: el repositorio ${path} lo pueden leer cuentas que P-07 no autoriza: ${foreign.join(', ')}.`));
         }
 
-        if (declaradas === '') {
-          partes.push(sinMedir(`${nombre}: el recolector no ha informado de qué cuentas pueden leer ${ruta}.`));
-        } else if (!partes.length) {
-          partes.push(
-            cumple(
-              cuentas.length
-                ? `${nombre}: ${ruta} solo lo pueden leer cuentas autorizadas en P-07 (${cuentas.join(', ')}).`
-                : `${nombre}: ${ruta} no lo puede leer ninguna cuenta además de root.`
+        if (declared === '') {
+          pieces.push(notMeasured(`${name}: el recolector no ha informado de qué cuentas pueden leer ${path}.`));
+        } else if (!pieces.length) {
+          pieces.push(
+            compliant(
+              accounts.length
+                ? `${name}: ${path} solo lo pueden leer cuentas autorizadas en P-07 (${accounts.join(', ')}).`
+                : `${name}: ${path} no lo puede leer ninguna cuenta además de root.`
             )
           );
         }
 
-        const clave = campo(e, 'clave_ruta');
+        const key = factField(e, 'clave_ruta');
 
-        if (!vacio(clave)) {
-          const modoClave = campo(e, 'clave_modo');
-          const permisosClave = octal(modoClave);
+        if (!isEmptyField(key)) {
+          const modeKey = factField(e, 'clave_modo');
+          const permissionsKey = octal(modeKey);
 
-          // La clave solo la lee su dueño (0600 o 0400, lo que piden las guías
-          // de los runbooks). Con lectura de grupo ya incumple: quien la lee
-          // descifra todas las copias, y el grupo de un fichero suele ser el
-          // de un servicio, no una cuenta de P-07.
-          if (permisosClave === undefined) {
-            partes.push(sinMedir(`${nombre}: no se ha podido leer el modo de la clave de cifrado ${clave} (${modoClave || 'vacío'}).`));
-          } else if ((permisosClave & 0o044) !== 0) {
-            const quien =
-              (permisosClave & 0o004) !== 0
+          // The key is readable only by its owner (0600 or 0400): with group read it already fails,
+          // since a reader decrypts every backup and the file's group is usually a service's, not a
+          // P-07 account.
+          if (permissionsKey === undefined) {
+            pieces.push(notMeasured(`${name}: no se ha podido leer el modo de la clave de cifrado ${key} (${modeKey || 'vacío'}).`));
+          } else if ((permissionsKey & 0o044) !== 0) {
+            const who =
+              (permissionsKey & 0o004) !== 0
                 ? 'la puede leer cualquier cuenta de la máquina'
                 : 'la puede leer su grupo';
 
-            partes.push(noCumple(`${nombre}: la clave de cifrado ${clave} tiene modo ${modoClave}: ${quien}; tiene que ser 0600 o 0400, solo su dueño.`));
+            pieces.push(nonCompliant(`${name}: la clave de cifrado ${key} tiene modo ${modeKey}: ${who}; tiene que ser 0600 o 0400, solo su dueño.`));
           } else {
-            partes.push(cumple(`${nombre}: la clave de cifrado ${clave} (modo ${modoClave}) solo la puede leer su dueño.`));
+            pieces.push(compliant(`${name}: la clave de cifrado ${key} (modo ${modeKey}) solo la puede leer su dueño.`));
           }
         }
 
-        return combina(partes);
+        return combineMeasurements(pieces);
       })
     )
   );
 };
 
-// El plazo de P-05 para la máquina de la fila: un número de días para todas, o
-// un contrato por criticidad (`ALTA=30; MEDIA=90`) que se resuelve con la
-// criticidad que P-04 declara para esta máquina.
-const plazoDeRestauracion = (context: ENSPolicyContext): number | Medida => {
-  const directo = escalar(context, 'P-05');
+// P-05 deadline for the row's machine: one number of days for all, or a contract per criticality
+// (`ALTA=30; MEDIA=90`) resolved with the criticality P-04 declares for it.
+const restoreDeadline = (context: ENSPolicyContext): number | Measurement => {
+  const direct = positiveScalar(context, 'P-05');
 
-  if (directo !== undefined) {
-    return directo > 0
-      ? directo
-      : sinMedir(`${etiqueta(context, 'P-05')} no es un plazo en días (${directo}).`, 'CONFIGURATION');
+  if (direct !== undefined) {
+    return direct > 0
+      ? direct
+      : notMeasured(`${parameterDisplayName(context, 'P-05')} no es un plazo en días (${direct}).`, 'CONFIGURATION');
   }
 
-  const contrato = entradas(context, 'P-05');
+  const contract = entries(context, 'P-05');
 
-  if (!contrato.length) {
-    return faltaParametro(context, 'P-05', 'cada cuánto tiene que probarse la restauración');
+  if (!contract.length) {
+    return missingParameter(context, 'P-05', 'cada cuánto tiene que probarse la restauración');
   }
 
   let general: number | undefined;
-  const porCriticidad = new Map<string, number>();
+  const byCriticality = new Map<string, number>();
 
-  contrato.forEach(entrada => {
-    const pareja = entrada.match(/^(ALTA|MEDIA|BAJA)\s*=\s*(\d+)$/i);
+  contract.forEach(entry => {
+    const pair = entry.match(/^(ALTA|MEDIA|BAJA)\s*=\s*(\d+)$/i);
 
-    if (pareja) {
-      porCriticidad.set(pareja[1].toUpperCase(), Number(pareja[2]));
-    } else if (/^\d+$/.test(entrada)) {
-      general = Number(entrada);
+    if (pair) {
+      byCriticality.set(pair[1].toUpperCase(), Number(pair[2]));
+    } else if (/^\d+$/.test(entry)) {
+      general = Number(entry);
     }
   });
 
-  const maquina = maquinaDeLaFila(context);
-  const criticidad = maquina
-    ? alcance(context).find(fila => fila.maquina.toLowerCase() === maquina.toLowerCase())?.criticidad
+  const machine = rowMachine(context);
+  const criticality = machine
+    ? scope(context).find(row => row.maquina.toLowerCase() === machine.toLowerCase())?.criticidad
     : undefined;
-  const plazo = (criticidad && porCriticidad.get(criticidad)) || general;
+  const deadline = (criticality && byCriticality.get(criticality)) || general;
 
-  return plazo !== undefined && plazo > 0
-    ? plazo
-    : sinMedir(
-        `${etiqueta(context, 'P-05')} no fija un plazo para ${maquina ? `${maquina} (criticidad en P-04: ${criticidad || 'sin declarar'})` : 'esta máquina'}.`,
+  return deadline !== undefined && deadline > 0
+    ? deadline
+    : notMeasured(
+        `${parameterDisplayName(context, 'P-05')} no fija un plazo para ${machine ? `${machine} (criticidad en P-04: ${criticality || 'sin declarar'})` : 'esta máquina'}.`,
         'CONFIGURATION'
       );
 };
 
-const RESTAURADO: Record<string, string> = {
+const RESTORED: Record<string, string> = {
   fichero: 'el fichero restaurado',
   buzones: 'la cuenta restaurada',
   directorio: 'la copia restaurada del directorio',
 };
 
-// EV-05 · la prueba de restauración más reciente de cada copia, contra P-05.
-// Es una ACCIÓN: cuenta cada prueba de la ventana, y de cada copia manda la
-// más reciente (una prueba fallida ayer no la tapa una buena de hace tres
-// días). Una limpieza fallida deja lo restaurado en producción: la prueba no
-// puede dar un CUMPLE limpio, y el recolector no la repite hasta que se
-// resuelva.
-const ev05 = (context: ENSPolicyContext, ahora: number): Medida => {
-  // Primero el plazo, como en las demás: sin él no hay contra qué juzgar.
-  const plazo = plazoDeRestauracion(context);
+// EV-05 · the latest restore test of each backup against P-05. It is an ACTION: every test of the
+// window counts and the latest wins per backup (a failed test yesterday is not hidden by a good one
+// three days ago). A failed cleanup leaves restored data in production: no clean CUMPLE, and the
+// collector does not repeat until resolved.
+const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
+  // Deadline first, as in the others: without it there is nothing to judge against.
+  const deadline = restoreDeadline(context);
 
-  if (typeof plazo !== 'number') {
-    return plazo;
+  if (typeof deadline !== 'number') {
+    return deadline;
   }
 
-  const pruebas = hechos(context, 'restore_test').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
-  // La prueba de restauración es semanal: su degradación también, así que
-  // vale la más reciente de la ventana, no solo la de las últimas horas.
-  const declaradas = degradaciones(context, 'EV-05', ahora);
+  const tests = facts(context, 'restore_test').filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
+  // The restore test is weekly and so is its degradation: the latest of the window counts, not only
+  // of the last hours.
+  const declaredDegradations = degradations(context, 'EV-05', now);
 
-  // Las copias que la máquina tiene hoy (por su último estado), y las que
-  // tienen alguna prueba o degradación: cada una tiene que dar cuenta de su
-  // prueba de restauración. Por par (origen y objeto), no por `backup_id`: el
-  // testigo del PBS vive en un backup-id y vale para todo el par.
-  const presentes = pasadasPorOrigen(context, TIPOS_DE_ESTADO, ahora).flatMap(p => p.vigentes);
-  const pares = Array.from(new Set([...presentes, ...pruebas, ...declaradas].map(parDe)));
+  // Backups the machine has today (by last state) and those with any test or degradation: each must
+  // account for its restore test. By pair (origin and object), not `backup_id`: the PBS witness
+  // lives in one backup-id and covers the pair.
+  const presentes = runsByOrigin(context, STATUS_TYPES, now).flatMap(p => p.vigentes);
+  const pairs = Array.from(new Set([...presentes, ...tests, ...declaredDegradations].map(pairOf)));
 
-  if (!pares.length) {
-    // Con el recolector latiendo, no es un fallo de recogida: se ha mirado la
-    // ventana consultada y en ella no hay ninguna prueba.
-    const late = ultimosLatidos(context, ahora).some(e => ahora - momento(e) <= FRESCURA_HORAS * HORA);
+  if (!pairs.length) {
+    // With the collector beating it is not a collection failure: the queried window was looked at
+    // and holds no test.
+    const late = lastHeartbeats(context, now).some(e => now - eventTime(e) <= FRESHNESS_HOURS * HOUR_MS);
 
-    return sinMedir(
+    return notMeasured(
       late
-        ? `No se ha visto ninguna prueba de restauración de esta máquina en la ventana consultada, y el recolector de mp.info.6 sí informa: no hay prueba que demuestre que las copias se restauran dentro de los ${plazo} días de P-05.`
+        ? `No se ha visto ninguna prueba de restauración de esta máquina en la ventana consultada, y el recolector de mp.info.6 sí informa: no hay prueba que demuestre que las copias se restauran dentro de los ${deadline} días de P-05.`
         : 'No se ha visto ninguna prueba de restauración de esta máquina en la ventana consultada, ni ningún latido reciente del recolector de mp.info.6: no está desplegado o no informa.',
       late ? 'EVIDENCE' : 'COLLECTION'
     );
   }
 
-  const fecha = (e: ENSNormalizedEvent): number => instante(campo(e, 'fecha')) ?? momento(e);
+  const date = (e: ENSNormalizedEvent): number => parseInstant(factField(e, 'fecha')) ?? eventTime(e);
 
-  return combina(
-    pares.map(par => {
-      const suyas = pruebas.filter(e => parDe(e) === par);
+  return combineMeasurements(
+    pairs.map(pair => {
+      const their = tests.filter(e => pairOf(e) === pair);
 
-      if (!suyas.length) {
-        const declarada = [...declaradas.filter(e => parDe(e) === par)].sort((a, b) => momento(b) - momento(a))[0];
+      if (!their.length) {
+        const declaredEvent = [...declaredDegradations.filter(e => pairOf(e) === pair)].sort((a, b) => eventTime(b) - eventTime(a))[0];
 
-        if (declarada) {
-          return comoDegradacion(declarada);
+        if (declaredEvent) {
+          return asDegradation(declaredEvent);
         }
 
-        const e = presentes.find(h => parDe(h) === par) as ENSNormalizedEvent;
+        const e = presentes.find(h => pairOf(h) === pair) as ENSNormalizedEvent;
 
-        return sinMedir(
-          `No consta ninguna prueba de restauración de ${DE_OBJETO[campo(e, 'objeto')] || `la copia de ${campo(e, 'objeto') || 'objeto sin declarar'}`} (${campo(e, 'origen')}) en la ventana consultada, y el recolector no ha declarado por qué: no hay prueba de que esa copia se pueda recuperar.`
+        return notMeasured(
+          `No consta ninguna prueba de restauración de ${OBJECT_LABEL[factField(e, 'objeto')] || `la copia de ${factField(e, 'objeto') || 'objeto sin declarar'}`} (${factField(e, 'origen')}) en la ventana consultada, y el recolector no ha declarado por qué: no hay prueba de que esa copia se pueda recuperar.`
         );
       }
 
-      const e = [...suyas].sort((a, b) => fecha(b) - fecha(a))[0];
-      const nombre = nombreDelPar(e);
-      const cuando = fecha(e);
-      const testigo = campo(e, 'testigo');
-      const detalle = campo(e, 'detalle');
-      const copia = backupId(e) ? ` de la copia «${backupId(e)}»` : '';
-      // Prueba declarada (`testigo=declarado`, `detalle=declarada:
-      // <comprobado>`): un origen sin testigo técnico en el que la
-      // organización declara la prueba a mano. Ningún recolector publicado la
-      // emite (Zimbra Open Source, para el que se pensó, se retiró el
-      // 01/10/2026); queda como soporte genérico del contrato. Se juzga igual
-      // que cualquier otra prueba, pero el motivo dice que es una prueba
-      // declarada y cita lo comprobado en vez del testigo.
-      const declarada = testigo === 'declarado';
-      const comprobado = detalle.replace(/^declarada:\s*/i, '').trim();
-      const prueba = declarada
-        ? `${nombre}: prueba declarada por la organización del ${iso(cuando)}${copia}, sobre «${comprobado || 'sin detalle'}»`
-        : `${nombre}: prueba del ${iso(cuando)}${copia}${testigo ? ` sobre el testigo ${testigo}` : ''}`;
-      const detalleExtra = !declarada && detalle ? ` (${detalle})` : '';
-      const correcta = campo(e, 'resultado') === 'ok' && campo(e, 'coincide') === 'si';
-      const partes: Medida[] = [];
+      const e = [...their].sort((a, b) => date(b) - date(a))[0];
+      const name = pairName(e);
+      const when = date(e);
+      const witness = factField(e, 'testigo');
+      const detail = factField(e, 'detalle');
+      const backup = backupId(e) ? ` de la copia «${backupId(e)}»` : '';
+      // Declared test (`testigo=declarado`, `detalle=declarada: <checked>`): an origin without a
+      // technical witness where the organization declares the test by hand. No published collector
+      // emits it; kept as generic support of the contract. Judged like any other test, but the
+      // reason says it is declared and cites what was checked.
+      const isDeclared = witness === 'declarado';
+      const verified = detail.replace(/^declarada:\s*/i, '').trim();
+      const test = isDeclared
+        ? `${name}: prueba declarada por la organización del ${iso(when)}${backup}, sobre «${verified || 'sin detalle'}»`
+        : `${name}: prueba del ${iso(when)}${backup}${witness ? ` sobre el testigo ${witness}` : ''}`;
+      const detailExtra = !isDeclared && detail ? ` (${detail})` : '';
+      const correct = factField(e, 'resultado') === 'ok' && factField(e, 'coincide') === 'si';
+      const pieces: Measurement[] = [];
 
-      if (campo(e, 'resultado') !== 'ok') {
-        partes.push(noCumple(`${prueba}: la restauración falló${detalleExtra}.`));
-      } else if (campo(e, 'coincide') !== 'si') {
-        partes.push(noCumple(`${prueba}: se restauró pero el contenido no coincide con el esperado${detalleExtra}.`));
-      } else if (ahora - cuando > plazo * DIA) {
-        partes.push(noCumple(`${prueba}: correcta, pero tiene ${dias(ahora - cuando)} días, más que los ${plazo} de P-05.`));
+      if (factField(e, 'resultado') !== 'ok') {
+        pieces.push(nonCompliant(`${test}: la restauración falló${detailExtra}.`));
+      } else if (factField(e, 'coincide') !== 'si') {
+        pieces.push(nonCompliant(`${test}: se restauró pero el contenido no coincide con el esperado${detailExtra}.`));
+      } else if (now - when > deadline * DAY_MS) {
+        pieces.push(nonCompliant(`${test}: correcta, pero tiene ${wholeDays(now - when)} días, más que los ${deadline} de P-05.`));
       } else {
-        partes.push(cumple(`${prueba}: restauración correcta y contenido verificado, dentro de los ${plazo} días de P-05.`));
+        pieces.push(compliant(`${test}: restauración correcta y contenido verificado, dentro de los ${deadline} días de P-05.`));
       }
 
-      if (campo(e, 'limpieza') === 'error') {
-        const restaurado = RESTAURADO[campo(e, 'objeto')] || 'lo restaurado';
+      if (factField(e, 'limpieza') === 'error') {
+        const restored = RESTORED[factField(e, 'objeto')] || 'lo restaurado';
 
-        partes.push(
-          sinMedir(
-            `${nombre}: ${correcta ? 'restauración correcta pero' : 'además,'} ${restaurado} no se pudo borrar${testigo ? ` (testigo ${testigo})` : ''}: la prueba ha dejado rastro en producción y el recolector no la repetirá hasta que se limpie.`,
+        pieces.push(
+          notMeasured(
+            `${name}: ${correct ? 'restauración correcta pero' : 'además,'} ${restored} no se pudo borrar${witness ? ` (testigo ${witness})` : ''}: la prueba ha dejado rastro en producción y el recolector no la repetirá hasta que se limpie.`,
             'EVIDENCE'
           )
         );
       }
 
-      return combina(partes);
+      return combineMeasurements(pieces);
     })
   );
 };
 
-// EV-06 · al menos un destino fuera de la máquina y activo, por copia.
-const ev06 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const declaraAlternativa = ['si', 'sí', 'true', 'yes'].includes(
-    String(parametro(context, 'P-08')?.value ?? '').trim().toLowerCase()
+// EV-06 · at least one destination outside the machine and active, per backup.
+const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
+  const declaresAlternative = ['si', 'sí', 'true', 'yes'].includes(
+    String(findParameter(context, 'P-08')?.value ?? '').trim().toLowerCase()
   );
 
-  return porCopia(context, 'EV-06', ['backup_storage'], ahora, 'estado de los destinos de las copias', (nombre, destinos) => {
+  return byBackup(context, 'EV-06', ['backup_storage'], now, 'estado de los destinos de las copias', (name, destinations) => {
     const describe = (e: ENSNormalizedEvent) =>
-      `${campo(e, 'destino') || '(destino sin declarar)'} (${[
-        campo(e, 'tipo'),
-        campo(e, 'misma_maquina') === 'si' ? 'en la misma máquina' : '',
-        campo(e, 'activo') !== 'si' ? 'inactivo' : '',
+      `${factField(e, 'destino') || '(destino sin declarar)'} (${[
+        factField(e, 'tipo'),
+        factField(e, 'misma_maquina') === 'si' ? 'en la misma máquina' : '',
+        factField(e, 'activo') !== 'si' ? 'inactivo' : '',
       ]
         .filter(Boolean)
         .join(', ')})`;
-    const fuera = destinos.filter(e => campo(e, 'misma_maquina') === 'no' && campo(e, 'activo') === 'si');
+    const outside = destinations.filter(e => factField(e, 'misma_maquina') === 'no' && factField(e, 'activo') === 'si');
 
-    if (fuera.length) {
-      return cumple(`${nombre}: copia fuera de la máquina y activa en ${fuera.map(describe).join(', ')}.`);
+    if (outside.length) {
+      return compliant(`${name}: copia fuera de la máquina y activa en ${outside.map(describe).join(', ')}.`);
     }
 
-    const dudosos = destinos.filter(
-      e => !['si', 'no'].includes(campo(e, 'misma_maquina')) || !['si', 'no'].includes(campo(e, 'activo'))
+    const doubtful = destinations.filter(
+      e => !['si', 'no'].includes(factField(e, 'misma_maquina')) || !['si', 'no'].includes(factField(e, 'activo'))
     );
 
-    if (dudosos.length) {
-      return sinMedir(`${nombre}: no consta si ${dudosos.map(describe).join(', ')} está fuera de la máquina y activo.`);
+    if (doubtful.length) {
+      return notMeasured(`${name}: no consta si ${doubtful.map(describe).join(', ')} está fuera de la máquina y activo.`);
     }
 
-    return noCumple(
-      `${nombre}: ningún destino de la copia está fuera de la máquina y activo: ${destinos.map(describe).join('; ')}.${declaraAlternativa ? ' P-08 declara que existe copia en ubicación alternativa, y no se observa.' : ''}`
+    return nonCompliant(
+      `${name}: ningún destino de la copia está fuera de la máquina y activo: ${destinations.map(describe).join('; ')}.${declaresAlternative ? ' P-08 declara que existe copia en ubicación alternativa, y no se observa.' : ''}`
     );
   });
 };
 
-// EV-07 · el latido: la última pasada del recolector es reciente, terminó y
-// declara qué cubrió.
-// El último latido de cada origen: cada recolector de la máquina late por su
-// cuenta, y el de uno no acredita al otro.
-const ultimosLatidos = (context: ENSPolicyContext, ahora: number): ENSNormalizedEvent[] => {
-  const latidos = hechos(context, 'collector_run').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+// EV-07 · heartbeat: the last run of the collector is recent, finished and declares what it
+// covered. The latest heartbeat of each origin: each collector beats on its own and one does not
+// accredit the other.
+const lastHeartbeats = (context: ENSPolicyContext, now: number): ENSNormalizedEvent[] => {
+  const heartbeats = facts(context, 'collector_run').filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
 
-  return Array.from(new Set(latidos.map(e => campo(e, 'origen')))).map(origen =>
-    masReciente(latidos.filter(e => campo(e, 'origen') === origen))
+  return Array.from(new Set(heartbeats.map(e => factField(e, 'origen')))).map(origin =>
+    mostRecent(heartbeats.filter(e => factField(e, 'origen') === origin))
   );
 };
 
-const describeRecolector = (e: ENSNormalizedEvent): string => {
-  const origen = campo(e, 'origen');
-  const rol = campo(e, 'rol');
+const describeCollector = (e: ENSNormalizedEvent): string => {
+  const origin = factField(e, 'origen');
+  const role = factField(e, 'rol');
 
-  return `El recolector${origen ? ` de ${origen}` : ''}${rol && rol !== origen ? ` (${rol})` : ''}`;
+  return `El recolector${origin ? ` de ${origin}` : ''}${role && role !== origin ? ` (${role})` : ''}`;
 };
 
-// EV-07 · el latido: la última pasada de CADA recolector es reciente, terminó
-// (entera o en parte) y declara qué cubrió.
-const ev07 = (context: ENSPolicyContext, ahora: number): Medida => {
-  const latidos = ultimosLatidos(context, ahora);
+// EV-07 · heartbeat: the last run of EACH collector is recent, finished (whole or partial) and
+// declares what it covered.
+const ev07 = (context: ENSPolicyContext, now: number): Measurement => {
+  const heartbeats = lastHeartbeats(context, now);
 
-  if (!latidos.length) {
-    return sinHechos(undefined, 'latido del recolector de copias');
+  if (!heartbeats.length) {
+    return withoutFacts(undefined, 'latido del recolector de copias');
   }
 
-  return combina(
-    latidos.map(e => {
-      const t = momento(e);
-      const quien = describeRecolector(e);
+  return combineMeasurements(
+    heartbeats.map(e => {
+      const t = eventTime(e);
+      const who = describeCollector(e);
 
-      if (ahora - t > FRESCURA_HORAS * HORA) {
-        return sinMedir(`${quien} pasó por última vez el ${iso(t)}, hace más de ${FRESCURA_HORAS} h: no está informando.`, 'COLLECTION');
+      if (now - t > FRESHNESS_HOURS * HOUR_MS) {
+        return notMeasured(`${who} pasó por última vez el ${iso(t)}, hace más de ${FRESHNESS_HOURS} h: no está informando.`, 'COLLECTION');
       }
 
-      const pasada = `${quien} pasó el ${iso(t)}`;
-      const resultado = campo(e, 'resultado');
-      const cubiertas = campo(e, 'evidencias_cubiertas')
+      const run = `${who} pasó el ${iso(t)}`;
+      const result = factField(e, 'resultado');
+      const covered = factField(e, 'evidencias_cubiertas')
         .split(',')
         .map(x => x.trim())
         .filter(x => x && x !== '-');
 
-      // Una pasada `parcial` también ha pasado: lo que no pudo mirar ya lleva
-      // su propio NO_EVALUABLE en la evidencia afectada, y el latido no tiene
-      // que repetirlo.
-      if (!['completada', 'ok', 'parcial'].includes(resultado.toLowerCase())) {
-        return sinMedir(`${pasada} y terminó como «${resultado || 'sin resultado'}»: los registros de copia de esa pasada no se han interpretado enteros.`, 'COLLECTION');
+      // A `parcial` run also ran: what it could not look at already carries its own NO_EVALUABLE in
+      // the affected evidence.
+      if (!['completada', 'ok', 'parcial'].includes(result.toLowerCase())) {
+        return notMeasured(`${run} y terminó como «${result || 'sin resultado'}»: los registros de copia de esa pasada no se han interpretado enteros.`, 'COLLECTION');
       }
 
-      if (!cubiertas.length) {
-        return sinMedir(`${pasada} y no declara ninguna evidencia cubierta: no consta qué se ha mirado.`);
+      if (!covered.length) {
+        return notMeasured(`${run} y no declara ninguna evidencia cubierta: no consta qué se ha mirado.`);
       }
 
-      return cumple(
-        `${pasada}, terminó${resultado.toLowerCase() === 'parcial' ? ' en parte (lo que no pudo mirar sale en su evidencia)' : ''} y declara cubiertas ${lista(cubiertas, 7)}.`
+      return compliant(
+        `${run}, terminó${result.toLowerCase() === 'parcial' ? ' en parte (lo que no pudo mirar sale en su evidencia)' : ''} y declara cubiertas ${formatList(covered, 7)}.`
       );
     })
   );
 };
 
-// --- lo medido, para el informe --------------------------------------------
-//
-// Los valores que sostienen cada medida, copia a copia, como variables de
-// ejecución: el informe de mp.info.6 los enseña tal cual. Salen de los mismos
-// hechos vigentes que ha juzgado la policy.
+// Measured values for the report: the values behind each measurement, backup by backup, as runtime
+// variables, from the same current facts the policy judged.
 const variable = (
   name: string,
   value: ENSRuntimeVariable['value'],
@@ -1132,49 +1057,47 @@ const variable = (
   description: string
 ): ENSRuntimeVariable => ({ name, value, parameterIds, evidenceIds, eventIds: [], description });
 
-// La última de cada cosa: durante la hora que sigue a una copia conviven en la
-// ventana la pasada del final de la copia y la horaria, y el informe tiene que
-// nombrar cada copia una vez, con lo más reciente.
-const ultimaDeCada = (
-  eventos: ENSNormalizedEvent[],
-  clave: (e: ENSNormalizedEvent) => string
+// The last of each thing: within the hour after a backup, the end-of-backup run and the hourly one
+// coexist in the window and the report must name each backup once, with the latest.
+const lastOfEach = (
+  events: ENSNormalizedEvent[],
+  key: (e: ENSNormalizedEvent) => string
 ): ENSNormalizedEvent[] => {
-  const porClave = new Map<string, ENSNormalizedEvent>();
+  const byKey = new Map<string, ENSNormalizedEvent>();
 
-  eventos.forEach(e => {
-    const actual = porClave.get(clave(e));
+  events.forEach(e => {
+    const actual = byKey.get(key(e));
 
-    if (!actual || momento(e) > momento(actual)) {
-      porClave.set(clave(e), e);
+    if (!actual || eventTime(e) > eventTime(actual)) {
+      byKey.set(key(e), e);
     }
   });
 
-  return Array.from(porClave.values());
+  return Array.from(byKey.values());
 };
 
-const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[] => {
-  const resultado: ENSRuntimeVariable[] = [];
-  const copias = ultimaDeCada(vigentes(context, 'backup_run', ahora), claveDe);
-  const edades = copias
-    .map(e => instante(campo(e, 'ultima_correcta')))
+const measured = (context: ENSPolicyContext, now: number): ENSRuntimeVariable[] => {
+  const result: ENSRuntimeVariable[] = [];
+  const backups = lastOfEach(current(context, 'backup_run', now), keyOf);
+  const ages = backups
+    .map(e => parseInstant(factField(e, 'ultima_correcta')))
     .filter((t): t is number => t !== undefined)
-    .map(t => Math.round(((ahora - t) / HORA) * 10) / 10);
+    .map(t => Math.round(((now - t) / HOUR_MS) * 10) / 10);
 
-  if (copias.length) {
-    resultado.push(
+  if (backups.length) {
+    result.push(
       variable(
         'copias_ultima_correcta',
-        copias.map(e => {
-          const correcta = campo(e, 'ultima_correcta');
-          const tc = instante(correcta);
-          const omitidos = montajesOmitidos(campo(e, 'montajes_omitidos'));
-          // Esta línea es por copia, así que la omisión aceptada de ESTA
-          // copia se ve siempre aquí: cuando el peor de otra copia manda en
-          // el veredicto de EV-01, `combina` descarta el motivo de las partes
-          // CUMPLE y la cita desaparecería si solo viviera en el motivo.
-          const aceptados = montajesOmitidos(campo(e, 'montajes_omitidos_aceptados'));
+        backups.map(e => {
+          const correct = factField(e, 'ultima_correcta');
+          const tc = parseInstant(correct);
+          const omitted = omittedMounts(factField(e, 'montajes_omitidos'));
+          // This row is per backup, so THIS backup's accepted omission always shows here: when
+          // another backup's worst result decides EV-01, `combineMeasurements` drops the CUMPLE
+          // parts' reason and the citation would vanish if it lived only in the reason.
+          const accepted = omittedMounts(factField(e, 'montajes_omitidos_aceptados'));
 
-          return `${nombreDe(e)}: ${vacio(correcta) ? 'ninguna copia correcta' : `${correcta}${tc !== undefined ? `, hace ${horas(ahora - tc)} h` : ''}`}${campo(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${vacio(campo(e, 'ultima_fallida')) ? '' : ` el ${campo(e, 'ultima_fallida')}`}` : ''}${omitidos.length ? `; deja fuera ${lista(omitidos)}` : ''}${aceptados.length ? `; omisión aceptada por la organización: ${lista(aceptados)}` : ''}`;
+          return `${nameOf(e)}: ${isEmptyField(correct) ? 'ninguna copia correcta' : `${correct}${tc !== undefined ? `, hace ${formatHours(now - tc)} h` : ''}`}${factField(e, 'resultado_ultima') === 'error' ? `; la última terminó con error${isEmptyField(factField(e, 'ultima_fallida')) ? '' : ` el ${factField(e, 'ultima_fallida')}`}` : ''}${omitted.length ? `; deja fuera ${formatList(omitted)}` : ''}${accepted.length ? `; omisión aceptada por la organización: ${formatList(accepted)}` : ''}`;
         }),
         ['EV-01', 'EV-02'],
         [],
@@ -1183,25 +1106,25 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  if (edades.length) {
-    resultado.push(
-      variable('copias_antiguedad_maxima_horas', Math.max(...edades), ['EV-02'], [], 'Antigüedad, en horas, de la última copia correcta más vieja entre las copias de la máquina.')
+  if (ages.length) {
+    result.push(
+      variable('copias_antiguedad_maxima_horas', Math.max(...ages), ['EV-02'], [], 'Antigüedad, en horas, de la última copia correcta más vieja entre las copias de la máquina.')
     );
   }
 
-  const plazo = plazoDeCopia(context);
+  const deadline = backupDeadline(context);
 
-  if (!('estado' in plazo)) {
-    resultado.push(variable('copias_plazo_horas', plazo.plazo, ['EV-02'], ['P-01', 'P-02'], 'Plazo máximo entre copias correctas: P-01 más el margen de P-02.'));
+  if (!('estado' in deadline)) {
+    result.push(variable('copias_plazo_horas', deadline.plazo, ['EV-02'], ['P-01', 'P-02'], 'Plazo máximo entre copias correctas: P-01 más el margen de P-02.'));
   }
 
-  const planes = ultimaDeCada(vigentes(context, 'backup_schedule', ahora), e => `${claveDe(e)}|${campo(e, 'planificacion')}`);
+  const plans = lastOfEach(current(context, 'backup_schedule', now), e => `${keyOf(e)}|${factField(e, 'planificacion')}`);
 
-  if (planes.length) {
-    resultado.push(
+  if (plans.length) {
+    result.push(
       variable(
         'copias_planificacion',
-        planes.map(e => `${nombreDe(e)}: ${campo(e, 'planificacion') || 'sin describir'}${numero(campo(e, 'intervalo_horas')) !== undefined ? `, cada ${campo(e, 'intervalo_horas')} h` : ''} (${campo(e, 'fuente') || 'fuente sin declarar'})`),
+        plans.map(e => `${nameOf(e)}: ${factField(e, 'planificacion') || 'sin describir'}${parseNumber(factField(e, 'intervalo_horas')) !== undefined ? `, cada ${factField(e, 'intervalo_horas')} h` : ''} (${factField(e, 'fuente') || 'fuente sin declarar'})`),
         ['EV-02'],
         [],
         'Planificación de cada copia.'
@@ -1209,17 +1132,17 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const retenciones = ultimaDeCada(vigentes(context, 'backup_retention', ahora), claveDe);
+  const retentions = lastOfEach(current(context, 'backup_retention', now), keyOf);
 
-  if (retenciones.length) {
-    resultado.push(
+  if (retentions.length) {
+    result.push(
       variable(
         'copias_retencion',
-        retenciones.map(e => {
-          const retencion = campo(e, 'retencion_dias');
-          const antigua = campo(e, 'copia_mas_antigua');
+        retentions.map(e => {
+          const retention = factField(e, 'retencion_dias');
+          const old = factField(e, 'copia_mas_antigua');
 
-          return `${nombreDe(e)}: ${vacio(retencion) ? 'sin retención configurada' : `${retencion} días de retención configurada`}${vacio(antigua) ? '' : `; la copia más antigua es del ${antigua}`}`;
+          return `${nameOf(e)}: ${isEmptyField(retention) ? 'sin retención configurada' : `${retention} días de retención configurada`}${isEmptyField(old) ? '' : `; la copia más antigua es del ${old}`}`;
         }),
         ['EV-03'],
         [],
@@ -1228,20 +1151,20 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const accesos = ultimaDeCada(vigentes(context, 'backup_access', ahora), e => `${claveDe(e)}|${campo(e, 'ruta')}`);
+  const accesses = lastOfEach(current(context, 'backup_access', now), e => `${keyOf(e)}|${factField(e, 'ruta')}`);
 
-  if (accesos.length) {
-    resultado.push(
+  if (accesses.length) {
+    result.push(
       variable(
         'copias_cuentas_con_lectura',
-        accesos.map(e => {
-          const cuentas = campo(e, 'cuentas_con_lectura')
+        accesses.map(e => {
+          const accounts = factField(e, 'cuentas_con_lectura')
             .split(',')
             .map(c => c.trim())
             .filter(c => c && c !== '-');
-          const clave = campo(e, 'clave_ruta');
+          const key = factField(e, 'clave_ruta');
 
-          return `${nombreDe(e)}: ${campo(e, 'ruta') || '(ruta sin declarar)'} → ${cuentas.length ? cuentas.join(', ') : 'sin informar'}${vacio(clave) ? '' : `; clave ${clave} con modo ${campo(e, 'clave_modo') || 'sin informar'}`}`;
+          return `${nameOf(e)}: ${factField(e, 'ruta') || '(ruta sin declarar)'} → ${accounts.length ? accounts.join(', ') : 'sin informar'}${isEmptyField(key) ? '' : `; clave ${key} con modo ${factField(e, 'clave_modo') || 'sin informar'}`}`;
         }),
         ['EV-04'],
         [],
@@ -1250,30 +1173,30 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const pruebas = hechos(context, 'restore_test').filter(e => momento(e) <= ahora + TOLERANCIA_FUTURO);
+  const tests = facts(context, 'restore_test').filter(e => eventTime(e) <= now + FUTURE_TOLERANCE_MS);
 
-  if (pruebas.length) {
-    const fecha = (e: ENSNormalizedEvent): number => instante(campo(e, 'fecha')) ?? momento(e);
-    const ultimas = Array.from(new Set(pruebas.map(parDe))).map(
-      par => [...pruebas.filter(e => parDe(e) === par)].sort((a, b) => fecha(b) - fecha(a))[0]
+  if (tests.length) {
+    const date = (e: ENSNormalizedEvent): number => parseInstant(factField(e, 'fecha')) ?? eventTime(e);
+    const last = Array.from(new Set(tests.map(pairOf))).map(
+      pair => [...tests.filter(e => pairOf(e) === pair)].sort((a, b) => date(b) - date(a))[0]
     );
 
-    resultado.push(
+    result.push(
       variable(
         'restauracion_ultima_prueba',
-        ultimas.map(e => {
-          const testigo = campo(e, 'testigo');
-          const declarada = testigo === 'declarado';
-          // Prueba declarada (soporte genérico, ver EV-05): lo que se
-          // comprueba es lo que la organización declara haber verificado.
-          const comprobado = campo(e, 'detalle').replace(/^declarada:\s*/i, '').trim();
-          const quien = declarada
-            ? ` · declarada por la organización: «${comprobado || 'sin detalle'}»`
-            : testigo
-            ? ` · testigo ${testigo}`
+        last.map(e => {
+          const witness = factField(e, 'testigo');
+          const declared = witness === 'declarado';
+          // Declared test (generic support, see EV-05): what is checked is what the organization
+          // declares to have verified.
+          const verified = factField(e, 'detalle').replace(/^declarada:\s*/i, '').trim();
+          const who = declared
+            ? ` · declarada por la organización: «${verified || 'sin detalle'}»`
+            : witness
+            ? ` · testigo ${witness}`
             : '';
 
-          return `${nombreDe(e)}: ${iso(fecha(e))} · resultado ${campo(e, 'resultado') || '-'} · coincide ${campo(e, 'coincide') || '-'} · limpieza ${campo(e, 'limpieza') || '-'}${quien}`;
+          return `${nameOf(e)}: ${iso(date(e))} · resultado ${factField(e, 'resultado') || '-'} · coincide ${factField(e, 'coincide') || '-'} · limpieza ${factField(e, 'limpieza') || '-'}${who}`;
         }),
         ['EV-05'],
         [],
@@ -1282,24 +1205,24 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const plazoPrueba = plazoDeRestauracion(context);
+  const deadlineTest = restoreDeadline(context);
 
-  if (typeof plazoPrueba === 'number') {
-    resultado.push(variable('restauracion_plazo_dias', plazoPrueba, ['EV-05'], ['P-04', 'P-05'], 'Plazo máximo sin una prueba de restauración correcta para esta máquina (P-05).'));
+  if (typeof deadlineTest === 'number') {
+    result.push(variable('restauracion_plazo_dias', deadlineTest, ['EV-05'], ['P-04', 'P-05'], 'Plazo máximo sin una prueba de restauración correcta para esta máquina (P-05).'));
   }
 
-  const destinos = ultimaDeCada(vigentes(context, 'backup_storage', ahora), e => `${claveDe(e)}|${campo(e, 'destino')}`);
+  const destinations = lastOfEach(current(context, 'backup_storage', now), e => `${keyOf(e)}|${factField(e, 'destino')}`);
 
-  if (destinos.length) {
-    resultado.push(
+  if (destinations.length) {
+    result.push(
       variable(
         'copias_destinos',
-        destinos.map(
+        destinations.map(
           e =>
-            `${nombreDe(e)}: ${campo(e, 'destino') || '(destino sin declarar)'} (${[
-              campo(e, 'tipo'),
-              campo(e, 'misma_maquina') === 'no' ? 'fuera de la máquina' : campo(e, 'misma_maquina') === 'si' ? 'en la misma máquina' : '',
-              campo(e, 'activo') === 'si' ? 'activo' : 'inactivo',
+            `${nameOf(e)}: ${factField(e, 'destino') || '(destino sin declarar)'} (${[
+              factField(e, 'tipo'),
+              factField(e, 'misma_maquina') === 'no' ? 'fuera de la máquina' : factField(e, 'misma_maquina') === 'si' ? 'en la misma máquina' : '',
+              factField(e, 'activo') === 'si' ? 'activo' : 'inactivo',
             ]
               .filter(Boolean)
               .join(', ')})`
@@ -1311,13 +1234,13 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  const latidos = ultimosLatidos(context, ahora);
+  const heartbeats = lastHeartbeats(context, now);
 
-  if (latidos.length) {
-    resultado.push(
+  if (heartbeats.length) {
+    result.push(
       variable(
         'recolectores_ultimo_latido',
-        latidos.map(e => `${campo(e, 'origen') || 'origen sin declarar'}: ${iso(momento(e))} · ${campo(e, 'resultado') || 'sin resultado'} · cubiertas ${campo(e, 'evidencias_cubiertas') || '-'}`),
+        heartbeats.map(e => `${factField(e, 'origen') || 'origen sin declarar'}: ${iso(eventTime(e))} · ${factField(e, 'resultado') || 'sin resultado'} · cubiertas ${factField(e, 'evidencias_cubiertas') || '-'}`),
         ['EV-07'],
         [],
         'Última pasada de cada recolector de copias de la máquina.'
@@ -1325,17 +1248,15 @@ const loMedido = (context: ENSPolicyContext, ahora: number): ENSRuntimeVariable[
     );
   }
 
-  return resultado;
+  return result;
 };
 
-// --- decisiones ------------------------------------------------------------
 
-type Tipo = ENSPolicyDecision['trace']['ruleType'];
+type Type = ENSPolicyDecision['trace']['ruleType'];
 
-// Con qué evidencias se mide cada requisito. Son las del catálogo (una prueba
-// lo comprueba); en cada nivel cuentan solo las que aplican (EV-06, la copia
-// separada, solo en ALTO).
-export const MP_INFO_6_REQUIREMENTS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Tipo }> = {
+// Which evidences measure each requirement: the catalog's (one test checks it); at each level only
+// those that apply count (EV-06, the separate copy, only at ALTO).
+export const MP_INFO_6_REQUIREMENTS: Record<string, { evidencias: string[]; parametros: string[]; tipo: Type }> = {
   'mp.info.6.1': { evidencias: ['EV-01', 'EV-02', 'EV-07'], parametros: ['P-01', 'P-02', 'P-03', 'P-04', 'P-10'], tipo: 'COVERAGE_REQUIRED' },
   'mp.info.6.2.a': { evidencias: ['EV-01', 'EV-02'], parametros: ['P-01', 'P-02'], tipo: 'MAX_AGE' },
   'mp.info.6.2.b': { evidencias: ['EV-03', 'EV-07'], parametros: ['P-03'], tipo: 'MIN_RETENTION' },
@@ -1346,92 +1267,91 @@ export const MP_INFO_6_REQUIREMENTS: Record<string, { evidencias: string[]; para
 };
 
 const decide = (
-  requisito: string,
-  estado: Medida['estado'],
-  evidencias: string[],
-  parametros: string[],
-  tipo: Tipo,
+  requirement: string,
+  status: Measurement['estado'],
+  evidences: string[],
+  parameters: string[],
+  type: Type,
   ruleId: string,
-  motivo: string,
-  esperado: string,
-  causa?: ENSGapCause
+  motive: string,
+  expected: string,
+  cause?: ENSGapCause
 ): ENSPolicyDecision => ({
   policyId: POLICY,
-  requirementId: requisito,
-  status: estado,
-  parameterIds: parametros,
-  evidenceIds: evidencias,
+  requirementId: requirement,
+  status: status,
+  parameterIds: parameters,
+  evidenceIds: evidences,
   eventIds: [],
   runtimeVariables: [],
   trace: {
     ruleId,
-    ruleType: tipo,
-    expression: esperado,
-    expected: esperado,
-    actual: estado,
-    result: estado === 'CUMPLE',
+    ruleType: type,
+    expression: expected,
+    expected: expected,
+    actual: status,
+    result: status === 'CUMPLE',
   },
-  reason: motivo,
-  ...(estado === 'NO_EVALUABLE' && causa ? { cause: causa } : {}),
+  reason: motive,
+  ...(status === 'NO_EVALUABLE' && cause ? { cause: cause } : {}),
 });
 
 const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
-  const ahora = (context.now || new Date()).getTime();
-  const maquinas = alcance(context);
+  const now = (context.now || new Date()).getTime();
+  const machines = scope(context);
 
-  // Sin ninguna máquina en P-04 no hay qué medir: no es un fallo de recogida
-  // ni de la máquina, es que la organización no ha declarado su alcance.
-  const sinAlcance = maquinas.length
+  // Without any machine in P-04 there is nothing to measure: not a collection or machine failure,
+  // the organization has not declared its scope.
+  const withoutScope = machines.length
     ? undefined
-    : sinMedir(
-        `${etiqueta(context, 'P-04')} no declara ninguna máquina: mp.info.6 solo se mide en las máquinas que la organización declara, y sin ninguna no hay qué medir.`,
+    : notMeasured(
+        `${parameterDisplayName(context, 'P-04')} no declara ninguna máquina: mp.info.6 solo se mide en las máquinas que la organización declara, y sin ninguna no hay qué medir.`,
         'CONFIGURATION'
       );
 
-  // Las evidencias que aplican al nivel con el que se evalúa. Una que no
-  // aplica no se mide ni decide ningún requisito: la tabla la enseña NO_APLICA
-  // y el requisito no puede decir otra cosa.
-  const aplican = new Set(
+  // Evidences applying at the evaluated level. One that does not apply is neither measured nor
+  // decides any requirement: the table shows it NO_APLICA and the requirement cannot say otherwise.
+  const apply = new Set(
     getEvidenceDefinitions(CONTROL)
-      .filter(definicion => definicion.levels.includes(context.level))
-      .map(definicion => definicion.id)
+      .filter(definition => definition.levels.includes(context.level))
+      .map(definition => definition.id)
   );
 
-  const medir: Record<string, () => Medida> = {
-    'EV-01': () => ev01(context, ahora),
-    'EV-02': () => ev02(context, ahora),
-    'EV-03': () => ev03(context, ahora),
-    'EV-04': () => ev04(context, ahora),
-    'EV-05': () => ev05(context, ahora),
-    'EV-06': () => ev06(context, ahora),
-    'EV-07': () => ev07(context, ahora),
+  const measure: Record<string, () => Measurement> = {
+    'EV-01': () => ev01(context, now),
+    'EV-02': () => ev02(context, now),
+    'EV-03': () => ev03(context, now),
+    'EV-04': () => ev04(context, now),
+    'EV-05': () => ev05(context, now),
+    'EV-06': () => ev06(context, now),
+    'EV-07': () => ev07(context, now),
   };
 
-  const medidas: Record<string, Medida> = {};
+  const measurements: Record<string, Measurement> = {};
 
-  Object.keys(medir)
-    .filter(id => aplican.has(id))
+  Object.keys(measure)
+    .filter(id => apply.has(id))
     .forEach(id => {
-      medidas[id] = sinAlcance || medir[id]();
+      measurements[id] = withoutScope || measure[id]();
     });
 
-  const requisitoDecisions: ENSPolicyDecision[] = [];
-  const evidenciaDecisions: ENSPolicyDecision[] = [];
+  const requirementDecisions: ENSPolicyDecision[] = [];
+  const evidenceDecisions: ENSPolicyDecision[] = [];
 
-  Object.entries(MP_INFO_6_REQUIREMENTS).forEach(([requisito, definicion]) => {
-    const propias = definicion.evidencias
-      .filter(id => aplican.has(id))
-      .map(id => ({ id, medida: medidas[id] }));
+  Object.entries(MP_INFO_6_REQUIREMENTS).forEach(([requirement, definition]) => {
+    const own = definition.evidencias
+      .filter(id => apply.has(id))
+      .map(id => ({ id, medida: measurements[id] }));
 
-    if (!propias.length) {
-      requisitoDecisions.push(
+    if (!own.length) {
+      requirementDecisions.push(
         decide(
-          requisito,
+          requirement,
           'NO_APLICA',
           [],
-          definicion.parametros,
-          definicion.tipo,
-          requisito,
+          definition.parametros,
+          definition.tipo,
+          requirement,
           `Ninguna de sus evidencias aplica en el nivel ${context.level}.`,
           'no aplica en este nivel'
         )
@@ -1440,29 +1360,29 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       return;
     }
 
-    const estado = peor(propias.map(p => p.medida));
-    const responsables = propias.filter(p => p.medida.estado === estado);
+    const status = worstStatus(own.map(p => p.medida));
+    const owners = own.filter(p => p.medida.estado === status);
 
-    // La decisión del REQUISITO va primero: es la que lee `evaluateRequirement`.
-    requisitoDecisions.push(
+    // The REQUIREMENT's decision goes first (the one `evaluateRequirement` reads).
+    requirementDecisions.push(
       withReasonParts(decide(
-        requisito,
-        estado,
-        responsables.map(p => p.id),
-        definicion.parametros,
-        definicion.tipo,
-        requisito,
-        compositeReason(propias),
-        propias.map(p => `${p.id} CUMPLE`).join(' y '),
-        causaComun(responsables.map(p => p.medida))
-      ), reasonPartsOf(propias))
+        requirement,
+        status,
+        owners.map(p => p.id),
+        definition.parametros,
+        definition.tipo,
+        requirement,
+        compositeReason(own),
+        own.map(p => `${p.id} CUMPLE`).join(' y '),
+        commonGapCause(owners.map(p => p.medida))
+      ), reasonPartsOf(own))
     );
 
-    // Y una por evidencia, con SU estado: es la que lleva la medida a la tabla
-    // de evidencias (ver `policy-evidence-bridge.ts`).
-    propias.forEach(p =>
-      evidenciaDecisions.push(
-        decide(requisito, p.medida.estado, [p.id], definicion.parametros, definicion.tipo, `${requisito}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
+    // And one per evidence, with ITS status: it carries the measurement to the evidence table (see
+    // `policy-evidence-bridge.ts`).
+    own.forEach(p =>
+      evidenceDecisions.push(
+        decide(requirement, p.medida.estado, [p.id], definition.parametros, definition.tipo, `${requirement}/${p.id}`, p.medida.motivo, `${p.id} CUMPLE`, p.medida.causa)
       )
     );
   });
@@ -1470,26 +1390,26 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
   const variables: ENSRuntimeVariable[] = [
     {
       name: 'alcance_declarado',
-      value: maquinas.map(fila => fila.maquina),
+      value: machines.map(row => row.maquina),
       parameterIds: ['P-04'],
       evidenceIds: [],
       eventIds: [],
-      description: maquinas.length
+      description: machines.length
         ? 'Máquinas en las que la organización declara que se mide mp.info.6 (P-04).'
         : 'P-04 no declara ninguna máquina: mp.info.6 no se mide en ninguna.',
     },
-    ...Object.entries(medidas).map(([id, medida]) => ({
+    ...Object.entries(measurements).map(([id, measurement]) => ({
       name: `medida_${id.replace('-', '')}`,
-      value: medida.estado,
+      value: measurement.estado,
       parameterIds: [],
       evidenceIds: [id],
       eventIds: [],
-      description: medida.motivo,
+      description: measurement.motivo,
     })),
-    ...(sinAlcance ? [] : loMedido(context, ahora)),
+    ...(withoutScope ? [] : measured(context, now)),
   ];
 
-  return { decisions: [...requisitoDecisions, ...evidenciaDecisions], runtimeVariables: variables };
+  return { decisions: [...requirementDecisions, ...evidenceDecisions], runtimeVariables: variables };
 };
 
 export const mpInfo6PolicyDefinition: ENSPolicyDefinition = {
