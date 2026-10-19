@@ -184,9 +184,9 @@ const referencia = () => {
   // (`seriesPending`) y la serie se calcula detrás, después de todo lo demás.
   // Una vez calculada, el panel y la ficha la reutilizan sin leer nada.
   const deHechosHasta = () => indice.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
-  const t0 = Date.now();
   let conSerie = await servicio.run(clientes, { include: 'dashboard', timelineDays: 7, timeZone: 'UTC' });
-  comprueba('el panel no espera a la serie: responde enseguida y la marca pendiente', Date.now() - t0 < 2000 && (conSerie.meta.seriesPending === true || (conSerie.timeline || []).length > 1), conSerie.meta.seriesPending);
+  // Structural, not wall-clock: CI machines are slower.
+  comprueba('el panel no espera a la serie: responde sin ella y la marca pendiente', conSerie.meta.seriesPending === true && !conSerie.timeline, conSerie.meta.seriesPending);
   // Como el navegador: vuelve a pedir mientras la serie esté pendiente (aquí
   // cada 0,5 s; cada sondeo compite por el hilo con la serie).
   for (let i = 0; i < 600 && conSerie.meta.seriesPending; i++) {
