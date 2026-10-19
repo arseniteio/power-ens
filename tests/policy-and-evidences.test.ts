@@ -1,54 +1,30 @@
-/**
- * La policy y las evidencias tienen que decir lo mismo.
- *
- *     npx tsx tests/policy-and-evidences.test.ts
- *
- * POR QUÉ EXISTE. op.acc.3 se veía así en producción el 07/08/2026:
- *
- *     Cumplimiento del control        100 %  CUMPLE
- *     Requisitos  2 de 2 cumplen
- *     Evidencias  0 de 7 cumplen · 5 sin prueba
- *
- * Un control al 100 % en el que NADA se había podido demostrar, con las dos
- * cifras a diez centímetros una de otra. Cualquiera que lo mire deja de fiarse
- * del informe entero, y hace bien.
- *
- * La causa: op.acc.3 decide sus REQUISITOS con una policy que lee hechos crudos,
- * y sus EVIDENCIAS están declaradas en el modelo clásico esperando un
- * `evidence_state` que su agente no emite —porque juzga la policy— y sin
- * `judgment` con el que derivarlo. No es que faltara un dato: no había ningún
- * camino por el que pudieran resolverse jamás.
- *
- * Lo que se prueba aquí es que el resultado de la policy llega a las evidencias
- * que ella misma declara medir, Y que eso no se convierte en una puerta trasera
- * para pisar una medida real.
- */
+/** The policy and the evidences must say the same thing. */
 import { applyPolicyDecisionsToEvidences } from '../common/ens/core/evaluation/policy-evidence-bridge';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
 import type { ENSPolicyDecision } from '../common/ens/core/policy-runtime/types';
 
 declare const process: { exit(code: number): void };
 
-const fallos: string[] = [];
+const failures: string[] = [];
 
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle?: unknown
+const check = (
+  name: string,
+  condition: boolean,
+  detail?: unknown
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  console.log(`  FAIL ${nombre}${detalle !== undefined ? ` — ${String(detalle)}` : ''}`);
-  fallos.push(nombre);
+  console.log(`  FAIL ${name}${detail !== undefined ? ` — ${String(detail)}` : ''}`);
+  failures.push(name);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-const evidencia = (
+const evidence = (
   id: string,
   status: string
 ): ENSEvidenceResolved =>
@@ -75,282 +51,246 @@ const decision = (
   } as unknown as ENSPolicyDecision);
 
 const estadoDe = (
-  lista: ENSEvidenceResolved[],
+  list: ENSEvidenceResolved[],
   id: string
-): string | undefined => lista.find(e => e.id === id)?.status;
+): string | undefined => list.find(e => e.id === id)?.status;
 
-// --- 1. el caso de producción ---------------------------------------------
-
-bloque('1. Lo que la policy midió llega a la evidencia');
+section('1. What the policy measured reaches the evidence');
 
 {
-  const resuelto = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')],
+  const resolvedOne = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'NO_EVALUABLE'), evidence('EV-06', 'NO_EVALUABLE')],
     [decision('op.acc.3.1', 'CUMPLE', ['EV-01', 'EV-06'])]
   );
 
-  comprueba(
-    'una evidencia que el modelo clásico no pudo resolver toma el veredicto de la policy',
-    estadoDe(resuelto, 'EV-01') === 'CUMPLE',
-    estadoDe(resuelto, 'EV-01')
+  check(
+    'an evidence the classic model could not resolve takes the policy\'s verdict',
+    estadoDe(resolvedOne, 'EV-01') === 'CUMPLE',
+    estadoDe(resolvedOne, 'EV-01')
   );
 
-  comprueba(
-    'y se dice que la resolvió la policy, no el agente',
-    (resuelto.find(e => e.id === 'EV-01')?.observations || []).some(o =>
+  check(
+    'and it is said that the policy resolved it, not the agent',
+    (resolvedOne.find(e => e.id === 'EV-01')?.observations || []).some(o =>
       o.includes('política del control')
     ),
-    JSON.stringify(resuelto.find(e => e.id === 'EV-01')?.observations)
+    JSON.stringify(resolvedOne.find(e => e.id === 'EV-01')?.observations)
   );
 
-  comprueba(
-    'sin perder el motivo que ya tenía',
-    (resuelto.find(e => e.id === 'EV-01')?.observations || []).includes(
+  check(
+    'without losing the motive it already had',
+    (resolvedOne.find(e => e.id === 'EV-01')?.observations || []).includes(
       'motivo original'
     )
   );
 }
 
-// --- 2. NUNCA pisa una medida ---------------------------------------------
-
-bloque('2. Una evidencia ya medida manda sobre la policy');
+section('2. An already measured evidence prevails over the policy');
 
 {
-  // LA MITAD QUE IMPIDE QUE ESTO SEA UNA PUERTA TRASERA. Si el agente observó un
-  // incumplimiento, ninguna policy puede taparlo: eso sería el CUMPLE falso que
-  // esto viene a quitar, con otra cara.
-  const conHallazgo = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_CUMPLE')],
+  const withFinding = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'NO_CUMPLE')],
     [decision('op.acc.3.1', 'CUMPLE', ['EV-01'])]
   );
 
-  comprueba(
-    'un NO_CUMPLE observado NO se convierte en CUMPLE por la policy',
-    estadoDe(conHallazgo, 'EV-01') === 'NO_CUMPLE',
-    estadoDe(conHallazgo, 'EV-01')
+  check(
+    'an observed NO_CUMPLE does NOT become CUMPLE through the policy',
+    estadoDe(withFinding, 'EV-01') === 'NO_CUMPLE',
+    estadoDe(withFinding, 'EV-01')
   );
 
-  const yaCumple = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'CUMPLE')],
+  const alreadyComplies = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'CUMPLE')],
     [decision('op.acc.3.1', 'NO_CUMPLE', ['EV-01'])]
   );
 
-  comprueba(
-    'y un CUMPLE observado tampoco lo pisa la policy',
-    estadoDe(yaCumple, 'EV-01') === 'CUMPLE',
-    estadoDe(yaCumple, 'EV-01')
+  check(
+    'and an observed CUMPLE is not overwritten by the policy either',
+    estadoDe(alreadyComplies, 'EV-01') === 'CUMPLE',
+    estadoDe(alreadyComplies, 'EV-01')
   );
 
-  const noAplica = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-04', 'NO_APLICA')],
+  const notApplicable = applyPolicyDecisionsToEvidences(
+    [evidence('EV-04', 'NO_APLICA')],
     [decision('op.acc.3.r1.1', 'CUMPLE', ['EV-04'])]
   );
 
-  comprueba(
-    'un NO_APLICA es una decisión de nivel y tampoco se toca',
-    estadoDe(noAplica, 'EV-04') === 'NO_APLICA',
-    estadoDe(noAplica, 'EV-04')
+  check(
+    'a NO_APLICA is a level decision and is not touched either',
+    estadoDe(notApplicable, 'EV-04') === 'NO_APLICA',
+    estadoDe(notApplicable, 'EV-04')
   );
 }
 
-// --- 3. entre varias decisiones, gana la peor -----------------------------
-
-bloque('3. Si una evidencia respalda dos requisitos, gana el peor');
+section('3. If an evidence backs two requirements, the worse wins');
 
 {
-  const resuelto = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-06', 'NO_EVALUABLE')],
+  const resolvedOne = applyPolicyDecisionsToEvidences(
+    [evidence('EV-06', 'NO_EVALUABLE')],
     [
       decision('op.acc.3.1', 'CUMPLE', ['EV-06']),
       decision('op.acc.3.2', 'NO_CUMPLE', ['EV-06']),
     ]
   );
 
-  comprueba(
-    'una evidencia que respalda un requisito que falla no sale en verde',
-    estadoDe(resuelto, 'EV-06') === 'NO_CUMPLE',
-    estadoDe(resuelto, 'EV-06')
+  check(
+    'an evidence backing a failing requirement does not come out green',
+    estadoDe(resolvedOne, 'EV-06') === 'NO_CUMPLE',
+    estadoDe(resolvedOne, 'EV-06')
   );
 
-  // Y da igual el orden en que lleguen las decisiones.
   const alReves = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-06', 'NO_EVALUABLE')],
+    [evidence('EV-06', 'NO_EVALUABLE')],
     [
       decision('op.acc.3.2', 'NO_CUMPLE', ['EV-06']),
       decision('op.acc.3.1', 'CUMPLE', ['EV-06']),
     ]
   );
 
-  comprueba(
-    'y da igual el orden de las decisiones',
-    estadoDe(alReves, 'EV-06') === estadoDe(resuelto, 'EV-06'),
-    `${estadoDe(alReves, 'EV-06')} vs ${estadoDe(resuelto, 'EV-06')}`
+  check(
+    'and the order of the decisions does not matter',
+    estadoDe(alReves, 'EV-06') === estadoDe(resolvedOne, 'EV-06'),
+    `${estadoDe(alReves, 'EV-06')} vs ${estadoDe(resolvedOne, 'EV-06')}`
   );
 }
 
-// --- 4. lo que la policy no nombra, no se toca ----------------------------
-
-bloque('4. Una evidencia que la policy no mide se queda como estaba');
+section('4. An evidence the policy does not measure stays as it was');
 
 {
-  const resuelto = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-07', 'NO_EVALUABLE')],
+  const resolvedOne = applyPolicyDecisionsToEvidences(
+    [evidence('EV-07', 'NO_EVALUABLE')],
     [decision('op.acc.3.1', 'CUMPLE', ['EV-01'])]
   );
 
-  comprueba(
-    'EV-07 sigue sin demostrar porque nadie la midió',
-    estadoDe(resuelto, 'EV-07') === 'NO_EVALUABLE',
-    estadoDe(resuelto, 'EV-07')
+  check(
+    'EV-07 remains unproven because nobody measured it',
+    estadoDe(resolvedOne, 'EV-07') === 'NO_EVALUABLE',
+    estadoDe(resolvedOne, 'EV-07')
   );
 
-  // Y sin decisiones, la lista sale intacta.
   const sinPolicy = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_EVALUABLE')],
+    [evidence('EV-01', 'NO_EVALUABLE')],
     []
   );
 
-  comprueba(
-    'sin ninguna decisión, nada cambia',
+  check(
+    'without any decision, nothing changes',
     estadoDe(sinPolicy, 'EV-01') === 'NO_EVALUABLE'
   );
 }
 
-// --- 5. una decisión que no nombra evidencias hereda las del requisito ----
-//
-// LA PIEZA QUE FALTABA, y sin ella el puente solo arreglaba medio problema.
-//
-// En op.acc.3 solo la decisión de op.acc.3.2 declaraba `evidenceIds`. Las otras
-// tres iban con la lista vacía, así que EV-01 y EV-02 seguían en «sin prueba»
-// mientras los requisitos que se apoyan en ellas salían decididos. En la misma
-// pantalla: «EV-02 · sin prueba» arriba y «op.acc.3.2 · CUMPLE» abajo.
-//
-// Que una policy decida un requisito significa, POR DEFINICIÓN, que ha medido
-// aquello con lo que ese requisito se demuestra. Si no dice cuáles, son las
-// suyas. Depender de que el autor de la policy se acuerde de rellenar un campo
-// es depender de que nadie olvide nada nunca.
-
-bloque('5. Sin `evidenceIds`, la decisión hereda las del requisito');
+section('5. Without `evidenceIds`, the decision inherits the requirement\'s');
 
 {
-  const REQUISITOS = [
+  const REQUIREMENTS = [
     { id: 'op.acc.3.1', evidenceIds: ['EV-01', 'EV-06'] },
     { id: 'op.acc.3.2', evidenceIds: ['EV-02', 'EV-03', 'EV-06'] },
   ];
 
-  // La decisión NO nombra evidencias, como hacía el cruce de op.acc.3.
-  const sinNombrar = {
+  const unnamed = {
     ...decision('op.acc.3.1', 'NO_CUMPLE', []),
   } as ENSPolicyDecision;
 
-  const resuelto = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')],
-    [sinNombrar],
-    REQUISITOS
+  const resolvedOne = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'NO_EVALUABLE'), evidence('EV-06', 'NO_EVALUABLE')],
+    [unnamed],
+    REQUIREMENTS
   );
 
-  comprueba(
-    'EV-01 toma el veredicto porque op.acc.3.1 se demuestra con ella',
-    estadoDe(resuelto, 'EV-01') === 'NO_CUMPLE',
-    estadoDe(resuelto, 'EV-01')
+  check(
+    'EV-01 takes the verdict because op.acc.3.1 is proven with it',
+    estadoDe(resolvedOne, 'EV-01') === 'NO_CUMPLE',
+    estadoDe(resolvedOne, 'EV-01')
   );
 
-  comprueba(
-    'y EV-06 también, que es la otra del mismo requisito',
-    estadoDe(resuelto, 'EV-06') === 'NO_CUMPLE',
-    estadoDe(resuelto, 'EV-06')
+  check(
+    'and so does EV-06, the other of the same requirement',
+    estadoDe(resolvedOne, 'EV-06') === 'NO_CUMPLE',
+    estadoDe(resolvedOne, 'EV-06')
   );
 
-  // Y si la decisión SÍ las nombra, manda ella: una policy puede medir un
-  // subconjunto y decirlo.
-  const nombrando = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_EVALUABLE'), evidencia('EV-06', 'NO_EVALUABLE')],
+  const naming = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'NO_EVALUABLE'), evidence('EV-06', 'NO_EVALUABLE')],
     [decision('op.acc.3.1', 'CUMPLE', ['EV-01'])],
-    REQUISITOS
+    REQUIREMENTS
   );
 
-  comprueba(
-    'si la decisión nombra solo EV-01, EV-06 no se toca',
-    estadoDe(nombrando, 'EV-01') === 'CUMPLE' &&
-      estadoDe(nombrando, 'EV-06') === 'NO_EVALUABLE',
-    `${estadoDe(nombrando, 'EV-01')} / ${estadoDe(nombrando, 'EV-06')}`
+  check(
+    'if the decision names only EV-01, EV-06 is not touched',
+    estadoDe(naming, 'EV-01') === 'CUMPLE' &&
+      estadoDe(naming, 'EV-06') === 'NO_EVALUABLE',
+    `${estadoDe(naming, 'EV-01')} / ${estadoDe(naming, 'EV-06')}`
   );
 
-  // Sin catálogo y sin nombres, no se toca nada: no se inventa a quién le toca.
-  const aCiegas = applyPolicyDecisionsToEvidences(
-    [evidencia('EV-01', 'NO_EVALUABLE')],
+  const blindly = applyPolicyDecisionsToEvidences(
+    [evidence('EV-01', 'NO_EVALUABLE')],
     [decision('op.acc.3.1', 'CUMPLE', [])],
     []
   );
 
-  comprueba(
-    'sin catálogo ni nombres, no se toca ninguna evidencia',
-    estadoDe(aCiegas, 'EV-01') === 'NO_EVALUABLE',
-    estadoDe(aCiegas, 'EV-01')
+  check(
+    'without catalog or names, no evidence is touched',
+    estadoDe(blindly, 'EV-01') === 'NO_EVALUABLE',
+    estadoDe(blindly, 'EV-01')
   );
 }
 
-// --- 6. lo nombrado y lo heredado ------------------------------------------
-
-bloque('6. Lo nombrado manda sobre un HUECO heredado, nunca sobre un incumplimiento');
+section('6. The named prevails over an inherited GAP, never over a breach');
 
 {
-  // R1 se demuestra con EV-X y no la nombra (la hereda); R2 nombra EV-X.
-  const REQUISITOS = [
+  const REQUIREMENTS = [
     { id: 'R1', evidenceIds: ['EV-X'] },
     { id: 'R2', evidenceIds: ['EV-X'] },
   ];
-  const resuelve = (heredada: string, nombrada: string) =>
+  const resolves = (inheritedOne: string, named2: string) =>
     estadoDe(
       applyPolicyDecisionsToEvidences(
-        [evidencia('EV-X', 'NO_EVALUABLE')],
-        [decision('R1', heredada, []), decision('R2', nombrada, ['EV-X'])],
-        REQUISITOS
+        [evidence('EV-X', 'NO_EVALUABLE')],
+        [decision('R1', inheritedOne, []), decision('R2', named2, ['EV-X'])],
+        REQUIREMENTS
       ),
       'EV-X'
     );
 
-  comprueba(
-    'un NO_EVALUABLE heredado no tapa un CUMPLE nombrado (R1 no se pudo medir por otra cosa)',
-    resuelve('NO_EVALUABLE', 'CUMPLE') === 'CUMPLE',
-    resuelve('NO_EVALUABLE', 'CUMPLE')
+  check(
+    'an inherited NO_EVALUABLE does not cover a named CUMPLE (R1 could not be measured for another reason)',
+    resolves('NO_EVALUABLE', 'CUMPLE') === 'CUMPLE',
+    resolves('NO_EVALUABLE', 'CUMPLE')
   );
-  comprueba(
-    'un NO_CUMPLE heredado SÍ manda: R1 se apoya en EV-X y no conforma',
-    resuelve('NO_CUMPLE', 'CUMPLE') === 'NO_CUMPLE',
-    resuelve('NO_CUMPLE', 'CUMPLE')
+  check(
+    'an inherited NO_CUMPLE DOES prevail: R1 rests on EV-X and does not comply',
+    resolves('NO_CUMPLE', 'CUMPLE') === 'NO_CUMPLE',
+    resolves('NO_CUMPLE', 'CUMPLE')
   );
-  comprueba(
-    'un PARCIAL heredado también manda sobre un CUMPLE nombrado',
-    resuelve('PARCIAL', 'CUMPLE') === 'PARCIAL',
-    resuelve('PARCIAL', 'CUMPLE')
+  check(
+    'an inherited PARCIAL also prevails over a named CUMPLE',
+    resolves('PARCIAL', 'CUMPLE') === 'PARCIAL',
+    resolves('PARCIAL', 'CUMPLE')
   );
-  comprueba(
-    'y sobre un NO_EVALUABLE nombrado',
-    resuelve('PARCIAL', 'NO_EVALUABLE') === 'PARCIAL',
-    resuelve('PARCIAL', 'NO_EVALUABLE')
+  check(
+    'and over a named NO_EVALUABLE',
+    resolves('PARCIAL', 'NO_EVALUABLE') === 'PARCIAL',
+    resolves('PARCIAL', 'NO_EVALUABLE')
   );
-  comprueba(
-    'pero no sobre un nombrado peor: un NO_CUMPLE nombrado queda',
-    resuelve('PARCIAL', 'NO_CUMPLE') === 'NO_CUMPLE',
-    resuelve('PARCIAL', 'NO_CUMPLE')
+  check(
+    'but not over a worse named one: a named NO_CUMPLE stays',
+    resolves('PARCIAL', 'NO_CUMPLE') === 'NO_CUMPLE',
+    resolves('PARCIAL', 'NO_CUMPLE')
   );
-  comprueba(
-    'sin nada nombrado, lo heredado se aplica como siempre (incluido un hueco)',
+  check(
+    'with nothing named, the inherited applies as always (including a gap)',
     estadoDe(
-      applyPolicyDecisionsToEvidences([evidencia('EV-X', 'NO_EVALUABLE')], [decision('R1', 'CUMPLE', [])], REQUISITOS),
+      applyPolicyDecisionsToEvidences([evidence('EV-X', 'NO_EVALUABLE')], [decision('R1', 'CUMPLE', [])], REQUIREMENTS),
       'EV-X'
     ) === 'CUMPLE'
   );
 }
 
-// --- salida ---------------------------------------------------------------
-
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} check(s) FAIL:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 

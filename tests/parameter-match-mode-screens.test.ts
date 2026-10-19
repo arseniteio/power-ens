@@ -1,9 +1,4 @@
-/**
- * «Texto exacto» / «Expresión regular» and «Probar con un valor» wherever a flat-list parameter is edited: «Ajustes
- * comunes» (saved through the configuration route), the template editor and an agent override.
- *
- *   npx --yes tsx tests/parameter-match-mode-screens.test.ts
- */
+/** Exact text / regular expression and "Test with a value" wherever a flat-list parameter is edited. */
 import { readFileSync } from 'fs';
 import { installReactHarness } from './fixtures/react-harness';
 
@@ -37,7 +32,6 @@ const { AgentParameterRow } = require('../public/ens/configuration/components/ag
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const block = JSON.parse(readFileSync(`${__dirname}/../config/op-acc-1-control-block.json`, 'utf8'));
 
-// The field that follows the row with this label.
 const fieldAfter = (label: RegExp, type: string) => {
   const nodes = h.nodes();
   const at = nodes.findIndex(node => typeof node.props?.label === 'string' && label.test(node.props.label));

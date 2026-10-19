@@ -1,9 +1,4 @@
-/**
- * The «Expresión regular» mode travels with its value: common value, custom template and agent override. Covers the
- * stored shape, resolution, the screen actions, the validators and documents written without `matchMode`.
- *
- *   npx --yes tsx tests/parameter-match-mode-levels.test.ts
- */
+/** The regular-expression mode travels with its value: common value, custom template and agent override. */
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';

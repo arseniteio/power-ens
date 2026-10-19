@@ -1,8 +1,9 @@
+/** Parameter input form. */
+
 import assert from 'node:assert/strict';
 import Module from 'node:module';
 import { opAcc1Configuration } from '../common/ens/configuration/data/op-acc-1-parameters';
 
-// The real form handlers run; the stubs only represent JSX and keep hook state, never the parser or the matcher.
 const hooks: any[] = [];
 let hookIndex = 0;
 const react = {
@@ -113,7 +114,6 @@ assert.equal(
   'the last name is confirmed on blur'
 );
 
-// Spaces stay part of an identity source name.
 parameter = { ...original, id: 'P-01', name: 'fuente_identidad' };
 value = [];
 tree = renderList();
