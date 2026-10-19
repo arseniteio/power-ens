@@ -5,13 +5,9 @@
 
 ## 1. Objetivo
 
-Esta guía compila el zip del plugin ENSFácil a partir de este repositorio, lo
-valida y ejecuta las pruebas.
+Compila el zip del plugin ENSFácil desde este repositorio, lo valida y ejecuta las pruebas.
 
-Para instalar, la forma recomendada es una release
-([Instalar desde una release](07-installing-from-a-release.md)): CI la compila
-desde una etiqueta y publica sus sumas SHA-256. La compilación local solo
-procede en estos casos:
+Forma recomendada de instalar: una release ([Instalar desde una release](07-installing-from-a-release.md)), compilada por CI desde una etiqueta con sumas SHA-256. La compilación local solo procede en estos casos:
 
 - una versión que todavía no tiene release (una rama o un MR);
 - la evaluación de otra versión de Wazuh ([compatibilidad de versiones](03-version-compatibility.md#5-evaluar-una-versión-nueva));
@@ -26,14 +22,9 @@ Hay dos formas de compilar:
 
 ## 2. Qué sale de la compilación
 
-El plugin se compila dentro del código fuente de OpenSearch Dashboards `2.19.5`,
-la versión que incluye Wazuh Dashboard 4.14.7. El resultado es el fichero
-`ensfacil-2.19.5.zip`, que solo se instala en esa versión exacta de OpenSearch
-Dashboards.
+Compilación dentro del código fuente de OpenSearch Dashboards `2.19.5` (el de Wazuh Dashboard 4.14.7). Resultado: `ensfacil-2.19.5.zip`, instalable solo en esa versión exacta.
 
-CI le asigna el nombre de las releases, `ensfacil-<versión>-osd-2.19.5.zip`. El
-contenido es el mismo: `deploy-plugin.sh` reconoce el plugin por su contenido,
-no por el nombre del fichero.
+CI le asigna el nombre de release `ensfacil-<versión>-osd-2.19.5.zip`; el contenido es el mismo.
 
 > [!note]
 > No se necesita el código del plugin de Wazuh (`wazuh-dashboard-plugins`).
@@ -41,9 +32,7 @@ no por el nombre del fichero.
 
 ## 3. Compilar con el árbol de OpenSearch Dashboards
 
-Esta forma usa las rutas de la [guía de instalación](01-installation-from-scratch.md):
-el repositorio en `/opt/ensfacil/repo` (apartado 10.2) y los registros en
-`/opt/ensfacil/artifacts`:
+Rutas de la [guía de instalación](01-installation-from-scratch.md): repositorio en `/opt/ensfacil/repo` (apartado 10.2) y registros en `/opt/ensfacil/artifacts`:
 
 ```bash
 sudo mkdir -p /opt/ensfacil/artifacts
@@ -82,8 +71,7 @@ procedimiento.
 
 ### 3.2 Preparar el árbol de OpenSearch Dashboards 2.19.5
 
-Se usa el código fuente de Wazuh Dashboard 4.14.7, que es OpenSearch Dashboards
-`2.19.5`:
+Código fuente de Wazuh Dashboard 4.14.7 (OpenSearch Dashboards `2.19.5`):
 
 ```bash
 sudo mkdir -p /opt/ensfacil/build
@@ -107,15 +95,11 @@ cd /opt/ensfacil/build
 yarn osd bootstrap
 ```
 
-Resultado esperado: `bootstrap complete` al final. El proceso tarda varios
-minutos. Los avisos de dependencias que no detienen el proceso no son un fallo.
+Resultado esperado: `bootstrap complete` al final (varios minutos). Los avisos de dependencias que no detienen el proceso no son un fallo.
 
 ### 3.3 Compilar el plugin
 
-`config/build-plugin.sh` copia el plugin a `/opt/ensfacil/build/plugins/ensfacil`,
-instala sus dependencias con el `yarn.lock` del repositorio y compila. No
-modifica ningún otro plugin del árbol. Se ejecuta como `root`, con `yarn` en el
-`PATH`:
+`config/build-plugin.sh` copia el plugin a `/opt/ensfacil/build/plugins/ensfacil`, instala sus dependencias con el `yarn.lock` del repositorio y compila, sin modificar otros plugins del árbol. Ejecutar como `root`, con `yarn` en el `PATH`:
 
 ```bash
 YARN_BIN=$(dirname "$(command -v yarn)")
@@ -134,10 +118,7 @@ Para otro árbol, se indica como argumento:
 `sudo env PATH="$P" bash /opt/ensfacil/repo/config/build-plugin.sh <árbol>`.
 
 > [!warning]
-> No redirigir la salida de una compilación como `root` a un fichero de `/tmp`
-> creado por otro usuario: con la protección `protected_regular` del kernel,
-> `root` no puede escribir en él y la compilación termina al instante con código
-> 1, sin un mensaje útil. Usar `/opt/ensfacil/artifacts`.
+> No redirigir la salida de una compilación como `root` a un fichero de `/tmp` creado por otro usuario (`protected_regular`): la compilación termina al instante con código 1. Usar `/opt/ensfacil/artifacts`.
 
 > [!important]
 > `config/build-plugin.sh` borra `/opt/ensfacil/build/plugins/ensfacil` entero
@@ -148,10 +129,7 @@ Continuar en el apartado 5.
 
 ## 4. Compilar con la imagen de compilación
 
-La imagen `ensfacil-osd-builder:2.19.5` es la que usa el trabajo `build` de CI.
-Contiene el árbol de OpenSearch Dashboards 2.19.5 (Wazuh Dashboard v4.14.7) ya
-preparado en `/osd`, con Node.js 18.19.0 y Yarn Classic 1.22.22. Solo requiere
-Docker.
+Imagen del trabajo `build` de CI: árbol de OpenSearch Dashboards 2.19.5 (Wazuh Dashboard v4.14.7) en `/osd`, Node.js 18.19.0 y Yarn Classic 1.22.22. Solo requiere Docker.
 
 ### 4.1 Construir la imagen
 
@@ -164,19 +142,15 @@ docker image ls ensfacil-osd-builder:2.19.5
 
 Resultado esperado: la imagen `ensfacil-osd-builder:2.19.5`, de unos 7,5 GB.
 
-- Funciona con el constructor clásico de Docker: no necesita BuildKit.
-- La construcción tarda unos 11 minutos con 4 CPU.
-- No se sube a ningún registro. El runner de CI la usa desde su Docker local,
-  por lo que se construye en la máquina del runner
-  ([contribuir](../../CONTRIBUTING.md#integración-continua)).
+- Constructor clásico de Docker; no requiere BuildKit.
+- Tarda unos 11 minutos con 4 CPU.
+- No se sube a ningún registro: se construye en la máquina del runner de CI ([contribuir](../../CONTRIBUTING.md#integración-continua)).
 
 Si cambia `ci/osd-builder.Dockerfile`, la imagen se construye de nuevo.
 
 ### 4.2 Compilar como CI
 
-El repositorio se monta en solo lectura en `/src` y se copia dentro del
-contenedor: la compilación no escribe en la copia de trabajo. El zip sale por
-la carpeta `dist/`, montada en `/dist`. Desde la raíz del repositorio:
+El repositorio se monta en solo lectura en `/src` y se copia en el contenedor; el zip sale por `dist/`, montada en `/dist`. Desde la raíz del repositorio:
 
 ```bash
 mkdir -p dist
@@ -267,11 +241,7 @@ se instala en la imagen del dashboard con la versión de
 
 ## 7. Pasar las pruebas
 
-Las pruebas necesitan Python 3, Node.js 18 o superior y las dependencias de
-`package.json` instaladas en `node_modules/` (el motor importa `re2js`). Las de
-los scripts necesitan además `bash`, `zip` y `unzip`. `tests/check-consistency.py` compara
-el plugin con los runbooks: los busca junto a la carpeta del plugin y los
-reconoce por su remoto `origin`, con independencia del nombre de la carpeta.
+Requisitos: Python 3, Node.js 18 o superior y las dependencias de `package.json` en `node_modules/` (el motor importa `re2js`); para los scripts, además `bash`, `zip` y `unzip`. `tests/check-consistency.py` busca los runbooks junto a la carpeta del plugin y los reconoce por su remoto `origin`.
 
 ### 7.1 Con los runbooks ya clonados
 
@@ -332,6 +302,4 @@ ci/run-tests.sh
   de la salida de cada suite que falla y sale con error si falla alguna.
 
 > [!warning]
-> `ci/clone-runbooks.sh` borra y vuelve a clonar cada carpeta de destino. Se
-> usa en una carpeta exclusiva para las pruebas, con un clon aparte del plugin,
-> nunca en la carpeta de las copias de trabajo de los runbooks.
+> `ci/clone-runbooks.sh` borra y vuelve a clonar cada carpeta de destino. Usarlo solo en una carpeta exclusiva para las pruebas, con un clon aparte del plugin, nunca en la carpeta de trabajo de los runbooks.
