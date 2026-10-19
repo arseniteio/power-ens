@@ -1,8 +1,4 @@
-// COPIA CONGELADA del validador estructural de la release 1.1.0
-// (public/ens/configuration/services/configuration-structure-validator.ts en
-// 8dac6a8), sin más cambio que la ruta de los tipos. La usa
-// tests/agent-configuration-compat.test.ts para probar que un plugin 1.1.0
-// carga un documento de la 1.2.0 (ignora configuration.agents). No se edita.
+/** FROZEN COPY of the 1.1.0 release structure validator. */
 
 import {
   ENSConfigurationLifecycleStatus,
@@ -133,11 +129,6 @@ const validateRequiredStrings = (
   });
 };
 
-// `columns` solo se comprueba por su FORMA, igual que `options`. Que una celda
-// concreta signifique algo para su columna lo decide `parameter-value-validator`
-// y no aquí: este validador LANZA en la hidratación, y una tabla mal rellenada
-// por el auditor tiene que degradar su control, no tumbar la pantalla entera de
-// Configuración.
 const validateParameterColumns = (
   value: unknown,
   path: string,
@@ -222,10 +213,6 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
-  // `options` solo describe la forma del documento. Que el valor sea una de
-  // ellas lo decide `parameter-value-validator.ts`: aquí no, porque este
-  // validador LANZA en la hidratación y un valor mal escrito por el auditor
-  // tiene que degradar un control, no tumbar la pantalla de Configuración.
   if (
     value.options !== undefined &&
     !isStringArray(value.options)
@@ -384,8 +371,6 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Opcional: la clave ausente es válida (se usa `ensLevel`). Presente, tiene
-  // que ser un nivel; `null` no lo es.
   if (
     'traceabilityLevel' in value &&
     !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
@@ -393,7 +378,6 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.traceabilityLevel is invalid.');
   }
 
-  // El de Disponibilidad, con el mismo contrato: ausente o un nivel.
   if (
     'availabilityLevel' in value &&
     !isAllowedString(value.availabilityLevel, ENS_LEVELS)

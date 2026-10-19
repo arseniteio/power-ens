@@ -1,5 +1,4 @@
-// FROZEN COPY of the 1.2.0 structure validator (f2e6bd9), only the import paths changed.
-// Used by tests/template-migration.test.ts: a 1.2.0 plugin must keep loading a 1.3.0 document. Do not edit.
+/** FROZEN COPY of the 1.2.0 structure validator (f2e6bd9), only the import paths changed. */
 
 import {
   ENSConfigurationLifecycleStatus,
@@ -131,11 +130,6 @@ const validateRequiredStrings = (
   });
 };
 
-// `columns` solo se comprueba por su FORMA, igual que `options`. Que una celda
-// concreta signifique algo para su columna lo decide `parameter-value-validator`
-// y no aquí: este validador LANZA en la hidratación, y una tabla mal rellenada
-// por el auditor tiene que degradar su control, no tumbar la pantalla entera de
-// Configuración.
 const validateParameterColumns = (
   value: unknown,
   path: string,
@@ -220,10 +214,6 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
-  // `options` solo describe la forma del documento. Que el valor sea una de
-  // ellas lo decide `parameter-value-validator.ts`: aquí no, porque este
-  // validador LANZA en la hidratación y un valor mal escrito por el auditor
-  // tiene que degradar un control, no tumbar la pantalla de Configuración.
   if (
     value.options !== undefined &&
     !isStringArray(value.options)
@@ -382,8 +372,6 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Opcional: la clave ausente es válida (se usa `ensLevel`). Presente, tiene
-  // que ser un nivel; `null` no lo es.
   if (
     'traceabilityLevel' in value &&
     !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
@@ -391,7 +379,6 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.traceabilityLevel is invalid.');
   }
 
-  // El de Disponibilidad, con el mismo contrato: ausente o un nivel.
   if (
     'availabilityLevel' in value &&
     !isAllowedString(value.availabilityLevel, ENS_LEVELS)
@@ -522,11 +509,6 @@ export const validateENSConfigurationStructure = (
     });
   }
 
-  // La capa por sistema (1.2.0): opcional; presente, con su forma. Que sus
-  // controles y parámetros existan y que cada valor signifique algo para su
-  // columna no se juzga aquí (ver `agents/agent-configuration-validator.ts`):
-  // un valor mal escrito en un agente degrada la fila de esa máquina, no el
-  // entorno entero.
   errors.push(...validateAgentsConfigurationShape(value.agents));
 
   if (!Array.isArray(value.auditTrail)) {
