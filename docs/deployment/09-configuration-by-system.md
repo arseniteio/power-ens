@@ -348,7 +348,7 @@ Mientras la conversión no está guardada, Configuración muestra «Configuraci�
 
 3. Validar el documento entero (apartado 11.2).
 
-   Resultado esperado: `ESTRUCTURA VÁLIDA` y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
+   Resultado esperado: `VALID STRUCTURE` y `VALID AGENT AND TEMPLATE SETTINGS.`
 
 ## 9. Reparto por agentes de filas comunes
 
@@ -384,7 +384,7 @@ La pestaña «Agentes» calcula el reparto al cargarse, sin escribir: si hay fil
 
 5. Validar el documento entero (apartado 11.2).
 
-   Resultado esperado: `ESTRUCTURA VÁLIDA` y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.`
+   Resultado esperado: `VALID STRUCTURE` y `VALID AGENT AND TEMPLATE SETTINGS.`
 
 6. Para una fila que nombra un agente del alcance con otro nombre, declarar ese nombre en el agente (apartado 6.4) y repetir los pasos 2 a 5.
 
@@ -453,7 +453,7 @@ sudo env $CERT python3 set-parameters.py /ruta/agentes.json            # plan
 sudo env $CERT python3 set-parameters.py /ruta/agentes.json --apply    # escribe
 ```
 
-Resultado esperado: sin `--apply`, una línea por cambio bajo `── agente 001` (`op.acc.1 template (la de serie de su tipo)  ->  linux-ubuntu` para una asignación) y `DRY-RUN: nada escrito`; con `--apply`, `Versión anterior guardada en: historial de wazuh-ens-configuration (…)` y `<n> cambio(s) escritos en wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro común, una plantilla que el control no tiene, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
+Resultado esperado: sin `--apply`, una línea por cambio bajo `── agent 001` (`op.acc.1 template (the built-in of its type)  ->  linux-ubuntu` para una asignación) y `DRY-RUN: nothing written`; con `--apply`, `Previous version saved in: history of wazuh-ens-configuration (…)` y `<n> change(s) written to wazuh-ens-configuration/active`. Ante un control no sembrado, un parámetro que no existe, un parámetro común, una plantilla que el control no tiene, un nombre en lugar de un id o un valor con forma imposible, la herramienta muestra `ERROR:` y no escribe nada.
 
 > [!note]
 > En Docker ([Wazuh en Docker, apartado 10](06-wazuh-in-docker.md#10-declarar-la-política-niveles-t-y-d)), la sección `agents` necesita el repositorio completo montado: `-v <repo>:/repo:ro -w /repo/config` en lugar de `-v <repo>/config:/cfg:ro -w /cfg`.
@@ -470,18 +470,18 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `Done` tras la instalación de las dependencias; después, `ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.`, la línea `plantillas propias: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.` Sin ajustes de agentes, la línea es `agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)`. Con un documento de la 1.2.0, la línea `documento de la 1.2.0: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
+Resultado esperado: `Done` tras la instalación de las dependencias; después, `VALID STRUCTURE: the plugin will load this configuration.`, la línea `custom templates: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `VALID AGENT AND TEMPLATE SETTINGS.` Sin ajustes de agentes, la línea es `agents with settings: none (everything is evaluated with each control's common value)`. Con un documento de la 1.2.0, la línea `1.2.0 document: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
 
 | Mensaje | Significado | Actuación |
 |---|---|---|
-| `ESTRUCTURA INVÁLIDA` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, un modo que no es `exact` ni `regex` en `matchModes`, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
-| `VALORES COMUNES INVÁLIDOS` | Un valor común que no es válido para su parámetro, por ejemplo una expresión regular escrita con `set-parameters.py` que no compila: el control queda «Inválido» | Corregir el valor en «Ajustes comunes» o con `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, un parámetro común o un modo de comparación sin ajuste propio: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «la plantilla asignada «…» no existe» | Una asignación a una plantilla borrada o de otra versión: el agente toma la de serie de su tipo | Asignar otra plantilla (apartados 5.4 o 6.2) |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con `plantilla <id>` | Una plantilla propia con un id reservado o repetido, de un control que no está o con un valor inválido | Corregir o borrar la plantilla (apartado 5.3) |
-| `AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS` con «Expresión regular inválida» o «no admite expresiones regulares» | Un patrón que no compila o un modo «Expresión regular» en un parámetro que no lo admite: la evidencia queda en `NO_EVALUABLE` | Corregir el patrón o volver a «Texto exacto» (apartado 5.5) |
-| `avisos (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos, plantillas de la 1.2.0 sin convertir o un modo de comparación sin valor en una plantilla | Ninguna: no cambian la salida |
+| `INVALID STRUCTURE` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, un modo que no es `exact` ni `regex` en `matchModes`, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
+| `INVALID COMMON VALUES` | Un valor común que no es válido para su parámetro, por ejemplo una expresión regular escrita con `set-parameters.py` que no compila: el control queda «Inválido» | Corregir el valor en «Ajustes comunes» o con `set-parameters.py` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, un parámetro común o un modo de comparación sin ajuste propio: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
+| `INVALID AGENT OR TEMPLATE SETTINGS` con «la plantilla asignada «…» no existe» | Una asignación a una plantilla borrada o de otra versión: el agente toma la de serie de su tipo | Asignar otra plantilla (apartados 5.4 o 6.2) |
+| `INVALID AGENT OR TEMPLATE SETTINGS` con `plantilla <id>` | Una plantilla propia con un id reservado o repetido, de un control que no está o con un valor inválido | Corregir o borrar la plantilla (apartado 5.3) |
+| `INVALID AGENT OR TEMPLATE SETTINGS` con «Expresión regular inválida» o «no admite expresiones regulares» | Un patrón que no compila o un modo «Expresión regular» en un parámetro que no lo admite: la evidencia queda en `NO_EVALUABLE` | Corregir el patrón o volver a «Texto exacto» (apartado 5.5) |
+| `warnings (…)` | Claves de una versión posterior del plugin, nombres de plantilla repetidos, plantillas de la 1.2.0 sin convertir o un modo de comparación sin valor en una plantilla | Ninguna: no cambian la salida |
 
 ### 11.3 Sembrar controles
 

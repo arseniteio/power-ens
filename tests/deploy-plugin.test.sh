@@ -16,9 +16,9 @@ espera ERROR "$T/c.zip" "un plugin que no es ENSFácil se rechaza"
 # El rechazo dice por qué: el de Wazuh, que va con su paquete; cualquier otro,
 # que no es ENSFácil. Y en los dos casos sin tocar nada (código 2).
 r="$(bash "$RAIZ/config/deploy-plugin.sh" --solo-id "$T/b.zip" 2>&1)"; rc=$?
-[ $rc -eq 2 ] && echo "$r" | grep -q "solo instala ENSFácil" && echo "$r" | grep -q "paquete oficial wazuh-dashboard" && echo "  ok   el zip de Wazuh: mensaje claro" || { echo "  FALLA el zip de Wazuh: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
+[ $rc -eq 2 ] && echo "$r" | grep -q "only installs ENSFácil" && echo "$r" | grep -q "official wazuh-dashboard package" && echo "  ok   el zip de Wazuh: mensaje claro" || { echo "  FALLA el zip de Wazuh: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
 r="$(bash "$RAIZ/config/deploy-plugin.sh" --solo-id "$T/c.zip" 2>&1)"; rc=$?
-[ $rc -eq 2 ] && echo "$r" | grep -q "no es de ENSFácil (id: 'otro')" && echo "  ok   otro zip: mensaje claro" || { echo "  FALLA otro zip: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
+[ $rc -eq 2 ] && echo "$r" | grep -q "is not ENSFácil's (id: 'otro')" && echo "  ok   otro zip: mensaje claro" || { echo "  FALLA otro zip: mensaje claro (rc $rc: $r)"; fallos=$((fallos+1)); }
 espera ERROR "$T/no-existe.zip" "sin zip, error"
 # Un zip de verdad (con node_modules) lista miles de entradas: si awk corta la
 # tubería antes de que unzip acabe, SIGPIPE + pipefail = rc 141 sin mensaje.
@@ -34,7 +34,7 @@ espera ensfacil "$T/d.zip" "zip grande (miles de entradas) -> ensfacil"
 mkdir -p "$T/bin"
 for c in systemctl sudo; do printf '#!/bin/sh\necho "TOCADO: %s $*" >&2\nexit 99\n' "$c" > "$T/bin/$c"; chmod +x "$T/bin/$c"; done
 rechaza() { local d="$1"; shift; local r; r="$(PATH="$T/bin:$PATH" OSD="$T/osd" bash "$RAIZ/config/deploy-plugin.sh" "$@" 2>&1)"; local rc=$?
-  [ $rc -eq 1 ] && echo "$r" | grep -q "uso:" && echo "  ok   $d" || { echo "  FALLA $d (rc $rc: $r)"; fallos=$((fallos+1)); }; }
+  [ $rc -eq 1 ] && echo "$r" | grep -q "usage:" && echo "  ok   $d" || { echo "  FALLA $d (rc $rc: $r)"; fallos=$((fallos+1)); }; }
 rechaza "sin argumentos" 
 rechaza "dos zips" "$T/a.zip" "$T/b.zip"
 rechaza "--solo-id sin zip" --solo-id
@@ -138,41 +138,41 @@ caso "carpeta compartida (1777): la copia va a su subcarpeta 0700" '[ "$(modo "$
 # un despliegue que falla no empuja fuera las copias buenas de antes.
 E="$T/instala"; entorno "$E"; viejas; : > "$E/falla-install"; despliega "$E"
 caso "instalación fallida: código 5" '[ "$(cat "$E/rc")" = 5 ]'
-caso "instalación fallida: dice cómo volver" 'grep -q "LA INSTALACIÓN HA FALLADO" "$E/salida" && grep -q "sudo tar -xzf $E/copias/ensfacil/plugins-ensfacil-.*\.tgz -C $E/osd" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+caso "instalación fallida: dice cómo volver" 'grep -q "THE INSTALLATION FAILED" "$E/salida" && grep -q "sudo tar -xzf $E/copias/ensfacil/plugins-ensfacil-.*\.tgz -C $E/osd" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
 caso "instalación fallida: la copia devuelve el plugin anterior" 'tar -xzf "$(nueva_copia)" -C "$E/osd" && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ]'
 caso "instalación fallida: no se rota (las 4 viejas y la nueva)" '[ "$(copias_de ensfacil | wc -l | tr -d " ")" = 5 ]'
 
 # Cualquier otro paso con el dashboard parado: código 7 y la vuelta atrás.
 E="$T/python"; entorno "$E"; echo '{"name": "dashboard"}' > "$E/osd/package.json"; despliega "$E"
 caso "build.number imposible (python3 falla): código 7" '[ "$(cat "$E/rc")" = 7 ]'
-caso "python3 falla: dice el paso y cómo volver, package.json incluido" 'grep -q "HA FALLADO EL PASO «5/6" "$E/salida" && grep -q "sudo cp -a $E/osd/package.json.antes-.* $E/osd/package.json" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+caso "python3 falla: dice el paso y cómo volver, package.json incluido" 'grep -q "STEP «5/6" "$E/salida" && grep -q "sudo cp -a $E/osd/package.json.antes-.* $E/osd/package.json" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
 # Si la copia de package.json no llega a hacerse, la vuelta atrás no la nombra.
 E="$T/cp"; entorno "$E" cp-falla; despliega "$E"
-caso "la copia de package.json falla: código 7" '[ "$(cat "$E/rc")" = 7 ] && grep -q "HA FALLADO EL PASO «5/6" "$E/salida"'
+caso "la copia de package.json falla: código 7" '[ "$(cat "$E/rc")" = 7 ] && grep -q "STEP «5/6" "$E/salida"'
 caso "la copia de package.json falla: la vuelta atrás no nombra una copia que no existe" '! grep -q "package.json.antes" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
 E="$T/arranque"; entorno "$E"; : > "$E/falla-start"; despliega "$E"
 caso "systemctl start falla: código 7" '[ "$(cat "$E/rc")" = 7 ]'
-caso "systemctl start falla: dice el paso y cómo volver" 'grep -q "HA FALLADO EL PASO «6/6" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
+caso "systemctl start falla: dice el paso y cómo volver" 'grep -q "STEP «6/6" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida" && grep -q "sudo systemctl start wazuh-dashboard" "$E/salida"'
 
 # El dashboard no queda activo al final: código 6, la vuelta atrás y sin rotar.
 E="$T/inactivo"; entorno "$E"; viejas; echo failed > "$E/estado"; despliega "$E"
 caso "dashboard no activo al final: código 6" '[ "$(cat "$E/rc")" = 6 ]'
-caso "dashboard no activo: dice cómo volver" 'grep -q "EL DASHBOARD NO ESTÁ ACTIVO (failed)" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida"'
+caso "dashboard no activo: dice cómo volver" 'grep -q "THE DASHBOARD IS NOT ACTIVE (failed)" "$E/salida" && grep -q "sudo tar -xzf" "$E/salida"'
 caso "dashboard no activo: no se rota" '[ "$(copias_de ensfacil | wc -l | tr -d " ")" = 5 ]'
 
 # Sin poder guardar la copia no se para nada: código 3 y todo como estaba.
 E="$T/sincopia"; entorno "$E"; : > "$E/fichero"; COPIAS="$E/fichero/copias" despliega "$E"
 caso "copia imposible: código 3" '[ "$(cat "$E/rc")" = 3 ]'
-caso "copia imposible: el dashboard no se para y el plugin sigue" '! grep -q "systemctl stop" "$E/registro" 2>/dev/null && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ] && grep -q "no se ha tocado nada" "$E/salida"'
+caso "copia imposible: el dashboard no se para y el plugin sigue" '! grep -q "systemctl stop" "$E/registro" 2>/dev/null && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ] && grep -q "nothing was touched" "$E/salida"'
 
-# Sin un ensfacil anterior no hay nada que guardar, y se instala igual.
+# Sin un ensfacil anterior no hay nothing to save, y se instala igual.
 E="$T/nuevo"; entorno "$E" sin-plugin; despliega "$E"
-caso "sin plugin anterior: código 0 y sin copia" '[ "$(cat "$E/rc")" = 0 ] && [ -z "$(copias_de ensfacil)" ] && grep -q "nada que guardar" "$E/salida"'
+caso "sin plugin anterior: código 0 y sin copia" '[ "$(cat "$E/rc")" = 0 ] && [ -z "$(copias_de ensfacil)" ] && grep -q "nothing to save" "$E/salida"'
 
 # Un zip que el usuario del dashboard no puede leer: se detecta ANTES de parar
 # el dashboard (código 4) y no se toca nada.
 E="$T/nolegible"; entorno "$E" no-legible; despliega "$E"
-caso "zip no legible para el dashboard: código 4 y sin parar nada" '[ "$(cat "$E/rc")" = 4 ] && ! grep -q "^systemctl" "$E/registro" 2>/dev/null && grep -q "no se ha tocado nada" "$E/salida" && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ]'
+caso "zip no legible para el dashboard: código 4 y sin parar nada" '[ "$(cat "$E/rc")" = 4 ] && ! grep -q "^systemctl" "$E/registro" 2>/dev/null && grep -q "nothing was touched" "$E/salida" && [ -f "$E/osd/plugins/ensfacil/viejo.txt" ]'
 caso "zip no legible: la copia temporal se borra" '[ -z "$(ls "$E/tmp")" ]'
 
 [ $fallos -eq 0 ] && echo "TODO OK" || { echo "$fallos FALLOS"; exit 1; }

@@ -1,26 +1,21 @@
 /**
- * Valida el documento `active` de `wazuh-ens-configuration` ENTERO con el mismo
- * validador que usa el plugin al cargar el entorno ENS.
+ * Validates the WHOLE `active` document of `wazuh-ens-configuration` with the same validator the
+ * plugin uses when loading the ENS environment.
  *
  *     npx --yes tsx config/validate-configuration.ts active.json
  *
- * `active.json` es la respuesta de
- * `GET wazuh-ens-configuration/_doc/active` tal cual (con `_source`), o solo su
- * `_source`, o solo `_source.configuration`.
+ * `active.json` is the response of `GET wazuh-ens-configuration/_doc/active` as is (with `_source`),
+ * or just its `_source`, or just `_source.configuration`.
  *
- * POR QUÉ EXISTE. Un parámetro inválido no degrada su control: impide cargar el
- * entorno ENS completo, y el panel entero muestra «No se pudo cargar el entorno
- * ENS». Pasa con un `value: null` (un parámetro vacío es la clave `value`
- * AUSENTE), con una tabla con menos columnas de las declaradas, con comas en
- * una columna `identifier` o con un `traceabilityLevel` o un `availabilityLevel`
- * que no es BAJO, MEDIO o ALTO. `inject-control.py` y `set-parameters.py`
- * escriben lo que se les da; esta comprobación es la que dice si el plugin lo
- * va a aceptar. Revisar a ojo falló dos veces seguidas sobre el mismo
- * parámetro.
+ * An invalid parameter does not degrade its control: it prevents loading the whole ENS environment
+ * («No se pudo cargar el entorno ENS»). It happens with `value: null` (an empty parameter is the ABSENT
+ * `value` key), a table with fewer columns than declared, commas in an `identifier` column, or a
+ * `traceabilityLevel` or `availabilityLevel` that is not BAJO, MEDIO or ALTO. `inject-control.py` and
+ * `set-parameters.py` write what they are given; this check says whether the plugin will accept it.
  *
  * A 1.2.0 document is checked as the plugin loads it: converted first.
  *
- * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
+ * Exits 0 if the document is valid and 1 if not, listing each error.
  */
 import { readFileSync } from 'fs';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
@@ -45,7 +40,7 @@ declare const process: {
 const file = process.argv[2];
 
 if (!file) {
-  console.error('uso: npx --yes tsx config/validate-configuration.ts <active.json>');
+  console.error('usage: npx --yes tsx config/validate-configuration.ts <active.json>');
   process.exit(2);
 }
 
@@ -59,60 +54,60 @@ const controls = Array.isArray(configuration && configuration.controls)
   ? configuration.controls.map((control: { controlId?: string }) => control.controlId)
   : [];
 
-console.log(`controles (${controls.length}): ${controls.join(' ')}`);
+console.log(`controls (${controls.length}): ${controls.join(' ')}`);
 
 if (configuration && configuration.global) {
   console.log(
-    `nivel global: ${configuration.global.ensLevel || '(sin declarar)'}` +
-      ` · nivel de Trazabilidad: ${configuration.global.traceabilityLevel || '(sin declarar: se usa el global)'}` +
-      ` · nivel de Disponibilidad: ${configuration.global.availabilityLevel || '(sin declarar: se usa el global)'}`
+    `global level: ${configuration.global.ensLevel || '(not declared)'}` +
+      ` · Traceability level: ${configuration.global.traceabilityLevel || '(not declared: the global one is used)'}` +
+      ` · Availability level: ${configuration.global.availabilityLevel || '(not declared: the global one is used)'}`
   );
 }
 
 if (!result.valid) {
-  console.log(`ESTRUCTURA INVÁLIDA (${result.errors.length} error(es)): el plugin NO cargará el entorno ENS.`);
+  console.log(`INVALID STRUCTURE (${result.errors.length} error(s)): the plugin will NOT load the ENS environment.`);
   result.errors.forEach(error => console.log(`  - ${error}`));
   process.exit(1);
 }
 
-console.log('ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.');
+console.log('VALID STRUCTURE: the plugin will load this configuration.');
 
 const conversion = planTemplateMigration(configuration);
 const model = conversion.configuration;
 
 if (conversion.changed) {
-  console.log(`documento de la 1.2.0: ${summarizeTemplateMigration(conversion)} El plugin lo convierte al cargar y lo escribe con el próximo guardado; los valores de cada agente no cambian.`);
+  console.log(`1.2.0 document: ${summarizeTemplateMigration(conversion)} The plugin converts it on load and writes it with the next save; each agent's values do not change.`);
 }
 
 const templates = getCustomTemplates(model);
-console.log(`plantillas propias: ${templates.length ? templates.map(template => `${template.controlId} «${template.name}» (${template.id})`).join(', ') : 'ninguna'}`);
+console.log(`custom templates: ${templates.length ? templates.map(template => `${template.controlId} «${template.name}» (${template.id})`).join(', ') : 'none'}`);
 
 const templateIssues = validateCustomTemplates(model);
 const agents = summarizeAgentsConfiguration(model);
 
 if (agents.length) {
-  console.log(`agentes con ajustes (${agents.length}):`);
+  console.log(`agents with settings (${agents.length}):`);
   agents.forEach(agent =>
     console.log(
       `  ${agent.agentId}${agent.name ? ` ${agent.name}` : ''}` +
-        ` · tipo: ${agent.type || '(sin tipo: valores comunes)'} (${agent.typeSource})` +
-        ` · plantillas asignadas: ${Object.entries(agent.assignments).map(([controlId, templateId]) => `${controlId}=${templateId}`).join(', ') || '(ninguna: la de serie de su tipo)'}` +
-        ` · ajustes propios: ${agent.ownValues}`
+        ` · type: ${agent.type || '(no type: common values)'} (${agent.typeSource})` +
+        ` · assigned templates: ${Object.entries(agent.assignments).map(([controlId, templateId]) => `${controlId}=${templateId}`).join(', ') || '(none: the built-in of its type)'}` +
+        ` · own settings: ${agent.ownValues}`
     )
   );
 } else {
-  console.log('agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)');
+  console.log('agents with settings: none (everything is evaluated with each control\'s common value)');
 }
 
 const issues = validateAgentsConfiguration(model);
 const warnings = [...issues.filter(issue => issue.severity === 'warning').map(issue => issue.message), ...templateIssues.filter(issue => issue.severity === 'warning').map(issue => issue.message)];
 const errors = [
-  ...issues.filter(issue => issue.severity === 'error').map(issue => `agente ${issue.agentId}: ${issue.message}`),
-  ...templateIssues.filter(issue => issue.severity === 'error').map(issue => `plantilla ${issue.templateId}: ${issue.message}`),
+  ...issues.filter(issue => issue.severity === 'error').map(issue => `agent ${issue.agentId}: ${issue.message}`),
+  ...templateIssues.filter(issue => issue.severity === 'error').map(issue => `template ${issue.templateId}: ${issue.message}`),
 ];
 
 if (warnings.length) {
-  console.log(`avisos (${warnings.length}):`);
+  console.log(`warnings (${warnings.length}):`);
   warnings.forEach(message => console.log(`  - ${message}`));
 }
 
@@ -122,15 +117,15 @@ const commonErrors: string[] = model.controls.flatMap((control: ENSControlConfig
 );
 
 if (commonErrors.length) {
-  console.log(`VALORES COMUNES INVÁLIDOS (${commonErrors.length}): el plugin carga el entorno; el control queda «Inválido» y lo que depende de ese valor, en NO_EVALUABLE.`);
+  console.log(`INVALID COMMON VALUES (${commonErrors.length}): the plugin loads the environment; the control becomes «Inválido» and whatever depends on that value, NO_EVALUABLE.`);
   commonErrors.forEach(message => console.log(`  - ${message}`));
 }
 
 if (!errors.length) {
-  console.log('AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.');
+  console.log('VALID AGENT AND TEMPLATE SETTINGS.');
   process.exit(commonErrors.length ? 1 : 0);
 }
 
-console.log(`AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS (${errors.length}): el plugin carga el entorno; lo que «no se aplica» se ignora y se quita en la página del agente o con set-parameters.py, y un agente con un valor inválido se evalúa con una configuración inválida.`);
+console.log(`INVALID AGENT OR TEMPLATE SETTINGS (${errors.length}): the plugin loads the environment; what «does not apply» is ignored and removed on the agent page or with set-parameters.py, and an agent with an invalid value is evaluated with an invalid configuration.`);
 errors.forEach(message => console.log(`  - ${message}`));
 process.exit(1);

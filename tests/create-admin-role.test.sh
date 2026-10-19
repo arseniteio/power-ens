@@ -121,7 +121,7 @@ compara "y no envía nada" "" "$(cat "$T/registro")"
 REGISTRO="$T/registro" CURL="$T/curl" OS_CERT="$T/admin.pem" OS_KEY="$T/admin-key.pem" OS_CA="$T/no-existe-ca.pem" \
   bash "$RAIZ/config/create-admin-role.sh" > "$T/salida" 2>&1; rc=$?
 compara "sin CA legible es un error" 1 "$([ "$rc" -ne 0 ] && echo 1 || echo 0)"
-compara "que lo dice" 1 "$(grep -c 'CA del indexer' "$T/salida")"
+compara "que lo dice" 1 "$(grep -c 'indexer CA' "$T/salida")"
 compara "y no envía nada" "" "$(cat "$T/registro")"
 echo "· por defecto"
 compara "la CA del indexer de Wazuh" 1 "$(grep -c 'OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"' "$RAIZ/config/create-admin-role.sh")"

@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
-"""Declara los valores de los parámetros de un control, sin pasar por la pantalla.
+"""Declares the values of a control's parameters without going through the screen.
 
-POR QUÉ EXISTE. `inject-control.py` SIEMBRA la definición de un control —qué
-parámetros tiene, de qué tipo y qué significan— pero deja sus valores vacíos:
-rellenarlos es una decisión del responsable y se hace en la pantalla. Eso está
-bien para un cliente y es un problema para todo lo demás: montar un entorno de
-pruebas, reproducir el estado de una máquina, documentar «esto es lo que hay que
-declarar» de forma que alguien lo pueda ejecutar y comprobar.
-
-Esta herramienta cierra ese hueco. Toma un fichero con los valores, los FUSIONA
-con lo que ya haya y escribe. Lo que no se nombra no se toca.
-
-La fusión es por PARÁMETRO, no por fila: el valor de cada parámetro nombrado se
-SUSTITUYE entero. Una lista o una tabla no se amplía; para añadir una fila hay
-que pasar la lista completa, con las filas que ya había.
+`inject-control.py` seeds a control's definition but leaves its values empty. This tool takes a file
+with values, MERGES them with what exists and writes. What is not named is not touched. The merge is
+per PARAMETER: the value of each named parameter is REPLACED whole (a list or table is not extended;
+to add a row, pass the complete list).
 
     export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
     export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
-    python3 set-parameters.py politica.json            # plan
-    python3 set-parameters.py politica.json --apply    # escribe
+    python3 set-parameters.py policy.json            # plan
+    python3 set-parameters.py policy.json --apply    # writes
 
-El fichero es JSON:
+The file is JSON:
 
     {
       "op.acc.1": {
@@ -29,16 +20,12 @@ El fichero es JSON:
       }
     }
 
-Una lista se guarda como lista (es lo que espera un parámetro `list` o `table`,
-una fila por elemento); una cadena, como cadena; un número, como número.
+A list is stored as a list (what a `list` or `table` parameter expects, one row per item); a string as
+a string; a number as a number. EMPTY = NO VALUE: `null`, `""` and `[]` REMOVE the value (the `value`
+key disappears, never `null`), like emptying a field on the screen.
 
-VACÍO = SIN VALOR. `null`, `""` y `[]` QUITAN el valor: en la organización
-desaparece la clave `value` (un parámetro vacío es la clave ausente, nunca
-`null`), igual que al vaciar un campo en la pantalla.
-
-VALORES DE UN AGENTE (plugin 1.2.0). La clave `agents` declara valores propios
-de una máquina, por su id de Wazuh; van a `configuration.agents` y no tocan el
-valor de la organización:
+AGENT VALUES (plugin 1.2.0). The `agents` key declares a machine's own values by Wazuh id; they go to
+`configuration.agents` and do not touch the organization value:
 
     {
       "op.acc.1": { "P-04": ["admin", "test"] },
@@ -50,18 +37,14 @@ valor de la organización:
       }
     }
 
-Solo admiten valor por agente los parámetros por sistema y por plataforma (la
-clasificación de `common/ens/configuration/agents/parameter-classes.ts`); uno de
-organización se rechaza. `null` (o vacío) QUITA el valor propio de ese agente,
-que vuelve a heredar de su plantilla o del valor común; quitar se admite
-siempre, también para un valor que no se aplica (un control que ya no está, un
-parámetro que no existe o uno de organización). La clave es el id del agente
-(`7` se normaliza a `007`); un nombre se rechaza, con el id si el documento ya
-conoce ese nombre.
+Only per-system and per-platform parameters accept a per-agent value (classification in
+`common/ens/configuration/agents/parameter-classes.ts`); an organization one is rejected. `null` (or
+empty) REMOVES the agent's own value, which goes back to its template or the common value; removing is
+always accepted, even for a value that does not apply. The key is the agent id (`7` becomes `007`); a
+name is rejected, with the id if the document already knows that name.
 
-PLANTILLA DE UN AGENTE EN UN CONTROL (plugin 1.3.0). Dentro de un control de un
-agente, la clave `template` asigna la plantilla de ese control; sin ella no se
-toca la asignación:
+AGENT TEMPLATE IN A CONTROL (plugin 1.3.0). Inside an agent's control, the `template` key assigns that
+control's template; without it the assignment is untouched:
 
     {
       "agents": {
@@ -74,22 +57,19 @@ toca la asignación:
       }
     }
 
-El valor es el id de una plantilla de serie del control (`linux-ubuntu`,
-`zimbra-ldap`, `windows-server`, `manager-wazuh`, `pbs-backup`,
-`zimbra-ne-backup`, las que tenga ese control) o de una plantilla propia de
-`configuration.templates` del mismo control; `none` deja el agente sin plantilla
-(valores comunes) y `null` quita la asignación (vuelve la plantilla de serie de
-su tipo). El valor que se aplica: ajuste propio, plantilla asignada, plantilla
-de serie de su tipo y valor común del control. Un documento sin la clave
-`configuration.templates` y sin nada que convertir se marca como de la 1.3.0 al
-escribir; si tiene plantillas o tipos guardados por la 1.2.0, no admite
-`template` hasta guardar un cambio desde Configuración (el plugin lo convierte).
+The value is the id of a built-in template of the control (`linux-ubuntu`, `zimbra-ldap`,
+`windows-server`, `manager-wazuh`, `pbs-backup`, `zimbra-ne-backup`, whichever the control has) or of
+a custom template in `configuration.templates` of the same control; `none` leaves the agent without
+template (common values) and `null` removes the assignment (the built-in of its type applies again).
+Applied value order: own setting, assigned template, built-in of its type, control common value. A
+document without `configuration.templates` and with nothing to convert is marked 1.3.0 on write; one
+with templates or types stored by 1.2.0 does not accept `template` until a change is saved from
+Configuración (the plugin converts it).
 
-EXPRESIÓN REGULAR (plugin 1.3.0). En los parámetros cuyo juicio compara una
-lista plana (op.acc.1 P-03 y P-04, op.acc.4 P-05, op.acc.6 P-08 y P-11), un
-valor puede ser una expresión regular RE2, sin barras, que se compara con el
-valor completo. Se declara con un objeto `value` + `matchMode`, igual en la
-organización que en un agente:
+REGULAR EXPRESSION (plugin 1.3.0). In parameters whose judgment compares a flat list (op.acc.1 P-03
+and P-04, op.acc.4 P-05, op.acc.6 P-08 and P-11), a value can be an RE2 regular expression, without
+slashes, compared with the whole value. It is declared with a `value` + `matchMode` object, in the
+organization or in an agent:
 
     {
       "op.acc.1": { "P-04": { "value": "^(admin|guest)$", "matchMode": "regex" } },
@@ -98,24 +78,18 @@ organización que en un agente:
       }
     }
 
-Un valor sin objeto es texto exacto y quita el modo que hubiera; vaciar el valor
-quita también su modo. Se comprueban el modo, el parámetro, la longitud (512
-caracteres como mucho) y que no empiece ni termine con espacios; la sintaxis RE2
-la comprueba `npx --yes tsx config/validate-configuration.ts` sobre el documento
-escrito.
+A value without object is exact text and removes any mode; emptying the value also removes its mode.
+Mode, parameter, length (512 characters at most) and no leading or trailing spaces are checked; RE2
+syntax is checked by `npx --yes tsx config/validate-configuration.ts` on the written document.
 
-ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
-`wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
-en un fichero local `active-antes-<fecha>.json`. La herramienta dice dónde.
+BEFORE WRITING, the version being replaced is saved in the `wazuh-ens-configuration` history, like the
+plugin does, or, if the index does not accept it, in a local file `active-antes-<date>.json`. The tool
+says where.
 
-DRY-RUN POR DEFECTO. Escribir exige `--apply`, igual que en `inject-control.py`
-y por la misma razón: esto sobreescribe decisiones del responsable, y cuando una
-operación puede destruir datos del cliente el defecto tiene que ser el seguro.
+DRY-RUN BY DEFAULT. Writing requires `--apply`: this overwrites owner decisions.
 
-NO INVENTA PARÁMETROS. Si el fichero nombra un parámetro que el control no
-declara, se para y lo dice en vez de añadirlo: un parámetro que el motor no
-conoce no lo lee nadie, y verlo «configurado» en la pantalla sugiere un
-cumplimiento que no existe.
+IT DOES NOT INVENT PARAMETERS. If the file names a parameter the control does not declare, it stops
+and says so.
 """
 import argparse
 import base64
@@ -128,15 +102,15 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ensfacil_history import guarda_version_anterior  # noqa: E402
+from ensfacil_history import save_previous_version  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
 DOC = "active"
 
-p = argparse.ArgumentParser(description="Declara valores de parámetros de controles ENS.")
-p.add_argument("fichero", help="JSON con {control: {parametro: valor}}")
-p.add_argument("--apply", action="store_true", help="escribe; sin esto solo muestra el plan")
+p = argparse.ArgumentParser(description="Declares ENS control parameter values.")
+p.add_argument("fichero", help="JSON with {control: {parameter: value}}")
+p.add_argument("--apply", action="store_true", help="writes; without it only the plan is shown")
 args = p.parse_args()
 
 OS_CERT = os.environ.get("OS_CERT")
@@ -146,8 +120,8 @@ pw = os.environ.get("OS_PASS")
 
 if not pw and not OS_CERT:
     sys.exit(
-        "ERROR: exporta OS_PASS, o bien OS_CERT y OS_KEY con el certificado de\n"
-        "       administrador del indexer:\n"
+        "ERROR: export OS_PASS, or OS_CERT and OS_KEY with the indexer\n"
+        "       administrator certificate:\n"
         "       export OS_CERT=/etc/wazuh-indexer/certs/admin.pem\n"
         "       export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem"
     )
@@ -177,38 +151,38 @@ def req(method, path, body=None):
 
 
 with open(args.fichero, encoding="utf-8") as f:
-    deseado = json.load(f)
+    wanted = json.load(f)
 
-por_agente = deseado.pop("agents", None) or {}
+per_agent = wanted.pop("agents", None) or {}
 
 try:
-    actual = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
+    current = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
 except urllib.error.HTTPError as e:
-    sys.exit("ERROR: no se pudo leer la configuración activa (%s). ¿Has sembrado los controles con inject-control.py?" % e)
+    sys.exit("ERROR: could not read the active configuration (%s). Have the controls been seeded with inject-control.py?" % e)
 
-anterior = json.loads(json.dumps(actual))
-config = actual.get("configuration", actual)
-por_id = {c["controlId"]: c for c in config["controls"]}
-
-
-def id_agente(valor):
-    texto = str(valor).strip()
-    return texto.zfill(3) if texto.isdigit() else texto
+previous = json.loads(json.dumps(current))
+config = current.get("configuration", current)
+by_id = {c["controlId"]: c for c in config["controls"]}
 
 
-def clases():
-    """La clasificación de los parámetros, de su única fuente: el objeto JSON
-    de `parameter-classes.ts`. None si no está (el script fuera del repo)."""
-    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens",
+def agent_id(value):
+    text = str(value).strip()
+    return text.zfill(3) if text.isdigit() else text
+
+
+def classes():
+    """Parameter classification from its single source: the JSON object of
+    `parameter-classes.ts`. None if absent (script outside the repo)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens",
                         "configuration", "agents", "parameter-classes.ts")
     try:
-        with open(ruta, encoding="utf-8") as f:
-            fuente = f.read()
+        with open(path, encoding="utf-8") as f:
+            source = f.read()
     except OSError:
         return None
-    inicio = fuente.index("{", fuente.index("ENS_PARAMETER_CLASSES:"))
-    fin = fuente.index("\n};", inicio)
-    return json.loads(fuente[inicio:fin + 2])
+    start = source.index("{", source.index("ENS_PARAMETER_CLASSES:"))
+    end = source.index("\n};", start)
+    return json.loads(source[start:end + 2])
 
 
 # Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
@@ -252,11 +226,11 @@ def needs_conversion(agents):
                for p in (agents or {}).values())
 
 
-def vacio(v):
+def is_empty(v):
     return v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, list) and not [x for x in v if str(x).strip()])
 
 
-def valor_valido(v):
+def valid_value(v):
     if isinstance(v, bool) or isinstance(v, str):
         return True
     if isinstance(v, (int, float)):
@@ -269,10 +243,10 @@ def unwrap(entry):
     if not isinstance(entry, dict):
         return entry, "exact", None
     if set(entry) - ENTRY_KEYS or "value" not in entry:
-        return None, None, 'tiene un valor que no es texto, número, booleano ni lista de textos (con modo: {"value": …, "matchMode": "exact" | "regex"})'
+        return None, None, 'has a value that is not text, number, boolean or list of texts (with mode: {"value": …, "matchMode": "exact" | "regex"})'
     mode = entry.get("matchMode", "exact")
     if mode not in ("exact", "regex"):
-        return None, None, 'matchMode es "exact" o "regex", no %s' % json.dumps(mode, ensure_ascii=False)
+        return None, None, 'matchMode is "exact" or "regex", not %s' % json.dumps(mode, ensure_ascii=False)
     return entry["value"], mode, None
 
 
@@ -280,113 +254,112 @@ def entry_problem(control_id, pid, entry):
     value, mode, problem = unwrap(entry)
     if problem:
         return problem
-    if vacio(value):
+    if is_empty(value):
         return None
-    if not valor_valido(value):
-        return "tiene un valor que no es texto, número, booleano ni lista de textos"
+    if not valid_value(value):
+        return "has a value that is not text, number, boolean or list of texts"
     if mode == "regex":
         if pid not in PATTERN_PARAMETERS.get(control_id, []):
-            return "no admite expresión regular (la admiten: %s)" % "; ".join(
+            return "does not accept a regular expression (accepted by: %s)" % "; ".join(
                 "%s %s" % (c, ", ".join(ps)) for c, ps in PATTERN_PARAMETERS.items())
         if not isinstance(value, str):
-            return "en modo regex el valor es una expresión regular (texto)"
+            return "in regex mode the value is a regular expression (text)"
         if value != value.strip():
-            return "la expresión regular no puede empezar ni terminar con espacios"
+            return "the regular expression cannot start or end with spaces"
         if len(value) > MAX_PATTERN_LENGTH:
-            return "la expresión regular admite hasta %d caracteres" % MAX_PATTERN_LENGTH
+            return "the regular expression accepts up to %d characters" % MAX_PATTERN_LENGTH
     return None
 
 
 def shown(value, mode):
-    return ("regex " if mode == "regex" else "") + corto(value)
+    return ("regex " if mode == "regex" else "") + short(value)
 
 
-agentes_doc = config.get("agents") or {}
+agents_doc = config.get("agents") or {}
 legacy_document = not isinstance(config.get("templates"), list)
-mark_130 = legacy_document and not needs_conversion(agentes_doc)
+mark_130 = legacy_document and not needs_conversion(agents_doc)
 
 
-def sugerencia(nombre):
-    """El id de un perfil que ya conoce ese nombre (su nombre o un alias)."""
-    buscado = str(nombre).strip().lower()
-    for aid, perfil in agentes_doc.items():
-        nombres = [str((perfil or {}).get("name") or "")] + list((perfil or {}).get("aliases") or [])
-        if buscado in [n.strip().lower() for n in nombres if n]:
+def suggestion(name):
+    """The id of a profile that already knows that name (its name or an alias)."""
+    searched = str(name).strip().lower()
+    for aid, profile in agents_doc.items():
+        names = [str((profile or {}).get("name") or "")] + list((profile or {}).get("aliases") or [])
+        if searched in [n.strip().lower() for n in names if n]:
             return aid
     return None
 
 
-# --- validación ANTES de tocar nada -----------------------------------------
-errores = []
+# --- validation BEFORE touching anything ------------------------------------
+errors = []
 
-for control_id, valores in deseado.items():
-    if control_id not in por_id:
-        errores.append("el control %s no está sembrado: ejecútalo antes con inject-control.py" % control_id)
+for control_id, values in wanted.items():
+    if control_id not in by_id:
+        errors.append("control %s is not seeded: run inject-control.py first" % control_id)
         continue
-    declarados = {x["id"] for x in por_id[control_id]["parameters"]}
-    for pid, v in valores.items():
-        if pid not in declarados:
-            errores.append("%s no declara el parámetro %s (declara: %s)"
-                           % (control_id, pid, ", ".join(sorted(declarados))))
+    declared = {x["id"] for x in by_id[control_id]["parameters"]}
+    for pid, v in values.items():
+        if pid not in declared:
+            errors.append("%s does not declare parameter %s (declares: %s)"
+                          % (control_id, pid, ", ".join(sorted(declared))))
         elif entry_problem(control_id, pid, v):
-            errores.append("%s %s %s" % (control_id, pid, entry_problem(control_id, pid, v)))
+            errors.append("%s %s %s" % (control_id, pid, entry_problem(control_id, pid, v)))
 
-clasificacion = clases() if por_agente else {}
-if por_agente and clasificacion is None:
-    errores.append("no encuentro common/ens/configuration/agents/parameter-classes.ts: "
-                   "los valores por agente se declaran desde el directorio config/ del repo del plugin")
-    clasificacion = {}
+classification = classes() if per_agent else {}
+if per_agent and classification is None:
+    errors.append("cannot find common/ens/configuration/agents/parameter-classes.ts: "
+                  "per-agent values are declared from the config/ directory of the plugin repo")
+    classification = {}
 
-for agente, controles in por_agente.items():
-    aid = id_agente(agente)
+for agent, controls in per_agent.items():
+    aid = agent_id(agent)
     if not aid.isdigit():
-        conocido = sugerencia(agente)
-        errores.append('"%s" no es un id de agente; usar el id%s' % (
-            agente, " (%s)" % conocido if conocido else " numérico del agente de Wazuh, p. ej. 001"))
+        known = suggestion(agent)
+        errors.append('"%s" is not an agent id; use the id%s' % (
+            agent, " (%s)" % known if known else " numeric Wazuh agent id, e.g. 001"))
         continue
-    propios = ((agentes_doc.get(aid) or {}).get("controls") or {})
-    for control_id, valores in (controles or {}).items():
-        if TEMPLATE_KEY in (valores or {}):
-            template_id = valores[TEMPLATE_KEY]
+    for control_id, values in (controls or {}).items():
+        if TEMPLATE_KEY in (values or {}):
+            template_id = values[TEMPLATE_KEY]
             custom_ids = [t.get("id") for t in (config.get("templates") or []) if isinstance(t, dict) and t.get("controlId") == control_id]
             if legacy_document and not mark_130:
-                errores.append("agente %s: el documento tiene plantillas o tipos de la 1.2.0 que el plugin convierte al guardar: "
-                               "guardar cualquier cambio desde Configuración (si aparece el aviso, «Guardar la conversión») "
-                               "y volver a ejecutar" % aid)
-            elif vacio(template_id):
+                errors.append("agent %s: the document has 1.2.0 templates or types that the plugin converts on save: "
+                              "save any change from Configuración (if the notice appears, «Guardar la conversión») "
+                              "and run again" % aid)
+            elif is_empty(template_id):
                 pass
             elif not isinstance(template_id, str):
-                errores.append("agente %s: %s template tiene que ser el id de una plantilla, «none» o null" % (aid, control_id))
-            elif control_id not in por_id:
-                errores.append("agente %s: el control %s no está sembrado" % (aid, control_id))
+                errors.append("agent %s: %s template must be a template id, «none» or null" % (aid, control_id))
+            elif control_id not in by_id:
+                errors.append("agent %s: control %s is not seeded" % (aid, control_id))
             elif template_id != NO_TEMPLATE and template_id not in BUILTIN_TEMPLATES.get(control_id, []) + custom_ids:
-                errores.append("agente %s: %s no tiene la plantilla %s (de serie: %s; propias: %s)" % (
-                    aid, control_id, template_id, ", ".join(BUILTIN_TEMPLATES.get(control_id, [])) or "ninguna",
-                    ", ".join(custom_ids) or "ninguna"))
-        for pid, v in (valores or {}).items():
+                errors.append("agent %s: %s has no template %s (built-in: %s; custom: %s)" % (
+                    aid, control_id, template_id, ", ".join(BUILTIN_TEMPLATES.get(control_id, [])) or "none",
+                    ", ".join(custom_ids) or "none"))
+        for pid, v in (values or {}).items():
             if pid == TEMPLATE_KEY:
                 continue
-            # Quitar se admite siempre: también un valor que no se aplica.
-            if not unwrap(v)[2] and vacio(unwrap(v)[0]):
+            # Removing is always accepted, even a value that does not apply.
+            if not unwrap(v)[2] and is_empty(unwrap(v)[0]):
                 continue
-            clase = clasificacion.get(control_id, {}).get(pid)
-            if control_id not in por_id:
-                errores.append("agente %s: el control %s no está sembrado" % (aid, control_id))
-            elif pid not in {x["id"] for x in por_id[control_id]["parameters"]}:
-                errores.append("agente %s: %s no declara el parámetro %s" % (aid, control_id, pid))
-            elif clase not in ("system", "platform"):
-                errores.append("agente %s: %s %s es un parámetro de organización (vale para todas las máquinas)"
-                               % (aid, control_id, pid))
+            parameter_class = classification.get(control_id, {}).get(pid)
+            if control_id not in by_id:
+                errors.append("agent %s: control %s is not seeded" % (aid, control_id))
+            elif pid not in {x["id"] for x in by_id[control_id]["parameters"]}:
+                errors.append("agent %s: %s does not declare parameter %s" % (aid, control_id, pid))
+            elif parameter_class not in ("system", "platform"):
+                errors.append("agent %s: %s %s is an organization parameter (applies to all machines)"
+                              % (aid, control_id, pid))
             elif entry_problem(control_id, pid, v):
-                errores.append("agente %s: %s %s %s" % (aid, control_id, pid, entry_problem(control_id, pid, v)))
+                errors.append("agent %s: %s %s %s" % (aid, control_id, pid, entry_problem(control_id, pid, v)))
 
-if errores:
-    for e in errores:
+if errors:
+    for e in errors:
         print("ERROR: " + e, file=sys.stderr)
     sys.exit(1)
 
 
-def corto(v):
+def short(v):
     t = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
     return (t[:70] + "…") if len(t) > 70 else t
 
@@ -395,119 +368,119 @@ def stored_mode(mode):
     return "regex" if mode == "regex" else "exact"
 
 
-# --- el plan ----------------------------------------------------------------
-cambios = 0
+# --- the plan ---------------------------------------------------------------
+changes = 0
 
-for control_id, valores in sorted(deseado.items()):
+for control_id, values in sorted(wanted.items()):
     print("── %s" % control_id)
-    for par in por_id[control_id]["parameters"]:
-        if par["id"] not in valores:
+    for par in by_id[control_id]["parameters"]:
+        if par["id"] not in values:
             continue
-        nuevo, new_mode, _ = unwrap(valores[par["id"]])
-        viejo = par.get("value")
+        new, new_mode, _ = unwrap(values[par["id"]])
+        old = par.get("value")
         old_mode = stored_mode(par.get("matchMode"))
-        if vacio(nuevo):
+        if is_empty(new):
             if "value" not in par:
-                print("   %-6s sin valor: nada que quitar" % par["id"])
+                print("   %-6s no value: nothing to remove" % par["id"])
                 continue
             del par["value"]
             par.pop("matchMode", None)
-            print("   %-6s %s  ->  (sin valor)" % (par["id"], shown(viejo, old_mode)))
-            cambios += 1
+            print("   %-6s %s  ->  (no value)" % (par["id"], shown(old, old_mode)))
+            changes += 1
             continue
-        if viejo == nuevo and old_mode == new_mode:
-            print("   %-6s sin cambio" % par["id"])
+        if old == new and old_mode == new_mode:
+            print("   %-6s unchanged" % par["id"])
             continue
-        print("   %-6s %s  ->  %s" % (par["id"], shown(viejo, old_mode) if viejo not in (None, "") else "(vacío)", shown(nuevo, new_mode)))
-        par["value"] = nuevo
+        print("   %-6s %s  ->  %s" % (par["id"], shown(old, old_mode) if old not in (None, "") else "(empty)", shown(new, new_mode)))
+        par["value"] = new
         if new_mode == "regex":
             par["matchMode"] = "regex"
         else:
             par.pop("matchMode", None)
-        cambios += 1
+        changes += 1
 
-for agente, controles in sorted(por_agente.items()):
-    aid = id_agente(agente)
-    print("── agente %s" % aid)
-    perfil = agentes_doc.get(aid) or {}
-    propios = perfil.get("controls") or {}
-    for control_id, valores in sorted((controles or {}).items()):
-        entrada = dict(propios.get(control_id) or {})
-        parametros = dict(entrada.get("parameters") or {})
-        modes = dict(entrada.get("matchModes") or {})
-        if TEMPLATE_KEY in (valores or {}):
-            new_id = None if vacio(valores[TEMPLATE_KEY]) else valores[TEMPLATE_KEY]
-            old_id = entrada.get("templateId")
+for agent, controls in sorted(per_agent.items()):
+    aid = agent_id(agent)
+    print("── agent %s" % aid)
+    profile = agents_doc.get(aid) or {}
+    own = profile.get("controls") or {}
+    for control_id, values in sorted((controls or {}).items()):
+        entry_doc = dict(own.get(control_id) or {})
+        parameters = dict(entry_doc.get("parameters") or {})
+        modes = dict(entry_doc.get("matchModes") or {})
+        if TEMPLATE_KEY in (values or {}):
+            new_id = None if is_empty(values[TEMPLATE_KEY]) else values[TEMPLATE_KEY]
+            old_id = entry_doc.get("templateId")
             if new_id == old_id:
-                print("   %s template sin cambio" % control_id)
+                print("   %s template unchanged" % control_id)
             else:
-                print("   %s template %s  ->  %s" % (control_id, old_id or "(la de serie de su tipo)", new_id or "(la de serie de su tipo)"))
+                print("   %s template %s  ->  %s" % (control_id, old_id or "(the built-in of its type)", new_id or "(the built-in of its type)"))
                 if new_id:
-                    entrada["templateId"] = new_id
+                    entry_doc["templateId"] = new_id
                 else:
-                    entrada.pop("templateId", None)
-                cambios += 1
-        for pid, entry in sorted((valores or {}).items()):
+                    entry_doc.pop("templateId", None)
+                changes += 1
+        for pid, entry in sorted((values or {}).items()):
             if pid == TEMPLATE_KEY:
                 continue
-            nuevo, new_mode, _ = unwrap(entry)
-            viejo = parametros.get(pid)
+            new, new_mode, _ = unwrap(entry)
+            old = parameters.get(pid)
             old_mode = stored_mode(modes.get(pid))
-            if vacio(nuevo):
-                if pid not in parametros and pid not in modes:
-                    print("   %s %-6s sin valor propio: nada que quitar" % (control_id, pid))
+            if is_empty(new):
+                if pid not in parameters and pid not in modes:
+                    print("   %s %-6s no own value: nothing to remove" % (control_id, pid))
                     continue
-                parametros.pop(pid, None)
+                parameters.pop(pid, None)
                 modes.pop(pid, None)
-                print("   %s %-6s %s  ->  (hereda)" % (control_id, pid, shown(viejo, old_mode)))
-            elif viejo == nuevo and old_mode == new_mode:
-                print("   %s %-6s sin cambio" % (control_id, pid))
+                print("   %s %-6s %s  ->  (inherits)" % (control_id, pid, shown(old, old_mode)))
+            elif old == new and old_mode == new_mode:
+                print("   %s %-6s unchanged" % (control_id, pid))
                 continue
             else:
-                parametros[pid] = nuevo
+                parameters[pid] = new
                 if new_mode == "regex":
                     modes[pid] = "regex"
                 else:
                     modes.pop(pid, None)
-                print("   %s %-6s %s  ->  %s" % (control_id, pid, shown(viejo, old_mode) if viejo is not None else "(hereda)", shown(nuevo, new_mode)))
-            cambios += 1
+                print("   %s %-6s %s  ->  %s" % (control_id, pid, shown(old, old_mode) if old is not None else "(inherits)", shown(new, new_mode)))
+            changes += 1
         # Other keys stored next to `parameters` (`templateId`, or a later version's) are kept.
-        if parametros:
-            entrada["parameters"] = parametros
+        if parameters:
+            entry_doc["parameters"] = parameters
         else:
-            entrada.pop("parameters", None)
+            entry_doc.pop("parameters", None)
         if modes:
-            entrada["matchModes"] = modes
+            entry_doc["matchModes"] = modes
         else:
-            entrada.pop("matchModes", None)
-        if entrada:
-            propios[control_id] = entrada
+            entry_doc.pop("matchModes", None)
+        if entry_doc:
+            own[control_id] = entry_doc
         else:
-            propios.pop(control_id, None)
-    if propios:
-        perfil["controls"] = propios
+            own.pop(control_id, None)
+    if own:
+        profile["controls"] = own
     else:
-        perfil.pop("controls", None)
-    agentes_doc[aid] = perfil
-if por_agente:
-    config["agents"] = agentes_doc
+        profile.pop("controls", None)
+    agents_doc[aid] = profile
+if per_agent:
+    config["agents"] = agents_doc
 
-if not cambios:
-    print("\nNada que cambiar.")
+if not changes:
+    print("\nNothing to change.")
     sys.exit(0)
 
 if mark_130:
     config["templates"] = []
-    print("configuration.templates: se añade vacía (el documento pasa a ser de la 1.3.0; no había nada que convertir)")
+    print("configuration.templates: added empty (the document becomes 1.3.0; there was nothing to convert)")
 
 if not args.apply:
-    print("\n%d cambio(s). DRY-RUN: nada escrito. Añade --apply." % cambios)
+    print("\n%d change(s). DRY-RUN: nothing written. Add --apply." % changes)
     sys.exit(0)
 
-# La versión que se sustituye, antes de escribir (el documento tal como se leyó).
-print("Versión anterior guardada en: %s" % guarda_version_anterior(req, INDEX, anterior, "set-parameters.py"))
+# The version being replaced, before writing (the document as read).
+print("Previous version saved in: %s" % save_previous_version(req, INDEX, previous, "set-parameters.py"))
 
 config["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-actual["configuration"] = config
-req("PUT", "/%s/_doc/%s" % (INDEX, DOC), actual)
-print("\n%d cambio(s) escritos en %s/%s." % (cambios, INDEX, DOC))
+current["configuration"] = config
+req("PUT", "/%s/_doc/%s" % (INDEX, DOC), current)
+print("\n%d change(s) written to %s/%s." % (changes, INDEX, DOC))

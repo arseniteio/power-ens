@@ -41,7 +41,7 @@ comprueba(
 );
 
 // El rol que crea el script es uno de los que el servidor deja administrar.
-const rol = lee('config/create-admin-role.sh').match(/^ROL=([A-Za-z0-9_-]+)\s*$/m)?.[1];
+const rol = lee('config/create-admin-role.sh').match(/^ROLE=([A-Za-z0-9_-]+)\s*$/m)?.[1];
 comprueba('create-admin-role.sh crea un rol', Boolean(rol), rol);
 comprueba('y es uno de ENSFACIL_ADMIN_ROLES', !!rol && ENSFACIL_ADMIN_ROLES.includes(rol), { rol, ENSFACIL_ADMIN_ROLES });
 comprueba('con all_access', ENSFACIL_ADMIN_ROLES.includes('all_access'));

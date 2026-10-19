@@ -15,7 +15,7 @@ repo_en() { mkdir -p "$1/config"; cp "$RAIZ/config/build-plugin.sh" "$1/config/"
 # 1. El repositorio ES el destino: <árbol>/plugins/ensfacil.
 arbol "$T/a"; repo_en "$T/a/plugins/ensfacil"
 r="$(bash "$T/a/plugins/ensfacil/config/build-plugin.sh" "$T/a" 2>&1)"; rc=$?
-[ $rc -ne 0 ] && echo "$r" | grep -q "no se compila ahí" && ok "repositorio = destino: se para con su motivo" || falla "repositorio = destino (rc $rc: $r)"
+[ $rc -ne 0 ] && echo "$r" | grep -q "not building there" && ok "repositorio = destino: se para con su motivo" || falla "repositorio = destino (rc $rc: $r)"
 [ -f "$T/a/plugins/ensfacil/TESTIGO" ] && ok "y el repositorio sigue entero" || falla "el repositorio se ha borrado"
 
 # 2. El mismo caso por un enlace: el árbol se pasa por otra ruta.
@@ -26,13 +26,13 @@ r="$(bash "$T/a/plugins/ensfacil/config/build-plugin.sh" "$T/enlace" 2>&1)"; rc=
 # 3. El árbol (y con él el destino) dentro del repositorio.
 repo_en "$T/b"; arbol "$T/b/osd"
 r="$(bash "$T/b/config/build-plugin.sh" "$T/b/osd" 2>&1)"; rc=$?
-[ $rc -ne 0 ] && echo "$r" | grep -q "no se compila ahí" && ok "destino dentro del repositorio: se para" || falla "destino dentro del repositorio (rc $rc: $r)"
+[ $rc -ne 0 ] && echo "$r" | grep -q "not building there" && ok "destino dentro del repositorio: se para" || falla "destino dentro del repositorio (rc $rc: $r)"
 [ -f "$T/b/TESTIGO" ] && ok "y el repositorio sigue entero" || falla "el repositorio se ha borrado"
 
-# 4. El repositorio dentro del destino.
+# 4. El repositorio inside the destination.
 arbol "$T/c"; repo_en "$T/c/plugins/ensfacil/fuente"
 r="$(bash "$T/c/plugins/ensfacil/fuente/config/build-plugin.sh" "$T/c" 2>&1)"; rc=$?
-[ $rc -ne 0 ] && echo "$r" | grep -q "dentro del destino" && ok "repositorio dentro del destino: se para" || falla "repositorio dentro del destino (rc $rc: $r)"
+[ $rc -ne 0 ] && echo "$r" | grep -q "inside the destination" && ok "repositorio dentro del destino: se para" || falla "repositorio dentro del destino (rc $rc: $r)"
 [ -f "$T/c/plugins/ensfacil/fuente/TESTIGO" ] && ok "y el repositorio sigue entero" || falla "el repositorio se ha borrado"
 
 # 5. Un nombre que solo empieza igual no es «dentro»: /x/ensfacil-repo no está

@@ -282,7 +282,7 @@ cd "$R"
 sudo bash create-admin-role.sh --dry-run --mapear <user>
 ```
 
-Expected result: the line `== modo prueba: no se envía ningún cambio` and the
+Expected result: the line `== dry-run mode: no change is sent` and the
 requests that would be sent (`PUT …/roles/ensfacil_admin` and, if the user
 does not have the role, `PUT` or `PATCH …/rolesmapping/ensfacil_admin`).
 
@@ -293,7 +293,7 @@ sudo bash create-admin-role.sh --mapear <user>
 ```
 
 Expected result: `-> 200` or `-> 201` after each request and, at the end,
-`usuarios con el rol ensfacil_admin: <user>`.
+`users with the role ensfacil_admin: <user>`.
 
 | Option | Effect |
 |---|---|

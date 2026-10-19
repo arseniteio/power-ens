@@ -224,14 +224,14 @@ console.log('8. validate-configuration.ts');
     return spawnSync('npx', ['--yes', 'tsx', `${__dirname}/../config/validate-configuration.ts`, file], { encoding: 'utf8' });
   };
   const valid = run(documentWith());
-  check('modes at every level: valid', valid.status === 0 && /AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS/.test(valid.stdout) && !/VALORES COMUNES INVÁLIDOS/.test(valid.stdout), valid.stdout + valid.stderr);
+  check('modes at every level: valid', valid.status === 0 && /VALID AGENT AND TEMPLATE SETTINGS/.test(valid.stdout) && !/INVALID COMMON VALUES/.test(valid.stdout), valid.stdout + valid.stderr);
   const bad = documentWith();
   bad.controls[0].parameters.find((p: any) => p.id === 'P-04').value = '[';
   bad.agents['104'].controls['op.acc.1'].parameters['P-03'] = '(';
   const invalid = run(bad);
   check('an invalid common pattern is listed (it is compiled only here after set-parameters.py)', invalid.status === 1 &&
-    /VALORES COMUNES INVÁLIDOS \(1\)/.test(invalid.stdout) && /op\.acc\.1 «Cuentas genéricas prohibidas»: Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
-  check('and an invalid override pattern too', /agente 104: op\.acc\.1 «Cuentas de servicio legítimas» Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
+    /INVALID COMMON VALUES \(1\)/.test(invalid.stdout) && /op\.acc\.1 «Cuentas genéricas prohibidas»: Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
+  check('and an invalid override pattern too', /agent 104: op\.acc\.1 «Cuentas de servicio legítimas» Expresión regular inválida/.test(invalid.stdout), invalid.stdout);
 }
 
 console.log('9. Review fixes');

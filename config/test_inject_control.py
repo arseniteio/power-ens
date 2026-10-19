@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Pruebas de inject-control.py contra un OpenSearch de mentira.
+"""Tests of inject-control.py against a fake OpenSearch.
 
-Lo que se prueba es una sola cosa, la que falló el 30/07: sembrar dos veces un
-control ya configurado NO puede borrar los valores que el auditor puso desde la
-UI. El comportamiento destructivo existe, pero hay que pedirlo.
+Main point: seeding an already configured control twice must NOT erase the values the auditor set
+from the UI. The destructive behaviour exists, but must be requested.
 
     python3 test_inject_control.py
 
-Sin dependencias: http.server de la stdlib hace de índice.
+No dependencies: the stdlib http.server acts as the index.
 """
 import json
 import os
@@ -17,13 +16,13 @@ import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-AQUI = os.path.dirname(os.path.abspath(__file__))
-SCRIPT = os.path.join(AQUI, "inject-control.py")
+HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPT = os.path.join(HERE, "inject-control.py")
 
-# El documento 'active' que sirve el índice de mentira. Cada prueba lo reinicia.
-estado = {"doc": None, "version": 0}
+# The 'active' document served by the fake index. Each test resets it.
+state = {"doc": None, "version": 0}
 
-BLOQUE = {
+BLOCK = {
     "controlId": "op.acc.1",
     "parameters": [
         {"id": "P-01", "name": "fuente_identidad", "type": "select", "required": True, "value": None},
@@ -32,9 +31,8 @@ BLOQUE = {
     ],
 }
 
-# Lo que "ya había configurado el auditor": P-01 y P-04 con valor, y un P-99 que
-# el bloque nuevo ya no contempla.
-CONFIGURADO = {
+# What "the auditor had already configured": P-01 and P-04 with value, and a P-99 the new block no longer has.
+CONFIGURED = {
     "controlId": "op.acc.1",
     "parameters": [
         {"id": "P-01", "value": "active_directory"},
@@ -44,211 +42,209 @@ CONFIGURADO = {
 }
 
 
-class Indice(BaseHTTPRequestHandler):
-    def _responde(self, cuerpo, codigo=200):
-        datos = json.dumps(cuerpo).encode()
-        self.send_response(codigo)
+class Index(BaseHTTPRequestHandler):
+    def _respond(self, body, code=200):
+        data = json.dumps(body).encode()
+        self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(datos)))
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(datos)
+        self.wfile.write(data)
 
     def do_GET(self):
-        if estado["doc"] is None:
-            self._responde({"error": "not found"}, 404)
+        if state["doc"] is None:
+            self._respond({"error": "not found"}, 404)
             return
-        self._responde({"_source": estado["doc"]})
+        self._respond({"_source": state["doc"]})
 
     def do_PUT(self):
-        largo = int(self.headers.get("Content-Length", 0))
-        cuerpo = json.loads(self.rfile.read(largo).decode())
-        # La versión anterior que guardan las herramientas antes de escribir.
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length).decode())
+        # The previous version the tools save before writing.
         if "/_doc/history-" in self.path:
-            if estado.get("historial_falla"):
-                self._responde({"error": "no"}, 403)
+            if state.get("history_fails"):
+                self._respond({"error": "no"}, 403)
                 return
-            estado.setdefault("historial", []).append({"orden": estado["version"], "path": self.path, "doc": cuerpo})
-            self._responde({"result": "created"})
+            state.setdefault("history", []).append({"order": state["version"], "path": self.path, "doc": body})
+            self._respond({"result": "created"})
             return
-        estado["doc"] = cuerpo
-        estado["version"] += 1
-        self._responde({"result": "updated", "_version": estado["version"]})
+        state["doc"] = body
+        state["version"] += 1
+        self._respond({"result": "updated", "_version": state["version"]})
 
     def log_message(self, *_):
-        pass  # sin ruido en la salida de las pruebas
+        pass  # no noise in the test output
 
 
-def arranca_indice():
-    servidor = HTTPServer(("127.0.0.1", 0), Indice)
-    threading.Thread(target=servidor.serve_forever, daemon=True).start()
-    return servidor
+def start_index():
+    server = HTTPServer(("127.0.0.1", 0), Index)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
 
 
-def siembra(url, bloque_path, *extra):
-    entorno = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
+def seed(url, block_path, *extra_args):
+    env = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
     return subprocess.run(
-        [sys.executable, SCRIPT, "op.acc.1", "--block", bloque_path, *extra],
-        capture_output=True, text=True, env=entorno,
+        [sys.executable, SCRIPT, "op.acc.1", "--block", block_path, *extra_args],
+        capture_output=True, text=True, env=env,
     )
 
 
-def valores():
+def values():
     control = next(
-        c for c in estado["doc"]["configuration"]["controls"] if c["controlId"] == "op.acc.1"
+        c for c in state["doc"]["configuration"]["controls"] if c["controlId"] == "op.acc.1"
     )
     return {p["id"]: p.get("value") for p in control["parameters"]}
 
 
-fallos = []
+failures = []
 
 
-def comprueba(nombre, condicion, detalle=""):
-    print("{}  {}{}".format("OK    " if condicion else "FALLA ", nombre,
-                            "" if condicion else "  -> " + detalle))
-    if not condicion:
-        fallos.append(nombre)
+def check(name, condition, detail=""):
+    print("{}  {}{}".format("OK    " if condition else "FAIL  ", name,
+                            "" if condition else "  -> " + detail))
+    if not condition:
+        failures.append(name)
 
 
 def main():
-    servidor = arranca_indice()
-    url = "http://127.0.0.1:{}".format(servidor.server_port)
+    server = start_index()
+    url = "http://127.0.0.1:{}".format(server.server_port)
 
     with tempfile.TemporaryDirectory() as tmp:
-        bloque_path = os.path.join(tmp, "op-acc-1-control-block.json")
-        with open(bloque_path, "w", encoding="utf-8") as f:
-            json.dump(BLOQUE, f)
+        block_path = os.path.join(tmp, "op-acc-1-control-block.json")
+        with open(block_path, "w", encoding="utf-8") as f:
+            json.dump(BLOCK, f)
 
-        # --- alta: el control no estaba
-        estado["doc"] = {"configuration": {"controls": []}, "updatedAt": ""}
-        r = siembra(url, bloque_path, "--apply")
-        comprueba("alta · siembra un control nuevo", r.returncode == 0, r.stderr)
-        comprueba("alta · sin valores, que es lo correcto",
-                  valores() == {"P-01": None, "P-04": None, "P-09": None}, str(valores()))
+        # --- new: the control was not there
+        state["doc"] = {"configuration": {"controls": []}, "updatedAt": ""}
+        r = seed(url, block_path, "--apply")
+        check("new · seeds a new control", r.returncode == 0, r.stderr)
+        check("new · without values, as it should",
+                  values() == {"P-01": None, "P-04": None, "P-09": None}, str(values()))
 
-        # --- el caso del 30/07: sembrar sobre un control ya configurado
-        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+        # --- seeding over an already configured control
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
-        r = siembra(url, bloque_path, "--apply")
-        v = valores()
-        comprueba("fusión · conserva el valor de P-01", v.get("P-01") == "active_directory", str(v))
-        comprueba("fusión · conserva la lista de P-04",
+        r = seed(url, block_path, "--apply")
+        v = values()
+        check("merge · keeps the value of P-01", v.get("P-01") == "active_directory", str(v))
+        check("merge · keeps the list of P-04",
                   v.get("P-04") == ["admin", "operador"], str(v))
-        comprueba("fusión · añade el parámetro nuevo sin valor", v.get("P-09") is None, str(v))
-        comprueba("fusión · avisa del parámetro retirado con valor",
-                  "P-99 (con valor)" in r.stdout, r.stdout)
+        check("merge · adds the new parameter without value", v.get("P-09") is None, str(v))
+        check("merge · warns about the withdrawn parameter with value",
+                  "P-99 (with value)" in r.stdout, r.stdout)
 
-        # --- idempotencia: una segunda pasada sigue conservando los valores.
-        # Se comprueba contra los valores REALES esperados, no contra "lo que
-        # hubiera antes": comparar el resultado consigo mismo pasa también
-        # cuando las dos pasadas borran, que es justo el fallo a detectar.
-        siembra(url, bloque_path, "--apply")
-        comprueba("idempotencia · dos pasadas conservan los valores del auditor",
-                  valores() == {"P-01": "active_directory",
+        # --- idempotence: a second pass still keeps the values. Checked against the REAL expected values,
+        # not against "what was there": comparing the result with itself also passes when both passes erase.
+        seed(url, block_path, "--apply")
+        check("idempotence · two passes keep the auditor values",
+                  values() == {"P-01": "active_directory",
                                 "P-04": ["admin", "operador"],
-                                "P-09": None}, str(valores()))
+                                "P-09": None}, str(values()))
 
         # --- a pattern keeps its mode
-        with_pattern = json.loads(json.dumps(CONFIGURADO))
+        with_pattern = json.loads(json.dumps(CONFIGURED))
         with_pattern["parameters"][1].update(value="^svc_.*$", matchMode="regex")
-        estado["doc"] = {"configuration": {"controls": [with_pattern]}, "updatedAt": ""}
-        siembra(url, bloque_path, "--apply")
-        siembra(url, bloque_path, "--apply")
-        p04 = next(p for p in estado["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-04")
-        comprueba("merge · keeps the pattern AND its mode after two seeds",
+        state["doc"] = {"configuration": {"controls": [with_pattern]}, "updatedAt": ""}
+        seed(url, block_path, "--apply")
+        seed(url, block_path, "--apply")
+        p04 = next(p for p in state["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-04")
+        check("merge · keeps the pattern AND its mode after two seeds",
                   p04.get("value") == "^svc_.*$" and p04.get("matchMode") == "regex", str(p04))
-        p01 = next(p for p in estado["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-01")
-        comprueba("merge · a value without mode stays without mode", "matchMode" not in p01, str(p01))
+        p01 = next(p for p in state["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-01")
+        check("merge · a value without mode stays without mode", "matchMode" not in p01, str(p01))
 
-        # --- dry-run: no escribe
-        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+        # --- dry-run: writes nothing
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
-        version_antes = estado["version"]
-        r = siembra(url, bloque_path)
-        comprueba("dry-run · no escribe nada", estado["version"] == version_antes, r.stdout)
+        version_before = state["version"]
+        r = seed(url, block_path)
+        check("dry-run · writes nothing", state["version"] == version_before, r.stdout)
 
-        # --- destructivo, pero solo si se pide
-        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))]},
+        # --- destructive, but only if requested
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
-        r = siembra(url, bloque_path, "--apply", "--sustituir")
-        v = valores()
-        comprueba("--sustituir · descarta los valores puestos",
+        r = seed(url, block_path, "--apply", "--sustituir")
+        v = values()
+        check("--sustituir · discards the values set",
                   v == {"P-01": None, "P-04": None, "P-09": None}, str(v))
-        comprueba("--sustituir · dice cuáles se pierden",
+        check("--sustituir · says which are lost",
                   "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
 
-        # --- la capa por sistema (1.2.0) sobrevive a la siembra
-        agentes = {"028": {"templates": ["zimbra-ldap"],
+        # --- the per-system layer (1.2.0) survives seeding
+        agents_doc = {"028": {"templates": ["zimbra-ldap"],
                            "controls": {"op.acc.1": {"parameters": {"P-07": ["u | s | r"], "P-99": "x"}}}}}
-        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))],
-                                           "agents": json.loads(json.dumps(agentes))},
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))],
+                                           "agents": json.loads(json.dumps(agents_doc))},
                          "updatedAt": ""}
-        r = siembra(url, bloque_path, "--apply")
-        comprueba("agents · resembrar no borra configuration.agents",
-                  estado["doc"]["configuration"].get("agents") == agentes,
-                  str(estado["doc"]["configuration"].get("agents")))
-        comprueba("agents · avisa del valor por agente de un parámetro retirado",
-                  "P-99 en el agente 028" in r.stdout, r.stdout)
-        r = siembra(url, bloque_path, "--apply", "--sustituir")
-        comprueba("agents · ni con --sustituir",
-                  estado["doc"]["configuration"].get("agents") == agentes, r.stdout)
-        comprueba("agents · con --sustituir también avisa de los huérfanos",
-                  "P-99 en el agente 028" in r.stdout, r.stdout)
+        r = seed(url, block_path, "--apply")
+        check("agents · reseeding does not delete configuration.agents",
+                  state["doc"]["configuration"].get("agents") == agents_doc,
+                  str(state["doc"]["configuration"].get("agents")))
+        check("agents · warns about the per-agent value of a withdrawn parameter",
+                  "P-99 on agent 028" in r.stdout, r.stdout)
+        r = seed(url, block_path, "--apply", "--sustituir")
+        check("agents · not even with --sustituir",
+                  state["doc"]["configuration"].get("agents") == agents_doc, r.stdout)
+        check("agents · with --sustituir it also warns about orphans",
+                  "P-99 on agent 028" in r.stdout, r.stdout)
 
         # --- 1.3.0: custom templates and per-control assignments survive seeding
         templates = [{"id": "custom-web", "controlId": "op.acc.1", "name": "Web", "values": {"P-01": "LDAP", "P-99": "x"}}]
         agents = {"028": {"controls": {"op.acc.1": {"templateId": "custom-web", "parameters": {"P-04": ["x"]}}}}}
-        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))],
+        state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))],
                                            "agents": json.loads(json.dumps(agents)),
                                            "templates": json.loads(json.dumps(templates))},
                          "updatedAt": ""}
-        r = siembra(url, bloque_path, "--apply")
-        comprueba("templates · reseeding keeps configuration.templates and the assignments",
-                  estado["doc"]["configuration"].get("templates") == templates
-                  and estado["doc"]["configuration"].get("agents") == agents, r.stdout)
-        comprueba("templates · warns about a template value of a withdrawn parameter",
-                  "P-99 en la plantilla custom-web" in r.stdout and "Plantillas propias" in r.stdout, r.stdout)
+        r = seed(url, block_path, "--apply")
+        check("templates · reseeding keeps configuration.templates and the assignments",
+                  state["doc"]["configuration"].get("templates") == templates
+                  and state["doc"]["configuration"].get("agents") == agents, r.stdout)
+        check("templates · warns about a template value of a withdrawn parameter",
+                  "P-99 in template custom-web" in r.stdout and "Custom templates" in r.stdout, r.stdout)
 
-        # --- la versión anterior, al historial ANTES de escribir
-        estado["historial"] = []
-        previo = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))], "changeReason": "previo"},
+        # --- the previous version goes to the history BEFORE writing
+        state["history"] = []
+        previous = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))], "changeReason": "previo"},
                   "updatedAt": ""}
-        estado["doc"] = json.loads(json.dumps(previo))
-        r = siembra(url, bloque_path, "--apply")
-        h = estado["historial"]
-        comprueba("historial · guarda la versión anterior con el formato del plugin",
+        state["doc"] = json.loads(json.dumps(previous))
+        r = seed(url, block_path, "--apply")
+        h = state["history"]
+        check("history · saves the previous version in the plugin format",
                   len(h) == 1 and h[0]["doc"]["documentType"] == "CONFIGURATION_HISTORY"
-                  and h[0]["doc"]["configuration"] == previo["configuration"]
-                  and h[0]["doc"]["createdBy"] == "inject-control.py" and h[0]["orden"] < estado["version"],
+                  and h[0]["doc"]["configuration"] == previous["configuration"]
+                  and h[0]["doc"]["createdBy"] == "inject-control.py" and h[0]["order"] < state["version"],
                   str(h)[:300])
-        comprueba("historial · dice dónde", "Versión anterior guardada en: historial" in r.stdout, r.stdout)
+        check("history · says where", "Previous version saved in: history" in r.stdout, r.stdout)
 
-        # --- sin permiso para el historial: copia local con fecha
-        estado["historial_falla"] = True
-        estado["doc"] = json.loads(json.dumps(previo))
-        entorno = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
-        r = subprocess.run([sys.executable, SCRIPT, "op.acc.1", "--block", bloque_path, "--apply"],
-                           capture_output=True, text=True, env=entorno, cwd=tmp)
-        copias = [f for f in os.listdir(tmp) if f.startswith("active-antes-")]
-        contenido = json.load(open(os.path.join(tmp, copias[0]))) if copias else {}
-        comprueba("historial · sin permiso, copia local restaurable (con _source)",
-                  len(copias) == 1 and contenido.get("_source", {}).get("configuration") == previo["configuration"]
-                  and "fichero local" in r.stdout, r.stdout + r.stderr)
-        estado["historial_falla"] = False
+        # --- no permission for the history: local copy with date
+        state["history_fails"] = True
+        state["doc"] = json.loads(json.dumps(previous))
+        env = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
+        r = subprocess.run([sys.executable, SCRIPT, "op.acc.1", "--block", block_path, "--apply"],
+                           capture_output=True, text=True, env=env, cwd=tmp)
+        copies = [f for f in os.listdir(tmp) if f.startswith("active-antes-")]
+        content = json.load(open(os.path.join(tmp, copies[0]))) if copies else {}
+        check("history · without permission, restorable local copy (with _source)",
+                  len(copies) == 1 and content.get("_source", {}).get("configuration") == previous["configuration"]
+                  and "local file" in r.stdout, r.stdout + r.stderr)
+        state["history_fails"] = False
 
-        # --- no toca los demás controles
-        otro = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intacto"}]}
-        estado["doc"] = {"configuration": {"controls": [otro]}, "updatedAt": ""}
-        siembra(url, bloque_path, "--apply")
-        vecino = next(c for c in estado["doc"]["configuration"]["controls"]
+        # --- does not touch the other controls
+        other = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intact"}]}
+        state["doc"] = {"configuration": {"controls": [other]}, "updatedAt": ""}
+        seed(url, block_path, "--apply")
+        neighbour = next(c for c in state["doc"]["configuration"]["controls"]
                       if c["controlId"] == "op.acc.2")
-        comprueba("aislamiento · no toca la configuración de otro control",
-                  vecino["parameters"][0]["value"] == "intacto", str(vecino))
+        check("isolation · does not touch another control's configuration",
+                  neighbour["parameters"][0]["value"] == "intact", str(neighbour))
 
     print()
-    if fallos:
-        print("{} prueba(s) fallidas: {}".format(len(fallos), ", ".join(fallos)))
+    if failures:
+        print("{} test(s) failed: {}".format(len(failures), ", ".join(failures)))
         return 1
-    print("todas las pruebas pasan")
+    print("all tests pass")
     return 0
 
 
