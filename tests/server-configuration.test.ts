@@ -1,136 +1,124 @@
-/**
- * La configuración se guarda igual que en la versión integrada (documento
- * `active` + historial en wazuh-ens-configuration) y solo la cambian
- * `ensfacil_admin` o `all_access`.
- *
- *   npx --yes tsx tests/server-configuration.test.ts
- */
+/** Configuration is saved as in the integrated version and changed only by `ensfacil_admin` or `all_access`. */
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 
 declare const process: { exit(code: number): void };
-const fallos: string[] = [];
-const comprueba = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) fallos.push(n); };
+const failures: string[] = [];
+const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
-// Índice en memoria con la forma del cliente de OpenSearch.
-const indice = () => {
+const index = () => {
   const docs = new Map<string, any>();
-  let existe = false;
+  let exists = false;
   return {
     docs,
     indices: {
-      exists: async () => ({ body: existe }),
-      create: async (p: any) => { existe = true; (indice as any).mapping = p.body; return { body: {} }; },
+      exists: async () => ({ body: exists }),
+      create: async (p: any) => { exists = true; (index as any).mapping = p.body; return { body: {} }; },
     },
     search: async (p: any) => {
       const ids = p.body?.query?.ids?.values;
-      const tipo = p.body?.query?.term?.documentType;
+      const type = p.body?.query?.term?.documentType;
       const hits = [...docs.entries()]
-        .filter(([id, d]) => (ids ? ids.includes(id) : d.documentType === tipo))
+        .filter(([id, d]) => (ids ? ids.includes(id) : d.documentType === type))
         .map(([, d]) => ({ _source: d }));
       return { body: { hits: { hits } } };
     },
     bulk: async (p: any) => {
       const lineas = String(p.body).split('\n').filter(Boolean).map(l => JSON.parse(l));
       for (let i = 0; i < lineas.length; i += 2) {
-        const accion = lineas[i].create || lineas[i].index;
-        docs.set(accion._id, lineas[i + 1]);
+        const action = lineas[i].create || lineas[i].index;
+        docs.set(action._id, lineas[i + 1]);
       }
       return { body: { errors: false } };
     },
   };
 };
 
-const llamadas: any[] = [];
-const usuario = (cuerpo: any) => ({ transport: { request: async (a: any) => { llamadas.push(a); if (cuerpo instanceof Error) throw cuerpo; return { body: cuerpo }; } } });
-const contexto = (interno: any, actual: any) => ({ core: { opensearch: { client: { asInternalUser: interno, asCurrentUser: actual } } } });
-const respuestas = {
+const calls: any[] = [];
+const user = (body: any) => ({ transport: { request: async (a: any) => { calls.push(a); if (body instanceof Error) throw body; return { body: body }; } } });
+const context = (internal: any, actual: any) => ({ core: { opensearch: { client: { asInternalUser: internal, asCurrentUser: actual } } } });
+const responses = {
   ok: (r: any) => ({ status: 200, body: r.body }),
   customError: (r: any) => ({ status: r.statusCode, body: r.body }),
 };
 const avisos: string[] = [];
-const registro = { info: () => undefined, error: () => undefined, warn: (m: string) => { avisos.push(m); }, debug: () => undefined };
-const h = createConfigurationHandlers({ logger: registro as any, securityEnabled: true });
+const record = { info: () => undefined, error: () => undefined, warn: (m: string) => { avisos.push(m); }, debug: () => undefined };
+const h = createConfigurationHandlers({ logger: record as any, securityEnabled: true });
 const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] };
 
 (async () => {
-  const ix = indice();
+  const ix = index();
 
-  let r: any = await h.getActive(contexto(ix, usuario({ user_name: 'ana', roles: [] })) as any, {} as any, respuestas as any);
-  comprueba('GET sin configuración: null, 200', r.status === 200 && r.body.data.configuration === null && r.body.statusCode === 200 && r.body.error === 0);
+  let r: any = await h.getActive(context(ix, user({ user_name: 'ana', roles: [] })) as any, {} as any, responses as any);
+  check('GET without configuration: null, 200', r.status === 200 && r.body.data.configuration === null && r.body.statusCode === 200 && r.body.error === 0);
 
-  r = await h.save(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('sin rol de administración: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
-  comprueba('y no se guarda nada', ix.docs.size === 0);
-  comprueba('el intento queda en el log con el usuario', avisos.length === 1 && /ana/.test(avisos[0]) && /guardar/.test(avisos[0]), avisos);
-  comprueba('sin el cuerpo de la petición', !/MEDIO|ensLevel|configuration/.test(avisos[0]), avisos[0]);
+  r = await h.save(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, responses as any);
+  check('without the administration role: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
+  check('and nothing is saved', ix.docs.size === 0);
+  check('the attempt stays in the log with the user', avisos.length === 1 && /ana/.test(avisos[0]) && /guardar/.test(avisos[0]), avisos);
+  check('without the request body', !/MEDIO|ensLevel|configuration/.test(avisos[0]), avisos[0]);
 
-  r = await h.history(contexto(ix, usuario({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, respuestas as any);
-  comprueba('historial sin rol: 403', r.status === 403);
-  comprueba('también en el log', avisos.length === 2 && /ana/.test(avisos[1]) && /historial/.test(avisos[1]), avisos);
+  r = await h.history(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, {} as any, responses as any);
+  check('history without role: 403', r.status === 403);
+  check('also in the log', avisos.length === 2 && /ana/.test(avisos[1]) && /historial/.test(avisos[1]), avisos);
   avisos.length = 0;
 
-  r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, respuestas as any);
-  comprueba('ensfacil_admin guarda: 200', r.status === 200, r);
-  const activa = ix.docs.get('active');
-  comprueba('documento active', activa?.documentType === 'ACTIVE_CONFIGURATION' && activa?.updatedBy === 'rsis');
-  comprueba('y su historial', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === 1);
-  // En un indexer de un solo nodo, una réplica fija deja el índice en amarillo
-  // para siempre: la réplica se ajusta a los nodos que haya (0 con uno).
-  const ajustes = (indice as any).mapping?.settings?.index;
-  comprueba('el índice se crea con réplicas automáticas (0-1) y un shard', ajustes?.auto_expand_replicas === '0-1' && ajustes?.number_of_shards === 1 && ajustes?.number_of_replicas === undefined, ajustes);
-  comprueba('rastro de auditoría', activa?.configuration?.auditTrail?.[0]?.action === 'CREATED' && activa?.configuration?.auditTrail?.[0]?.summary === 'alta');
+  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, responses as any);
+  check('ensfacil_admin saves: 200', r.status === 200, r);
+  const active2 = ix.docs.get('active');
+  check('active document', active2?.documentType === 'ACTIVE_CONFIGURATION' && active2?.updatedBy === 'rsis');
+  check('y su historial', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === 1);
+  const settings = (index as any).mapping?.settings?.index;
+  check('the index is created with automatic replicas (0-1) and one shard', settings?.auto_expand_replicas === '0-1' && settings?.number_of_shards === 1 && settings?.number_of_replicas === undefined, settings);
+  check('audit trail', active2?.configuration?.auditTrail?.[0]?.action === 'CREATED' && active2?.configuration?.auditTrail?.[0]?.summary === 'alta');
 
-  r = await h.save(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, { body: { configuration: { ...config, global: { ensLevel: 'ALTO' } } } } as any, respuestas as any);
-  comprueba('all_access guarda', r.status === 200);
-  comprueba('UPDATED y creador conservado', ix.docs.get('active')?.configuration?.auditTrail?.[1]?.action === 'UPDATED' && ix.docs.get('active')?.configuration?.createdBy === 'rsis');
+  r = await h.save(context(ix, user({ user_name: 'root', roles: ['all_access'] })) as any, { body: { configuration: { ...config, global: { ensLevel: 'ALTO' } } } } as any, responses as any);
+  check('all_access saves', r.status === 200);
+  check('UPDATED and creator kept', ix.docs.get('active')?.configuration?.auditTrail?.[1]?.action === 'UPDATED' && ix.docs.get('active')?.configuration?.createdBy === 'rsis');
 
-  r = await h.history(contexto(ix, usuario({ user_name: 'root', roles: ['all_access'] })) as any, {} as any, respuestas as any);
-  comprueba('historial con rol: dos versiones', r.status === 200 && r.body.data.length === 2);
-  comprueba('lo permitido no deja aviso', avisos.length === 0, avisos);
+  r = await h.history(context(ix, user({ user_name: 'root', roles: ['all_access'] })) as any, {} as any, responses as any);
+  check('history with role: two versions', r.status === 200 && r.body.data.length === 2);
+  check('what is allowed leaves no warning', avisos.length === 0, avisos);
 
-  r = await h.save(contexto(ix, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, respuestas as any);
-  comprueba('cuerpo inválido: 400', r.status === 400);
+  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, responses as any);
+  check('invalid body: 400', r.status === 400);
 
-  const sinSesion = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
-  r = await h.save(contexto(ix, usuario(sinSesion)) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('sin sesión: 401, no 500', r.status === 401, r);
+  const withoutSession = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  r = await h.save(context(ix, user(withoutSession)) as any, { body: { configuration: config } } as any, responses as any);
+  check('no session: 401, not 500', r.status === 401, r);
 
-  const libre = createConfigurationHandlers({ logger: registro as any, securityEnabled: false });
-  const ix2 = indice();
-  r = await libre.save(contexto(ix2, usuario(Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 }))) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('sin plugin de seguridad: guarda como desconocido', r.status === 200 && ix2.docs.get('active')?.updatedBy === 'desconocido', r);
+  const free = createConfigurationHandlers({ logger: record as any, securityEnabled: false });
+  const ix2 = index();
+  r = await free.save(context(ix2, user(Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 }))) as any, { body: { configuration: config } } as any, responses as any);
+  check('without the security plugin: saves as unknown', r.status === 200 && ix2.docs.get('active')?.updatedBy === 'desconocido', r);
 
-  // Seguridad cerrada por defecto.
-  const sinManejador = Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 });
-  const ix3 = indice();
-  const nadie = createConfigurationHandlers({ logger: registro as any, securityEnabled: false });
-  r = await nadie.save(contexto(ix3, usuario({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('flag false pero authinfo responde con no admin: 403', r.status === 403 && ix3.docs.size === 0, r);
-  r = await nadie.save(contexto(ix3, usuario(sinManejador)) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('flag false y "no handler": sin restricción', r.status === 200 && ix3.docs.get('active')?.updatedBy === 'desconocido', r);
-  const cerrado = createConfigurationHandlers({ logger: registro as any, securityEnabled: true });
-  r = await cerrado.save(contexto(ix3, usuario(sinManejador)) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('flag true y "no handler": 500 genérico', r.status === 500 && !/handler/.test(JSON.stringify(r.body)), r);
-  const caducada = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
-  r = await cerrado.history(contexto(ix3, usuario(caducada)) as any, {} as any, respuestas as any);
-  comprueba('flag true y authinfo 401: 401 en historial', r.status === 401, r);
-  r = await cerrado.save(contexto(ix3, usuario(caducada)) as any, { body: { configuration: config } } as any, respuestas as any);
-  comprueba('flag true y authinfo 401: 401 en PUT', r.status === 401, r);
+  const withoutHandler = Object.assign(new Error('no handler found for uri [/_plugins/_security/authinfo]'), { statusCode: 400 });
+  const ix3 = index();
+  const nobody = createConfigurationHandlers({ logger: record as any, securityEnabled: false });
+  r = await nobody.save(context(ix3, user({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, responses as any);
+  check('flag false but authinfo answers with non-admin: 403', r.status === 403 && ix3.docs.size === 0, r);
+  r = await nobody.save(context(ix3, user(withoutHandler)) as any, { body: { configuration: config } } as any, responses as any);
+  check('flag false and "no handler": no restriction', r.status === 200 && ix3.docs.get('active')?.updatedBy === 'desconocido', r);
+  const closed = createConfigurationHandlers({ logger: record as any, securityEnabled: true });
+  r = await closed.save(context(ix3, user(withoutHandler)) as any, { body: { configuration: config } } as any, responses as any);
+  check('flag true and "no handler": generic 500', r.status === 500 && !/handler/.test(JSON.stringify(r.body)), r);
+  const expiredOne = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  r = await closed.history(context(ix3, user(expiredOne)) as any, {} as any, responses as any);
+  check('flag true and authinfo 401: 401 in history', r.status === 401, r);
+  r = await closed.save(context(ix3, user(expiredOne)) as any, { body: { configuration: config } } as any, responses as any);
+  check('flag true and authinfo 401: 401 in PUT', r.status === 401, r);
 
-  // El cliente no puede falsear los campos del servidor.
-  const ix4 = indice();
-  const falsa = { ...config, createdBy: 'x', updatedBy: 'y', createdAt: '2000-01-01', updatedAt: '2000-01-01', changeReason: 'cliente', auditTrail: [{ action: 'FAKE' }] };
-  r = await h.save(contexto(ix4, usuario({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: falsa, changeReason: 'real' } } as any, respuestas as any);
+  const ix4 = index();
+  const fake = { ...config, createdBy: 'x', updatedBy: 'y', createdAt: '2000-01-01', updatedAt: '2000-01-01', changeReason: 'cliente', auditTrail: [{ action: 'FAKE' }] };
+  r = await h.save(context(ix4, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: fake, changeReason: 'real' } } as any, responses as any);
   const c4 = ix4.docs.get('active')?.configuration;
-  comprueba('campos del servidor sobrescriben los del cliente', c4?.createdBy === 'rsis' && c4?.updatedBy === 'rsis' && c4?.createdAt !== '2000-01-01' && c4?.updatedAt !== '2000-01-01' && c4?.changeReason === 'real' && c4?.auditTrail?.length === 1 && c4?.auditTrail[0].action === 'CREATED', c4);
+  check('server fields overwrite the client\'s', c4?.createdBy === 'rsis' && c4?.updatedBy === 'rsis' && c4?.createdAt !== '2000-01-01' && c4?.updatedAt !== '2000-01-01' && c4?.changeReason === 'real' && c4?.auditTrail?.length === 1 && c4?.auditTrail[0].action === 'CREATED', c4);
 
-  comprueba('authinfo: GET y ruta exacta', llamadas.length > 0 && llamadas.every(a => a.method === 'GET' && a.path === '/_plugins/_security/authinfo'), llamadas[0]);
+  check('authinfo: GET and exact route', calls.length > 0 && calls.every(a => a.method === 'GET' && a.path === '/_plugins/_security/authinfo'), calls[0]);
 
-  // Un fallo de OpenSearch no llega en crudo al navegador.
-  const roto = { ...indice(), indices: { exists: async () => { throw new Error('secreto interno 10.0.0.5'); } } };
-  r = await h.getActive(contexto(roto, usuario({ user_name: 'a', roles: [] })) as any, {} as any, respuestas as any);
-  comprueba('GET con fallo: 500 genérico', r.status === 500 && !/10\.0\.0\.5/.test(JSON.stringify(r.body)), r);
+  const roto = { ...index(), indices: { exists: async () => { throw new Error('internal secret 10.0.0.5'); } } };
+  r = await h.getActive(context(roto, user({ user_name: 'a', roles: [] })) as any, {} as any, responses as any);
+  check('GET with failure: generic 500', r.status === 500 && !/10\.0\.0\.5/.test(JSON.stringify(r.body)), r);
 
-  console.log(fallos.length ? `\n${fallos.length} FAILURES` : '\nALL OK');
-  process.exit(fallos.length ? 1 : 0);
+  console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
+  process.exit(failures.length ? 1 : 0);
 })();

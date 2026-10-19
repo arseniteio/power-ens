@@ -1,64 +1,51 @@
-/**
- * Toda consulta del módulo ENS que se corta en un tope pide los hechos MÁS
- * RECIENTES. Sin orden, el índice devuelve primero los más antiguos y la
- * pantalla juzga el principio de la ventana: el panel enseñaba un 2 % en una
- * máquina que informa cada hora porque juzgaba hechos de hace semanas.
- *
- *   npx --yes tsx tests/query-order.test.ts
- */
+/** Every ENS query cut at a limit asks for the MOST RECENT facts. */
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Todo el código del navegador: las pantallas de `public/ens` y las que el
-// plugin añade fuera (Controles, Eventos).
-const raiz = path.join(__dirname, '..', 'public');
-const ficheros: string[] = [];
-const recorre = (dir: string) => {
-  for (const nombre of fs.readdirSync(dir)) {
-    const ruta = path.join(dir, nombre);
-    if (fs.statSync(ruta).isDirectory()) recorre(ruta);
-    else if (/\.(ts|tsx)$/.test(nombre)) ficheros.push(ruta);
+const root = path.join(__dirname, '..', 'public');
+const files: string[] = [];
+const walk = (dir: string) => {
+  for (const name of fs.readdirSync(dir)) {
+    const ruta = path.join(dir, name);
+    if (fs.statSync(ruta).isDirectory()) walk(ruta);
+    else if (/\.(ts|tsx)$/.test(name)) files.push(ruta);
   }
 };
-recorre(raiz);
+walk(root);
 
-let fallos = 0;
-let llamadas = 0;
-for (const fichero of ficheros) {
-  const texto = fs.readFileSync(fichero, 'utf8');
-  const marca = 'useEsSearch({';
-  let desde = 0;
+let failures = 0;
+let calls = 0;
+for (const file of files) {
+  const text = fs.readFileSync(file, 'utf8');
+  const mark = 'useEsSearch({';
+  let since = 0;
   for (;;) {
-    const i = texto.indexOf(marca, desde);
+    const i = text.indexOf(mark, since);
     if (i < 0) break;
-    // El objeto de la llamada, hasta su llave de cierre.
-    let nivel = 0;
-    let j = i + marca.length - 1;
-    for (; j < texto.length; j++) {
-      if (texto[j] === '{') nivel++;
-      else if (texto[j] === '}' && --nivel === 0) break;
+    let level = 0;
+    let j = i + mark.length - 1;
+    for (; j < text.length; j++) {
+      if (text[j] === '{') level++;
+      else if (text[j] === '}' && --level === 0) break;
     }
-    const llamada = texto.slice(i, j + 1);
-    desde = j + 1;
-    llamadas++;
-    // `size: 0` no trae hechos (solo agregaciones): no hay principio de la
-    // ventana que juzgar ni orden que pedir. Cualquier otro tamaño, número o
-    // variable (`size: pageSize` en la tabla de Eventos), es un tope.
-    const conTope = /\bsize:\s*(?!0\b)[\w.]+/.test(llamada);
-    const recientes = /sorting:\s*\[\s*\{\s*timestamp:\s*\{\s*order:\s*'desc'/.test(llamada);
-    const sitio = path.relative(path.join(__dirname, '..'), fichero);
-    if (conTope && !recientes) {
-      fallos++;
-      console.log(`  FAIL ${sitio}: consulta con tope sin pedir los más recientes`);
+    const call = text.slice(i, j + 1);
+    since = j + 1;
+    calls++;
+    const conTope = /\bsize:\s*(?!0\b)[\w.]+/.test(call);
+    const recentOnes = /sorting:\s*\[\s*\{\s*timestamp:\s*\{\s*order:\s*'desc'/.test(call);
+    const sitio = path.relative(path.join(__dirname, '..'), file);
+    if (conTope && !recentOnes) {
+      failures++;
+      console.log(`  FAIL ${sitio}: capped query without asking for the most recent`);
     } else {
-      console.log(`  ok   ${sitio}${conTope ? ': con tope, los más recientes' : ': sin tope'}`);
+      console.log(`  ok   ${sitio}${conTope ? ': capped, the most recent' : ': sin tope'}`);
     }
   }
 }
 
-if (llamadas === 0) {
-  console.log('  FAIL no se ha encontrado ninguna consulta useEsSearch');
-  fallos++;
+if (calls === 0) {
+  console.log('  FAIL no useEsSearch query was found');
+  failures++;
 }
-console.log(fallos ? `\n${fallos} consulta(s) sin orden.` : '\nTodas las consultas con tope piden los más recientes.');
-process.exit(fallos ? 1 : 0);
+console.log(failures ? `\n${failures} query(ies) without order.` : '\nAll capped queries ask for the most recent.');
+process.exit(failures ? 1 : 0);
