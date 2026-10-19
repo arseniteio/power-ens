@@ -10,7 +10,8 @@ import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationStatusLine, EvaluationLoading } from '../../evaluation/evaluation-status';
 import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../common/ens/configuration/services';
-import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../../common/ens/catalog';
+import { describeApplicableLevelLabel } from '../../../common/ens/core/control-level';
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { canExportReport, reportViewState } from './report-view-state';
 import { describeParameterForMachine } from '../controls/parameter-origins';
@@ -37,17 +38,18 @@ import {
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
-import { ProvenancedText, TemplateCorrespondencePanel } from '../controls/control-detail/requirement-texts';
+import { ProvenanceLabel, ProvenancedText, TemplateCorrespondencePanel } from '../controls/control-detail/requirement-texts';
+import { ENS_PROPOSAL_TEXT_PROVENANCE } from '../../../common/ens/catalog/support/provenance';
 import {
   REPORT_CRITERION_NOTE,
   buildTemplateCorrespondencePdf,
   describeReportControlLine,
   pdfProvenanceRuns,
+  pdfRowLabel,
   reportRequirementTexts,
 } from './report-provenance';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import {
-  compareENSControlsInAnnexOrder,
   filterByENSPrefix,
   listENSFamilies,
   resolveENSSectionOpenState,
@@ -146,6 +148,8 @@ const ControlReport = ({
   const engineScore = complianceResult ? complianceResult.score ?? null : null;
   const engineCoverage = complianceResult ? complianceResult.coverage : null;
   const engineLevel = complianceResult?.level || ensLevel;
+  // The level this control is evaluated with: «Nivel ENS» by category, «Nivel aplicable (Disponibilidad)» by dimension.
+  const levelLabel = describeApplicableLevelLabel(getENSCatalogControl(controlId) || {});
   const engineEvaluatedAt = complianceResult?.evaluatedAt || '-';
 
   const engineApplicable = complianceResult?.applicableRequirements ?? null;
@@ -415,7 +419,9 @@ const ControlReport = ({
       name: 'Parámetro',
       render: (parameter: string, item: { ifNotConfigured: string }) => (
         <>
-          <EuiText size='xs'>{parameter}</EuiText>
+          <EuiText size='xs'>
+            {parameter} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+          </EuiText>
           {item.ifNotConfigured ? (
             <EuiText size='xs' color='subdued'>
               Si falta: {item.ifNotConfigured}
@@ -463,6 +469,11 @@ const ControlReport = ({
       field: 'campo',
       name: 'Campo',
       width: '28%',
+      render: (campo: string) => (
+        <EuiText size='s'>
+          {campo} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+        </EuiText>
+      ),
     },
     {
       field: 'valor',
@@ -551,7 +562,7 @@ const ControlReport = ({
             widths: ['*', '*', '*', '*'],
             body: [
               [
-                { text: 'Nivel ENS', style: 'th' },
+                { text: levelLabel, style: 'th' },
                 { text: 'Cumplimiento', style: 'th' },
                 { text: 'Cobertura', style: 'th' },
                 { text: 'Requisitos demostrados', style: 'th' },
@@ -596,7 +607,7 @@ const ControlReport = ({
                 { text: 'Evidencia', style: 'th' },
               ],
               ...rows.map((r) => [
-                { text: r.campo, style: 'td' },
+                { text: [pdfRowLabel(), r.campo], style: 'td' },
                 {
                   text: r.contexto
                     ? [
@@ -678,7 +689,7 @@ const ControlReport = ({
               ],
               ...parameterRows.map(parameter => [
                 {
-                  text: `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`,
+                  text: [pdfRowLabel(), `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`],
                   style: 'td',
                 },
                 { text: parameter.required, style: 'td' },
@@ -824,7 +835,7 @@ const ControlReport = ({
 
       <EuiFlexGroup gutterSize='l'>
         <EuiFlexItem>
-          <EuiStat title={String(engineLevel)} description='Nivel ENS' />
+          <EuiStat title={String(engineLevel)} description={levelLabel} />
         </EuiFlexItem>
 
         <EuiFlexItem>
@@ -1040,7 +1051,7 @@ export const ReportsENS = () => {
           ...control.requirements.map(requirement => requirement.id),
         ],
         reportModelDefinition: getENSReportModelDefinition(control.id),
-      })).sort((a, b) => compareENSControlsInAnnexOrder(a.controlId, b.controlId)),
+      })).sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId)),
     [],
   );
 

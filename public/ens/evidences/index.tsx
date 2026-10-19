@@ -21,7 +21,8 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
+import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 // Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type {
   ENSComplianceResult,
@@ -29,7 +30,6 @@ import type {
   ENSObservationGroup,
 } from '../../../common/ens/core/evaluation/types';
 import {
-  compareENSControlsInAnnexOrder,
   filterByENSPrefix,
   listENSFamilies,
   resolveENSSectionOpenState,
@@ -516,7 +516,7 @@ export const EvidencesENS = () => {
         unmeasured: countByStatus('NO_EVALUABLE'),
         notApplicable: countByStatus('NO_APLICA'),
       };
-    }).sort((a, b) => compareENSControlsInAnnexOrder(a.controlId, b.controlId));
+    }).sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId));
   }, [results]);
 
   const filtered = useMemo(

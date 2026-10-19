@@ -12,8 +12,8 @@ export const opAcc2CatalogDefinition: ENSControlDefinition = {
     'Control ENS orientado a garantizar que los recursos del sistema están protegidos por controles de acceso, que esos controles reflejan las decisiones del responsable del recurso, que los componentes y ficheros del sistema operativo están especialmente controlados y que, en nivel ALTO, los privilegios de acceso se mantienen individualmente y restringen el tipo de acceso.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.2.2',
-  // The auditor's package v2.0 has no op.acc.2 template: it still follows v1.0 until the v2.0 arrives.
-  source: { template: 'ENSFacil_Plantilla_op.acc.2', version: '1.0', date: '2026-07-28' },
+  // The auditor's package v2.0 has no op.acc.2 template: it still follows v1.0 (undated; its file is of 28/07/2026) until the v2.0 arrives.
+  source: { template: 'ENSFacil_Plantilla_op.acc.2', version: '1.0' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

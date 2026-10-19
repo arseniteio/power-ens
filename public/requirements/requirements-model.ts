@@ -1,6 +1,6 @@
 // Controls column and requirements column of the classic view, from the descriptions (ens-requirements.ts) and the counts.
 import { ENSCatalog, compareENSControlIdsByAnnex } from '../../common/ens/catalog';
-import { ENSProvenancedText, describeRequirementTexts } from '../../common/ens/catalog/support/provenance';
+import { ENSProvenancedText, describeRequirementTexts, describeUncatalogedText } from '../../common/ens/catalog/support/provenance';
 
 export interface ENSRequirementRow { id: string; control: string; description: string; count: number }
 export interface ENSControlRow { id: string; count: number }
@@ -36,12 +36,12 @@ export const buildRequirementsModel = (
   return { controls, requirements };
 };
 
-// Texts of a requirement with their provenance: the catalog's BOE literal and its interpretation; outside the catalog, the file's text after its title.
+// Texts of a requirement with their provenance: the catalog's BOE literal and its interpretation; outside the catalog the source is unknown, so the file's text after its title is criterion, never norm.
 export const requirementTextsOf = (requirementId: string, description: string): ENSProvenancedText[] => {
   const requirement = ENSCatalog.flatMap(control => control.requirements).find(item => item.id === requirementId);
   const separator = description.indexOf(' - ');
 
-  return describeRequirementTexts(
-    requirement || { description: separator >= 0 ? description.slice(separator + 3) : description }
-  );
+  return requirement
+    ? describeRequirementTexts(requirement)
+    : [describeUncatalogedText(separator >= 0 ? description.slice(separator + 3) : description)];
 };

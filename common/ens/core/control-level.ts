@@ -123,3 +123,30 @@ export const describeControlAxis = (
     ? `Se aplica por el nivel de ${ENS_DIMENSION_NAMES[dimensions[0]]} (${dimensions[0]})`
     : `Se aplica por el nivel más alto de ${dimensions.join('·')}`;
 };
+
+// Where the evaluation level comes from, for labels: nothing for a category control, «Disponibilidad» or «el más alto de C·I·T·A» otherwise.
+export const describeLevelSource = (
+  control: Pick<ENSControlDefinition, 'levelDimension'>
+): string | undefined => {
+  const dimensions = listControlDimensions(control);
+
+  if (!dimensions.length) {
+    return undefined;
+  }
+
+  return dimensions.length === 1 ? ENS_DIMENSION_NAMES[dimensions[0]] : `el más alto de ${dimensions.join('·')}`;
+};
+
+// Label of the level a control is evaluated with: «Nivel ENS» by category, «Nivel aplicable (Disponibilidad)» when dimensions govern it.
+export const describeApplicableLevelLabel = (control: Pick<ENSControlDefinition, 'levelDimension'>): string => {
+  const source = describeLevelSource(control);
+
+  return source ? `Nivel aplicable (${source})` : 'Nivel ENS';
+};
+
+// «Nivel ENS: MEDIO» or «Nivel aplicable: ALTO (Disponibilidad)».
+export const describeApplicableLevel = (control: Pick<ENSControlDefinition, 'levelDimension'>, level: string): string => {
+  const source = describeLevelSource(control);
+
+  return source ? `Nivel aplicable: ${level} (${source})` : `Nivel ENS: ${level}`;
+};

@@ -43,7 +43,7 @@ import { resolveControlLevel } from './control-level';
 import type { ENSControlDefinition } from '../catalog/types';
 import type { ENSComplianceResult } from './evaluation/types';
 
-// Effective level of a control: the global one, unless the control follows the level of a dimension declared in the global configuration (op.exp.8 and Traceability). See `control-level.ts`.
+// Effective level of a control: the global one, unless the catalog ties it to one or more dimensions (C, I, T, A, D); then the highest of their levels. See `control-level.ts`.
 const getControlLevel = (
   catalogControl: Parameters<typeof resolveControlLevel>[0],
   level: ENSLevel

@@ -1,6 +1,8 @@
 // All catalogue controls always appear; those not measured on the chosen machine go last, greyed, with the reason and no number.
 import type { ENSControlSummaryEntry, ENSAgentControlsRow } from '../../../common/ens/evaluation/types';
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
+import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { describeLevelSource } from '../../../common/ens/core/control-level';
 
 export interface ENSListControl {
   id: string;
@@ -84,13 +86,20 @@ export const buildControlListEntries = (controls: ENSListControl[], options: ENS
 
 export const describeLevelExclusions = (
   entries: Pick<ENSControlListEntry, 'id' | 'appliesAtLevel'>[],
-  globalLevel: string
+  globalLevel: string,
+  // A control governed by a dimension is excluded by its own level: the text says which one, not the ENS level.
+  levelOf?: (controlId: string) => string
 ): { count: number; ids: string[]; text: string } | undefined => {
   const ids = entries.filter(entry => !entry.appliesAtLevel).map(entry => entry.id);
   if (!ids.length) return undefined;
+  const named = ids.map(id => {
+    const level = levelOf ? levelOf(id) : globalLevel;
+    const source = describeLevelSource(getENSCatalogControl(id) || {});
+    return level !== globalLevel && source ? `${id}: nivel aplicable ${level} por ${source}` : id;
+  });
   return {
     count: ids.length,
     ids,
-    text: `Nivel ${globalLevel}: ${ids.length} control${ids.length === 1 ? ' no aplica' : 'es no aplican'} (${ids.join(', ')})`,
+    text: `Nivel ${globalLevel}: ${ids.length} control${ids.length === 1 ? ' no aplica' : 'es no aplican'} (${named.join(', ')})`,
   };
 };

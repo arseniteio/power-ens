@@ -29,7 +29,7 @@ import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../../app/tabs';
 import type { ENSOverviewEvaluationResponse, ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent, isManagerOnlyControl } from '../../../common/ens/core/scope/measurement-planes';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';

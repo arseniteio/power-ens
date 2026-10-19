@@ -141,7 +141,7 @@ export const evaluateRequirement = (
         !controlIsActive
           ? `El control todavía no está activo (${controlStatus}): está definido pero ningún agente emite sus evidencias, así que no entra en el índice.`
           : requirement.applicability.reason ||
-            `El requisito ${requirement.id} no aplica para el nivel ENS ${level}.`,
+            `El requisito ${requirement.id} no aplica en el nivel ${level} con el que se evalúa el control.`,
       ],
       evidenceIds: requirement.evidenceIds,
     };

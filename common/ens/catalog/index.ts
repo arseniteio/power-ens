@@ -1,6 +1,7 @@
 export * from './types';
 export * from './support/order';
 export * from './support/provenance';
+export * from './support/template-correspondence';
 export * from './mp-info-6';
 export * from './op-acc-1';
 export * from './op-acc-2';
@@ -99,4 +100,3 @@ export const compareENSFamiliesByAnnex = (a: string, b: string): number => {
     { id: b, annexSection: firstSection(b) }
   );
 };
-export * from './support/template-correspondence';

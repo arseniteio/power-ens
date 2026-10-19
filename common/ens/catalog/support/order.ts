@@ -1,7 +1,7 @@
 import { ENSControlDefinition } from '../types';
 
-// Compares dotted identifiers segment by segment, numbers as numbers: '4.3.2' < '4.3.10', 'op.exp.1' < 'op.exp.10'.
-export const compareDottedIds = (a: string, b: string): number => {
+// The one comparator of dotted identifiers (ENS ids and Annex II sections): segment by segment, numbers as numbers, '4.3.2' < '4.3.10', 'op.exp.1' < 'op.exp.10'.
+export const compareENSIds = (a: string, b: string): number => {
   const left = String(a).trim().toLowerCase().split('.');
   const right = String(b).trim().toLowerCase().split('.');
 
@@ -26,7 +26,7 @@ export const compareControlsByAnnex = (
   b: Pick<ENSControlDefinition, 'id'> & { annexSection?: string }
 ): number => {
   if (a.annexSection && b.annexSection) {
-    return compareDottedIds(a.annexSection, b.annexSection) || compareDottedIds(a.id, b.id);
+    return compareENSIds(a.annexSection, b.annexSection) || compareENSIds(a.id, b.id);
   }
 
   if (a.annexSection) {
@@ -37,5 +37,5 @@ export const compareControlsByAnnex = (
     return 1;
   }
 
-  return compareDottedIds(a.id, b.id);
+  return compareENSIds(a.id, b.id);
 };

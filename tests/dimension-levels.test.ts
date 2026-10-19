@@ -53,6 +53,7 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const LEVELS: ENSLevel[] = ['BAJO', 'MEDIO', 'ALTO'];
+const labPath = process.env.ENSFACIL_LAB_DOC;
 
 section('1. Each axis: a single-dimension control follows its own key and no other');
 
@@ -234,14 +235,70 @@ const parity = (name: string, document: ENSConfigurationVersion) => {
 
 parity('default document with the lab passes', configuration({}));
 
-const labPath = process.env.ENSFACIL_LAB_DOC;
-
 if (labPath && existsSync(labPath)) {
   const raw = JSON.parse(readFileSync(labPath, 'utf8'));
   const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
   parity(`lab copy (${lab.controls.length} controls)`, lab);
 } else {
   console.log('    (lab copy skipped: ENSFACIL_LAB_DOC not set)');
+}
+
+section('6b. Upgrade from 1.3.0: a document keeping its own dimension keys changes exactly the controls the index ties to them');
+
+// 1.3.0 axes: only op.exp.8 followed T and only op.cont.2/3 followed D.
+const AXES_130: Record<string, ENSControlDefinition['levelDimension']> = { 'op.exp.8': 'T', 'op.cont.2': 'D', 'op.cont.3': 'D' };
+
+const withAxes130 = (run: () => any): any => {
+  const saved = ENSCatalog.map(control => [control, control.levelDimension] as [ENSControlDefinition, ENSControlDefinition['levelDimension']]);
+  try {
+    ENSCatalog.forEach(control => {
+      if (AXES_130[control.id]) control.levelDimension = AXES_130[control.id];
+      else delete control.levelDimension;
+    });
+    return run();
+  } finally {
+    saved.forEach(([control, axis]) => {
+      if (axis === undefined) delete control.levelDimension;
+      else control.levelDimension = axis;
+    });
+  }
+};
+
+const upgradeChanges = (document: ENSConfigurationVersion) => {
+  ensConfigurationRepository.replaceActive(document);
+  const level = document.global.ensLevel;
+  const run = () => new Map(getENSComplianceResults(level, labEvents, undefined, undefined, labNow).map(r => [r.control.id, r]));
+  const now = run();
+  const before = withAxes130(run);
+  return ENSCatalog.map(control => control.id)
+    .filter(id => fingerprint(now.get(id)) !== fingerprint(before.get(id)))
+    .map(id => `${id}: ${before.get(id)?.level} → ${now.get(id)?.level} (${listControlDimensions(getCatalog(id)).join('·')})`);
+};
+
+const getCatalog = (id: string) => ENSCatalog.find(control => control.id === id) as ENSControlDefinition;
+
+const UPGRADE_CASES: [string, Record<string, unknown>, string[]][] = [
+  ['MEDIO with D ALTO (1.3.0 guides allowed it): D now also governs mp.info.6', { ensLevel: 'MEDIO', availabilityLevel: 'ALTO' }, ['mp.info.6: MEDIO → ALTO (D)']],
+  ['MEDIO with T ALTO: T now also governs op.acc.1-6 (the highest of their dimensions)', { ensLevel: 'MEDIO', traceabilityLevel: 'ALTO' },
+    ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4', 'op.acc.5', 'op.acc.6'].map(id => `${id}: MEDIO → ALTO (${id === 'op.acc.1' ? 'T·A' : 'C·I·T·A'})`)],
+  ['ALTO with D MEDIO (coherent): mp.info.6 drops to MEDIO', { ensLevel: 'ALTO', availabilityLevel: 'MEDIO' }, ['mp.info.6: ALTO → MEDIO (D)']],
+  ['ALTO with T BAJO: op.acc.* stay ALTO (A and the rest are still the ENS level); op.exp.8 already followed T', { ensLevel: 'ALTO', traceabilityLevel: 'BAJO' }, []],
+  ['no dimension declared: nothing changes', { ensLevel: 'MEDIO' }, []],
+];
+
+for (const [name, global, expected] of UPGRADE_CASES) {
+  const changes = upgradeChanges(configuration(global));
+  console.log(`    ${name}: ${changes.length ? changes.join('; ') : 'no change'}`);
+  check(name, JSON.stringify(changes) === JSON.stringify(expected), changes);
+}
+
+if (labPath && existsSync(labPath)) {
+  const raw = JSON.parse(readFileSync(labPath, 'utf8'));
+  const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
+  const declared = ENS_DIMENSIONS.filter(d => ENS_DIMENSION_LEVEL_KEYS[d] in lab.global);
+  const changes = upgradeChanges(lab);
+  console.log(`    lab copy keeps its keys (${declared.join(', ') || 'none declared'}): ${changes.length ? changes.join('; ') : 'no change'}`);
+  check('lab copy with its own keys: only controls whose new axis includes a declared key change', changes.every(line => declared.some(d => line.includes(`(${d}`) || line.includes(`·${d}`))), changes);
 }
 
 section('7. The axes do move the level once a dimension is declared');

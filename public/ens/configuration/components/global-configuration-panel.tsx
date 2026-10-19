@@ -61,7 +61,7 @@ const dimensionLevelOptions = [
 ];
 
 // One short help line per dimension: which catalog controls follow it.
-export const describeDimensionUse = (dimension: ENSLevelDimension): string => {
+const describeDimensionUse = (dimension: ENSLevelDimension): string => {
   const users = ENSCatalog.filter(control => listControlDimensions(control).includes(dimension)).map(control => control.id);
 
   return users.length

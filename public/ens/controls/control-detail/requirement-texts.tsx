@@ -6,6 +6,7 @@ import {
   EuiBasicTable,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiHorizontalRule,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -26,7 +27,7 @@ import type {
 } from '../../../../common/ens/catalog/support/template-correspondence';
 
 export const ProvenanceLabel = ({ provenance }: { provenance: ENSTextProvenance }) => (
-  <EuiBadge color={provenance === 'NORMA_ENS' ? 'primary' : 'hollow'}>
+  <EuiBadge color={provenance === 'BOE' ? 'primary' : 'hollow'}>
     {ENS_TEXT_PROVENANCE_LABELS[provenance]}
   </EuiBadge>
 );
@@ -55,18 +56,13 @@ export const RequirementTextsPanel = ({ controlId }: { controlId: string }) => {
     >
       <EuiText size='xs' color='subdued'>
         <p>
-          «{ENS_TEXT_PROVENANCE_LABELS.NORMA_ENS}» es el literal del BOE; «{ENS_TEXT_PROVENANCE_LABELS.CRITERIO_APLICACION}» es cómo
+          «{ENS_TEXT_PROVENANCE_LABELS.BOE}» es el literal del BOE; «{ENS_TEXT_PROVENANCE_LABELS.CRITERION}» es cómo
           lo lee y lo mide ENSFácil o la plantilla del auditor, sin valor normativo.
         </p>
       </EuiText>
       <EuiSpacer size='s' />
       {control.requirements.map(requirement => (
-        <EuiFlexGroup
-          key={requirement.id}
-          gutterSize='s'
-          responsive={false}
-          style={{ padding: '6px 0', borderBottom: '1px solid #F1F4FA' }}
-        >
+        <EuiFlexGroup key={requirement.id} gutterSize='s' responsive={false} style={{ padding: '6px 0' }}>
           <EuiFlexItem grow={false} style={{ minWidth: 110 }}>
             <EuiText size='xs'>
               <strong>{requirement.id}</strong>
@@ -79,6 +75,7 @@ export const RequirementTextsPanel = ({ controlId }: { controlId: string }) => {
             {describeRequirementTexts(requirement).map(text => (
               <ProvenancedText key={text.provenance} provenance={text.provenance} text={text.text} />
             ))}
+            <EuiHorizontalRule margin='xs' />
           </EuiFlexItem>
         </EuiFlexGroup>
       ))}
@@ -87,7 +84,7 @@ export const RequirementTextsPanel = ({ controlId }: { controlId: string }) => {
 };
 
 const coverageColor = (coverage: ENSTemplateCoverage): string =>
-  coverage === 'EQUIVALENTE' ? 'success' : coverage === 'PARCIAL' ? 'warning' : 'danger';
+  coverage === 'EQUIVALENT' ? 'success' : coverage === 'PARTIAL' ? 'warning' : 'danger';
 
 const correspondenceColumns = (oursName: string) => [
   { field: 'template', name: 'Plantilla', width: '90px', render: (id: string) => <strong>{id}</strong> },
@@ -132,7 +129,7 @@ export const TemplateCorrespondencePanel = ({ controlId }: { controlId: string }
       buttonContent={correspondence.title}
       paddingSize='s'
     >
-      <ProvenancedText provenance='CRITERIO_APLICACION' text={correspondence.summary} />
+      <ProvenancedText provenance='CRITERION' text={correspondence.summary} />
       {table('Requisitos', correspondence.requirements, 'ENSFácil')}
       {table('Parámetros', correspondence.parameters, 'ENSFácil')}
       {table('Evidencias', correspondence.evidences, 'ENSFácil')}

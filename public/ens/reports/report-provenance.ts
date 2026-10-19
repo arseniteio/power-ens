@@ -2,6 +2,8 @@
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import {
   ENSProvenancedText,
+  ENSTextProvenance,
+  ENS_PROPOSAL_TEXT_PROVENANCE,
   ENS_TEXT_PROVENANCE_LABELS,
   describeAnnexSection,
   describeControlSource,
@@ -41,13 +43,21 @@ export const pdfProvenanceRuns = (texts: ENSProvenancedText[]): object[] =>
       text: `${text.label}: `,
       bold: true,
       fontSize: 7,
-      color: text.provenance === 'NORMA_ENS' ? NORM_COLOR : CRITERION_COLOR,
+      color: text.provenance === 'BOE' ? NORM_COLOR : CRITERION_COLOR,
     },
-    { text: text.text, color: text.provenance === 'NORMA_ENS' ? '#1a1c21' : CRITERION_COLOR },
+    { text: text.text, color: text.provenance === 'BOE' ? '#1a1c21' : CRITERION_COLOR },
   ]);
 
+// The small label at the start of a PDF row, as the screen shows per row; fields and parameters are criterion.
+export const pdfRowLabel = (provenance: ENSTextProvenance = ENS_PROPOSAL_TEXT_PROVENANCE): object => ({
+  text: `${ENS_TEXT_PROVENANCE_LABELS[provenance]}\n`,
+  bold: true,
+  fontSize: 6,
+  color: provenance === 'BOE' ? NORM_COLOR : CRITERION_COLOR,
+});
+
 // Line under the «Campos del informe» and «Parámetros» headings: they are the template's proposal, not the norm.
-export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERIO_APLICACION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por ENSFácil, sin valor normativo.`;
+export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por ENSFácil, sin valor normativo.`;
 
 const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]): object[] => [
   { text: title, bold: true, fontSize: 9, margin: [0, 8, 0, 4] },
@@ -61,7 +71,7 @@ const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]
           { text: row.template, style: 'td' },
           { text: row.templateName, style: 'td' },
           { text: row.ours.length ? row.ours.join(', ') : '—', style: 'td' },
-          { text: ENS_TEMPLATE_COVERAGE_LABELS[row.coverage], style: 'td', bold: row.coverage === 'SIN_EQUIVALENTE' },
+          { text: ENS_TEMPLATE_COVERAGE_LABELS[row.coverage], style: 'td', bold: row.coverage === 'NOT_MEASURED' },
           { text: row.note, style: 'td' },
         ]),
       ],
@@ -82,7 +92,7 @@ export const buildTemplateCorrespondencePdf = (controlId: string): object[] => {
     { text: correspondence.title, style: 'h3', margin: [0, 16, 0, 6] },
     {
       text: [
-        { text: `${ENS_TEXT_PROVENANCE_LABELS.CRITERIO_APLICACION}: `, bold: true, fontSize: 7, color: CRITERION_COLOR },
+        { text: `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: `, bold: true, fontSize: 7, color: CRITERION_COLOR },
         { text: correspondence.summary, fontSize: 9 },
       ],
     },

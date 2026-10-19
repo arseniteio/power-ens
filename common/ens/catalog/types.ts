@@ -45,11 +45,11 @@ export interface ENSRequirementDefinition {
 // Security dimension whose LEVEL governs a control when Annex II applies it by dimension, not by system category: C Confidentiality, I Integrity, T Traceability, A Authenticity, D Availability.
 export type ENSLevelDimension = 'C' | 'I' | 'T' | 'A' | 'D';
 
-// Auditor's template a control was built from: file name without extension, template version and its date (ISO).
+// Auditor's template a control was built from: file name without extension, template version and its date (ISO), absent when the template carries none.
 export interface ENSControlSource {
   template: string;
   version: string;
-  date: string;
+  date?: string;
 }
 
 // Plane where a control is measured: on each scope machine (`agent`) or on the Wazuh manager (`manager`, agent 000, which belongs to no group). See `core/scope/measurement-planes.ts`.

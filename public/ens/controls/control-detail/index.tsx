@@ -48,8 +48,8 @@ import { detailConfigurationChanges } from '../../../routing/configuration-link'
 import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
-import { describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
-import { describeControlAxis } from '../../../../common/ens/core/control-level';
+import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
+import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
@@ -933,7 +933,7 @@ export const ControlDetailENS = ({
             <p>
               <strong>Activo:</strong> {agentName} &nbsp; | &nbsp;
               <strong>Fuente:</strong> Wazuh / OpenSearch &nbsp; | &nbsp;
-              <strong>Nivel ENS:</strong> {levelsText} &nbsp; | &nbsp;
+              <strong>{describeApplicableLevelLabel(headerCatalog || {})}:</strong> {levelsText} &nbsp; | &nbsp;
               <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
@@ -1177,7 +1177,7 @@ export const ControlDetailENS = ({
                       </EuiBadge>
                     </EuiFlexItem>
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color='hollow'>Nivel {levelsText}</EuiBadge>
+                      <EuiBadge color='hollow'>{describeApplicableLevel(headerCatalog || {}, levelsText)}</EuiBadge>
                     </EuiFlexItem>
                   </EuiFlexGroup>
                 </EuiPanel>
@@ -1280,7 +1280,7 @@ export const ControlDetailENS = ({
               name: 'Descripción',
               render: (title: string) => (
                 <EuiText size='s'>
-                  {title} <ProvenanceLabel provenance='CRITERIO_APLICACION' />
+                  {title} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
                 </EuiText>
               ),
             },

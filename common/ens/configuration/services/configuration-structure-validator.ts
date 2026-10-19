@@ -7,6 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
+import { ENS_DIMENSION_LEVEL_KEYS } from '../../core/control-level';
 import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
@@ -381,13 +382,7 @@ const validateGlobalConfiguration = (
 
   // Dimension levels are optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
   // `ensLevel` below a dimension is NOT a structural error: it would stop the whole environment loading, so the panel and the scripts reject it instead.
-  for (const key of [
-    'confidentialityLevel',
-    'integrityLevel',
-    'traceabilityLevel',
-    'authenticityLevel',
-    'availabilityLevel',
-  ]) {
+  for (const key of Object.values(ENS_DIMENSION_LEVEL_KEYS)) {
     if (key in value && !isAllowedString(value[key], ENS_LEVELS)) {
       errors.push(`configuration.global.${key} is invalid.`);
     }

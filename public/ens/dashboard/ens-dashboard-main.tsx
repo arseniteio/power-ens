@@ -3,6 +3,8 @@ import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
+import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
+import { IncoherentLevelsNotice } from '../configuration/components/incoherent-levels-notice';
 import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
 import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
@@ -182,6 +184,7 @@ export const EnsDashboardMain = () => {
 
   return (
     <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
+      <IncoherentLevelsNotice global={getActiveENSConfiguration()?.global} />
       <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
         <div style={card}>

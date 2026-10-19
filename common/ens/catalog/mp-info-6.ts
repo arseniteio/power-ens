@@ -113,7 +113,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['ALTO'],
         reason:
-          'Este requisito solo aplica a sistemas de nivel ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
+          'Este requisito solo aplica con nivel ALTO de Disponibilidad. Para BAJO y MEDIO debe mostrarse como NO_APLICA.',
       },
       evidenceIds: ['EV-06'],
       parameterIds: ['P-08', 'P-09'],

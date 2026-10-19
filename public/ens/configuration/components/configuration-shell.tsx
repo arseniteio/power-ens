@@ -72,7 +72,7 @@ export const ConfigurationShell = () => {
       [configurationRevision]
     );
 
-  // The level the engine evaluates each control with: the global one, or its dimension's (T, D).
+  // The level the engine evaluates each control with: the global one, or the highest of its dimensions (C, I, T, A, D).
   const getControlActiveLevel =
     useCallback(
       (controlId: string): ENSLevel =>
