@@ -1,22 +1,4 @@
-/**
- * op.exp.9 · el juicio del registro de la gestión de incidentes.
- *
- *     npx tsx tests/op-exp-9-judgment.test.ts
- *
- * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
- *
- * Qué se prueba. La policy de op.exp.9 correlaciona por EXPEDIENTE
- * (`incidente_id`) lo que la organización registra en los TSV del manager con
- * lo que el manager conserva y observa, cosa que ninguna primitiva expresa.
- * Cada caso mueve UN eje y lleva al lado la REVERSIÓN que demuestra que no
- * pasaría siempre: el MISMO evento del recolector con otro parámetro, otra fila
- * del registro u otro `now` cambia el veredicto.
- *
- * Los eventos se construyen como alertas de `alerts.json` del manager
- * (agent.id=000) y pasan por el normalizador real: los números llegan como
- * texto y `evidence_id` con comas se parte en uno por evidencia, igual que en
- * producción.
- */
+/** op.exp.9: judgment of the incident management log. */
 import { opExp9PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-exp-9.policy';
 import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
 import { opExp9CatalogDefinition } from '../common/ens/catalog/op-exp-9';
@@ -32,36 +14,32 @@ import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
+const NOW = new Date('2026-09-26T12:00:00Z');
+const ago = (horas: number): string =>
+  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
 
-const AHORA = new Date('2026-09-26T12:00:00Z');
-const hace = (horas: number): string =>
-  new Date(AHORA.getTime() - horas * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+let counter = 0;
 
-let contador = 0;
-
-const alerta = (data: Record<string, unknown>, ts = hace(1)) => {
-  contador += 1;
+const alert = (data: Record<string, unknown>, ts = ago(1)) => {
+  counter += 1;
 
   return {
-    _id: `alerta-${contador}`,
+    _id: `alerta-${counter}`,
     _source: {
       '@timestamp': ts,
       agent: { id: '000', name: 'Wazuh-4' },
@@ -76,15 +54,15 @@ const alerta = (data: Record<string, unknown>, ts = hace(1)) => {
 
 const TODAS = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09';
 
-const latido = (ts = hace(0.5), cubiertas = TODAS) =>
-  alerta({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: cubiertas, perfil: 'manager' }, ts);
+const heartbeat = (ts = ago(0.5), covered = TODAS) =>
+  alert({ event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, perfil: 'manager' }, ts);
 
-const leido = (registro: string, extra: Record<string, unknown> = {}, ts = hace(0.6)) =>
-  alerta({
+const readOne = (record: string, extra: Record<string, unknown> = {}, ts = ago(0.6)) =>
+  alert({
     event: 'register_read',
     evidence_id: TODAS,
-    registro,
-    fichero: `/etc/ensfacil/${registro}.tsv`,
+    registro: record,
+    fichero: `/etc/ensfacil/${record}.tsv`,
     presente: 'si',
     legible: 'si',
     formato: 'ok',
@@ -93,16 +71,16 @@ const leido = (registro: string, extra: Record<string, unknown> = {}, ts = hace(
     ...extra,
   }, ts);
 
-const registros = (extra: Record<string, Record<string, unknown>> = {}, ts = hace(0.6)) =>
-  ['incidentes', 'actuaciones', 'custodia', 'custodia_accesos'].map(r => leido(r, extra[r] || {}, ts));
+const records = (extra: Record<string, Record<string, unknown>> = {}, ts = ago(0.6)) =>
+  ['incidentes', 'actuaciones', 'custodia', 'custodia_accesos'].map(r => readOne(r, extra[r] || {}, ts));
 
-const fila = (id: string, fase: string, fecha: string, extra: Record<string, unknown> = {}, ts = hace(0.6)) =>
-  alerta({
+const row = (id: string, phase: string, date: string, extra: Record<string, unknown> = {}, ts = ago(0.6)) =>
+  alert({
     event: 'incident_report_registered',
     evidence_id: 'EV-02,EV-09',
     incidente_id: id,
-    fase,
-    fecha,
+    fase: phase,
+    fecha: date,
     severidad: 'alta',
     sistemas: 'wazuh-real',
     clasificacion: 'acceso-no-autorizado',
@@ -116,8 +94,8 @@ const fila = (id: string, fase: string, fecha: string, extra: Record<string, unk
     ...extra,
   }, ts);
 
-const ventana = (id: string, extra: Record<string, unknown> = {}, ts = hace(0.6)) =>
-  alerta({
+const window = (id: string, extra: Record<string, unknown> = {}, ts = ago(0.6)) =>
+  alert({
     event: 'incident_source_events_available',
     evidence_id: 'EV-01,EV-07',
     incidente_id: id,
@@ -141,10 +119,10 @@ const ventana = (id: string, extra: Record<string, unknown> = {}, ts = hace(0.6)
     ...extra,
   }, ts);
 
-const eventos = (...alertas: ReturnType<typeof alerta>[]): ENSNormalizedEvent[] =>
-  normalizeWazuhAlerts(alertas);
+const events = (...alerts: ReturnType<typeof alert>[]): ENSNormalizedEvent[] =>
+  normalizeWazuhAlerts(alerts);
 
-const BASICOS: Record<string, string[] | string> = {
+const BASIC_ONES: Record<string, string[] | string> = {
   'P-01': 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)',
   'P-02': ['inicial | detección, alcance |', 'intermedio | evolución, medidas | 24', 'final | causa, impacto, cierre |'],
   'P-03': ['logs sellados del período | repositorio-custodia', 'acta de recogida |'],
@@ -155,87 +133,83 @@ const BASICOS: Record<string, string[] | string> = {
   'P-08': '12',
 };
 
-const configuracion = (valores: Record<string, string[] | string | undefined>): ENSControlConfiguration => ({
+const configuration = (valores: Record<string, string[] | string | undefined>): ENSControlConfiguration => ({
   ...opExp9Configuration,
   parameters: opExp9Configuration.parameters.map(p => {
     const valor = valores[p.id];
-    const copia = { ...p };
+    const copy = { ...p };
 
-    // Un parámetro vacío es la clave `value` AUSENTE, nunca null.
     if (valor === undefined) {
-      delete copia.value;
+      delete copy.value;
     } else {
-      copia.value = valor;
+      copy.value = valor;
     }
 
-    return copia;
+    return copy;
   }),
 });
 
-const evalua = (
+const evaluate = (
   evs: ENSNormalizedEvent[],
-  valores: Record<string, string[] | string | undefined> = BASICOS,
-  ahora: Date = AHORA
+  valores: Record<string, string[] | string | undefined> = BASIC_ONES,
+  now: Date = NOW
 ) => {
-  const cfg = configuracion(valores);
-  const cortados = keepLatestRunStateFacts('op.exp.9', evs, ahora);
-  const evidencias = resolveEvidenceForControl('op.exp.9', cortados, '000', 'MEDIO', cfg, ahora);
-  const contexto = buildPolicyContext(opExp9CatalogDefinition, cfg, 'MEDIO', cortados, evidencias, ahora);
-  const { decisions } = opExp9PolicyDefinition.evaluator!(contexto);
-  const principal = (requisito: string) => decisions.find(d => d.requirementId === requisito)!;
+  const cfg = configuration(valores);
+  const cutOnes = keepLatestRunStateFacts('op.exp.9', evs, now);
+  const evidences = resolveEvidenceForControl('op.exp.9', cutOnes, '000', 'MEDIO', cfg, now);
+  const context = buildPolicyContext(opExp9CatalogDefinition, cfg, 'MEDIO', cutOnes, evidences, now);
+  const { decisions } = opExp9PolicyDefinition.evaluator!(context);
+  const principal = (requirement: string) => decisions.find(d => d.requirementId === requirement)!;
   const de = (id: string) => decisions.find(d => d.trace.ruleId.endsWith(`/${id}`))!;
-  const puente = applyPolicyDecisionsToEvidences(evidencias, decisions, opExp9CatalogDefinition.requirements);
-  const requisito = (id: string) =>
+  const bridge = applyPolicyDecisionsToEvidences(evidences, decisions, opExp9CatalogDefinition.requirements);
+  const requirement = (id: string) =>
     evaluateRequirement(
       opExp9CatalogDefinition.requirements.find(r => r.id === id)!,
       'MEDIO',
-      puente,
+      bridge,
       false,
       decisions,
       opExp9CatalogDefinition.status
     );
 
-  return { decisions, principal, de, puente, requisito };
+  return { decisions, principal, de, puente: bridge, requisito: requirement };
 };
 
-// Un incidente cerrado, bien llevado, de tres días en wazuh-real.
-const incidenteCerrado = (id = 'INC-2026-001', extra: Record<string, unknown> = {}) => [
-  fila(id, 'inicial', '2026-09-10T10:00:00Z', extra),
-  fila(id, 'intermedio', '2026-09-11T10:00:00Z', extra),
-  fila(id, 'final', '2026-09-12T10:00:00Z', extra),
+const closedIncident = (id = 'INC-2026-001', extra: Record<string, unknown> = {}) => [
+  row(id, 'inicial', '2026-09-10T10:00:00Z', extra),
+  row(id, 'intermedio', '2026-09-11T10:00:00Z', extra),
+  row(id, 'final', '2026-09-12T10:00:00Z', extra),
 ];
 
-// --- 1. catálogo -----------------------------------------------------------
-
-bloque('1. Catálogo: tres requisitos base, activo, estado por la última pasada');
+section('1. Catalog: three base requirements, active, state by the last pass');
 
 {
-  comprueba('op.exp.9 está ACTIVE', opExp9CatalogDefinition.status === 'ACTIVE');
+  check('op.exp.9 is ACTIVE', opExp9CatalogDefinition.status === 'ACTIVE');
 
-  comprueba(
-    'los tres requisitos aplican en BAJO, MEDIO y ALTO (sin refuerzos)',
+  check(
+    'the three requirements apply at BAJO, MEDIO and ALTO (no reinforcements)',
     opExp9CatalogDefinition.requirements.every(r => r.applicability.levels.join(',') === 'BAJO,MEDIO,ALTO') &&
       opExp9CatalogDefinition.requirements.length === 3
   );
 
-  const definiciones = getEvidenceDefinitions('op.exp.9');
+  const definitions = getEvidenceDefinitions('op.exp.9');
 
-  comprueba('nueve evidencias en el catálogo', definiciones.length === 9, definiciones.length);
+  check('nine evidences in the catalog', definitions.length === 9, definitions.length);
 
-  comprueba(
-    'ninguna evidencia lleva `judgment`: las juzga la policy',
-    definiciones.every(d => !d.judgment)
+  check(
+    'no evidence carries `judgment`: the policy judges them',
+    definitions.every(d => !d.judgment)
   );
 
-  comprueba(
-    'toda evidencia con hechos de estado acredita reglas de la banda 111000-111099',
-    definiciones.every(d => d.relatedRules.length > 0 && d.relatedRules.every(r => /^1110\d\d$/.test(r)))
+  check(
+    'every evidence with state facts accredits rules in band 111000-111099',
+    definitions.every(d => d.relatedRules.length > 0 && d.relatedRules.every(r => /^1110\d\d$/.test(r)))
   );
 
   const tablas = ['P-02', 'P-03', 'P-05', 'P-06', 'P-07'];
 
-  comprueba(
-    'P-02, P-03, P-05, P-06 y P-07 son tablas con columnas',
+  check(
+    'P-02, P-03, P-05, P-06 and P-07 are tables with columns',
     tablas.every(id => {
       const p = opExp9Configuration.parameters.find(x => x.id === id)!;
 
@@ -243,558 +217,529 @@ bloque('1. Catálogo: tres requisitos base, activo, estado por la última pasada
     })
   );
 
-  comprueba(
-    'ningún parámetro declara `value` (vacío = clave ausente)',
+  check(
+    'no parameter declares `value` (empty = absent key)',
     opExp9Configuration.parameters.every(p => !Object.prototype.hasOwnProperty.call(p, 'value'))
   );
 
-  comprueba(
-    'P-ATT y P-08 son opcionales',
+  check(
+    'P-ATT and P-08 are optional',
     ['P-ATT', 'P-08'].every(id => opExp9Configuration.parameters.find(p => p.id === id)!.required === false)
   );
 }
 
-// --- 2. latido y registro ---------------------------------------------------
-
-bloque('2. Sin latido no se juzga; un registro AUSENTE no es un registro VACÍO');
+section('2. Without a heartbeat nothing is judged; an ABSENT record is not an EMPTY record');
 
 {
-  const sinLatido = evalua(eventos(...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const withoutHeartbeat = evaluate(events(...records(), ...closedIncident(), window('INC-2026-001')));
 
-  comprueba(
-    'sin latido del recolector: los tres requisitos NO_EVALUABLE',
-    ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'].every(r => sinLatido.principal(r).status === 'NO_EVALUABLE'),
-    sinLatido.principal('op.exp.9.1').reason
+  check(
+    'without a collector heartbeat: the three requirements NO_EVALUABLE',
+    ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'].every(r => withoutHeartbeat.principal(r).status === 'NO_EVALUABLE'),
+    withoutHeartbeat.principal('op.exp.9.1').reason
   );
 
-  const viejo = evalua(eventos(latido(hace(30)), ...registros({}, hace(30.1)), ...incidenteCerrado()));
+  const old = evaluate(events(heartbeat(ago(30)), ...records({}, ago(30.1)), ...closedIncident()));
 
-  comprueba(
-    'latido de hace 30 h: NO_EVALUABLE diciendo que el estado no es el de hoy',
-    viejo.de('EV-02').status === 'NO_EVALUABLE' && /no describe el estado de hoy/.test(viejo.de('EV-02').reason),
-    viejo.de('EV-02').reason
+  check(
+    'heartbeat from 30 h ago: NO_EVALUABLE saying the state is not today\'s',
+    old.de('EV-02').status === 'NO_EVALUABLE' && /no describe el estado de hoy/.test(old.de('EV-02').reason),
+    old.de('EV-02').reason
   );
 
-  const ausente = evalua(eventos(latido(), ...registros({ incidentes: { presente: 'no', legible: 'no', formato: '-', filas_validas: 0 } })));
+  const absent = evaluate(events(heartbeat(), ...records({ incidentes: { presente: 'no', legible: 'no', formato: '-', filas_validas: 0 } })));
 
-  comprueba(
-    'registro ausente: NO_EVALUABLE con causa CONFIGURATION',
-    ausente.de('EV-02').status === 'NO_EVALUABLE' && /CONFIGURATION/.test(ausente.de('EV-02').reason),
-    ausente.de('EV-02').reason
+  check(
+    'absent record: NO_EVALUABLE with cause CONFIGURATION',
+    absent.de('EV-02').status === 'NO_EVALUABLE' && /CONFIGURATION/.test(absent.de('EV-02').reason),
+    absent.de('EV-02').reason
   );
 
-  const volumen = (porNivel: string, reglas: number) =>
-    alerta({ event: 'alert_volume_observed', evidence_id: 'EV-02', desde: '2026-08-27T12:00:00Z', hasta: '2026-09-26T11:00:00Z', dias: 30, por_nivel: porNivel, nivel_detalle: 7, reglas, dias_sin_archivo: '-' }, hace(0.6));
+  const volume = (byLevel: string, rules: number) =>
+    alert({ event: 'alert_volume_observed', evidence_id: 'EV-02', desde: '2026-08-27T12:00:00Z', hasta: '2026-09-26T11:00:00Z', dias: 30, por_nivel: byLevel, nivel_detalle: 7, reglas: rules, dias_sin_archivo: '-' }, ago(0.6));
 
-  const regla = (id: string, nivel: number, alertas: number, grupos: string) =>
-    alerta({ event: 'alert_rule_volume_observed', evidence_id: 'EV-02', regla: id, nivel, alertas, grupos, descripcion: `regla ${id}`, agentes: 'wazuh-real' }, hace(0.6));
+  const rule = (id: string, level: number, alerts: number, groups: string) =>
+    alert({ event: 'alert_rule_volume_observed', evidence_id: 'EV-02', regla: id, nivel: level, alertas: alerts, grupos: groups, descripcion: `regla ${id}`, agentes: 'wazuh-real' }, ago(0.6));
 
-  const vacio = eventos(
-    latido(),
-    ...registros({ incidentes: { filas_validas: 0 } }),
-    volumen('7=40,10=12,12=3,13=1760', 4),
-    regla('5712', 7, 40, 'syslog,sshd'),
-    regla('23505', 10, 12, 'vulnerability-detector'),
-    regla('108130', 12, 3, 'yara,malware'),
-    regla('23506', 13, 1760, 'vulnerability-detector')
+  const empty = events(
+    heartbeat(),
+    ...records({ incidentes: { filas_validas: 0 } }),
+    volume('7=40,10=12,12=3,13=1760', 4),
+    rule('5712', 7, 40, 'syslog,sshd'),
+    rule('23505', 10, 12, 'vulnerability-detector'),
+    rule('108130', 12, 3, 'yara,malware'),
+    rule('23506', 13, 1760, 'vulnerability-detector')
   );
 
-  const con12 = evalua(vacio);
+  const with12 = evaluate(empty);
 
-  comprueba(
-    'registro vacío con P-08=12 y sin P-09: cuentan también las 1760 CVE → NO_CUMPLE por 1763',
-    con12.de('EV-02').status === 'NO_CUMPLE' && /1763 alertas/.test(con12.de('EV-02').reason),
-    con12.de('EV-02').reason
+  check(
+    'empty record with P-08=12 and without P-09: the 1760 CVEs count too → NO_CUMPLE for 1763',
+    with12.de('EV-02').status === 'NO_CUMPLE' && /1763 alertas/.test(with12.de('EV-02').reason),
+    with12.de('EV-02').reason
   );
 
-  const sinCve = evalua(vacio, { ...BASICOS, 'P-09': ['vulnerability-detector'] });
+  const withoutCve = evaluate(empty, { ...BASIC_ONES, 'P-09': ['vulnerability-detector'] });
 
-  comprueba(
-    'excluido vulnerability-detector en P-09: quedan las 3 de YARA → sigue NO_CUMPLE, y el motivo dice qué se excluyó',
-    sinCve.de('EV-02').status === 'NO_CUMPLE' && /3 alertas/.test(sinCve.de('EV-02').reason) && /Excluidas por P-09/.test(sinCve.de('EV-02').reason),
-    sinCve.de('EV-02').reason
+  check(
+    'vulnerability-detector excluded in P-09: the 3 from YARA remain → still NO_CUMPLE, and the motive says what was excluded',
+    withoutCve.de('EV-02').status === 'NO_CUMPLE' && /3 alertas/.test(withoutCve.de('EV-02').reason) && /Excluidas por P-09/.test(withoutCve.de('EV-02').reason),
+    withoutCve.de('EV-02').reason
   );
 
-  const incompleto = evalua(eventos(latido(), ...registros({ incidentes: { filas_validas: 0 } }), volumen('12=3', 2), regla('108130', 12, 3, 'yara')));
+  const incomplete = evaluate(events(heartbeat(), ...records({ incidentes: { filas_validas: 0 } }), volume('12=3', 2), rule('108130', 12, 3, 'yara')));
 
-  comprueba(
-    'el recolector declara 2 reglas y llega 1: el contraste no se hace sobre una parte',
-    incompleto.de('EV-02').status === 'NO_EVALUABLE'
+  check(
+    'the collector declares 2 rules and 1 arrives: the contrast is not made on a part',
+    incomplete.de('EV-02').status === 'NO_EVALUABLE'
   );
 
-  comprueba(
-    '… y EV-01 NO_EVALUABLE: no hay expediente que examinar',
-    con12.de('EV-01').status === 'NO_EVALUABLE'
+  check(
+    '... and EV-01 NO_EVALUABLE: there is no file to examine',
+    with12.de('EV-01').status === 'NO_EVALUABLE'
   );
 
-  const con13 = evalua(vacio, { ...BASICOS, 'P-08': '13', 'P-09': ['vulnerability-detector'] });
+  const with13 = evaluate(empty, { ...BASIC_ONES, 'P-08': '13', 'P-09': ['vulnerability-detector'] });
 
-  comprueba(
-    'REVERSIÓN: el MISMO registro vacío con P-08=13 y las CVE excluidas → EV-02 CUMPLE y op.exp.9.1 CUMPLE',
-    con13.de('EV-02').status === 'CUMPLE' && con13.principal('op.exp.9.1').status === 'CUMPLE',
-    `${con13.de('EV-02').reason} | ${con13.principal('op.exp.9.1').reason}`
+  check(
+    'REVERSAL: the SAME empty record with P-08=13 and the CVEs excluded → EV-02 CUMPLE and op.exp.9.1 CUMPLE',
+    with13.de('EV-02').status === 'CUMPLE' && with13.principal('op.exp.9.1').status === 'CUMPLE',
+    `${with13.de('EV-02').reason} | ${with13.principal('op.exp.9.1').reason}`
   );
 
-  const sinP08 = evalua(vacio, { ...BASICOS, 'P-08': undefined });
+  const withoutP08 = evaluate(empty, { ...BASIC_ONES, 'P-08': undefined });
 
-  comprueba(
-    'registro vacío sin P-08: NO_EVALUABLE, no hay contra qué contrastar',
-    sinP08.de('EV-02').status === 'NO_EVALUABLE' && /P-08/.test(sinP08.de('EV-02').reason)
+  check(
+    'empty record without P-08: NO_EVALUABLE, nothing to contrast against',
+    withoutP08.de('EV-02').status === 'NO_EVALUABLE' && /P-08/.test(withoutP08.de('EV-02').reason)
   );
 
-  const otraHerramienta = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')), { ...BASICOS, 'P-01': 'TheHive' });
+  const otherTool = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')), { ...BASIC_ONES, 'P-01': 'TheHive' });
 
-  comprueba(
-    'P-01 = TheHive: NO_EVALUABLE diciendo que la integración no existe',
-    otraHerramienta.de('EV-02').status === 'NO_EVALUABLE' && /integración con esa herramienta no existe/.test(otraHerramienta.de('EV-02').reason)
+  check(
+    'P-01 = TheHive: NO_EVALUABLE saying the integration does not exist',
+    otherTool.de('EV-02').status === 'NO_EVALUABLE' && /integración con esa herramienta no existe/.test(otherTool.de('EV-02').reason)
   );
 
-  const noCubierta = evalua(eventos(latido(hace(0.5), 'EV-02,EV-09'), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const notCovered = evaluate(events(heartbeat(ago(0.5), 'EV-02,EV-09'), ...records(), ...closedIncident(), window('INC-2026-001')));
 
-  comprueba(
-    'la última pasada no cubrió EV-01: EV-01 NO_EVALUABLE aunque haya hechos',
-    noCubierta.de('EV-01').status === 'NO_EVALUABLE' && /no declara haber leído/.test(noCubierta.de('EV-01').reason)
+  check(
+    'the last pass did not cover EV-01: EV-01 NO_EVALUABLE even with facts',
+    notCovered.de('EV-01').status === 'NO_EVALUABLE' && /no declara haber leído/.test(notCovered.de('EV-01').reason)
   );
 }
 
-// --- 3. EV-02 ---------------------------------------------------------------
-
-bloque('3. EV-02: las fases de P-02, con la excepción de la duración y del final abierto');
+section('3. EV-02: P-02\'s phases, with the exception of duration and open end');
 
 {
-  const soloCierre = evalua(eventos(latido(), ...registros(), fila('INC-1', 'inicial', '2026-09-10T10:00:00Z'), fila('INC-1', 'final', '2026-09-13T10:00:00Z'), ventana('INC-1')));
+  const closingOnly = evaluate(events(heartbeat(), ...records(), row('INC-1', 'inicial', '2026-09-10T10:00:00Z'), row('INC-1', 'final', '2026-09-13T10:00:00Z'), window('INC-1')));
 
-  comprueba(
-    'incidente de 3 días sin reporte intermedio (P-02 lo exige desde 24 h): NO_CUMPLE',
-    soloCierre.de('EV-02').status === 'NO_CUMPLE' && /INC-1.*intermedio/.test(soloCierre.de('EV-02').reason),
-    soloCierre.de('EV-02').reason
+  check(
+    '3-day incident without an intermediate report (P-02 requires it from 24 h): NO_CUMPLE',
+    closingOnly.de('EV-02').status === 'NO_CUMPLE' && /INC-1.*intermedio/.test(closingOnly.de('EV-02').reason),
+    closingOnly.de('EV-02').reason
   );
 
-  const largo = evalua(
-    eventos(latido(), ...registros(), fila('INC-1', 'inicial', '2026-09-10T10:00:00Z'), fila('INC-1', 'final', '2026-09-13T10:00:00Z'), ventana('INC-1')),
-    { ...BASICOS, 'P-02': ['inicial | |', 'intermedio | | 100', 'final | |'] }
+  const largo = evaluate(
+    events(heartbeat(), ...records(), row('INC-1', 'inicial', '2026-09-10T10:00:00Z'), row('INC-1', 'final', '2026-09-13T10:00:00Z'), window('INC-1')),
+    { ...BASIC_ONES, 'P-02': ['inicial | |', 'intermedio | | 100', 'final | |'] }
   );
 
-  comprueba(
-    'REVERSIÓN: el MISMO incidente con el intermedio exigible desde 100 h → CUMPLE',
+  check(
+    'REVERSAL: the SAME incident with the intermediate required from 100 h → CUMPLE',
     largo.de('EV-02').status === 'CUMPLE',
     largo.de('EV-02').reason
   );
 
-  const abierto = evalua(eventos(latido(), ...registros(), fila('INC-2', 'inicial', hace(10)), ventana('INC-2')));
+  const opened = evaluate(events(heartbeat(), ...records(), row('INC-2', 'inicial', ago(10)), window('INC-2')));
 
-  comprueba(
-    'incidente abierto hace 10 h, solo con inicial: el final no se exige todavía → CUMPLE',
-    abierto.de('EV-02').status === 'CUMPLE',
-    abierto.de('EV-02').reason
+  check(
+    'incident open 10 h ago, with initial only: the final is not required yet → CUMPLE',
+    opened.de('EV-02').status === 'CUMPLE',
+    opened.de('EV-02').reason
   );
 
-  const abiertoLargo = evalua(eventos(latido(), ...registros(), fila('INC-2', 'inicial', hace(48)), ventana('INC-2')));
+  const longOpened = evaluate(events(heartbeat(), ...records(), row('INC-2', 'inicial', ago(48)), window('INC-2')));
 
-  comprueba(
-    'el MISMO abierto hace 48 h: el intermedio ya es exigible → NO_CUMPLE',
-    abiertoLargo.de('EV-02').status === 'NO_CUMPLE'
+  check(
+    'the SAME open 48 h ago: the intermediate is already required → NO_CUMPLE',
+    longOpened.de('EV-02').status === 'NO_CUMPLE'
   );
 
-  const sinSeveridad = evalua(eventos(latido(), ...registros(), fila('INC-3', 'inicial', hace(5), { severidad: '-' }), ventana('INC-3')));
+  const withoutSeverity = evaluate(events(heartbeat(), ...records(), row('INC-3', 'inicial', ago(5), { severidad: '-' }), window('INC-3')));
 
-  comprueba(
-    'reporte inicial sin severidad: NO_CUMPLE por cumplimentación',
-    sinSeveridad.de('EV-02').status === 'NO_CUMPLE' && /sin severidad/.test(sinSeveridad.de('EV-02').reason)
+  check(
+    'initial report without severity: NO_CUMPLE for completion',
+    withoutSeverity.de('EV-02').status === 'NO_CUMPLE' && /sin severidad/.test(withoutSeverity.de('EV-02').reason)
   );
 
-  const invalidas = evalua(eventos(latido(), ...registros({ incidentes: { filas_invalidas: 2 } }), ...incidenteCerrado('INC-1'), ventana('INC-1')));
+  const invalidOnes = evaluate(events(heartbeat(), ...records({ incidentes: { filas_invalidas: 2 } }), ...closedIncident('INC-1'), window('INC-1')));
 
-  comprueba(
-    'con 2 filas no interpretables un CUMPLE baja a NO_EVALUABLE, nunca a NO_CUMPLE',
-    invalidas.de('EV-02').status === 'NO_EVALUABLE' && /no se pudieron interpretar/.test(invalidas.de('EV-02').reason)
+  check(
+    'with 2 uninterpretable rows a CUMPLE drops to NO_EVALUABLE, never to NO_CUMPLE',
+    invalidOnes.de('EV-02').status === 'NO_EVALUABLE' && /no se pudieron interpretar/.test(invalidOnes.de('EV-02').reason)
   );
 }
 
-// --- 4. EV-01 y EV-07 ---------------------------------------------------------
-
-bloque('4. EV-01 y EV-07: los eventos del periodo, en disco y con su suma');
+section('4. EV-01 and EV-07: the period\'s events, on disk and with their sum');
 
 {
-  const bien = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const bien = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')));
 
-  comprueba('ventana con alertas y todos los días verificados: EV-01 CUMPLE', bien.de('EV-01').status === 'CUMPLE', bien.de('EV-01').reason);
+  check('window with alerts and all days verified: EV-01 CUMPLE', bien.de('EV-01').status === 'CUMPLE', bien.de('EV-01').reason);
 
-  comprueba(
-    'incidente cerrado sin relevancia jurídica: EV-07 CUMPLE, no hay periodo que proteger',
+  check(
+    'incident closed without legal relevance: EV-07 CUMPLE, there is no period to protect',
     bien.de('EV-07').status === 'CUMPLE'
   );
 
-  const perdido = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { dias_sin_archivo: '2026-09-10' })));
+  const lost2 = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { dias_sin_archivo: '2026-09-10' })));
 
-  comprueba(
-    'falta el archivo del 10/09: EV-01 NO_CUMPLE nombrando el día',
-    perdido.de('EV-01').status === 'NO_CUMPLE' && /2026-09-10/.test(perdido.de('EV-01').reason)
+  check(
+    'the 10/09 archive is missing: EV-01 NO_CUMPLE naming the day',
+    lost2.de('EV-01').status === 'NO_CUMPLE' && /2026-09-10/.test(lost2.de('EV-01').reason)
   );
 
-  const alterado = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { dias_alterados: '2026-09-11' })));
+  const tamperedOne = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { dias_alterados: '2026-09-11' })));
 
-  comprueba('el archivo del 11/09 no coincide con su suma: NO_CUMPLE', alterado.de('EV-01').status === 'NO_CUMPLE');
+  check('the 11/09 archive does not match its sum: NO_CUMPLE', tamperedOne.de('EV-01').status === 'NO_CUMPLE');
 
-  const mudo = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { alertas: 0 })));
+  const mute = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { alertas: 0 })));
 
-  comprueba('ninguna alerta del sistema en la ventana: NO_EVALUABLE', mudo.de('EV-01').status === 'NO_EVALUABLE');
+  check('no alert of the system in the window: NO_EVALUABLE', mute.de('EV-01').status === 'NO_EVALUABLE');
 
-  const ajeno = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { agente_conocido: 'no', alertas: 0 })));
+  const foreignOne = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { agente_conocido: 'no', alertas: 0 })));
 
-  comprueba('el sistema no es un agente del manager: NO_EVALUABLE', ajeno.de('EV-01').status === 'NO_EVALUABLE' && /no es un agente/.test(ajeno.de('EV-01').reason));
+  check('the system is not a manager agent: NO_EVALUABLE', foreignOne.de('EV-01').status === 'NO_EVALUABLE' && /no es un agente/.test(foreignOne.de('EV-01').reason));
 
-  const abierto = evalua(eventos(latido(), ...registros(), fila('INC-9', 'inicial', hace(5)), ventana('INC-9', { abierto: 'si' })));
+  const opened = evaluate(events(heartbeat(), ...records(), row('INC-9', 'inicial', ago(5)), window('INC-9', { abierto: 'si' })));
 
-  comprueba(
-    'incidente abierto con su periodo en disco: EV-07 NO_EVALUABLE con causa CONFIGURATION (indexer sin credenciales)',
-    abierto.de('EV-07').status === 'NO_EVALUABLE' && /CONFIGURATION/.test(abierto.de('EV-07').reason) && /ISM/.test(abierto.de('EV-07').reason),
-    abierto.de('EV-07').reason
+  check(
+    'open incident with its period on disk: EV-07 NO_EVALUABLE with cause CONFIGURATION (indexer without credentials)',
+    opened.de('EV-07').status === 'NO_EVALUABLE' && /CONFIGURATION/.test(opened.de('EV-07').reason) && /ISM/.test(opened.de('EV-07').reason),
+    opened.de('EV-07').reason
   );
 
-  const abiertoPerdido = evalua(eventos(latido(), ...registros(), fila('INC-9', 'inicial', hace(50)), ventana('INC-9', { abierto: 'si', dias_sin_archivo: '2026-09-24' })));
+  const lostOpened = evaluate(events(heartbeat(), ...records(), row('INC-9', 'inicial', ago(50)), window('INC-9', { abierto: 'si', dias_sin_archivo: '2026-09-24' })));
 
-  comprueba('REVERSIÓN: el MISMO abierto con un día perdido → EV-07 NO_CUMPLE', abiertoPerdido.de('EV-07').status === 'NO_CUMPLE');
+  check('REVERSAL: the SAME open one with a lost day → EV-07 NO_CUMPLE', lostOpened.de('EV-07').status === 'NO_CUMPLE');
 }
 
-// --- 5. EV-03 y EV-04 ---------------------------------------------------------
-
-bloque('5. EV-03 y EV-04: lo que Wazuh vio en la ventana, contra el expediente');
+section('5. EV-03 and EV-04: what Wazuh saw in the window, against the file');
 
 {
-  const ar = alerta({ event: 'emergency_action_observed', evidence_id: 'EV-03', incidente_id: 'INC-2026-001', sistema: 'wazuh-real', programa: 'firewall-drop', veces: 2, primera: '2026-09-10T10:05:00Z', ultima: '2026-09-10T10:06:00Z', regla: '651' }, hace(0.6));
+  const ar = alert({ event: 'emergency_action_observed', evidence_id: 'EV-03', incidente_id: 'INC-2026-001', sistema: 'wazuh-real', programa: 'firewall-drop', veces: 2, primera: '2026-09-10T10:05:00Z', ultima: '2026-09-10T10:06:00Z', regla: '651' }, ago(0.6));
 
-  const accion = (tipo: string, objeto: string, sistema = 'wazuh-real') =>
-    alerta({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-10T10:30:00Z', sistema, tipo, objeto, descripcion: 'x', referencia: 'y' }, hace(0.6));
+  const action = (type: string, object: string, system = 'wazuh-real') =>
+    alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-10T10:30:00Z', sistema: system, tipo: type, objeto: object, descripcion: 'x', referencia: 'y' }, ago(0.6));
 
-  const conAr = (extra: ReturnType<typeof alerta>[] = []) =>
-    eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { acciones: 1, acciones_emitidas: 1 }), ar, ...extra);
+  const conAr = (extra: ReturnType<typeof alert>[] = []) =>
+    events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { acciones: 1, acciones_emitidas: 1 }), ar, ...extra);
 
-  const sinRegistrar = evalua(conAr());
+  const sinRegistrar = evaluate(conAr());
 
-  comprueba(
-    'respuesta activa firewall-drop sin actuación registrada: EV-03 NO_CUMPLE',
+  check(
+    'firewall-drop active response without a recorded action: EV-03 NO_CUMPLE',
     sinRegistrar.de('EV-03').status === 'NO_CUMPLE' && /firewall-drop/.test(sinRegistrar.de('EV-03').reason),
     sinRegistrar.de('EV-03').reason
   );
 
-  const registrada = evalua(conAr([accion('emergencia', 'firewall-drop')]));
+  const recorded = evaluate(conAr([action('emergencia', 'firewall-drop')]));
 
-  comprueba('REVERSIÓN: la MISMA con su actuación de emergencia registrada → CUMPLE', registrada.de('EV-03').status === 'CUMPLE', registrada.de('EV-03').reason);
+  check('REVERSAL: the SAME one with its emergency action recorded → CUMPLE', recorded.de('EV-03').status === 'CUMPLE', recorded.de('EV-03').reason);
 
-  const otroTipo = evalua(conAr([accion('modificacion', 'firewall-drop')]));
+  const otherType = evaluate(conAr([action('modificacion', 'firewall-drop')]));
 
-  comprueba('registrada como modificación, no como emergencia: sigue NO_CUMPLE', otroTipo.de('EV-03').status === 'NO_CUMPLE');
+  check('recorded as a modification, not as an emergency: still NO_CUMPLE', otherType.de('EV-03').status === 'NO_CUMPLE');
 
-  const incompleto = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { acciones: 2, acciones_emitidas: 2 }), ar, accion('emergencia', '*')));
+  const incomplete = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { acciones: 2, acciones_emitidas: 2 }), ar, action('emergencia', '*')));
 
-  comprueba('el barrido declara 2 y solo llega 1: NO_EVALUABLE', incompleto.de('EV-03').status === 'NO_EVALUABLE');
+  check('the sweep declares 2 and only 1 arrives: NO_EVALUABLE', incomplete.de('EV-03').status === 'NO_EVALUABLE');
 
-  const nada = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const nothing = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')));
 
-  comprueba('ventanas barridas sin ninguna respuesta activa: EV-03 CUMPLE', nada.de('EV-03').status === 'CUMPLE', nada.de('EV-03').reason);
+  check('windows swept without any active response: EV-03 CUMPLE', nothing.de('EV-03').status === 'CUMPLE', nothing.de('EV-03').reason);
 
-  const cambio = alerta({ event: 'system_change_observed', evidence_id: 'EV-04', incidente_id: 'INC-2026-001', sistema: 'wazuh-real', origen: 'fim', objeto: '/etc/ssh/sshd_config', veces: 1, primera: '2026-09-11T09:00:00Z', ultima: '2026-09-11T09:00:00Z', regla: '550' }, hace(0.6));
+  const change = alert({ event: 'system_change_observed', evidence_id: 'EV-04', incidente_id: 'INC-2026-001', sistema: 'wazuh-real', origen: 'fim', objeto: '/etc/ssh/sshd_config', veces: 1, primera: '2026-09-11T09:00:00Z', ultima: '2026-09-11T09:00:00Z', regla: '550' }, ago(0.6));
 
-  const conCambio = (extra: ReturnType<typeof alerta>[]) =>
-    eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001', { cambios: 1, cambios_emitidos: 1 }), cambio, ...extra);
+  const withChange = (extra: ReturnType<typeof alert>[]) =>
+    events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001', { cambios: 1, cambios_emitidos: 1 }), change, ...extra);
 
-  const otroPrefijo = evalua(conCambio([accion('modificacion', '/etc/nginx/')]));
+  const otherPrefix = evaluate(withChange([action('modificacion', '/etc/nginx/')]));
 
-  comprueba(
-    'cambio de /etc/ssh/sshd_config y solo se registró /etc/nginx/: EV-04 NO_CUMPLE',
-    otroPrefijo.de('EV-04').status === 'NO_CUMPLE' && /sshd_config/.test(otroPrefijo.de('EV-04').reason)
+  check(
+    'change of /etc/ssh/sshd_config and only /etc/nginx/ was recorded: EV-04 NO_CUMPLE',
+    otherPrefix.de('EV-04').status === 'NO_CUMPLE' && /sshd_config/.test(otherPrefix.de('EV-04').reason)
   );
 
-  const prefijo = evalua(conCambio([accion('modificacion', '/etc/ssh/')]));
+  const prefix = evaluate(withChange([action('modificacion', '/etc/ssh/')]));
 
-  comprueba('REVERSIÓN: registrado el prefijo /etc/ssh/ → CUMPLE', prefijo.de('EV-04').status === 'CUMPLE', prefijo.de('EV-04').reason);
+  check('REVERSAL: prefix /etc/ssh/ recorded → CUMPLE', prefix.de('EV-04').status === 'CUMPLE', prefix.de('EV-04').reason);
 
-  const otroSistema = evalua(conCambio([accion('modificacion', '/etc/ssh/', 'zimbraHldap')]));
+  const otherSystem = evaluate(withChange([action('modificacion', '/etc/ssh/', 'zimbraHldap')]));
 
-  comprueba('el prefijo registrado es de OTRO sistema: NO_CUMPLE', otroSistema.de('EV-04').status === 'NO_CUMPLE');
+  check('the recorded prefix belongs to ANOTHER system: NO_CUMPLE', otherSystem.de('EV-04').status === 'NO_CUMPLE');
 }
 
-// --- 6. EV-05 y EV-06 ---------------------------------------------------------
-
-bloque('6. EV-05 y EV-06: la evidencia jurisdiccional, condicionada por la marca del registro');
+section('6. EV-05 and EV-06: the jurisdictional evidence, conditioned by the record\'s mark');
 
 {
   const HASH = 'a'.repeat(64);
-  const sellada = (tipo: string, fichero: string, extra: Record<string, unknown> = {}) =>
-    alerta({ event: 'evidence_export_sealed', evidence_id: 'EV-05,EV-06', incidente_id: 'INC-7', fecha: '2026-09-11T12:00:00Z', tipo_evidencia: tipo, fichero, sha256: HASH, destino: 'repositorio-custodia', referencia: 'z', ...extra }, hace(0.6));
-  const verificada = (fichero: string, extra: Record<string, unknown> = {}) =>
-    alerta({ event: 'custody_integrity_checked', evidence_id: 'EV-06', incidente_id: 'INC-7', fichero, sha256_declarado: HASH, sha256_actual: HASH, verificable: 'si', coincide: 'si', motivo: '-', verificado: '2026-09-26T11:00:00Z', ...extra }, hace(0.6));
-  const anotada = (fichero: string) =>
-    alerta({ event: 'custody_access_recorded', evidence_id: 'EV-06', fecha: '2026-09-11T12:05:00Z', incidente_id: 'INC-7', fichero, usuario: 'rseg', finalidad: 'deposito', referencia: 'z' }, hace(0.6));
+  const sealed = (type: string, file: string, extra: Record<string, unknown> = {}) =>
+    alert({ event: 'evidence_export_sealed', evidence_id: 'EV-05,EV-06', incidente_id: 'INC-7', fecha: '2026-09-11T12:00:00Z', tipo_evidencia: type, fichero: file, sha256: HASH, destino: 'repositorio-custodia', referencia: 'z', ...extra }, ago(0.6));
+  const verified = (file: string, extra: Record<string, unknown> = {}) =>
+    alert({ event: 'custody_integrity_checked', evidence_id: 'EV-06', incidente_id: 'INC-7', fichero: file, sha256_declarado: HASH, sha256_actual: HASH, verificable: 'si', coincide: 'si', motivo: '-', verificado: '2026-09-26T11:00:00Z', ...extra }, ago(0.6));
+  const noted = (file: string) =>
+    alert({ event: 'custody_access_recorded', evidence_id: 'EV-06', fecha: '2026-09-11T12:05:00Z', incidente_id: 'INC-7', fichero: file, usuario: 'rseg', finalidad: 'deposito', referencia: 'z' }, ago(0.6));
 
-  const relevante = [
-    fila('INC-7', 'inicial', '2026-09-10T10:00:00Z', { relevancia_juridica: 'si' }),
-    fila('INC-7', 'intermedio', '2026-09-11T10:00:00Z', { relevancia_juridica: 'si' }),
-    fila('INC-7', 'final', '2026-09-12T10:00:00Z', { relevancia_juridica: 'si' }),
-    ventana('INC-7'),
+  const relevant = [
+    row('INC-7', 'inicial', '2026-09-10T10:00:00Z', { relevancia_juridica: 'si' }),
+    row('INC-7', 'intermedio', '2026-09-11T10:00:00Z', { relevancia_juridica: 'si' }),
+    row('INC-7', 'final', '2026-09-12T10:00:00Z', { relevancia_juridica: 'si' }),
+    window('INC-7'),
   ];
 
   const logs = '/srv/custodia/INC-7/logs.tar.gz';
   const acta = '/srv/custodia/INC-7/acta.pdf';
 
-  const media = evalua(eventos(latido(), ...registros(), ...relevante, sellada('logs sellados del período', logs), verificada(logs), anotada(logs)));
+  const media = evaluate(events(heartbeat(), ...records(), ...relevant, sealed('logs sellados del período', logs), verified(logs), noted(logs)));
 
-  comprueba(
-    'incidente con relevancia jurídica sin el acta de recogida que exige P-03: EV-05 NO_CUMPLE',
+  check(
+    'incident with legal relevance without the collection record that P-03 requires: EV-05 NO_CUMPLE',
     media.de('EV-05').status === 'NO_CUMPLE' && /acta de recogida/.test(media.de('EV-05').reason),
     media.de('EV-05').reason
   );
 
-  const completa = evalua(eventos(latido(), ...registros(), ...relevante,
-    sellada('logs sellados del período', logs), verificada(logs), anotada(logs),
-    sellada('Acta de recogida', acta), verificada(acta), anotada(acta)));
+  const complete = evaluate(events(heartbeat(), ...records(), ...relevant,
+    sealed('logs sellados del período', logs), verified(logs), noted(logs),
+    sealed('Acta de recogida', acta), verified(acta), noted(acta)));
 
-  comprueba('REVERSIÓN: con el acta sellada → EV-05 CUMPLE', completa.de('EV-05').status === 'CUMPLE', completa.de('EV-05').reason);
-  comprueba('… y EV-06 CUMPLE: destino de P-05, custodia anotada y hash intacto', completa.de('EV-06').status === 'CUMPLE', completa.de('EV-06').reason);
+  check('REVERSAL: with the sealed record → EV-05 CUMPLE', complete.de('EV-05').status === 'CUMPLE', complete.de('EV-05').reason);
+  check('... and EV-06 CUMPLE: P-05\'s destination, custody noted and hash intact', complete.de('EV-06').status === 'CUMPLE', complete.de('EV-06').reason);
 
-  const sinRelevancia = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
+  const withoutRelevance = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')));
 
-  comprueba('ningún incidente con relevancia jurídica: EV-05 CUMPLE diciendo por qué', sinRelevancia.de('EV-05').status === 'CUMPLE' && /relevancia jurídica/.test(sinRelevancia.de('EV-05').reason));
+  check('no incident with legal relevance: EV-05 CUMPLE saying why', withoutRelevance.de('EV-05').status === 'CUMPLE' && /relevancia jurídica/.test(withoutRelevance.de('EV-05').reason));
 
-  const sinP03 = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')), { ...BASICOS, 'P-03': undefined });
+  const withoutP03 = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')), { ...BASIC_ONES, 'P-03': undefined });
 
-  comprueba('sin P-03 (determinación legal): EV-05 NO_EVALUABLE aunque no haya incidentes relevantes', sinP03.de('EV-05').status === 'NO_EVALUABLE' && /asesoramiento legal/.test(sinP03.de('EV-05').reason));
+  check('without P-03 (legal determination): EV-05 NO_EVALUABLE even if there are no relevant incidents', withoutP03.de('EV-05').status === 'NO_EVALUABLE' && /asesoramiento legal/.test(withoutP03.de('EV-05').reason));
 
-  const alterada = evalua(eventos(latido(), ...registros(), ...relevante,
-    sellada('logs sellados del período', logs), verificada(logs, { sha256_actual: 'b'.repeat(64), coincide: 'no' }), anotada(logs),
-    sellada('acta de recogida', acta), verificada(acta), anotada(acta)));
+  const tampered = evaluate(events(heartbeat(), ...records(), ...relevant,
+    sealed('logs sellados del período', logs), verified(logs, { sha256_actual: 'b'.repeat(64), coincide: 'no' }), noted(logs),
+    sealed('acta de recogida', acta), verified(acta), noted(acta)));
 
-  comprueba('el SHA-256 de los logs ya no coincide: EV-06 NO_CUMPLE', alterada.de('EV-06').status === 'NO_CUMPLE' && /alterado/.test(alterada.de('EV-06').reason));
+  check('the logs\' SHA-256 no longer matches: EV-06 NO_CUMPLE', tampered.de('EV-06').status === 'NO_CUMPLE' && /alterado/.test(tampered.de('EV-06').reason));
 
-  const destruida = (ahora: Date) =>
-    evalua(eventos(latido(new Date(ahora.getTime() - 1800e3).toISOString()),
-      ...registros({}, new Date(ahora.getTime() - 2000e3).toISOString()),
+  const destroyed = (now: Date) =>
+    evaluate(events(heartbeat(new Date(now.getTime() - 1800e3).toISOString()),
+      ...records({}, new Date(now.getTime() - 2000e3).toISOString()),
       ...[
-        fila('INC-7', 'inicial', '2026-09-10T10:00:00Z', { relevancia_juridica: 'si' }, new Date(ahora.getTime() - 2000e3).toISOString()),
+        row('INC-7', 'inicial', '2026-09-10T10:00:00Z', { relevancia_juridica: 'si' }, new Date(now.getTime() - 2000e3).toISOString()),
       ],
-      alerta({ event: 'evidence_export_sealed', evidence_id: 'EV-05,EV-06', incidente_id: 'INC-7', fecha: '2026-09-11T12:00:00Z', tipo_evidencia: 'acta de recogida', fichero: acta, sha256: HASH, destino: 'repositorio-custodia', referencia: 'z' }, new Date(ahora.getTime() - 2000e3).toISOString()),
-      alerta({ event: 'custody_integrity_checked', evidence_id: 'EV-06', incidente_id: 'INC-7', fichero: acta, sha256_declarado: HASH, sha256_actual: '-', verificable: 'no', coincide: '-', motivo: 'ausente' }, new Date(ahora.getTime() - 2000e3).toISOString()),
-      alerta({ event: 'custody_access_recorded', evidence_id: 'EV-06', fecha: '2026-09-11T12:05:00Z', incidente_id: 'INC-7', fichero: acta, usuario: 'rseg', finalidad: 'deposito', referencia: 'z' }, new Date(ahora.getTime() - 2000e3).toISOString())
-    ), BASICOS, ahora);
+      alert({ event: 'evidence_export_sealed', evidence_id: 'EV-05,EV-06', incidente_id: 'INC-7', fecha: '2026-09-11T12:00:00Z', tipo_evidencia: 'acta de recogida', fichero: acta, sha256: HASH, destino: 'repositorio-custodia', referencia: 'z' }, new Date(now.getTime() - 2000e3).toISOString()),
+      alert({ event: 'custody_integrity_checked', evidence_id: 'EV-06', incidente_id: 'INC-7', fichero: acta, sha256_declarado: HASH, sha256_actual: '-', verificable: 'no', coincide: '-', motivo: 'ausente' }, new Date(now.getTime() - 2000e3).toISOString()),
+      alert({ event: 'custody_access_recorded', evidence_id: 'EV-06', fecha: '2026-09-11T12:05:00Z', incidente_id: 'INC-7', fichero: acta, usuario: 'rseg', finalidad: 'deposito', referencia: 'z' }, new Date(now.getTime() - 2000e3).toISOString())
+    ), BASIC_ONES, now);
 
-  comprueba('evidencia desaparecida dentro del plazo más largo de P-06: NO_CUMPLE', destruida(AHORA).de('EV-06').status === 'NO_CUMPLE');
+  check('evidence missing within P-06\'s longest deadline: NO_CUMPLE', destroyed(NOW).de('EV-06').status === 'NO_CUMPLE');
 
-  const tarde = destruida(new Date('2031-09-20T12:00:00Z'));
+  const late = destroyed(new Date('2031-09-20T12:00:00Z'));
 
-  comprueba(
-    'REVERSIÓN: la MISMA desaparición pasados los 1825 días de P-06 → ya no es destrucción anticipada',
-    tarde.de('EV-06').status === 'CUMPLE',
-    tarde.de('EV-06').reason
+  check(
+    'REVERSAL: the SAME disappearance after P-06\'s 1825 days → no longer premature destruction',
+    late.de('EV-06').status === 'CUMPLE',
+    late.de('EV-06').reason
   );
 
-  const fuera = evalua(eventos(latido(), ...registros(), ...relevante,
-    sellada('logs sellados del período', logs, { destino: 'nas-oficina' }), verificada(logs), anotada(logs),
-    sellada('acta de recogida', acta), verificada(acta), anotada(acta)));
+  const outside = evaluate(events(heartbeat(), ...records(), ...relevant,
+    sealed('logs sellados del período', logs, { destino: 'nas-oficina' }), verified(logs), noted(logs),
+    sealed('acta de recogida', acta), verified(acta), noted(acta)));
 
-  comprueba('depositada en un destino que no es de P-05: EV-06 NO_CUMPLE (y EV-05 porque P-03 pide otro destino)',
-    fuera.de('EV-06').status === 'NO_CUMPLE' && fuera.de('EV-05').status === 'NO_CUMPLE');
+  check('deposited at a destination that is not P-05\'s: EV-06 NO_CUMPLE (and EV-05 because P-03 asks for another destination)',
+    outside.de('EV-06').status === 'NO_CUMPLE' && outside.de('EV-05').status === 'NO_CUMPLE');
 }
 
-// --- 7. EV-08 ----------------------------------------------------------------
-
-bloque('7. EV-08: la revisión de eventos auditables, con el reloj empezando en el cierre');
+section('7. EV-08: review of auditable events, with the clock starting at closing');
 
 {
-  const cerrado = [
-    fila('INC-5', 'inicial', '2026-08-01T10:00:00Z'),
-    fila('INC-5', 'intermedio', '2026-08-02T10:00:00Z'),
-    fila('INC-5', 'final', '2026-08-03T10:00:00Z'),
-    ventana('INC-5'),
+  const closed = [
+    row('INC-5', 'inicial', '2026-08-01T10:00:00Z'),
+    row('INC-5', 'intermedio', '2026-08-02T10:00:00Z'),
+    row('INC-5', 'final', '2026-08-03T10:00:00Z'),
+    window('INC-5'),
   ];
 
-  const vencido = evalua(eventos(latido(), ...registros(), ...cerrado));
+  const expired2 = evaluate(events(heartbeat(), ...records(), ...closed));
 
-  comprueba(
-    'incidente alto cerrado el 03/08 sin revisión y con P-07 alta=30: NO_CUMPLE',
-    vencido.de('EV-08').status === 'NO_CUMPLE' && /INC-5/.test(vencido.de('EV-08').reason),
-    vencido.de('EV-08').reason
+  check(
+    'high incident closed on 03/08 without review and with P-07 alta=30: NO_CUMPLE',
+    expired2.de('EV-08').status === 'NO_CUMPLE' && /INC-5/.test(expired2.de('EV-08').reason),
+    expired2.de('EV-08').reason
   );
 
-  // La misma pasada, observada el 20/08: los hechos llevan la hora de esa pasada.
-  const el20 = new Date('2026-08-20T12:00:00Z');
-  const pasada20 = '2026-08-20T11:30:00Z';
-  const antes20 = '2026-08-20T11:29:00Z';
+  const the20 = new Date('2026-08-20T12:00:00Z');
+  const pass20 = '2026-08-20T11:30:00Z';
+  const before20 = '2026-08-20T11:29:00Z';
 
-  const aTiempo = evalua(
-    eventos(
-      latido(pasada20),
-      ...registros({}, antes20),
-      fila('INC-5', 'inicial', '2026-08-01T10:00:00Z', {}, antes20),
-      fila('INC-5', 'intermedio', '2026-08-02T10:00:00Z', {}, antes20),
-      fila('INC-5', 'final', '2026-08-03T10:00:00Z', {}, antes20),
-      ventana('INC-5', {}, antes20)
+  const onTime2 = evaluate(
+    events(
+      heartbeat(pass20),
+      ...records({}, before20),
+      row('INC-5', 'inicial', '2026-08-01T10:00:00Z', {}, before20),
+      row('INC-5', 'intermedio', '2026-08-02T10:00:00Z', {}, before20),
+      row('INC-5', 'final', '2026-08-03T10:00:00Z', {}, before20),
+      window('INC-5', {}, before20)
     ),
-    BASICOS,
-    el20
+    BASIC_ONES,
+    the20
   );
 
-  comprueba('REVERSIÓN: el MISMO incidente el 20/08, dentro de plazo → CUMPLE (pendiente)', aTiempo.de('EV-08').status === 'CUMPLE' && /Dentro de plazo/.test(aTiempo.de('EV-08').reason), aTiempo.de('EV-08').reason);
+  check('REVERSAL: the SAME incident on 20/08, within the deadline → CUMPLE (pending)', onTime2.de('EV-08').status === 'CUMPLE' && /Dentro de plazo/.test(onTime2.de('EV-08').reason), onTime2.de('EV-08').reason);
 
-  const conCambio = evalua(eventos(latido(), ...registros(), ...cerrado,
-    alerta({ event: 'auditable_events_revised', evidence_id: 'EV-08', fichero: '/var/ossec/etc/rules/local_rules.xml', modificado: '2026-08-10T09:00:00Z', sha256: 'c'.repeat(64), origen: 'cambio_detectado' }, hace(0.6))));
+  const withChange = evaluate(events(heartbeat(), ...records(), ...closed,
+    alert({ event: 'auditable_events_revised', evidence_id: 'EV-08', fichero: '/var/ossec/etc/rules/local_rules.xml', modificado: '2026-08-10T09:00:00Z', sha256: 'c'.repeat(64), origen: 'cambio_detectado' }, ago(0.6))));
 
-  comprueba('cambio de reglas el 10/08: CUMPLE por correlación temporal', conCambio.de('EV-08').status === 'CUMPLE' && /correlación temporal/.test(conCambio.de('EV-08').reason));
+  check('rules change on 10/08: CUMPLE by temporal correlation', withChange.de('EV-08').status === 'CUMPLE' && /correlación temporal/.test(withChange.de('EV-08').reason));
 
-  const conRevision = evalua(eventos(latido(), ...registros(), ...cerrado,
-    alerta({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-5', fecha: '2026-08-15T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'sin cambios necesarios', referencia: 'acta' }, hace(0.6))));
+  const conRevision = evaluate(events(heartbeat(), ...records(), ...closed,
+    alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-5', fecha: '2026-08-15T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'sin cambios necesarios', referencia: 'acta' }, ago(0.6))));
 
-  comprueba('revisión registrada el 15/08 sin cambios: CUMPLE', conRevision.de('EV-08').status === 'CUMPLE');
+  check('review recorded on 15/08 without changes: CUMPLE', conRevision.de('EV-08').status === 'CUMPLE');
 
-  const baja = evalua(eventos(latido(), ...registros(), ...cerrado.map(a => a), ), { ...BASICOS, 'P-07': ['critica | 15 |'] });
+  const lowOne = evaluate(events(heartbeat(), ...records(), ...closed.map(a => a), ), { ...BASIC_ONES, 'P-07': ['critica | 15 |'] });
 
-  comprueba('P-07 solo obliga en severidad crítica: el incidente alto no exige revisión → CUMPLE', baja.de('EV-08').status === 'CUMPLE');
+  check('P-07 binds only at critical severity: the high incident requires no review → CUMPLE', lowOne.de('EV-08').status === 'CUMPLE');
 
-  // Severidad de un incidente con varias filas: la MÁS ALTA de sus fases, como
-  // en op.exp.7. Llegó a crítico y se rebajó a baja al cerrarlo: sigue
-  // obligando a la revisión de los críticos.
-  const rebajado = evalua(eventos(latido(), ...registros(),
-    fila('INC-5', 'inicial', '2026-08-01T10:00:00Z', { severidad: 'alta' }),
-    fila('INC-5', 'intermedio', '2026-08-02T10:00:00Z', { severidad: 'Crítica' }),
-    fila('INC-5', 'final', '2026-08-03T10:00:00Z', { severidad: 'baja' }),
-    ventana('INC-5')), { ...BASICOS, 'P-07': ['critica | 15 |'] });
+  const downgraded = evaluate(events(heartbeat(), ...records(),
+    row('INC-5', 'inicial', '2026-08-01T10:00:00Z', { severidad: 'alta' }),
+    row('INC-5', 'intermedio', '2026-08-02T10:00:00Z', { severidad: 'Crítica' }),
+    row('INC-5', 'final', '2026-08-03T10:00:00Z', { severidad: 'baja' }),
+    window('INC-5')), { ...BASIC_ONES, 'P-07': ['critica | 15 |'] });
 
-  comprueba(
-    'crítico en una fase y rebajado a baja al cerrar: cuenta la más alta → EV-08 NO_CUMPLE (severidad critica)',
-    rebajado.de('EV-08').status === 'NO_CUMPLE' && /INC-5 \(severidad critica/.test(rebajado.de('EV-08').reason),
-    rebajado.de('EV-08').reason
+  check(
+    'critical in one phase and downgraded to low on closing: the highest counts → EV-08 NO_CUMPLE (severidad critica)',
+    downgraded.de('EV-08').status === 'NO_CUMPLE' && /INC-5 \(severidad critica/.test(downgraded.de('EV-08').reason),
+    downgraded.de('EV-08').reason
   );
 
-  const sinP07 = evalua(eventos(latido(), ...registros(), ...cerrado), { ...BASICOS, 'P-07': undefined });
+  const withoutP07 = evaluate(events(heartbeat(), ...records(), ...closed), { ...BASIC_ONES, 'P-07': undefined });
 
-  comprueba('sin P-07: NO_EVALUABLE', sinP07.de('EV-08').status === 'NO_EVALUABLE');
+  check('sin P-07: NO_EVALUABLE', withoutP07.de('EV-08').status === 'NO_EVALUABLE');
 }
 
-// --- 8. EV-09 y los requisitos -------------------------------------------------
-
-bloque('8. EV-09 y las decisiones de requisito');
+section('8. EV-09 and the requirement decisions');
 
 {
-  const sinReferencia = evalua(eventos(latido(), ...registros(),
-    fila('INC-1', 'inicial', '2026-09-10T10:00:00Z'),
-    fila('INC-1', 'intermedio', '2026-09-11T10:00:00Z', { referencia: '-' }),
-    fila('INC-1', 'final', '2026-09-12T10:00:00Z'),
-    ventana('INC-1')));
+  const withoutReference = evaluate(events(heartbeat(), ...records(),
+    row('INC-1', 'inicial', '2026-09-10T10:00:00Z'),
+    row('INC-1', 'intermedio', '2026-09-11T10:00:00Z', { referencia: '-' }),
+    row('INC-1', 'final', '2026-09-12T10:00:00Z'),
+    window('INC-1')));
 
-  comprueba('una fila sin referencia al expediente: EV-09 NO_CUMPLE', sinReferencia.de('EV-09').status === 'NO_CUMPLE');
+  check('a row without a file reference: EV-09 NO_CUMPLE', withoutReference.de('EV-09').status === 'NO_CUMPLE');
 
-  comprueba(
-    '… y arrastra a los tres requisitos, que se apoyan en el expediente',
-    ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'].every(r => sinReferencia.principal(r).status === 'NO_CUMPLE')
+  check(
+    '... and it drags the three requirements, which rest on the file',
+    ['op.exp.9.1', 'op.exp.9.2', 'op.exp.9.3'].every(r => withoutReference.principal(r).status === 'NO_CUMPLE')
   );
 
-  const bien = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001'),
-    alerta({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-20T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'x', referencia: 'y' }, hace(0.6))));
+  const bien = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001'),
+    alert({ event: 'incident_action_registered', evidence_id: 'EV-03,EV-04,EV-08', incidente_id: 'INC-2026-001', fecha: '2026-09-20T09:00:00Z', sistema: '*', tipo: 'revision_eventos', objeto: '-', descripcion: 'x', referencia: 'y' }, ago(0.6))));
 
-  comprueba('incidente bien llevado: op.exp.9.1 CUMPLE', bien.principal('op.exp.9.1').status === 'CUMPLE', bien.principal('op.exp.9.1').reason);
-  comprueba('op.exp.9.2 CUMPLE (sin relevancia jurídica ni incidentes abiertos)', bien.principal('op.exp.9.2').status === 'CUMPLE', bien.principal('op.exp.9.2').reason);
-  comprueba('op.exp.9.3 CUMPLE (revisión registrada)', bien.principal('op.exp.9.3').status === 'CUMPLE', bien.principal('op.exp.9.3').reason);
+  check('well-run incident: op.exp.9.1 CUMPLE', bien.principal('op.exp.9.1').status === 'CUMPLE', bien.principal('op.exp.9.1').reason);
+  check('op.exp.9.2 CUMPLE (no legal relevance or open incidents)', bien.principal('op.exp.9.2').status === 'CUMPLE', bien.principal('op.exp.9.2').reason);
+  check('op.exp.9.3 CUMPLE (review recorded)', bien.principal('op.exp.9.3').status === 'CUMPLE', bien.principal('op.exp.9.3').reason);
 
-  comprueba(
-    'el requisito evaluado sale CUMPLE y medido',
+  check(
+    'the evaluated requirement comes out CUMPLE and measured',
     bien.requisito('op.exp.9.1').status === 'CUMPLE' && bien.requisito('op.exp.9.1').evidenced === true
   );
 
-  comprueba(
-    'el puente lleva la medida a la tabla de evidencias (EV-02 deja de estar en gris)',
+  check(
+    'the bridge carries the measurement to the evidence table (EV-02 stops being grey)',
     bien.puente.find(e => e.id === 'EV-02')?.status === 'CUMPLE'
   );
 
-  const abierto = evalua(eventos(latido(), ...registros(), fila('INC-9', 'inicial', hace(5)), ventana('INC-9', { abierto: 'si' })));
+  const opened = evaluate(events(heartbeat(), ...records(), row('INC-9', 'inicial', ago(5)), window('INC-9', { abierto: 'si' })));
 
-  comprueba(
-    'con un incidente abierto, op.exp.9.2 queda NO_EVALUABLE por EV-07 (indexer) y su veredicto es NO_CUMPLE no evidenciado',
-    abierto.principal('op.exp.9.2').status === 'NO_EVALUABLE' &&
-      abierto.requisito('op.exp.9.2').status === 'NO_CUMPLE' &&
-      abierto.requisito('op.exp.9.2').evidenced === false
+  check(
+    'with an open incident, op.exp.9.2 stays NO_EVALUABLE because of EV-07 (indexer) and its verdict is not-evidenced NO_CUMPLE',
+    opened.principal('op.exp.9.2').status === 'NO_EVALUABLE' &&
+      opened.requisito('op.exp.9.2').status === 'NO_CUMPLE' &&
+      opened.requisito('op.exp.9.2').evidenced === false
   );
 }
 
-// --- 9. estado por la última pasada ---------------------------------------------
-
-bloque('9. Los registros se juzgan con la última pasada, no con la ventana de 30 días');
+section('9. Records are judged with the last pass, not with the 30-day window');
 
 {
-  // Pasada de ayer: INC-1 con su reporte inicial sin severidad. Hoy la fila
-  // está corregida. Solo cuenta la de hoy.
-  const ayer = hace(24);
-  const antes = hace(24.1);
-  const evs = eventos(
-    latido(ayer),
-    ...registros({}, antes),
-    fila('INC-1', 'inicial', hace(30), { severidad: '-' }, antes),
-    ventana('INC-1', {}, antes),
-    latido(),
-    ...registros(),
-    fila('INC-1', 'inicial', hace(30)),
-    ventana('INC-1')
+  const yesterday = ago(24);
+  const antes = ago(24.1);
+  const evs = events(
+    heartbeat(yesterday),
+    ...records({}, antes),
+    row('INC-1', 'inicial', ago(30), { severidad: '-' }, antes),
+    window('INC-1', {}, antes),
+    heartbeat(),
+    ...records(),
+    row('INC-1', 'inicial', ago(30)),
+    window('INC-1')
   );
 
-  const r = evalua(evs, { ...BASICOS, 'P-02': ['inicial | |'] });
+  const r = evaluate(evs, { ...BASIC_ONES, 'P-02': ['inicial | |'] });
 
-  comprueba(
-    'la fila corregida hoy manda: EV-02 CUMPLE aunque ayer faltara la severidad',
+  check(
+    'today\'s corrected row prevails: EV-02 CUMPLE even though yesterday the severity was missing',
     r.de('EV-02').status === 'CUMPLE',
     r.de('EV-02').reason
   );
 
-  const soloAyer = evalua(eventos(latido(ayer), ...registros({}, antes), fila('INC-1', 'inicial', hace(30), { severidad: '-' }, antes), ventana('INC-1', {}, antes), latido()), { ...BASICOS, 'P-02': ['inicial | |'] });
+  const onlyYesterday = evaluate(events(heartbeat(yesterday), ...records({}, antes), row('INC-1', 'inicial', ago(30), { severidad: '-' }, antes), window('INC-1', {}, antes), heartbeat()), { ...BASIC_ONES, 'P-02': ['inicial | |'] });
 
-  comprueba(
-    'REVERSIÓN: si hoy la pasada no reemite el registro, no se juzga sobre la foto de ayer',
-    soloAyer.de('EV-02').status !== 'CUMPLE',
-    soloAyer.de('EV-02').reason
+  check(
+    'REVERSAL: if today\'s pass does not re-emit the record, it is not judged on yesterday\'s snapshot',
+    onlyYesterday.de('EV-02').status !== 'CUMPLE',
+    onlyYesterday.de('EV-02').reason
   );
 }
 
-// --- 10. la causa del hueco ----------------------------------------------------
-
-bloque('10. La causa de lo que no se puede medir llega a la evidencia y al requisito');
+section('10. The cause of what cannot be measured reaches the evidence and the requirement');
 
 {
-  // El caso real de wazuh4: el manager no tiene /etc/ensfacil/incident-register.tsv.
-  // La policy ya decía «causa CONFIGURATION» en el texto, pero la tarjeta de
-  // op.exp.9.1 salía EVIDENCE: la causa se quedaba en el motivo.
-  const ausente = evalua(eventos(latido(), ...registros({ incidentes: { presente: 'no', legible: 'no', formato: '-', filas_validas: 0 } })));
-  const ev01 = ausente.puente.find(e => e.id === 'EV-01');
+  const absent = evaluate(events(heartbeat(), ...records({ incidentes: { presente: 'no', legible: 'no', formato: '-', filas_validas: 0 } })));
+  const ev01 = absent.puente.find(e => e.id === 'EV-01');
 
-  comprueba(
-    'registro de incidentes ausente: EV-01 sin medir con causa CONFIGURATION, no EVIDENCE',
+  check(
+    'incident record absent: EV-01 unmeasured with cause CONFIGURATION, not EVIDENCE',
     ev01?.status === 'NO_EVALUABLE' && ev01?.gapCause === 'CONFIGURATION',
     `${ev01?.status} ${ev01?.gapCause}`
   );
-  comprueba(
-    'y la decisión de op.exp.9.1 declara la misma causa',
-    ausente.principal('op.exp.9.1').status === 'NO_EVALUABLE' && ausente.principal('op.exp.9.1').cause === 'CONFIGURATION',
-    `${ausente.principal('op.exp.9.1').status} ${ausente.principal('op.exp.9.1').cause}`
+  check(
+    'and the op.exp.9.1 decision declares the same cause',
+    absent.principal('op.exp.9.1').status === 'NO_EVALUABLE' && absent.principal('op.exp.9.1').cause === 'CONFIGURATION',
+    `${absent.principal('op.exp.9.1').status} ${absent.principal('op.exp.9.1').cause}`
   );
 
-  // Sin latido lo que falla es la RECOGIDA, aunque el registro sí se leyera.
-  const sinLatido = evalua(eventos(...registros(), ...incidenteCerrado(), ventana('INC-2026-001')));
-  const ev02 = sinLatido.puente.find(e => e.id === 'EV-02');
+  const withoutHeartbeat = evaluate(events(...records(), ...closedIncident(), window('INC-2026-001')));
+  const ev02 = withoutHeartbeat.puente.find(e => e.id === 'EV-02');
 
-  comprueba(
-    'sin latido del recolector: EV-02 sin medir con causa COLLECTION',
+  check(
+    'without a collector heartbeat: EV-02 unmeasured with cause COLLECTION',
     ev02?.status === 'NO_EVALUABLE' && ev02?.gapCause === 'COLLECTION',
     `${ev02?.status} ${ev02?.gapCause}`
   );
 
-  // Un parámetro sin configurar se arregla en la pantalla de Configuración.
-  const sinP07 = evalua(eventos(latido(), ...registros(), ...incidenteCerrado(), ventana('INC-2026-001')), { ...BASICOS, 'P-07': undefined });
-  const ev08 = sinP07.puente.find(e => e.id === 'EV-08');
+  const withoutP07 = evaluate(events(heartbeat(), ...records(), ...closedIncident(), window('INC-2026-001')), { ...BASIC_ONES, 'P-07': undefined });
+  const ev08 = withoutP07.puente.find(e => e.id === 'EV-08');
 
-  comprueba(
-    'sin P-07: EV-08 sin medir con causa CONFIGURATION',
+  check(
+    'without P-07: EV-08 unmeasured with cause CONFIGURATION',
     ev08?.status === 'NO_EVALUABLE' && ev08?.gapCause === 'CONFIGURATION',
     `${ev08?.status} ${ev08?.gapCause}`
   );
 }
 
-console.log(`\n${fallos.length ? `${fallos.length} check(s) FAIL:\n  - ${fallos.join('\n  - ')}` : 'all checks pass'}`);
+console.log(`\n${failures.length ? `${failures.length} check(s) FAIL:\n  - ${failures.join('\n  - ')}` : 'all checks pass'}`);
 
-process.exit(fallos.length ? 1 : 0);
+process.exit(failures.length ? 1 : 0);

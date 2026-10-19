@@ -1,22 +1,4 @@
-/**
- * op.mon.1 · el juicio de la detección de intrusión.
- *
- *     npx tsx tests/op-mon-1-judgment.test.ts
- *
- * Mismo montaje que sus hermanas: TypeScript suelto con su propio comprobador.
- *
- * Qué se prueba. Todo op.mon.1 se mide en el manager (agent.id=000) y sus
- * hechos hablan de OTROS sistemas por su campo `agente`: la policy cruza cada
- * fila de P-01 con su hecho por ID o por nombre exacto. Cada caso mueve UN eje y
- * lleva al lado la REVERSIÓN: el MISMO hecho con otro parámetro, u otro `now`,
- * cambia el veredicto.
- *
- * Los hechos siguen el contrato de eventos de op.mon.1 (el que documenta el
- * runbook `linux/op.mon.1`), con los agentes y el ruleset de wazuh4 del
- * 09/10/2026. El recolector todavía no existe: cuando exista, se sustituyen por
- * su salida real en modo --prueba. Pasan por el normalizador real como alertas
- * de alerts.json.
- */
+/** op.mon.1: judgment of intrusion detection. */
 import { opMon1PolicyDefinition } from '../common/ens/core/policy-runtime/policies/op-mon-1.policy';
 import { buildPolicyContext } from '../common/ens/core/policy-runtime/policy-context-builder';
 import { opMon1CatalogDefinition } from '../common/ens/catalog/op-mon-1';
@@ -38,33 +20,27 @@ import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (nombre: string, condicion: boolean, detalle: unknown = ''): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+const check = (name: string, condition: boolean, detail: unknown = ''): void => {
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FAIL ${nombre}${detalle !== '' ? ` — ${String(detalle)}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail !== '' ? ` — ${String(detail)}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
-
-// --- los hechos ------------------------------------------------------------
+const section = (title: string): void => console.log(`\n${title}`);
 
 type Linea = Record<string, unknown>;
 
-// Las pasadas del recolector del manager: la horaria (solo el motor) a las
-// 11:05 y la completa de 6 h a las 12:05.
-const HORARIA = '2026-10-09T11:05';
-const COMPLETA = '2026-10-09T12:05';
+const HOURLY = '2026-10-09T11:05';
+const COMPLETE = '2026-10-09T12:05';
 
-const AHORA = new Date('2026-10-09T12:30:00Z');
+const NOW = new Date('2026-10-09T12:30:00Z');
 
 const motor = (ts: string, extra: Linea = {}): Linea => ({
   ts, event: 'detection_engine_status', evidence_id: 'EV-01', requisito: 'op.mon.1.1,op.mon.1.r1.1', plano: 'central',
@@ -72,34 +48,31 @@ const motor = (ts: string, extra: Linea = {}): Linea => ({
   fuente_contadores: '/var/ossec/var/run/wazuh-analysisd.state', alertas_nuevas: 812, ...extra,
 });
 
-const latido = (ts: string, cubiertas: string): Linea => ({
-  ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: cubiertas, tipo_servidor: 'manager', emisor: 'recolector',
+const heartbeat = (ts: string, covered: string): Linea => ({
+  ts, event: 'collector_run', resultado: 'completada', evidencias_cubiertas: covered, tipo_servidor: 'manager', emisor: 'recolector',
 });
 
-const CUBRE_COMPLETA = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-07,EV-08';
+const FULL_COVER = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-07,EV-08';
 
-const cobertura = (ts: string, id: string, agente: string, estado: string, extra: Linea = {}): Linea => ({
+const coverage = (ts: string, id: string, agent: string, estado: string, extra: Linea = {}): Linea => ({
   ts, event: 'detection_coverage_observed', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central',
-  agente_id: id, agente, estado_conexion: estado, ultimo_keepalive: '2026-10-09T12:04:50Z', version_agente: 'v4.14.7',
+  agente_id: id, agente: agent, estado_conexion: estado, ultimo_keepalive: '2026-10-09T12:04:50Z', version_agente: 'v4.14.7',
   grupos: 'default,ens', fim_ultimo_fin: '2026-10-09T06:02:11Z', sca_ultimo_fin: '2026-10-09T05:59:40Z',
   inventario_ultimo: '2026-10-09T11:20:03Z', ...extra,
 });
 
-const actividad = (ts: string, id: string, agente: string, ultima: string, extra: Linea = {}): Linea => ({
+const activity = (ts: string, id: string, agent: string, ultima: string, extra: Linea = {}): Linea => ({
   ts, event: 'detection_activity_observed', evidence_id: 'EV-03', requisito: 'op.mon.1.1', plano: 'central',
-  agente_id: id, agente, ultima_alerta: ultima, alertas_24h: 120, nivel_max_24h: 7, reglas_distintas_24h: 14,
+  agente_id: id, agente: agent, ultima_alerta: ultima, alertas_24h: 120, nivel_max_24h: 7, reglas_distintas_24h: 14,
   tecnicas_mitre: 'T1078,T1110', observado_desde: '2026-10-01T00:00:00Z', ...extra,
 });
 
-// Rangos de ids de reglas que pueden alertar, como los comprime el recolector.
-const conjunto = (ts: string, nombre: string, ruta: string, ids: string, reglas: number, parte = 1, partes = 1): Linea => ({
+const whole = (ts: string, name: string, ruta: string, ids: string, rules: number, part = 1, partes = 1): Linea => ({
   ts, event: 'ruleset_rules_loaded', evidence_id: 'EV-04', requisito: 'op.mon.1.1', plano: 'central',
-  conjunto: nombre, ruta, ids, reglas, parte, partes,
+  conjunto: name, ruta, ids, reglas: rules, parte: part, partes,
 });
 
-// wazuh4 a las 12:05: el manager, wazuh-real y el LDAP conectados; un agente de
-// prueba desconectado desde el 04/09 y otro de Windows que nunca conectó.
-const pasadaCompleta = (ts = COMPLETA): Linea[] => {
+const completePass = (ts = COMPLETE): Linea[] => {
   const t = (s: number) => `${ts}:${String(s).padStart(2, '0')}Z`;
 
   return [
@@ -107,19 +80,19 @@ const pasadaCompleta = (ts = COMPLETA): Linea[] => {
     { ts: t(12), event: 'ruleset_version_observed', evidence_id: 'EV-01', requisito: 'op.mon.1.1,op.mon.1.r1.1', plano: 'central',
       version_wazuh: '4.14.7', origen_version: 'dpkg', fecha_ruleset: '2026-07-10T08:12:44Z', fichero_mas_reciente: '0580-win-security_rules.xml',
       ficheros: 167, reglas: 4510, reglas_mitre: 1013 },
-    cobertura(t(14), '000', 'Wazuh-4', 'active', { grupos: '-', fim_ultimo_fin: '2026-10-09T07:40:00Z', sca_ultimo_fin: '2026-10-09T03:15:00Z' }),
-    cobertura(t(14), '024', 'wazuh-real', 'active'),
-    cobertura(t(14), '027', 'srv-prueba', 'disconnected', { ultimo_keepalive: '2026-09-04T10:00:12Z', fim_ultimo_fin: '2026-09-04T09:40:00Z', sca_ultimo_fin: '2026-09-04T03:00:00Z' }),
-    cobertura(t(14), '028', 'ldap-zimbra', 'active', { fim_ultimo_fin: '2026-10-09T08:30:00Z', sca_ultimo_fin: '2026-10-09T08:31:00Z' }),
-    cobertura(t(14), '033', 'win-prueba', 'never_connected', { ultimo_keepalive: '-', version_agente: '-', grupos: '-', fim_ultimo_fin: '-', sca_ultimo_fin: '-', inventario_ultimo: '-' }),
-    actividad(t(16), '000', 'Wazuh-4', '2026-10-09T12:01:07Z', { alertas_24h: 866, nivel_max_24h: 10, reglas_distintas_24h: 41 }),
-    actividad(t(16), '024', 'wazuh-real', '2026-10-09T11:58:30Z', { alertas_24h: 2875 }),
-    actividad(t(16), '027', 'srv-prueba', '2026-09-04T09:58:00Z', { alertas_24h: 0, nivel_max_24h: 0, reglas_distintas_24h: 0, tecnicas_mitre: '-' }),
-    actividad(t(16), '028', 'ldap-zimbra', '2026-10-09T09:30:00Z', { alertas_24h: 64, tecnicas_mitre: '-' }),
-    actividad(t(16), '033', 'win-prueba', '-', { alertas_24h: 0, nivel_max_24h: 0, reglas_distintas_24h: 0, tecnicas_mitre: '-' }),
-    conjunto(t(18), 'wazuh', '/var/ossec/ruleset/rules', '1002-1010,2501-2504,5104-5108,5401-5407,5501-5557,5701-5799,80700-80799,87100-87105', 4510),
-    conjunto(t(18), 'local', '/var/ossec/etc/rules', '100001-100002', 2),
-    conjunto(t(18), 'quersystem', '/var/ossec/etc/rules', '107201-107226', 26),
+    coverage(t(14), '000', 'Wazuh-4', 'active', { grupos: '-', fim_ultimo_fin: '2026-10-09T07:40:00Z', sca_ultimo_fin: '2026-10-09T03:15:00Z' }),
+    coverage(t(14), '024', 'wazuh-real', 'active'),
+    coverage(t(14), '027', 'srv-prueba', 'disconnected', { ultimo_keepalive: '2026-09-04T10:00:12Z', fim_ultimo_fin: '2026-09-04T09:40:00Z', sca_ultimo_fin: '2026-09-04T03:00:00Z' }),
+    coverage(t(14), '028', 'ldap-zimbra', 'active', { fim_ultimo_fin: '2026-10-09T08:30:00Z', sca_ultimo_fin: '2026-10-09T08:31:00Z' }),
+    coverage(t(14), '033', 'win-prueba', 'never_connected', { ultimo_keepalive: '-', version_agente: '-', grupos: '-', fim_ultimo_fin: '-', sca_ultimo_fin: '-', inventario_ultimo: '-' }),
+    activity(t(16), '000', 'Wazuh-4', '2026-10-09T12:01:07Z', { alertas_24h: 866, nivel_max_24h: 10, reglas_distintas_24h: 41 }),
+    activity(t(16), '024', 'wazuh-real', '2026-10-09T11:58:30Z', { alertas_24h: 2875 }),
+    activity(t(16), '027', 'srv-prueba', '2026-09-04T09:58:00Z', { alertas_24h: 0, nivel_max_24h: 0, reglas_distintas_24h: 0, tecnicas_mitre: '-' }),
+    activity(t(16), '028', 'ldap-zimbra', '2026-10-09T09:30:00Z', { alertas_24h: 64, tecnicas_mitre: '-' }),
+    activity(t(16), '033', 'win-prueba', '-', { alertas_24h: 0, nivel_max_24h: 0, reglas_distintas_24h: 0, tecnicas_mitre: '-' }),
+    whole(t(18), 'wazuh', '/var/ossec/ruleset/rules', '1002-1010,2501-2504,5104-5108,5401-5407,5501-5557,5701-5799,80700-80799,87100-87105', 4510),
+    whole(t(18), 'local', '/var/ossec/etc/rules', '100001-100002', 2),
+    whole(t(18), 'quersystem', '/var/ossec/etc/rules', '107201-107226', 26),
     { ts: t(20), event: 'network_detection_observed', evidence_id: 'EV-05', requisito: 'op.mon.1.1', plano: 'central',
       producto: 'ninguno', fuente: '-', ultima_alerta: '-', alertas_24h: 0 },
     { ts: t(22), event: 'active_response_configured', evidence_id: 'EV-07', requisito: 'op.mon.1.r3.1', plano: 'central',
@@ -128,18 +101,18 @@ const pasadaCompleta = (ts = COMPLETA): Linea[] => {
       comando: 'quersystem-yara-linux', comando_definido: 'si', ubicacion: 'local', agente_id: '-', reglas_id: '108100,108101', grupos: '-', nivel: '-', timeout: '-', deshabilitada: 'no' },
     { ts: t(24), event: 'rule_silenced', evidence_id: 'EV-08', requisito: 'op.mon.1.r1.1', plano: 'central',
       tipo: 'fichero_excluido', objeto: '0215-policy_rules.xml', fichero: '/var/ossec/etc/ossec.conf' },
-    latido(t(40), CUBRE_COMPLETA),
+    heartbeat(t(40), FULL_COVER),
   ];
 };
 
-const pasadaHoraria = (ts = HORARIA, extra: Linea = {}): Linea[] => [
+const hourlyPass = (ts = HOURLY, extra: Linea = {}): Linea[] => [
   motor(`${ts}:10Z`, extra),
-  latido(`${ts}:12Z`, 'EV-01'),
+  heartbeat(`${ts}:12Z`, 'EV-01'),
 ];
 
-let contador = 0;
+let counter = 0;
 
-const REGLA: Record<string, string> = {
+const RULE: Record<string, string> = {
   detection_engine_status: '111201', ruleset_version_observed: '111202', detection_coverage_observed: '111203',
   detection_activity_observed: '111204', ruleset_rules_loaded: '111205', network_detection_observed: '111206',
   active_response_configured: '111207', active_response_executed: '111208', rule_silenced: '111209',
@@ -148,51 +121,44 @@ const REGLA: Record<string, string> = {
 
 const MANAGER = { id: '000', name: 'Wazuh-4' };
 
-// Una línea del NDJSON del recolector tal como la deja el manager en el índice.
-const alerta = (linea: Linea) => {
-  contador += 1;
+const alert = (linea: Linea) => {
+  counter += 1;
   const { ts, host: _host, ...data } = linea as Linea & { ts: string };
 
   return {
-    _id: `alerta-${contador}`,
+    _id: `alerta-${counter}`,
     _source: {
       '@timestamp': ts,
       agent: MANAGER,
-      rule: { id: REGLA[String(data.event)] || '111200', description: 'op.mon.1' },
+      rule: { id: RULE[String(data.event)] || '111200', description: 'op.mon.1' },
       location: '/var/log/ensfacil/op_mon_1.json',
       data: Object.fromEntries(Object.entries({ ensfacil: 'op.mon.1', ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
 
-const eventos = (lineas: Linea[], cambia: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
+const events = (lineas: Linea[], changes: (l: Linea) => Linea | undefined = l => l): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(
     lineas
-      .map(l => cambia({ ...l }))
+      .map(l => changes({ ...l }))
       .filter((l): l is Linea => Boolean(l))
-      .map(alerta)
+      .map(alert)
   );
 
-// Lo que hoy está en wazuh4: la horaria de las 11:05 y la completa de las 12:05.
-const hoy = (cambia?: (l: Linea) => Linea | undefined) =>
-  eventos([...pasadaHoraria(), ...pasadaCompleta()], cambia);
-
-// --- la configuración --------------------------------------------------------
+const hoy = (changes?: (l: Linea) => Linea | undefined) =>
+  events([...hourlyPass(), ...completePass()], changes);
 
 type Valores = Record<string, string[] | string | undefined>;
 
-const configuracion = (valores: Valores): ENSControlConfiguration => ({
+const configuration = (valores: Valores): ENSControlConfiguration => ({
   ...opMon1Configuration,
   parameters: opMon1Configuration.parameters.map(p => {
     const { value: _anterior, ...sinValor } = p;
 
-    // Un parámetro vacío es la clave `value` AUSENTE, nunca `null`.
     return valores[p.id] === undefined ? sinValor : { ...sinValor, value: valores[p.id] };
   }),
 });
 
-// Lo que el responsable declararía para el laboratorio (spec §1.5): solo los
-// sistemas reales, el manager por su nombre y el LDAP por su ID.
 const BASE: Valores = {
   'P-01': ['Wazuh-4 | Ubuntu 22.04 | alta', 'wazuh-real | Ubuntu 24.04 | alta', '028 | Ubuntu 22.04 | alta'],
   'P-02': ['no | - | AR-2026 §4.2: sin amenazas de red que exijan inspección de tráfico'],
@@ -206,45 +172,44 @@ const BASE: Valores = {
   'P-10': '26',
 };
 
-const SIN_PARAMETROS: Valores = {};
+const NO_PARAMETERS: Valores = {};
 
-const evalua = (
+const evaluate = (
   evs: ENSNormalizedEvent[],
   valores: Valores = BASE,
-  nivel: ENSLevel = 'MEDIO',
-  ahora: Date = AHORA
+  level: ENSLevel = 'MEDIO',
+  now: Date = NOW
 ) => {
-  const cfg = configuracion(valores);
-  const delControl = keepLatestRunStateFacts('op.mon.1', evs, ahora);
-  const evidencias = resolveEvidenceForControl('op.mon.1', delControl, '000', nivel, cfg, ahora);
-  const contexto = buildPolicyContext(opMon1CatalogDefinition, cfg, nivel, delControl, evidencias, ahora);
-  const { decisions, runtimeVariables } = opMon1PolicyDefinition.evaluator!(contexto);
-  const tabla = applyPolicyDecisionsToEvidences(evidencias, decisions, opMon1CatalogDefinition.requirements);
-  const atestaciones = parseRequirementAttestations(cfg);
-  const requisito = (id: string) =>
+  const cfg = configuration(valores);
+  const delControl = keepLatestRunStateFacts('op.mon.1', evs, now);
+  const evidences = resolveEvidenceForControl('op.mon.1', delControl, '000', level, cfg, now);
+  const context = buildPolicyContext(opMon1CatalogDefinition, cfg, level, delControl, evidences, now);
+  const { decisions, runtimeVariables } = opMon1PolicyDefinition.evaluator!(context);
+  const tabla = applyPolicyDecisionsToEvidences(evidences, decisions, opMon1CatalogDefinition.requirements);
+  const attestations = parseRequirementAttestations(cfg);
+  const requirement = (id: string) =>
     evaluateRequirement(
       opMon1CatalogDefinition.requirements.find(q => q.id === id)!,
-      nivel,
+      level,
       tabla,
       false,
       decisions,
       'ACTIVE',
-      atestaciones.get(id)
+      attestations.get(id)
     );
-  const evidencia = (id: string) => tabla.find(e => e.id === id);
-  const motivo = (req: string) => decisions.find(d => d.requirementId === req)?.reason || '';
-  // La decisión de UNA evidencia (la del requisito lleva `trace.ruleId` sin barra).
-  const deEvidencia = (req: string, ev: string) => decisions.find(d => d.trace.ruleId === `${req}/${ev}`);
+  const evidence = (id: string) => tabla.find(e => e.id === id);
+  const motive = (req: string) => decisions.find(d => d.requirementId === req)?.reason || '';
+  const ofEvidence = (req: string, ev: string) => decisions.find(d => d.trace.ruleId === `${req}/${ev}`);
   const motor = () =>
     evaluateENSControl(
       opMon1CatalogDefinition,
       cfg,
-      nivel,
-      evidencias,
+      level,
+      evidences,
       {
         controlId: 'op.mon.1',
         policyId: opMon1PolicyDefinition.id,
-        evaluatedAt: ahora.toISOString(),
+        evaluatedAt: now.toISOString(),
         decisions,
         appliedParameters: [],
         runtimeVariables,
@@ -252,42 +217,40 @@ const evalua = (
       delControl
     );
 
-  return { decisions, runtimeVariables, requisito, evidencia, motivo, deEvidencia, motor };
+  return { decisions, runtimeVariables, requisito: requirement, evidencia: evidence, motivo: motive, deEvidencia: ofEvidence, motor };
 };
 
-// --- 1. catálogo ------------------------------------------------------------
-
-bloque('1. Catálogo: categoría del sistema, plano del manager y refuerzos');
+section('1. Catalog: system category, manager plane and reinforcements');
 
 {
-  const niveles = (id: string) =>
+  const levels = (id: string) =>
     opMon1CatalogDefinition.requirements.find(r => r.id === id)!.applicability.levels.join(',');
 
-  comprueba('op.mon.1 se rige por la categoría (sin dimensión propia)', opMon1CatalogDefinition.levelDimension === undefined);
-  comprueba('se mide solo en el manager', JSON.stringify(opMon1CatalogDefinition.measurementPlanes) === '["manager"]');
-  comprueba('la base rige en las tres categorías', niveles('op.mon.1.1') === 'BAJO,MEDIO,ALTO');
-  comprueba('R1 desde MEDIA', niveles('op.mon.1.r1.1') === 'MEDIO,ALTO');
-  comprueba('R2 solo en ALTA', niveles('op.mon.1.r2.1') === 'ALTO');
-  comprueba('R3 en ninguna (definido, no exigido)', niveles('op.mon.1.r3.1') === '');
-  comprueba('el control está ACTIVE', opMon1CatalogDefinition.status === 'ACTIVE', opMon1CatalogDefinition.status);
-  comprueba(
-    'R2 no declara ninguna evidencia técnica (documental: P-05 o P-ATT)',
+  check('op.mon.1 is governed by the category (no dimension of its own)', opMon1CatalogDefinition.levelDimension === undefined);
+  check('se mide solo en el manager', JSON.stringify(opMon1CatalogDefinition.measurementPlanes) === '["manager"]');
+  check('the base applies in the three categories', levels('op.mon.1.1') === 'BAJO,MEDIO,ALTO');
+  check('R1 from MEDIA', levels('op.mon.1.r1.1') === 'MEDIO,ALTO');
+  check('R2 only at ALTA', levels('op.mon.1.r2.1') === 'ALTO');
+  check('R3 at none (defined, not required)', levels('op.mon.1.r3.1') === '');
+  check('the control is ACTIVE', opMon1CatalogDefinition.status === 'ACTIVE', opMon1CatalogDefinition.status);
+  check(
+    'R2 declares no technical evidence (documentary: P-05 or P-ATT)',
     opMon1CatalogDefinition.requirements.find(r => r.id === 'op.mon.1.r2.1')!.evidenceIds.length === 0
   );
-  comprueba(
-    'EV-06 no la juzga ningún requisito (dato del informe)',
+  check(
+    'EV-06 is judged by no requirement (report datum)',
     opMon1CatalogDefinition.requirements.every(r => !r.evidenceIds.includes('EV-06'))
   );
-  comprueba(
-    'la policy declara los mismos niveles y evidencias que el catálogo',
+  check(
+    'the policy declares the same levels and evidences as the catalog',
     opMon1PolicyDefinition.requirements.every(r => {
       const c = opMon1CatalogDefinition.requirements.find(q => q.id === r.requirementId)!;
 
       return r.levels.join(',') === c.applicability.levels.join(',') && r.evidenceIds.join(',') === c.evidenceIds.join(',');
     })
   );
-  comprueba(
-    'el motor y los hechos de serie no son hechos de estado; los de 6 h, sí',
+  check(
+    'the engine and the series facts are not state facts; the 6 h ones are',
     !getStateFactEventTypes('op.mon.1').has('detection_engine_status') &&
       !getStateFactEventTypes('op.mon.1').has('ruleset_version_observed') &&
       !getStateFactEventTypes('op.mon.1').has('active_response_executed') &&
@@ -295,428 +258,389 @@ bloque('1. Catálogo: categoría del sistema, plano del manager y refuerzos');
   );
 }
 
-// --- 2. verde: el laboratorio tal como se declararía --------------------------
-
-bloque('2. Verde: P-01 con los sistemas reales, ruleset del 10/07 bajo P-08 = 180');
+section('2. Green: P-01 with the real systems, ruleset of 10/07 under P-08 = 180');
 
 {
-  const r = evalua(hoy());
+  const r = evaluate(hoy());
 
-  comprueba('op.mon.1.1 CUMPLE en MEDIA', r.requisito('op.mon.1.1').status === 'CUMPLE' && r.requisito('op.mon.1.1').evidenced === true, r.motivo('op.mon.1.1'));
-  comprueba('op.mon.1.r1.1 CUMPLE: ruleset de 91 días, 0215-policy_rules.xml declarada en P-06', r.requisito('op.mon.1.r1.1').status === 'CUMPLE', r.motivo('op.mon.1.r1.1'));
-  comprueba('R2 NO_APLICA en MEDIA', r.requisito('op.mon.1.r2.1').status === 'NO_APLICA', r.requisito('op.mon.1.r2.1').status);
-  comprueba('R3 NO_APLICA siempre', r.requisito('op.mon.1.r3.1').status === 'NO_APLICA', r.requisito('op.mon.1.r3.1').status);
-  comprueba('EV-01: el motor procesa (7150 eventos entre las dos pasadas)', r.evidencia('EV-01')?.status === 'CUMPLE' && /7150 eventos entre/.test(r.motivo('op.mon.1.1')), r.motivo('op.mon.1.1'));
-  comprueba('EV-02 CUMPLE y nombra al LDAP declarado por su ID', r.evidencia('EV-02')?.status === 'CUMPLE' && /028 \(ldap-zimbra, 028\)/.test(r.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), r.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
-  comprueba(
-    'los agentes de prueba fuera de P-01 no cuentan, pero se dicen',
+  check('op.mon.1.1 CUMPLE at MEDIA', r.requisito('op.mon.1.1').status === 'CUMPLE' && r.requisito('op.mon.1.1').evidenced === true, r.motivo('op.mon.1.1'));
+  check('op.mon.1.r1.1 CUMPLE: 91-day ruleset, 0215-policy_rules.xml declared in P-06', r.requisito('op.mon.1.r1.1').status === 'CUMPLE', r.motivo('op.mon.1.r1.1'));
+  check('R2 NO_APLICA at MEDIA', r.requisito('op.mon.1.r2.1').status === 'NO_APLICA', r.requisito('op.mon.1.r2.1').status);
+  check('R3 NO_APLICA always', r.requisito('op.mon.1.r3.1').status === 'NO_APLICA', r.requisito('op.mon.1.r3.1').status);
+  check('EV-01: the engine processes (7150 events between the two passes)', r.evidencia('EV-01')?.status === 'CUMPLE' && /7150 eventos entre/.test(r.motivo('op.mon.1.1')), r.motivo('op.mon.1.1'));
+  check('EV-02 CUMPLE and names the declared LDAP by its ID', r.evidencia('EV-02')?.status === 'CUMPLE' && /028 \(ldap-zimbra, 028\)/.test(r.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), r.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
+  check(
+    'the test agents outside P-01 do not count, but are mentioned',
     /Fuera de P-01 hay 2 agente\(s\)/.test(r.deEvidencia('op.mon.1.1', 'EV-02')?.reason || '') && /srv-prueba 027 disconnected/.test(r.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''),
     r.deEvidencia('op.mon.1.1', 'EV-02')?.reason
   );
-  comprueba('EV-04 CUMPLE: 5710 y 5401-5403 cargadas en el conjunto wazuh', r.evidencia('EV-04')?.status === 'CUMPLE' && /5710 \(wazuh\)/.test(r.deEvidencia('op.mon.1.1', 'EV-04')?.reason || ''), r.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
-  comprueba('EV-05 NO_APLICA: P-02 = no con la referencia al análisis de riesgos', r.evidencia('EV-05')?.status === 'NO_APLICA' && /AR-2026/.test(r.deEvidencia('op.mon.1.1', 'EV-05')?.reason || ''), r.evidencia('EV-05')?.status);
-  comprueba('EV-06 NO_APLICA en MEDIA (no es de su categoría)', r.evidencia('EV-06')?.status === 'NO_APLICA', r.evidencia('EV-06')?.status);
-  comprueba(
-    'EV-07 NO_APLICA con lo que hay: R3 se informa, sin veredicto',
+  check('EV-04 CUMPLE: 5710 and 5401-5403 loaded in the wazuh set', r.evidencia('EV-04')?.status === 'CUMPLE' && /5710 \(wazuh\)/.test(r.deEvidencia('op.mon.1.1', 'EV-04')?.reason || ''), r.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
+  check('EV-05 NO_APLICA: P-02 = no with the risk-analysis reference', r.evidencia('EV-05')?.status === 'NO_APLICA' && /AR-2026/.test(r.deEvidencia('op.mon.1.1', 'EV-05')?.reason || ''), r.evidencia('EV-05')?.status);
+  check('EV-06 NO_APLICA at MEDIA (not of its category)', r.evidencia('EV-06')?.status === 'NO_APLICA', r.evidencia('EV-06')?.status);
+  check(
+    'EV-07 NO_APLICA with what there is: R3 is reported, without a verdict',
     r.evidencia('EV-07')?.status === 'NO_APLICA' && (r.evidencia('EV-07')?.observations || []).some(o => /se informa, sin veredicto/.test(o) && /firewall-drop/.test(o)),
     (r.evidencia('EV-07')?.observations || []).join(' | ')
   );
-  comprueba(
-    'y la cobertura de hecho de R3 viaja como variable (CUMPLE: firewall-drop con reversión 180 s)',
+  check(
+    'and R3\'s fact coverage travels as a variable (CUMPLE: firewall-drop with 180 s reversion)',
     r.runtimeVariables.find(v => v.name === 'cobertura_de_hecho_R3')?.value === 'CUMPLE',
     r.runtimeVariables.find(v => v.name === 'cobertura_de_hecho_R3')?.description
   );
 
-  const basica = evalua(hoy(), BASE, 'BAJO');
-  comprueba('en BÁSICA, R1 NO_APLICA y EV-08 también', basica.requisito('op.mon.1.r1.1').status === 'NO_APLICA' && basica.evidencia('EV-08')?.status === 'NO_APLICA', `${basica.requisito('op.mon.1.r1.1').status} ${basica.evidencia('EV-08')?.status}`);
-  comprueba(
-    'en BÁSICA sin P-03, EV-01 sigue CUMPLE: los conjuntos de P-03 son de R1',
-    evalua(hoy(), { ...BASE, 'P-03': undefined }, 'BAJO').evidencia('EV-01')?.status === 'CUMPLE'
+  const basic = evaluate(hoy(), BASE, 'BAJO');
+  check('at BÁSICA, R1 NO_APLICA and EV-08 too', basic.requisito('op.mon.1.r1.1').status === 'NO_APLICA' && basic.evidencia('EV-08')?.status === 'NO_APLICA', `${basic.requisito('op.mon.1.r1.1').status} ${basic.evidencia('EV-08')?.status}`);
+  check(
+    'at BÁSICA without P-03, EV-01 stays CUMPLE: P-03\'s sets belong to R1',
+    evaluate(hoy(), { ...BASE, 'P-03': undefined }, 'BAJO').evidencia('EV-01')?.status === 'CUMPLE'
   );
-  comprueba('el informe enseña los requisitos con su veredicto', buildOpMon1ReportModel(r.motor()).fields[0].details.some(d => /op\.mon\.1\.1 .*: CUMPLE/.test(d)));
+  check('the report shows the requirements with their verdict', buildOpMon1ReportModel(r.motor()).fields[0].details.some(d => /op\.mon\.1\.1 .*: CUMPLE/.test(d)));
 }
 
-// --- 3. R2: acreditado documentalmente ---------------------------------------
-
-bloque('3. R2 en ALTA: P-05 lo acredita documentalmente; P-ATT si no hay P-05');
+section('3. R2 at ALTA: P-05 accredits it documentarily; P-ATT if there is no P-05');
 
 {
-  const r = evalua(hoy(), BASE, 'ALTO');
+  const r = evaluate(hoy(), BASE, 'ALTO');
   const r2 = r.requisito('op.mon.1.r2.1');
 
-  comprueba('P-05 completa → R2 CUMPLE marcado `attested`', r2.status === 'CUMPLE' && r2.attested === true && r2.evidenced === true, `${r2.status} ${r2.attested}`);
-  comprueba('y se lee «Acreditado documentalmente», no como medido', /^Acreditado documentalmente/.test(r2.observations[0] || ''), r2.observations[0]);
-  comprueba(
-    'EV-06 sale NO_APLICA como dato del informe, no en gris',
+  check('complete P-05 → R2 CUMPLE marked `attested`', r2.status === 'CUMPLE' && r2.attested === true && r2.evidenced === true, `${r2.status} ${r2.attested}`);
+  check('and it reads «Acreditado documentalmente», not as measured', /^Acreditado documentalmente/.test(r2.observations[0] || ''), r2.observations[0]);
+  check(
+    'EV-06 comes out NO_APLICA as a report datum, not grey',
     r.evidencia('EV-06')?.status === 'NO_APLICA' && (r.evidencia('EV-06')?.observations || []).some(o => /Dato del informe/.test(o)),
     r.evidencia('EV-06')?.status
   );
-  comprueba(
-    'la acreditación no rellena ninguna evidencia (el puente la ignora)',
+  check(
+    'the accreditation fills no evidence (the bridge ignores it)',
     r.decisions.filter(d => d.attested).every(d => d.evidenceIds.length === 0)
   );
 
-  const informe = buildOpMon1ReportModel(r.motor());
-  const campoR2 = informe.fields.find(f => f.id === 'op.mon.1.campo9')!;
-  comprueba('el informe dice «Acreditado documentalmente» en R2', campoR2.status === 'CUMPLE' && /Acreditado documentalmente/.test(campoR2.value), campoR2.value);
+  const report = buildOpMon1ReportModel(r.motor());
+  const campoR2 = report.fields.find(f => f.id === 'op.mon.1.campo9')!;
+  check('the report says «Acreditado documentalmente» in R2', campoR2.status === 'CUMPLE' && /Acreditado documentalmente/.test(campoR2.value), campoR2.value);
 
-  const incompleta = evalua(hoy(), { ...BASE, 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] }, 'ALTO');
-  comprueba(
-    'una fila de P-05 sin responsable no acredita: R2 no demostrado, causa CONFIGURATION',
-    incompleta.requisito('op.mon.1.r2.1').status === 'NO_CUMPLE' && incompleta.requisito('op.mon.1.r2.1').evidenced === false && incompleta.decisions.find(d => d.requirementId === 'op.mon.1.r2.1')?.cause === 'CONFIGURATION',
-    incompleta.motivo('op.mon.1.r2.1')
+  const incompleteOne = evaluate(hoy(), { ...BASE, 'P-05': ['intrusión en servidor | PR-18 Respuesta a intrusión | '] }, 'ALTO');
+  check(
+    'a P-05 row without an owner does not accredit: R2 not proven, cause CONFIGURATION',
+    incompleteOne.requisito('op.mon.1.r2.1').status === 'NO_CUMPLE' && incompleteOne.requisito('op.mon.1.r2.1').evidenced === false && incompleteOne.decisions.find(d => d.requirementId === 'op.mon.1.r2.1')?.cause === 'CONFIGURATION',
+    incompleteOne.motivo('op.mon.1.r2.1')
   );
 
-  const sinP05 = evalua(hoy(), { ...BASE, 'P-05': undefined }, 'ALTO');
-  comprueba('sin P-05 ni P-ATT → R2 no demostrado', sinP05.requisito('op.mon.1.r2.1').status === 'NO_CUMPLE' && sinP05.requisito('op.mon.1.r2.1').evidenced === false, sinP05.requisito('op.mon.1.r2.1').status);
+  const withoutP05 = evaluate(hoy(), { ...BASE, 'P-05': undefined }, 'ALTO');
+  check('without P-05 or P-ATT → R2 not proven', withoutP05.requisito('op.mon.1.r2.1').status === 'NO_CUMPLE' && withoutP05.requisito('op.mon.1.r2.1').evidenced === false, withoutP05.requisito('op.mon.1.r2.1').status);
 
-  const conAtt = evalua(hoy(), { ...BASE, 'P-05': undefined, 'P-ATT': ['op.mon.1.r2.1 | PR-18 Respuesta a intrusión | https://intranet.ejemplo/pr-18.pdf | 2026-05-12 | Responsable de Seguridad'] }, 'ALTO');
-  comprueba('REVERSIÓN: sin P-05 pero con P-ATT → R2 CUMPLE acreditado', conAtt.requisito('op.mon.1.r2.1').status === 'CUMPLE' && conAtt.requisito('op.mon.1.r2.1').attested === true, conAtt.requisito('op.mon.1.r2.1').status);
+  const withAtt = evaluate(hoy(), { ...BASE, 'P-05': undefined, 'P-ATT': ['op.mon.1.r2.1 | PR-18 Respuesta a intrusión | https://intranet.ejemplo/pr-18.pdf | 2026-05-12 | Responsable de Seguridad'] }, 'ALTO');
+  check('REVERSAL: without P-05 but with P-ATT → R2 accredited CUMPLE', withAtt.requisito('op.mon.1.r2.1').status === 'CUMPLE' && withAtt.requisito('op.mon.1.r2.1').attested === true, withAtt.requisito('op.mon.1.r2.1').status);
 }
 
-// --- 4. una medida en contra manda sobre el documento ------------------------
-
-bloque('4. `attested` y P-ATT nunca tapan una medida técnica en NO_CUMPLE');
+section('4. `attested` and P-ATT never cover a technical measure in NO_CUMPLE');
 
 {
   const att = ['op.mon.1.1 | Plan de despliegue de agentes | https://intranet.ejemplo/despliegue.pdf | 2026-05-12 | Responsable de Seguridad'];
-  const conPrueba = evalua(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | Ubuntu 22.04 | baja'], 'P-ATT': att }, 'ALTO');
+  const withTest = evaluate(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | Ubuntu 22.04 | baja'], 'P-ATT': att }, 'ALTO');
 
-  comprueba(
-    'P-ATT para op.mon.1.1 con EV-02 en NO_CUMPLE → NO_CUMPLE medido, sin marca',
-    conPrueba.requisito('op.mon.1.1').status === 'NO_CUMPLE' && conPrueba.requisito('op.mon.1.1').evidenced === true && !conPrueba.requisito('op.mon.1.1').attested,
-    `${conPrueba.requisito('op.mon.1.1').status} ${conPrueba.requisito('op.mon.1.1').attested}`
+  check(
+    'P-ATT for op.mon.1.1 with EV-02 in NO_CUMPLE → measured NO_CUMPLE, without the mark',
+    withTest.requisito('op.mon.1.1').status === 'NO_CUMPLE' && withTest.requisito('op.mon.1.1').evidenced === true && !withTest.requisito('op.mon.1.1').attested,
+    `${withTest.requisito('op.mon.1.1').status} ${withTest.requisito('op.mon.1.1').attested}`
   );
-  comprueba(
-    'y la acreditación de R2 sigue sola, sin arrastrar la base',
-    conPrueba.requisito('op.mon.1.r2.1').status === 'CUMPLE' && conPrueba.requisito('op.mon.1.r2.1').attested === true
+  check(
+    'and R2\'s accreditation stays on its own, without dragging the base',
+    withTest.requisito('op.mon.1.r2.1').status === 'CUMPLE' && withTest.requisito('op.mon.1.r2.1').attested === true
   );
 }
 
-// --- 5. rojo: cada eje con su reversión ------------------------------------
-
-bloque('5. Rojo: cada eje con su reversión');
+section('5. Red: each axis with its reversal');
 
 {
-  // EV-02 · un agente de prueba desconectado, declarado en P-01.
-  const conPrueba = evalua(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'srv-prueba | Ubuntu 22.04 | baja'] });
-  comprueba(
-    'P-01 con el agente de prueba desconectado → op.mon.1.1 NO_CUMPLE nombrándolo',
-    conPrueba.requisito('op.mon.1.1').status === 'NO_CUMPLE' && /srv-prueba \(027\): agente disconnected/.test(conPrueba.motivo('op.mon.1.1')),
-    conPrueba.motivo('op.mon.1.1')
+  const withTest = evaluate(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'srv-prueba | Ubuntu 22.04 | baja'] });
+  check(
+    'P-01 with the test agent disconnected → op.mon.1.1 NO_CUMPLE naming it',
+    withTest.requisito('op.mon.1.1').status === 'NO_CUMPLE' && /srv-prueba \(027\): agente disconnected/.test(withTest.motivo('op.mon.1.1')),
+    withTest.motivo('op.mon.1.1')
   );
-  comprueba(
-    'y EV-03 no lo cuenta dos veces: lo deja a EV-02',
-    conPrueba.evidencia('EV-03')?.status === 'CUMPLE' && /no están conectados \(los juzga EV-02\): srv-prueba \(027\)/.test(conPrueba.deEvidencia('op.mon.1.1', 'EV-03')?.reason || ''),
-    conPrueba.deEvidencia('op.mon.1.1', 'EV-03')?.reason
-  );
-
-  const nunca = evalua(hoy(), { ...BASE, 'P-01': ['033 | Windows | media'] });
-  comprueba('un agente que nunca conectó → NO_CUMPLE (keepalive «nunca»)', nunca.evidencia('EV-02')?.status === 'NO_CUMPLE' && /never_connected, último keepalive nunca/.test(nunca.motivo('op.mon.1.1')), nunca.motivo('op.mon.1.1'));
-
-  const inexistente = evalua(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'srv-web01 | Linux | alta'] });
-  comprueba('un sistema de P-01 sin agente → NO_CUMPLE', inexistente.evidencia('EV-02')?.status === 'NO_CUMPLE' && /srv-web01: no figura en la base de agentes/.test(inexistente.motivo('op.mon.1.1')), inexistente.motivo('op.mon.1.1'));
-
-  // EV-02 · el análisis (FIM, SCA) contra P-10.
-  const corto = evalua(hoy(), { ...BASE, 'P-10': '4' });
-  comprueba('P-10 = 4 h y el FIM de wazuh-real terminó a las 06:02 → NO_CUMPLE', corto.evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): la última pasada de FIM terminó/.test(corto.motivo('op.mon.1.1')), corto.motivo('op.mon.1.1'));
-  comprueba('REVERSIÓN: el mismo hecho con P-10 = 26 h → CUMPLE', evalua(hoy(), { ...BASE, 'P-10': '26' }).evidencia('EV-02')?.status === 'CUMPLE');
-  // P-10 se juzga en el instante de la LECTURA: un hecho de hace 20 h (pasadas
-  // completas perdidas) no convierte un FIM al día en «análisis inactivo».
-  const tarde = evalua(hoy(), { ...BASE, 'P-10': '12' }, 'MEDIO', new Date('2026-10-10T08:00:00Z'));
-  comprueba(
-    'la lectura de las 12:05 vista 20 h después, con P-10 = 12 h: el FIM de 06:02 tenía 6 h al leerse → EV-02 CUMPLE',
-    tarde.evidencia('EV-02')?.status === 'CUMPLE',
-    `${tarde.evidencia('EV-02')?.status} ${tarde.deEvidencia('op.mon.1.1', 'EV-02')?.reason}`
+  check(
+    'and EV-03 does not count it twice: it leaves it to EV-02',
+    withTest.evidencia('EV-03')?.status === 'CUMPLE' && /no están conectados \(los juzga EV-02\): srv-prueba \(027\)/.test(withTest.deEvidencia('op.mon.1.1', 'EV-03')?.reason || ''),
+    withTest.deEvidencia('op.mon.1.1', 'EV-03')?.reason
   );
 
-  const sinSca = evalua(hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === '028' ? { ...l, sca_ultimo_fin: '-' } : l)));
-  comprueba('el LDAP sin ninguna pasada de SCA → el análisis no está activo', sinSca.evidencia('EV-02')?.status === 'NO_CUMPLE' && /ninguna pasada de SCA completada/.test(sinSca.motivo('op.mon.1.1')), sinSca.motivo('op.mon.1.1'));
+  const never = evaluate(hoy(), { ...BASE, 'P-01': ['033 | Windows | media'] });
+  check('an agent that never connected → NO_CUMPLE (keepalive «nunca»)', never.evidencia('EV-02')?.status === 'NO_CUMPLE' && /never_connected, último keepalive nunca/.test(never.motivo('op.mon.1.1')), never.motivo('op.mon.1.1'));
 
-  // EV-03 · sistema activo sin detecciones, contra P-09.
-  const callado = evalua(hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '024' ? { ...l, ultima_alerta: '2026-09-29T08:00:00Z', alertas_24h: 0 } : l)));
-  comprueba('wazuh-real conectado y 10 días sin detecciones (P-09 = 7) → NO_CUMPLE', callado.evidencia('EV-03')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): 10 días sin ninguna detección/.test(callado.motivo('op.mon.1.1')), callado.motivo('op.mon.1.1'));
-  comprueba('REVERSIÓN: el mismo hecho con P-09 = 15 → CUMPLE', evalua(hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '024' ? { ...l, ultima_alerta: '2026-09-29T08:00:00Z', alertas_24h: 0 } : l)), { ...BASE, 'P-09': '15' }).evidencia('EV-03')?.status === 'CUMPLE');
+  const nonexistent = evaluate(hoy(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'srv-web01 | Linux | alta'] });
+  check('a P-01 system without an agent → NO_CUMPLE', nonexistent.evidencia('EV-02')?.status === 'NO_CUMPLE' && /srv-web01: no figura en la base de agentes/.test(nonexistent.motivo('op.mon.1.1')), nonexistent.motivo('op.mon.1.1'));
 
-  const mudo = (desde: string) => hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '028' ? { ...l, ultima_alerta: '-', alertas_24h: 0, observado_desde: desde } : l));
-  comprueba('el LDAP sin ninguna detección desde que se observa (09/09) → NO_CUMPLE', evalua(mudo('2026-09-09T00:00:00Z')).evidencia('EV-03')?.status === 'NO_CUMPLE');
-  comprueba(
-    'REVERSIÓN: sin detecciones pero observado solo desde ayer → no se puede afirmar: NO_EVALUABLE, nunca CUMPLE',
-    evalua(mudo('2026-10-08T12:00:00Z')).evidencia('EV-03')?.status === 'NO_EVALUABLE',
-    evalua(mudo('2026-10-08T12:00:00Z')).evidencia('EV-03')?.status
+  const short = evaluate(hoy(), { ...BASE, 'P-10': '4' });
+  check('P-10 = 4 h and wazuh-real\'s FIM ended at 06:02 → NO_CUMPLE', short.evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): la última pasada de FIM terminó/.test(short.motivo('op.mon.1.1')), short.motivo('op.mon.1.1'));
+  check('REVERSAL: the same fact with P-10 = 26 h → CUMPLE', evaluate(hoy(), { ...BASE, 'P-10': '26' }).evidencia('EV-02')?.status === 'CUMPLE');
+  const late = evaluate(hoy(), { ...BASE, 'P-10': '12' }, 'MEDIO', new Date('2026-10-10T08:00:00Z'));
+  check(
+    'the 12:05 read seen 20 h later, with P-10 = 12 h: the 06:02 FIM was 6 h old when read → EV-02 CUMPLE',
+    late.evidencia('EV-02')?.status === 'CUMPLE',
+    `${late.evidencia('EV-02')?.status} ${late.deEvidencia('op.mon.1.1', 'EV-02')?.reason}`
   );
 
-  // EV-04 · situaciones de P-04 sin regla, o con reglas que no están cargadas.
-  const ciega = evalua(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), 'alteración del directorio LDAP | ldap-zimbra | ninguna'] });
-  comprueba('una situación declarada sin regla (punto ciego) → NO_CUMPLE', ciega.evidencia('EV-04')?.status === 'NO_CUMPLE' && /puntos ciegos declarados: «alteración del directorio LDAP»/.test(ciega.motivo('op.mon.1.1')), ciega.motivo('op.mon.1.1'));
-  // Un punto ciego con fecha de remedio: los números con guion no son reglas.
-  const conFecha = (celda: string) => evalua(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), `alteración del directorio LDAP | ldap-zimbra | ${celda}`] });
-  ['pendiente 2026-12', 'CVE-2021-44228', 'AR-2026-04'].forEach(celda => {
-    const r = conFecha(celda);
+  const withoutSca = evaluate(hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === '028' ? { ...l, sca_ultimo_fin: '-' } : l)));
+  check('the LDAP with no SCA pass → the analysis is not active', withoutSca.evidencia('EV-02')?.status === 'NO_CUMPLE' && /ninguna pasada de SCA completada/.test(withoutSca.motivo('op.mon.1.1')), withoutSca.motivo('op.mon.1.1'));
 
-    comprueba(
-      `«${celda}» en la columna de reglas no se lee como un rango: NO_EVALUABLE por CONFIGURATION nombrando la situación, nunca CUMPLE`,
+  const silent2 = evaluate(hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '024' ? { ...l, ultima_alerta: '2026-09-29T08:00:00Z', alertas_24h: 0 } : l)));
+  check('wazuh-real connected and 10 days without detections (P-09 = 7) → NO_CUMPLE', silent2.evidencia('EV-03')?.status === 'NO_CUMPLE' && /wazuh-real \(024\): 10 días sin ninguna detección/.test(silent2.motivo('op.mon.1.1')), silent2.motivo('op.mon.1.1'));
+  check('REVERSAL: the same fact with P-09 = 15 → CUMPLE', evaluate(hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '024' ? { ...l, ultima_alerta: '2026-09-29T08:00:00Z', alertas_24h: 0 } : l)), { ...BASE, 'P-09': '15' }).evidencia('EV-03')?.status === 'CUMPLE');
+
+  const mute = (since: string) => hoy(l => (l.event === 'detection_activity_observed' && l.agente_id === '028' ? { ...l, ultima_alerta: '-', alertas_24h: 0, observado_desde: since } : l));
+  check('the LDAP with no detection since it is observed (09/09) → NO_CUMPLE', evaluate(mute('2026-09-09T00:00:00Z')).evidencia('EV-03')?.status === 'NO_CUMPLE');
+  check(
+    'REVERSAL: no detections but observed only since yesterday → cannot be asserted: NO_EVALUABLE, never CUMPLE',
+    evaluate(mute('2026-10-08T12:00:00Z')).evidencia('EV-03')?.status === 'NO_EVALUABLE',
+    evaluate(mute('2026-10-08T12:00:00Z')).evidencia('EV-03')?.status
+  );
+
+  const blind = evaluate(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), 'alteración del directorio LDAP | ldap-zimbra | ninguna'] });
+  check('a situation declared without a rule (blind spot) → NO_CUMPLE', blind.evidencia('EV-04')?.status === 'NO_CUMPLE' && /puntos ciegos declarados: «alteración del directorio LDAP»/.test(blind.motivo('op.mon.1.1')), blind.motivo('op.mon.1.1'));
+  const withDate = (cell: string) => evaluate(hoy(), { ...BASE, 'P-04': [...(BASE['P-04'] as string[]), `alteración del directorio LDAP | ldap-zimbra | ${cell}`] });
+  ['pendiente 2026-12', 'CVE-2021-44228', 'AR-2026-04'].forEach(cell => {
+    const r = withDate(cell);
+
+    check(
+      `«${cell}» in the rules column is not read as a range: NO_EVALUABLE by CONFIGURATION naming the situation, never CUMPLE`,
       r.evidencia('EV-04')?.status === 'NO_EVALUABLE' && r.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»/.test(r.motivo('op.mon.1.1')),
       `${r.evidencia('EV-04')?.status} ${r.evidencia('EV-04')?.gapCause} ${r.motivo('op.mon.1.1')}`
     );
   });
-  // Una fecha suelta pasa la gramática, pero es un rango al revés.
-  ['2026-12', '5710, 2026-12'].forEach(celda => {
-    const r = conFecha(celda);
+  ['2026-12', '5710, 2026-12'].forEach(cell => {
+    const r = withDate(cell);
 
-    comprueba(
-      `«${celda}»: un rango al revés (12-2026 no se lee) → NO_EVALUABLE por CONFIGURATION nombrando la situación, nunca CUMPLE`,
+    check(
+      `«${cell}»: a reversed range (12-2026 is not read) → NO_EVALUABLE by CONFIGURATION naming the situation, never CUMPLE`,
       r.evidencia('EV-04')?.status === 'NO_EVALUABLE' && r.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»: «2026-12» no es un rango de reglas/.test(r.motivo('op.mon.1.1')),
       `${r.evidencia('EV-04')?.status} ${r.evidencia('EV-04')?.gapCause} ${r.motivo('op.mon.1.1')}`
     );
   });
-  comprueba('REVERSIÓN: el mismo rango de menor a mayor («12-2026») se lee y cubre → CUMPLE', conFecha('12-2026').evidencia('EV-04')?.status === 'CUMPLE');
-  // Un rango de más de 9.999 ids no es una banda de reglas.
-  const cve = conFecha('2021-44228');
-  comprueba(
-    '«2021-44228» (un CVE) abarca 42.208 ids → NO_EVALUABLE por CONFIGURATION nombrando la situación y pidiendo partirlo, nunca CUMPLE',
+  check('REVERSAL: the same range from lower to higher («12-2026») is read and covers → CUMPLE', withDate('12-2026').evidencia('EV-04')?.status === 'CUMPLE');
+  const cve = withDate('2021-44228');
+  check(
+    '«2021-44228» (a CVE) spans 42,208 ids → NO_EVALUABLE by CONFIGURATION naming the situation and asking to split it, never CUMPLE',
     cve.evidencia('EV-04')?.status === 'NO_EVALUABLE' && cve.evidencia('EV-04')?.gapCause === 'CONFIGURATION' && /situación «alteración del directorio LDAP»: «2021-44228» abarca más de 10000 ids/.test(cve.motivo('op.mon.1.1')) && /parte el rango/.test(cve.motivo('op.mon.1.1')),
     `${cve.evidencia('EV-04')?.status} ${cve.motivo('op.mon.1.1')}`
   );
-  comprueba('REVERSIÓN: «5700-5799», una banda real, se acepta y cubre → CUMPLE', conFecha('5700-5799').evidencia('EV-04')?.status === 'CUMPLE');
-  comprueba('y el límite es inclusivo: «5000-14999» (10.000 ids) se acepta', conFecha('5000-14999').evidencia('EV-04')?.status === 'CUMPLE');
-  comprueba('REVERSIÓN: «ninguna» es el punto ciego declarado → NO_CUMPLE medido', conFecha('ninguna').evidencia('EV-04')?.status === 'NO_CUMPLE');
-  comprueba('y «5710; 5712 80700 - 80799» es una lista válida → CUMPLE', conFecha('5710; 5712 80700 - 80799').evidencia('EV-04')?.status === 'CUMPLE');
+  check('REVERSAL: «5700-5799», a real band, is accepted and covers → CUMPLE', withDate('5700-5799').evidencia('EV-04')?.status === 'CUMPLE');
+  check('and the limit is inclusive: «5000-14999» (10,000 ids) is accepted', withDate('5000-14999').evidencia('EV-04')?.status === 'CUMPLE');
+  check('REVERSAL: «ninguna» is the declared blind spot → measured NO_CUMPLE', withDate('ninguna').evidencia('EV-04')?.status === 'NO_CUMPLE');
+  check('and «5710; 5712 80700 - 80799» is a valid list → CUMPLE', withDate('5710; 5712 80700 - 80799').evidencia('EV-04')?.status === 'CUMPLE');
 
-  const noCargada = evalua(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 99002'] });
-  comprueba('una situación con reglas que el manager no carga → NO_CUMPLE', noCargada.evidencia('EV-04')?.status === 'NO_CUMPLE' && /99001, 99002/.test(noCargada.motivo('op.mon.1.1')), noCargada.motivo('op.mon.1.1'));
-  const rango = evalua(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 80700-80705'] });
-  comprueba('REVERSIÓN: basta una regla cargada, también por rango → CUMPLE, y nombra la que falta', rango.evidencia('EV-04')?.status === 'CUMPLE' && /declaradas y no cargadas: 99001/.test(rango.deEvidencia('op.mon.1.1', 'EV-04')?.reason || ''), rango.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
+  const notLoaded = evaluate(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 99002'] });
+  check('a situation with rules the manager does not load → NO_CUMPLE', notLoaded.evidencia('EV-04')?.status === 'NO_CUMPLE' && /99001, 99002/.test(notLoaded.motivo('op.mon.1.1')), notLoaded.motivo('op.mon.1.1'));
+  const range = evaluate(hoy(), { ...BASE, 'P-04': ['exfiltración por DNS | perímetro | 99001, 80700-80705'] });
+  check('REVERSAL: one loaded rule is enough, also by range → CUMPLE, and names the missing one', range.evidencia('EV-04')?.status === 'CUMPLE' && /declaradas y no cargadas: 99001/.test(range.deEvidencia('op.mon.1.1', 'EV-04')?.reason || ''), range.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
 
-  // EV-01 · el motor.
-  const parado = evalua(eventos([...pasadaHoraria(HORARIA, { eventos_procesados: 1210450 }), ...pasadaCompleta()]));
-  comprueba('el contador del motor no se mueve entre pasadas → NO_CUMPLE (en marcha, pero no analiza)', parado.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no ha procesado ningún evento/.test(parado.motivo('op.mon.1.1')), parado.motivo('op.mon.1.1'));
-  const reinicio = evalua(eventos([...pasadaHoraria(HORARIA, { eventos_procesados: 9999999 }), ...pasadaCompleta()]));
-  comprueba('REVERSIÓN: el contador baja (reinicio) y hay eventos desde entonces → CUMPLE', reinicio.evidencia('EV-01')?.status === 'CUMPLE' && /se reinició/.test(reinicio.motivo('op.mon.1.1')), reinicio.motivo('op.mon.1.1'));
-  const caido = evalua(hoy(l => (l.event === 'detection_engine_status' && String(l.ts).startsWith(COMPLETA) ? { ...l, activo: 'no' } : l)));
-  comprueba('wazuh-manager no activo → NO_CUMPLE', caido.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no está activo/.test(caido.motivo('op.mon.1.1')), caido.motivo('op.mon.1.1'));
-  const sinContadores = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-' } : l)));
-  comprueba('sin contadores del motor (otra versión), alerts.json crece → CUMPLE por las alertas', sinContadores.evidencia('EV-01')?.status === 'CUMPLE' && /812 alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil/.test(sinContadores.motivo('op.mon.1.1')), sinContadores.motivo('op.mon.1.1'));
-  const soloEnsfacil = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: 0 } : l)));
-  comprueba(
-    'sin contadores y sin alertas de detección nuevas (los hechos de ENSFácil no cuentan) → NO_EVALUABLE, nunca CUMPLE',
-    soloEnsfacil.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /no hay alertas de detección nuevas/.test(soloEnsfacil.motivo('op.mon.1.1')),
-    soloEnsfacil.motivo('op.mon.1.1')
+  const parado = evaluate(events([...hourlyPass(HOURLY, { eventos_procesados: 1210450 }), ...completePass()]));
+  check('the engine counter does not move between passes → NO_CUMPLE (running, but not analyzing)', parado.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no ha procesado ningún evento/.test(parado.motivo('op.mon.1.1')), parado.motivo('op.mon.1.1'));
+  const restart = evaluate(events([...hourlyPass(HOURLY, { eventos_procesados: 9999999 }), ...completePass()]));
+  check('REVERSAL: the counter drops (restart) and there are events since → CUMPLE', restart.evidencia('EV-01')?.status === 'CUMPLE' && /se reinició/.test(restart.motivo('op.mon.1.1')), restart.motivo('op.mon.1.1'));
+  const down = evaluate(hoy(l => (l.event === 'detection_engine_status' && String(l.ts).startsWith(COMPLETE) ? { ...l, activo: 'no' } : l)));
+  check('wazuh-manager not active → NO_CUMPLE', down.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no está activo/.test(down.motivo('op.mon.1.1')), down.motivo('op.mon.1.1'));
+  const withoutCounters = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-' } : l)));
+  check('without engine counters, alerts.json grows → CUMPLE by the alerts', withoutCounters.evidencia('EV-01')?.status === 'CUMPLE' && /812 alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil/.test(withoutCounters.motivo('op.mon.1.1')), withoutCounters.motivo('op.mon.1.1'));
+  const ensfacilOnly = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: 0 } : l)));
+  check(
+    'without counters and without new detection alerts (ENSFácil facts do not count) → NO_EVALUABLE, never CUMPLE',
+    ensfacilOnly.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /no hay alertas de detección nuevas/.test(ensfacilOnly.motivo('op.mon.1.1')),
+    ensfacilOnly.motivo('op.mon.1.1')
   );
-  const ciego = evalua(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: '-' } : l)));
-  comprueba('sin contadores ni alertas legibles → NO_EVALUABLE por RECOGIDA, nunca CUMPLE', ciego.evidencia('EV-01')?.status === 'NO_EVALUABLE' && ciego.evidencia('EV-01')?.gapCause === 'COLLECTION', `${ciego.evidencia('EV-01')?.status} ${ciego.evidencia('EV-01')?.gapCause}`);
+  const blindOne = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: '-' } : l)));
+  check('without counters or readable alerts → NO_EVALUABLE by COLLECTION, never CUMPLE', blindOne.evidencia('EV-01')?.status === 'NO_EVALUABLE' && blindOne.evidencia('EV-01')?.gapCause === 'COLLECTION', `${blindOne.evidencia('EV-01')?.status} ${blindOne.evidencia('EV-01')?.gapCause}`);
 
-  // EV-08 · ruleset y silenciamientos.
-  const viejo = evalua(hoy(), { ...BASE, 'P-08': '60' });
-  comprueba('ruleset del 10/07 (91 días) con P-08 = 60 → R1 NO_CUMPLE', viejo.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /91 días, más que los 60 de P-08/.test(viejo.motivo('op.mon.1.r1.1')), viejo.motivo('op.mon.1.r1.1'));
-  const silencio = evalua(hoy(l => l), { ...BASE, 'P-06': ['5715 | escáner interno autorizado | RSI'] });
-  comprueba('0215-policy_rules.xml excluida y no declarada en P-06 → R1 NO_CUMPLE', silencio.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /Silenciamientos que P-06 no declara: 0215-policy_rules.xml/.test(silencio.motivo('op.mon.1.r1.1')), silencio.motivo('op.mon.1.r1.1'));
-  const sinAprobar = evalua(hoy(), { ...BASE, 'P-06': ['0215-policy_rules.xml | exclusión de fábrica de Wazuh | '] });
-  comprueba('declarada sin quién la aprobó → R1 NO_CUMPLE', sinAprobar.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /sin quién lo aprobó/.test(sinAprobar.motivo('op.mon.1.r1.1')), sinAprobar.motivo('op.mon.1.r1.1'));
-  const nivel0 = evalua(hoy(l => (l.event === 'rule_silenced' ? { ...l, tipo: 'regla_nivel0', objeto: '5710', fichero: '/var/ossec/etc/rules/local_rules.xml' } : l)));
-  comprueba('la 5710 reescrita a nivel 0 sin P-06 → R1 NO_CUMPLE', nivel0.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /5710 \(regla a nivel 0/.test(nivel0.motivo('op.mon.1.r1.1')), nivel0.motivo('op.mon.1.r1.1'));
-  const nada = evalua(hoy(l => (l.event === 'rule_silenced' ? { ...l, tipo: 'ninguno', objeto: '-', fichero: '-' } : l)), { ...BASE, 'P-06': undefined });
-  comprueba('REVERSIÓN: sin silenciamientos, P-06 no hace falta → R1 CUMPLE', nada.requisito('op.mon.1.r1.1').status === 'CUMPLE', nada.motivo('op.mon.1.r1.1'));
+  const old = evaluate(hoy(), { ...BASE, 'P-08': '60' });
+  check('ruleset of 10/07 (91 days) with P-08 = 60 → R1 NO_CUMPLE', old.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /91 días, más que los 60 de P-08/.test(old.motivo('op.mon.1.r1.1')), old.motivo('op.mon.1.r1.1'));
+  const silence = evaluate(hoy(l => l), { ...BASE, 'P-06': ['5715 | escáner interno autorizado | RSI'] });
+  check('0215-policy_rules.xml excluded and not declared in P-06 → R1 NO_CUMPLE', silence.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /Silenciamientos que P-06 no declara: 0215-policy_rules.xml/.test(silence.motivo('op.mon.1.r1.1')), silence.motivo('op.mon.1.r1.1'));
+  const unapproved = evaluate(hoy(), { ...BASE, 'P-06': ['0215-policy_rules.xml | exclusión de fábrica de Wazuh | '] });
+  check('declared without who approved it → R1 NO_CUMPLE', unapproved.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /sin quién lo aprobó/.test(unapproved.motivo('op.mon.1.r1.1')), unapproved.motivo('op.mon.1.r1.1'));
+  const level0 = evaluate(hoy(l => (l.event === 'rule_silenced' ? { ...l, tipo: 'regla_nivel0', objeto: '5710', fichero: '/var/ossec/etc/rules/local_rules.xml' } : l)));
+  check('5710 rewritten to level 0 without P-06 → R1 NO_CUMPLE', level0.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /5710 \(regla a nivel 0/.test(level0.motivo('op.mon.1.r1.1')), level0.motivo('op.mon.1.r1.1'));
+  const nothing = evaluate(hoy(l => (l.event === 'rule_silenced' ? { ...l, tipo: 'ninguno', objeto: '-', fichero: '-' } : l)), { ...BASE, 'P-06': undefined });
+  check('REVERSAL: without silencing, P-06 is not needed → R1 CUMPLE', nothing.requisito('op.mon.1.r1.1').status === 'CUMPLE', nothing.motivo('op.mon.1.r1.1'));
 
-  // R1 · los conjuntos de P-03.
-  const conjuntoFalta = evalua(hoy(), { ...BASE, 'P-03': ['wazuh | x | x', 'sigma | x | x'] });
-  comprueba('un conjunto de P-03 que el manager no carga → R1 NO_CUMPLE', conjuntoFalta.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /no carga: sigma/.test(conjuntoFalta.motivo('op.mon.1.r1.1')), conjuntoFalta.motivo('op.mon.1.r1.1'));
+  const missingSet = evaluate(hoy(), { ...BASE, 'P-03': ['wazuh | x | x', 'sigma | x | x'] });
+  check('a P-03 set that the manager does not load → R1 NO_CUMPLE', missingSet.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' && /no carga: sigma/.test(missingSet.motivo('op.mon.1.r1.1')), missingSet.motivo('op.mon.1.r1.1'));
 
-  // EV-05 · la detección en red, cuando P-02 la exige.
-  const exige = { ...BASE, 'P-02': ['sí | Suricata | AR-2026 §4.2: segmento DMZ'] };
-  comprueba('P-02 exige Suricata y el manager no ingiere ningún NIDS → NO_CUMPLE', evalua(hoy(), exige).evidencia('EV-05')?.status === 'NO_CUMPLE');
+  const requires = { ...BASE, 'P-02': ['sí | Suricata | AR-2026 §4.2: segmento DMZ'] };
+  check('P-02 requires Suricata and the manager ingests no NIDS → NO_CUMPLE', evaluate(hoy(), requires).evidencia('EV-05')?.status === 'NO_CUMPLE');
   const conSuricata = (ultima: string) =>
     hoy(l => (l.event === 'network_detection_observed' ? { ...l, producto: 'suricata', fuente: '/var/log/suricata/eve.json', ultima_alerta: ultima, alertas_24h: 31 } : l));
-  comprueba('REVERSIÓN: con Suricata por eve.json y alertas de hoy → CUMPLE', evalua(conSuricata('2026-10-09T10:00:00Z'), exige).evidencia('EV-05')?.status === 'CUMPLE');
-  comprueba('Suricata con su última alerta hace 20 días (P-09 = 7) → NO_CUMPLE', evalua(conSuricata('2026-09-19T10:00:00Z'), exige).evidencia('EV-05')?.status === 'NO_CUMPLE');
-  const sinJustificar = evalua(hoy(), { ...BASE, 'P-02': ['no |  | '] });
-  comprueba('P-02 = no sin referencia al análisis de riesgos → no demostrado, causa CONFIGURATION', sinJustificar.evidencia('EV-05')?.status === 'NO_EVALUABLE' && sinJustificar.evidencia('EV-05')?.gapCause === 'CONFIGURATION', `${sinJustificar.evidencia('EV-05')?.status} ${sinJustificar.evidencia('EV-05')?.gapCause}`);
+  check('REVERSAL: with Suricata via eve.json and today\'s alerts → CUMPLE', evaluate(conSuricata('2026-10-09T10:00:00Z'), requires).evidencia('EV-05')?.status === 'CUMPLE');
+  check('Suricata with its last alert 20 days ago (P-09 = 7) → NO_CUMPLE', evaluate(conSuricata('2026-09-19T10:00:00Z'), requires).evidencia('EV-05')?.status === 'NO_CUMPLE');
+  const unjustified = evaluate(hoy(), { ...BASE, 'P-02': ['no |  | '] });
+  check('P-02 = no without a risk-analysis reference → not proven, cause CONFIGURATION', unjustified.evidencia('EV-05')?.status === 'NO_EVALUABLE' && unjustified.evidencia('EV-05')?.gapCause === 'CONFIGURATION', `${unjustified.evidencia('EV-05')?.status} ${unjustified.evidencia('EV-05')?.gapCause}`);
 }
 
-// --- 6. sin parámetros -------------------------------------------------------
-
-bloque('6. Sin parámetros: NO_EVALUABLE con causa CONFIGURATION, nunca CUMPLE por vacío');
+section('6. Without parameters: NO_EVALUABLE with cause CONFIGURATION, never CUMPLE by emptiness');
 
 {
-  const r = evalua(hoy(), SIN_PARAMETROS, 'ALTO');
+  const r = evaluate(hoy(), NO_PARAMETERS, 'ALTO');
 
   ['op.mon.1.1', 'op.mon.1.r1.1', 'op.mon.1.r2.1'].forEach(id =>
-    comprueba(`${id} no demostrado (NO_CUMPLE sin medir)`, r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === false, `${r.requisito(id).status} ${r.requisito(id).evidenced}`)
+    check(`${id} not proven (unmeasured NO_CUMPLE)`, r.requisito(id).status === 'NO_CUMPLE' && r.requisito(id).evidenced === false, `${r.requisito(id).status} ${r.requisito(id).evidenced}`)
   );
   ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-08'].forEach(id =>
-    comprueba(`${id} sin medir por CONFIGURATION`, r.evidencia(id)?.status === 'NO_EVALUABLE' && r.evidencia(id)?.gapCause === 'CONFIGURATION', `${r.evidencia(id)?.status} ${r.evidencia(id)?.gapCause}`)
+    check(`${id} unmeasured by CONFIGURATION`, r.evidencia(id)?.status === 'NO_EVALUABLE' && r.evidencia(id)?.gapCause === 'CONFIGURATION', `${r.evidencia(id)?.status} ${r.evidencia(id)?.gapCause}`)
   );
-  comprueba('EV-01 se mide igual (no depende de ningún parámetro en la base)', r.deEvidencia('op.mon.1.1', 'EV-01')?.status === 'CUMPLE');
+  check('EV-01 is measured all the same (it depends on no parameter in the base)', r.deEvidencia('op.mon.1.1', 'EV-01')?.status === 'CUMPLE');
   const r1 = r.decisions.find(d => d.trace.ruleId === 'op.mon.1.r1.1');
-  comprueba(
-    'y sin P-03, R1 queda sin medir por CONFIGURATION, nombrando P-03 y no EV-01',
+  check(
+    'and without P-03, R1 is left unmeasured by CONFIGURATION, naming P-03 and not EV-01',
     r1?.status === 'NO_EVALUABLE' && r1?.cause === 'CONFIGURATION' && r1?.evidenceIds.includes('P-03') && !r1?.evidenceIds.includes('EV-01'),
     `${r1?.status} ${r1?.cause} ${r1?.evidenceIds}`
   );
 
-  // MEDIA, todo configurado salvo P-03: la base cumple y la fila de EV-01 no
-  // se pinta en gris por un parámetro que solo es de R1.
-  const sinP03 = evalua(hoy(), { ...BASE, 'P-03': undefined });
-  comprueba(
-    'sin P-03 en MEDIA: op.mon.1.1 CUMPLE, EV-01 CUMPLE en la tabla y R1 no demostrado por CONFIGURATION',
-    sinP03.requisito('op.mon.1.1').status === 'CUMPLE' &&
-      sinP03.evidencia('EV-01')?.status === 'CUMPLE' &&
-      sinP03.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' &&
-      sinP03.requisito('op.mon.1.r1.1').evidenced === false &&
-      sinP03.motor().nonConformities.some(n => n.requirementId === 'op.mon.1.r1.1' && n.origin === 'NO_EVIDENCIADA'),
-    `${sinP03.requisito('op.mon.1.1').status} ${sinP03.evidencia('EV-01')?.status} ${sinP03.requisito('op.mon.1.r1.1').status}`
+  const withoutP03 = evaluate(hoy(), { ...BASE, 'P-03': undefined });
+  check(
+    'without P-03 at MEDIA: op.mon.1.1 CUMPLE, EV-01 CUMPLE in the table and R1 not proven by CONFIGURATION',
+    withoutP03.requisito('op.mon.1.1').status === 'CUMPLE' &&
+      withoutP03.evidencia('EV-01')?.status === 'CUMPLE' &&
+      withoutP03.requisito('op.mon.1.r1.1').status === 'NO_CUMPLE' &&
+      withoutP03.requisito('op.mon.1.r1.1').evidenced === false &&
+      withoutP03.motor().nonConformities.some(n => n.requirementId === 'op.mon.1.r1.1' && n.origin === 'NO_EVIDENCIADA'),
+    `${withoutP03.requisito('op.mon.1.1').status} ${withoutP03.evidencia('EV-01')?.status} ${withoutP03.requisito('op.mon.1.r1.1').status}`
   );
-  comprueba('el motivo de EV-02 nombra el parámetro y lo que hay', /P-01 \(Alcance de la detección en host\) está sin configurar/.test(r.motivo('op.mon.1.1')) && /5 agentes registrados/.test(r.motivo('op.mon.1.1')), r.motivo('op.mon.1.1'));
+  check('EV-02\'s motive names the parameter and what there is', /P-01 \(Alcance de la detección en host\) está sin configurar/.test(r.motivo('op.mon.1.1')) && /5 agentes registrados/.test(r.motivo('op.mon.1.1')), r.motivo('op.mon.1.1'));
 
-  const soloP09 = evalua(hoy(), { ...BASE, 'P-09': undefined });
-  comprueba('falta solo P-09 → op.mon.1.1 no demostrado, EV-03 CONFIGURATION', soloP09.requisito('op.mon.1.1').evidenced === false && soloP09.evidencia('EV-03')?.gapCause === 'CONFIGURATION');
-  const soloP10 = evalua(hoy(), { ...BASE, 'P-10': undefined });
-  comprueba('falta solo P-10 → EV-02 CONFIGURATION, nombrando los conectados', soloP10.evidencia('EV-02')?.gapCause === 'CONFIGURATION' && /con el agente conectado: Wazuh-4/.test(soloP10.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), soloP10.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
-  const soloP08 = evalua(hoy(), { ...BASE, 'P-08': undefined });
-  comprueba('falta solo P-08 → R1 no demostrado, CONFIGURATION', soloP08.requisito('op.mon.1.r1.1').evidenced === false && soloP08.evidencia('EV-08')?.gapCause === 'CONFIGURATION');
-  const invalidos = configuracion(BASE)
+  const onlyP09 = evaluate(hoy(), { ...BASE, 'P-09': undefined });
+  check('only P-09 missing → op.mon.1.1 not proven, EV-03 CONFIGURATION', onlyP09.requisito('op.mon.1.1').evidenced === false && onlyP09.evidencia('EV-03')?.gapCause === 'CONFIGURATION');
+  const onlyP10 = evaluate(hoy(), { ...BASE, 'P-10': undefined });
+  check('only P-10 missing → EV-02 CONFIGURATION, naming the connected ones', onlyP10.evidencia('EV-02')?.gapCause === 'CONFIGURATION' && /con el agente conectado: Wazuh-4/.test(onlyP10.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), onlyP10.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
+  const onlyP08 = evaluate(hoy(), { ...BASE, 'P-08': undefined });
+  check('only P-08 missing → R1 not proven, CONFIGURATION', onlyP08.requisito('op.mon.1.r1.1').evidenced === false && onlyP08.evidencia('EV-08')?.gapCause === 'CONFIGURATION');
+  const invalid = configuration(BASE)
     .parameters.map(p => ({ id: p.id, veredicto: validateParameterValue(p, p.value) }))
     .filter(v => !v.veredicto.valid);
-  comprueba(
-    'los valores de BASE son válidos para sus tablas (P-02 con la opción «sí»/«no» del desplegable)',
-    invalidos.length === 0,
-    invalidos.map(v => `${v.id}: ${v.veredicto.reason}`).join('; ')
+  check(
+    'the BASE values are valid for their tables (P-02 with the «sí»/«no» option of the dropdown)',
+    invalid.length === 0,
+    invalid.map(v => `${v.id}: ${v.veredicto.reason}`).join('; ')
   );
 }
 
-// --- 7. sin recolector -------------------------------------------------------
-
-bloque('7. Sin recolector o con la fuente rota: NO_EVALUABLE por RECOGIDA');
+section('7. Without a collector or with the source broken: NO_EVALUABLE by COLLECTION');
 
 {
-  const nada = evalua([]);
-  comprueba('sin ningún hecho → op.mon.1.1 no demostrado', nada.requisito('op.mon.1.1').evidenced === false);
-  comprueba('y EV-02 por RECOGIDA, no por configuración', nada.evidencia('EV-02')?.gapCause === 'COLLECTION', nada.evidencia('EV-02')?.gapCause);
+  const nothing = evaluate([]);
+  check('without any fact → op.mon.1.1 not proven', nothing.requisito('op.mon.1.1').evidenced === false);
+  check('and EV-02 by COLLECTION, not by configuration', nothing.evidencia('EV-02')?.gapCause === 'COLLECTION', nothing.evidencia('EV-02')?.gapCause);
 
-  // wazuh-analysisd muere después de la pasada de las 12:05: systemctl sigue
-  // diciendo «active», pero sin el motor no llega ni el estado del propio motor.
-  const sinMotor = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-09T16:10:00Z'));
-  comprueba(
-    'cuatro horas sin estado del motor (pasa cada hora) → EV-01 NO_EVALUABLE por RECOGIDA, nombrando analysisd',
+  const sinMotor = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T16:10:00Z'));
+  check(
+    'four hours without engine state (it passes every hour) → EV-01 NO_EVALUABLE by COLLECTION, naming analysisd',
     sinMotor.evidencia('EV-01')?.status === 'NO_EVALUABLE' && sinMotor.evidencia('EV-01')?.gapCause === 'COLLECTION' && /wazuh-analysisd/.test(sinMotor.motivo('op.mon.1.1')),
     `${sinMotor.evidencia('EV-01')?.status} ${sinMotor.motivo('op.mon.1.1')}`
   );
-  comprueba('y op.mon.1.1 deja de cumplir: no demostrado', sinMotor.requisito('op.mon.1.1').status === 'NO_CUMPLE' && sinMotor.requisito('op.mon.1.1').evidenced === false);
-  comprueba('mientras los hechos de 6 h, con cuatro horas, siguen vigentes', sinMotor.evidencia('EV-02')?.status === 'CUMPLE' && sinMotor.evidencia('EV-04')?.status === 'CUMPLE');
-  const conMotor = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-09T14:30:00Z'));
-  comprueba('REVERSIÓN: a las 2 h 25 min del último estado del motor → EV-01 CUMPLE', conMotor.evidencia('EV-01')?.status === 'CUMPLE', conMotor.evidencia('EV-01')?.status);
+  check('and op.mon.1.1 stops complying: not proven', sinMotor.requisito('op.mon.1.1').status === 'NO_CUMPLE' && sinMotor.requisito('op.mon.1.1').evidenced === false);
+  check('while the 6 h facts, with four hours, are still valid', sinMotor.evidencia('EV-02')?.status === 'CUMPLE' && sinMotor.evidencia('EV-04')?.status === 'CUMPLE');
+  const conMotor = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-09T14:30:00Z'));
+  check('REVERSAL: at 2 h 25 min from the last engine state → EV-01 CUMPLE', conMotor.evidencia('EV-01')?.status === 'CUMPLE', conMotor.evidencia('EV-01')?.status);
 
-  const viejo = evalua(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
-  comprueba('dos días sin pasadas: el estado no describe hoy → no demostrado', viejo.requisito('op.mon.1.1').evidenced === false && /no está informando/.test(viejo.motivo('op.mon.1.1')), viejo.motivo('op.mon.1.1'));
+  const old = evaluate(hoy(), BASE, 'MEDIO', new Date('2026-10-11T12:30:00Z'));
+  check('two days without passes: the state does not describe today → not proven', old.requisito('op.mon.1.1').evidenced === false && /no está informando/.test(old.motivo('op.mon.1.1')), old.motivo('op.mon.1.1'));
 
-  const sinBase = evalua(hoy().concat(eventos([
-    { ts: `${COMPLETA}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
+  const sinBase = evaluate(hoy().concat(events([
+    { ts: `${COMPLETE}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
   ])));
-  comprueba('global.db ilegible en la última pasada → NO_EVALUABLE con el motivo del recolector', sinBase.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo('op.mon.1.1')), sinBase.motivo('op.mon.1.1'));
+  check('global.db unreadable in the last pass → NO_EVALUABLE with the collector\'s motive', sinBase.evidencia('EV-02')?.status === 'NO_EVALUABLE' && /global\.db/.test(sinBase.motivo('op.mon.1.1')), sinBase.motivo('op.mon.1.1'));
 
-  // Contrato (ronda 1): el evidence_state de EV-02 entera es solo para
-  // global.db. La base ilegible de UN agente llega en su hecho (`lectura=error`).
-  const conPrueba = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
-  const sinBaseConFallo = evalua(hoy().concat(eventos([
-    { ts: `${COMPLETA}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
-  ])), conPrueba);
-  comprueba(
-    'global.db ilegible después de una pasada con un sistema de P-01 desconectado → manda la medida: NO_CUMPLE, y la degradación se dice aparte',
-    sinBaseConFallo.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(sinBaseConFallo.motivo('op.mon.1.1')) && /Además: El recolector no ha podido medirlo/.test(sinBaseConFallo.motivo('op.mon.1.1')),
-    sinBaseConFallo.motivo('op.mon.1.1')
+  const withTest = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
+  const withoutBaseWithFailure = evaluate(hoy().concat(events([
+    { ts: `${COMPLETE}:30Z`, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
+  ])), withTest);
+  check(
+    'global.db unreadable after a pass with a P-01 system disconnected → the measurement prevails: NO_CUMPLE, and the degradation is stated apart',
+    withoutBaseWithFailure.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(withoutBaseWithFailure.motivo('op.mon.1.1')) && /Además: El recolector no ha podido medirlo/.test(withoutBaseWithFailure.motivo('op.mon.1.1')),
+    withoutBaseWithFailure.motivo('op.mon.1.1')
   );
 
-  // Una degradación de hace dos días no describe hoy (misma frescura que los hechos).
-  const sinCobertura = (ts: string) =>
-    evalua(hoy(l => (l.event === 'detection_coverage_observed' ? undefined : l)).concat(eventos([
+  const withoutCoverage = (ts: string) =>
+    evaluate(hoy(l => (l.event === 'detection_coverage_observed' ? undefined : l)).concat(events([
       { ts, event: 'evidence_state', evidence_id: 'EV-02', requisito: 'op.mon.1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'COLLECTION', motivo: 'no se puede leer la base de agentes del manager /var/ossec/queue/db/global.db' },
     ])));
-  const antigua = sinCobertura('2026-10-07T12:05:30Z');
-  comprueba(
-    'un evidence_state de hace dos días no se usa como motivo de hoy',
-    antigua.evidencia('EV-02')?.status === 'NO_EVALUABLE' && !/global\.db/.test(antigua.motivo('op.mon.1.1')) && /No consta ningún estado de los agentes/.test(antigua.motivo('op.mon.1.1')),
-    antigua.motivo('op.mon.1.1')
+  const old3 = withoutCoverage('2026-10-07T12:05:30Z');
+  check(
+    'an evidence_state from two days ago is not used as today\'s motive',
+    old3.evidencia('EV-02')?.status === 'NO_EVALUABLE' && !/global\.db/.test(old3.motivo('op.mon.1.1')) && /No consta ningún estado de los agentes/.test(old3.motivo('op.mon.1.1')),
+    old3.motivo('op.mon.1.1')
   );
-  comprueba('REVERSIÓN: el mismo evidence_state de hoy sí da el motivo', /global\.db/.test(sinCobertura(`${COMPLETA}:30Z`).motivo('op.mon.1.1')));
+  check('REVERSAL: the same evidence_state from today does give the motive', /global\.db/.test(withoutCoverage(`${COMPLETE}:30Z`).motivo('op.mon.1.1')));
 
-  const lecturaError = (id: string) =>
+  const readError = (id: string) =>
     hoy(l => (l.event === 'detection_coverage_observed' && l.agente_id === id ? { ...l, lectura: 'error', fim_ultimo_fin: '-', sca_ultimo_fin: '-', inventario_ultimo: '-' } : l));
-  comprueba('la base ilegible de un agente FUERA de P-01 (027) no bloquea nada → EV-02 CUMPLE', evalua(lecturaError('027')).evidencia('EV-02')?.status === 'CUMPLE');
-  const ldapIlegible = evalua(lecturaError('028'));
-  comprueba(
-    'la base ilegible de un sistema de P-01 (028) → NO_EVALUABLE por RECOGIDA nombrándolo, no NO_CUMPLE por «ninguna pasada»',
-    ldapIlegible.evidencia('EV-02')?.status === 'NO_EVALUABLE' && ldapIlegible.evidencia('EV-02')?.gapCause === 'COLLECTION' && /028 \(ldap-zimbra, 028\): el recolector no ha podido leer su base/.test(ldapIlegible.motivo('op.mon.1.1')),
-    `${ldapIlegible.evidencia('EV-02')?.status} ${ldapIlegible.motivo('op.mon.1.1')}`
+  check('the unreadable database of an agent OUTSIDE P-01 (027) blocks nothing → EV-02 CUMPLE', evaluate(readError('027')).evidencia('EV-02')?.status === 'CUMPLE');
+  const unreadableLdap = evaluate(readError('028'));
+  check(
+    'the unreadable database of a P-01 system (028) → NO_EVALUABLE by COLLECTION naming it, not NO_CUMPLE for «ninguna pasada»',
+    unreadableLdap.evidencia('EV-02')?.status === 'NO_EVALUABLE' && unreadableLdap.evidencia('EV-02')?.gapCause === 'COLLECTION' && /028 \(ldap-zimbra, 028\): el recolector no ha podido leer su base/.test(unreadableLdap.motivo('op.mon.1.1')),
+    `${unreadableLdap.evidencia('EV-02')?.status} ${unreadableLdap.motivo('op.mon.1.1')}`
   );
-  const ambos = evalua(lecturaError('028'), conPrueba);
-  comprueba(
-    'y con otro sistema de P-01 desconectado, manda la medida → NO_CUMPLE',
+  const ambos = evaluate(readError('028'), withTest);
+  check(
+    'and with another P-01 system disconnected, the measurement prevails → NO_CUMPLE',
     ambos.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(ambos.motivo('op.mon.1.1')),
     ambos.motivo('op.mon.1.1')
   );
 
-  const ajeno = normalizeWazuhAlerts([{
+  const foreignOne = normalizeWazuhAlerts([{
     _id: 'otro',
     _source: {
-      '@timestamp': `${COMPLETA}:14Z`,
+      '@timestamp': `${COMPLETE}:14Z`,
       agent: MANAGER,
       data: { ensfacil: 'op.exp.8', event: 'detection_coverage_observed', evidence_id: 'EV-02', agente_id: '024', agente: 'wazuh-real', estado_conexion: 'active' },
     },
   }]);
-  comprueba('un hecho de otro control no acredita op.mon.1', evalua(ajeno).evidencia('EV-02')?.status !== 'CUMPLE');
+  check('a fact from another control does not accredit op.mon.1', evaluate(foreignOne).evidencia('EV-02')?.status !== 'CUMPLE');
 }
 
-// --- 8. foco: P-01 por nombre o por ID -------------------------------------
-
-bloque('8. P-01 se cruza por ID o por nombre EXACTO, sin confundir agentes');
+section('8. P-01 is matched by ID or EXACT name, without mixing agents');
 
 {
-  const por = (p01: string[]) => evalua(hoy(), { ...BASE, 'P-01': p01 });
+  const via = (p01: string[]) => evaluate(hoy(), { ...BASE, 'P-01': p01 });
 
-  comprueba('«24» es el agente 024 (ID sin ceros)', por(['24 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
-  comprueba('«WAZUH-REAL» es wazuh-real (sin distinguir mayúsculas)', por(['WAZUH-REAL | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
-  comprueba('«000» es el manager', por(['000 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
-  const sinCeros = evalua(hoy(l => (l.agente_id === '028' ? { ...l, agente_id: '28' } : l)));
-  comprueba(
-    'un hecho con el ID sin ceros («28») casa con P-01 «028»: el ID del hecho se normaliza igual',
+  check('«24» is agent 024 (ID without zeros)', via(['24 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
+  check('«WAZUH-REAL» is wazuh-real (ignoring case)', via(['WAZUH-REAL | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
+  check('«000» es el manager', via(['000 | Linux | alta']).evidencia('EV-02')?.status === 'CUMPLE');
+  const sinCeros = evaluate(hoy(l => (l.agente_id === '028' ? { ...l, agente_id: '28' } : l)));
+  check(
+    'a fact with the ID without zeros («28») matches P-01 «028»: the fact\'s ID is normalized the same',
     sinCeros.evidencia('EV-02')?.status === 'CUMPLE' && sinCeros.evidencia('EV-03')?.status === 'CUMPLE',
     `${sinCeros.evidencia('EV-02')?.status} ${sinCeros.motivo('op.mon.1.1')}`
   );
-  comprueba(
-    '«wazuh-rea» NO es wazuh-real: nunca por parecido',
-    por(['wazuh-rea | Linux | alta']).evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-rea: no figura/.test(por(['wazuh-rea | Linux | alta']).motivo('op.mon.1.1'))
+  check(
+    '«wazuh-rea» is NOT wazuh-real: never by similarity',
+    via(['wazuh-rea | Linux | alta']).evidencia('EV-02')?.status === 'NO_CUMPLE' && /wazuh-rea: no figura/.test(via(['wazuh-rea | Linux | alta']).motivo('op.mon.1.1'))
   );
 
-  // Dos agentes con el mismo nombre (uno reinstalado, el viejo sin dar de baja).
-  const duplicado = (l: Linea): Linea[] =>
+  const duplicated = (l: Linea): Linea[] =>
     (l.event === 'detection_coverage_observed' || l.event === 'detection_activity_observed') && l.agente_id === '024'
       ? [l, { ...l, agente_id: '041', ...(l.event === 'detection_coverage_observed' ? { estado_conexion: 'disconnected' } : {}) }]
       : [l];
-  const dosNombres = eventos([...pasadaHoraria(), ...pasadaCompleta().flatMap(duplicado)]);
-  const ambiguo = evalua(dosNombres);
-  comprueba(
-    'un nombre con dos agentes (024 y 041) → no se elige: NO_EVALUABLE por CONFIGURATION pidiendo el ID',
-    ambiguo.evidencia('EV-02')?.status === 'NO_EVALUABLE' && ambiguo.evidencia('EV-02')?.gapCause === 'CONFIGURATION' && /Decláralo por su ID/.test(ambiguo.motivo('op.mon.1.1')),
-    `${ambiguo.evidencia('EV-02')?.status} ${ambiguo.motivo('op.mon.1.1')}`
+  const twoNames = events([...hourlyPass(), ...completePass().flatMap(duplicated)]);
+  const ambiguous = evaluate(twoNames);
+  check(
+    'a name with two agents (024 and 041) → not chosen: NO_EVALUABLE by CONFIGURATION asking for the ID',
+    ambiguous.evidencia('EV-02')?.status === 'NO_EVALUABLE' && ambiguous.evidencia('EV-02')?.gapCause === 'CONFIGURATION' && /Decláralo por su ID/.test(ambiguous.motivo('op.mon.1.1')),
+    `${ambiguous.evidencia('EV-02')?.status} ${ambiguous.motivo('op.mon.1.1')}`
   );
-  const porId = evalua(dosNombres, { ...BASE, 'P-01': ['Wazuh-4 | x | x', '024 | x | x', '028 | x | x'] });
-  comprueba('REVERSIÓN: declarado por su ID (024) → CUMPLE, y el viejo desconectado no cuenta', porId.evidencia('EV-02')?.status === 'CUMPLE' && /041 disconnected/.test(porId.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), porId.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
-  const porIdViejo = evalua(dosNombres, { ...BASE, 'P-01': ['Wazuh-4 | x | x', '041 | x | x', '028 | x | x'] });
-  comprueba('y declarar el viejo (041) por su ID → NO_CUMPLE: está desconectado', porIdViejo.evidencia('EV-02')?.status === 'NO_CUMPLE');
+  const byId = evaluate(twoNames, { ...BASE, 'P-01': ['Wazuh-4 | x | x', '024 | x | x', '028 | x | x'] });
+  check('REVERSAL: declared by its ID (024) → CUMPLE, and the old disconnected one does not count', byId.evidencia('EV-02')?.status === 'CUMPLE' && /041 disconnected/.test(byId.deEvidencia('op.mon.1.1', 'EV-02')?.reason || ''), byId.deEvidencia('op.mon.1.1', 'EV-02')?.reason);
+  const byOldId = evaluate(twoNames, { ...BASE, 'P-01': ['Wazuh-4 | x | x', '041 | x | x', '028 | x | x'] });
+  check('and declaring the old one (041) by its ID → NO_CUMPLE: it is disconnected', byOldId.evidencia('EV-02')?.status === 'NO_CUMPLE');
 }
 
-// --- 9. foco: el estado por la última pasada, con dos cadencias -------------
-
-bloque('9. Hechos de estado: la pasada horaria no borra los de 6 h; la de 6 h sí reemplaza la anterior');
+section('9. State facts: the hourly pass does not delete the 6 h ones; the 6 h pass does replace the previous one');
 
 {
-  // 06:05 completa con el agente de prueba aún conectado; horarias hasta las
-  // 11:05. A las 11:30 los hechos de 6 h siguen siendo los de las 06:05.
-  const manana = '2026-10-09T06:05';
-  const horarias = ['07', '08', '09', '10', '11'].flatMap((h, i) =>
-    pasadaHoraria(`2026-10-09T${h}:05`, { eventos_procesados: 1203300 + i * 1000 })
+  const morning = '2026-10-09T06:05';
+  const hourlyOnes = ['07', '08', '09', '10', '11'].flatMap((h, i) =>
+    hourlyPass(`2026-10-09T${h}:05`, { eventos_procesados: 1203300 + i * 1000 })
   );
-  const conectado = (l: Linea) =>
+  const connected = (l: Linea) =>
     l.agente_id !== '027'
       ? l
       : l.event === 'detection_coverage_observed'
@@ -724,37 +648,33 @@ bloque('9. Hechos de estado: la pasada horaria no borra los de 6 h; la de 6 h s�
       : l.event === 'detection_activity_observed'
       ? { ...l, ultima_alerta: '2026-10-09T05:30:00Z', alertas_24h: 40 }
       : l;
-  const p01ConPrueba = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
-  const mananaEvs = eventos([...pasadaCompleta(manana).map(conectado), ...horarias]);
-  const a1130 = evalua(mananaEvs, p01ConPrueba, 'MEDIO', new Date('2026-10-09T11:30:00Z'));
+  const p01WithTest = { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), '027 | x | x'] };
+  const morningEvs = events([...completePass(morning).map(connected), ...hourlyOnes]);
+  const a1130 = evaluate(morningEvs, p01WithTest, 'MEDIO', new Date('2026-10-09T11:30:00Z'));
 
-  comprueba(
-    'a las 11:30, cinco pasadas horarias después: EV-02, EV-04 y EV-08 siguen medidas con la pasada de las 06:05',
+  check(
+    'at 11:30, five hourly passes later: EV-02, EV-04 and EV-08 are still measured with the 06:05 pass',
     ['EV-02', 'EV-04'].every(id => a1130.evidencia(id)?.status === 'CUMPLE') && a1130.requisito('op.mon.1.r1.1').status === 'CUMPLE',
     ['EV-02', 'EV-04', 'EV-08'].map(id => `${id} ${a1130.evidencia(id)?.status}`).join(', ')
   );
 
-  const tarde = evalua(
-    eventos([...pasadaCompleta(manana).map(conectado), ...horarias, ...pasadaCompleta()]),
-    p01ConPrueba
+  const late = evaluate(
+    events([...completePass(morning).map(connected), ...hourlyOnes, ...completePass()]),
+    p01WithTest
   );
-  comprueba(
-    'a las 12:30, la completa de las 12:05 reemplaza la de las 06:05: 027 ya está desconectado → NO_CUMPLE',
-    tarde.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(tarde.motivo('op.mon.1.1')),
-    tarde.motivo('op.mon.1.1')
+  check(
+    'at 12:30, the complete 12:05 pass replaces the 06:05 one: 027 is now disconnected → NO_CUMPLE',
+    late.evidencia('EV-02')?.status === 'NO_CUMPLE' && /027.*disconnected/.test(late.motivo('op.mon.1.1')),
+    late.motivo('op.mon.1.1')
   );
 }
 
-// --- 10. foco: una cadena larga de rangos de ids -----------------------------
-
-bloque('10. Volumen: los ids de un conjunto grande caben en líneas de logcollector');
+section('10. Volume: the ids of a large set fit in logcollector lines');
 
 {
-  // Lo que hace el recolector según el contrato: comprime los ids en rangos y
-  // parte la cadena en hechos de, como mucho, LIMITE_IDS caracteres.
-  const LIMITE_IDS = 6000;
-  const comprime = (ids: number[]): string[] => {
-    const salida: string[] = [];
+  const ID_LIMIT = 6000;
+  const compresses = (ids: number[]): string[] => {
+    const output: string[] = [];
     let i = 0;
 
     while (i < ids.length) {
@@ -764,18 +684,18 @@ bloque('10. Volumen: los ids de un conjunto grande caben en líneas de logcollec
         j += 1;
       }
 
-      salida.push(i === j ? String(ids[i]) : `${ids[i]}-${ids[j]}`);
+      output.push(i === j ? String(ids[i]) : `${ids[i]}-${ids[j]}`);
       i = j + 1;
     }
 
-    return salida;
+    return output;
   };
-  const parte = (trozos: string[]): string[] => {
+  const part = (chunks: string[]): string[] => {
     const partes: string[] = [];
     let actual = '';
 
-    trozos.forEach(t => {
-      if (actual && actual.length + 1 + t.length > LIMITE_IDS) {
+    chunks.forEach(t => {
+      if (actual && actual.length + 1 + t.length > ID_LIMIT) {
         partes.push(actual);
         actual = t;
       } else {
@@ -786,65 +706,58 @@ bloque('10. Volumen: los ids de un conjunto grande caben en líneas de logcollec
     return actual ? [...partes, actual] : partes;
   };
 
-  // Un ruleset patológico: uno de cada tres ids entre 1000 y 120000, sin
-  // ningún rango (39.667 reglas sueltas).
   const ids = Array.from({ length: 39667 }, (_, k) => 1000 + k * 3);
-  const trozos = parte(comprime(ids));
-  const ts = `${COMPLETA}:18Z`;
-  const lineas = trozos.map((s, k) => conjunto(ts, 'wazuh', '/var/ossec/ruleset/rules', s, ids.length, k + 1, trozos.length));
-  // La línea NDJSON tal como la escribe `ens_emit` (con ensfacil, ts y host).
+  const chunks = part(compresses(ids));
+  const ts = `${COMPLETE}:18Z`;
+  const lineas = chunks.map((s, k) => whole(ts, 'wazuh', '/var/ossec/ruleset/rules', s, ids.length, k + 1, chunks.length));
   const bytes = lineas.map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.mon.1', host: 'Wazuh-4', ...l })).length);
 
-  comprueba(
-    `${trozos.length} partes, ninguna línea pasa de 8 KiB (logcollector corta a 64 KiB; el indexer no indexa un término de más de 32 KiB)`,
-    trozos.length > 1 && Math.max(...bytes) <= 8192,
+  check(
+    `${chunks.length} parts, no line exceeds 8 KiB (logcollector cuts at 64 KiB; the indexer does not index a term over 32 KiB)`,
+    chunks.length > 1 && Math.max(...bytes) <= 8192,
     Math.max(...bytes)
   );
 
-  const largo = (quitar?: number) =>
-    eventos([
-      ...pasadaHoraria(),
-      ...pasadaCompleta().filter(l => !(l.event === 'ruleset_rules_loaded' && l.conjunto === 'wazuh')),
-      ...lineas.filter((_, k) => k !== quitar),
+  const largo = (remove?: number) =>
+    events([
+      ...hourlyPass(),
+      ...completePass().filter(l => !(l.event === 'ruleset_rules_loaded' && l.conjunto === 'wazuh')),
+      ...lineas.filter((_, k) => k !== remove),
     ]);
-  const ultimaParte = rangos(trozos[trozos.length - 1])[0];
-  const p04 = { ...BASE, 'P-04': [`situación de la última parte | x | ${ultimaParte}`] };
+  const lastPart = ranges(chunks[chunks.length - 1])[0];
+  const p04 = { ...BASE, 'P-04': [`situación de la última parte | x | ${lastPart}`] };
 
-  const entero = evalua(largo(), p04);
-  comprueba(`con todas las partes, la regla ${ultimaParte} (de la última) está cargada → CUMPLE`, entero.evidencia('EV-04')?.status === 'CUMPLE', entero.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
+  const whole2 = evaluate(largo(), p04);
+  check(`with all parts, rule ${lastPart} (the last one's) is loaded → CUMPLE`, whole2.evidencia('EV-04')?.status === 'CUMPLE', whole2.deEvidencia('op.mon.1.1', 'EV-04')?.reason);
 
-  const sinUna = evalua(largo(trozos.length - 1), p04);
-  comprueba(
-    'si falta una parte, una regla que no aparece no se da por no cargada: NO_EVALUABLE por RECOGIDA',
+  const sinUna = evaluate(largo(chunks.length - 1), p04);
+  check(
+    'if a part is missing, a rule that does not appear is not taken as not loaded: NO_EVALUABLE by COLLECTION',
     sinUna.evidencia('EV-04')?.status === 'NO_EVALUABLE' && sinUna.evidencia('EV-04')?.gapCause === 'COLLECTION' && /faltan partes del inventario de wazuh/.test(sinUna.motivo('op.mon.1.1')),
     `${sinUna.evidencia('EV-04')?.status} ${sinUna.motivo('op.mon.1.1')}`
   );
-  const otraParte = rangos(trozos[0])[0];
-  comprueba(
-    'y una regla que sí aparece en las partes que llegaron sigue contando → CUMPLE',
-    evalua(largo(trozos.length - 1), { ...BASE, 'P-04': [`situación | x | ${otraParte}`] }).evidencia('EV-04')?.status === 'CUMPLE'
+  const otherPart = ranges(chunks[0])[0];
+  check(
+    'and a rule that does appear in the parts that arrived still counts → CUMPLE',
+    evaluate(largo(chunks.length - 1), { ...BASE, 'P-04': [`situación | x | ${otherPart}`] }).evidencia('EV-04')?.status === 'CUMPLE'
   );
 
-  // El presupuesto de hechos (spec, riesgo 1 del §7.6): un día del
-  // laboratorio, con las cadencias del contrato.
-  const dia = [
-    ...Array.from({ length: 24 }, (_, h) => h).filter(h => h % 6 !== 0).flatMap(h => pasadaHoraria(`2026-10-09T${String(h).padStart(2, '0')}:05`)),
-    ...[0, 6, 12, 18].flatMap(h => pasadaCompleta(`2026-10-09T${String(h).padStart(2, '0')}:05`)),
+  const day = [
+    ...Array.from({ length: 24 }, (_, h) => h).filter(h => h % 6 !== 0).flatMap(h => hourlyPass(`2026-10-09T${String(h).padStart(2, '0')}:05`)),
+    ...[0, 6, 12, 18].flatMap(h => completePass(`2026-10-09T${String(h).padStart(2, '0')}:05`)),
   ];
-  comprueba(`un día del laboratorio son ${dia.length} hechos, por debajo de los 300 del presupuesto`, dia.length <= 300, dia.length);
+  check(`a lab day is ${day.length} facts, below the budget's 300`, day.length <= 300, day.length);
 }
 
-function rangos(texto: string): string[] {
-  return texto.split(',').filter(Boolean);
+function ranges(text: string): string[] {
+  return text.split(',').filter(Boolean);
 }
-
-// --- salida ----------------------------------------------------------------
 
 console.log('');
 
-if (fallos.length) {
-  console.log(`${fallos.length} check(s) FAIL:`);
-  fallos.forEach(f => console.log(`  - ${f}`));
+if (failures.length) {
+  console.log(`${failures.length} check(s) FAIL:`);
+  failures.forEach(f => console.log(`  - ${f}`));
   process.exit(1);
 }
 
