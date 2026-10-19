@@ -1,56 +1,23 @@
-<!-- FUENTE CANÓNICA de las reglas de op.acc.4.
-     La copia desplegable vive en
-     manager/ensfacil_op_acc_4_json_rules.xml del runbook linux/op.acc.4
-     Si se modifica una, hay que sincronizar la otra: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_4_json_rules.xml
+     Deployable copy; both must be kept in sync (checked by
+     plugin-wazuh-ens/tests/check-consistency.py). -->
 <group name="ensfacil,op_acc_4,score,">
 
   <!-- ================================================================
-       op.acc.4 · Proceso de gestión de derechos de acceso
-       Rango reservado: 107100-107199
-       Base 107100 · hechos crudos 107101-107149
-       evidence_state 107150-107153 · control_state 107160-107164
-       score_snapshot 107170-107174
+       op.acc.4 · Access rights management process
+       Reserved range: 107100-107199
+       Base 107100 · raw facts 107101-107149 · evidence_state 107150-107153
 
-       ESTE CONTROL NACE EN EL MODELO NUEVO, y es el primero que lo hace
-       entero. El agente NO emite veredicto: emite el HECHO CRUDO —qué
-       privilegio hay, quién entró por dónde, cuándo se revisó— y el motor lo
-       contrasta con el parámetro que el auditor declaró en la pantalla de
-       Configuración. Por eso ninguna de estas reglas lleva `estado` y por eso
-       no hay pares NO_CUMPLE/CUMPLE como en op.acc.2: un hecho no tiene
-       veredicto, y quien lo tiene es el requisito.
+       Evidence -> rule ID map (`relatedRules` in dashboard/ens/core/evidence/catalog.ts):
 
-       La consecuencia práctica: cambiar un parámetro en la pantalla cambia el
-       color sin volver a ejecutar el agente, porque se rejuzgan los eventos ya
-       indexados.
+         EV-01 107101 · EV-02 107102 · EV-03 107103 · EV-04 107104
+         EV-05 107105 · EV-06 107106 · EV-07 107107 · EV-08 107108
 
-       Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       dashboard/ens/core/evidence/catalog.ts. Fuera queda 107100 (nivel 0,
-       nunca genera alerta) y 107110 (el latido: no acredita evidencia, la
-       habilita).
+       Outside the map: 107100 (base, level 0) and 107110 (heartbeat: proves no
+       evidence, it enables them).
 
-         EV-01   107101
-         EV-02   107102
-         EV-03   107103
-         EV-04   107104
-         EV-05   107105
-         EV-06   107106
-         EV-07   107107
-         EV-08   107108
-
-       EL LATIDO (107110) NO ES OPCIONAL. Casi todas estas evidencias son
-       aserciones negativas —«ninguna cuenta entró por un canal no
-       autorizado»—, y sin señal de que la pasada se completó, «miré y no hay
-       nada» es indistinguible de «no miré». `resolveCollectorCoverage` exige
-       resultado=completada Y que la evidencia esté en `evidencias_cubiertas`
-       para dar la cobertura por CONFIRMADA; sin eso el silencio no acredita.
-
-       Al añadir o mover una regla hay que tocar TRES sitios a la vez: este
-       fichero, la copia del manager y el catálogo del plugin. Una regla que el
-       catálogo acredita y el manager no tiene rompe la cadena
-       CUMPLE → evidencia → rule ID → evento crudo en su último escalón y nada
-       avisa, porque el identificador es numérico y la regla existe en algún
-       XML del repo.
+       No rule carries `estado`; adding or moving one requires touching three
+       places at once.
        ================================================================ -->
 
   <rule id="107100" level="0">
@@ -59,120 +26,99 @@
     <description>op.acc.4 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== op.acc.4.1 · Todo acceso prohibido salvo autorización expresa ===== -->
+  <!-- ===== op.acc.4.1 · All access forbidden unless expressly authorized ===== -->
 
-  <!-- EV-01. El hecho es una desviación de la denegación por defecto: una
-       política de firewall permisiva, un recurso compartido abierto a todos, un
-       servicio con acceso anónimo. El motor lo contrasta con las excepciones
-       que el responsable haya declarado (P-08); sin excepciones declaradas,
-       cualquier desviación observada incumple. -->
+  <!-- EV-01. Default-deny deviation: permissive firewall, open share or anonymous
+       service. Checked against the `recurso` column of P-01. -->
   <rule id="107101" level="7">
     <if_sid>107100</if_sid>
     <field name="event">default_deny_violation</field>
     <description>op.acc.4 · EV-01 · acceso permitido sin autorización expresa: $(recurso)</description>
   </rule>
 
-  <!-- EV-02. Un privilegio EFECTIVO observado en la máquina: quién, sobre qué
-       recurso y con qué tipo de acceso. Se contrasta fila a fila contra la
-       matriz de privilegios autorizados (P-01) con CONFORME_A_TABLA. Es el
-       núcleo del control: sin matriz declarada no hay contra qué comparar y la
-       evidencia se queda NO_EVALUABLE nombrando P-01. -->
+  <!-- EV-02. An observed effective privilege: who, on which resource and with
+       which access. Core of the control: without the declared P-01 matrix there is
+       nothing to compare against and the evidence is NO_EVALUABLE, naming it. -->
   <rule id="107102" level="3">
     <if_sid>107100</if_sid>
     <field name="event">privilege_grant</field>
     <description>op.acc.4 · EV-02 · privilegio efectivo: $(sujeto) sobre $(recurso) ($(acceso))</description>
   </rule>
 
-  <!-- ===== op.acc.4.2 · Mínimo privilegio ===== -->
+  <!-- ===== op.acc.4.2 · Least privilege ===== -->
 
-  <!-- EV-03. Pertenencia observada a un grupo privilegiado. El motor comprueba
-       que todo grupo con miembros esté entre los que el responsable declaró
-       vigilar (P-06) y que sus miembros consten en la matriz P-01. -->
+  <!-- EV-03. Observed membership of a privileged group. Its members must appear
+       in the P-01 matrix. -->
   <rule id="107103" level="3">
     <if_sid>107100</if_sid>
     <field name="event">privileged_group_member</field>
     <description>op.acc.4 · EV-03 · $(usuario) pertenece al grupo privilegiado $(grupo)</description>
   </rule>
 
-  <!-- EV-08. Un privilegio por encima del mínimo imprescindible: sudo sin
-       restricción de comandos, cuenta de servicio en grupo de administración,
-       cuenta de sistema con shell interactiva. Es un hecho, no un veredicto:
-       el responsable puede haberlo autorizado en P-01. -->
+  <!-- EV-08. Privilege above the minimum: sudo without command restriction, or a
+       system account with an interactive shell. A fact, not a verdict: the owner
+       may have authorized it in P-01. -->
   <rule id="107108" level="7">
     <if_sid>107100</if_sid>
     <field name="event">excessive_privilege</field>
     <description>op.acc.4 · EV-08 · privilegio por encima del mínimo: $(sujeto) ($(motivo_tecnico))</description>
   </rule>
 
-  <!-- ===== op.acc.4.3 · Necesidad de conocer ===== -->
+  <!-- ===== op.acc.4.3 · Need to know ===== -->
 
-  <!-- EV-07. Acceso a un recurso sujeto a necesidad de conocer. Lo que se
-       juzga NO es si el permiso técnico existe —existe, por eso se pudo
-       acceder— sino si el perfil de quien accede tiene justificación declarada
-       para ese recurso (P-07). Es la diferencia entre poder y deber. -->
+  <!-- EV-07. Access to a need-to-know resource. What is judged is whether the
+       accessing profile has a justification declared in P-07, not whether the
+       technical permission exists: duty versus power. -->
   <rule id="107107" level="5">
     <if_sid>107100</if_sid>
     <field name="event">sensitive_access</field>
     <description>op.acc.4 · EV-07 · acceso a recurso reservado: $(usuario) sobre $(recurso)</description>
   </rule>
 
-  <!-- ===== op.acc.4.4 · Capacidad de autorizar ===== -->
+  <!-- ===== op.acc.4.4 · Authorization capability ===== -->
 
-  <!-- EV-04. Un cambio de permisos con su ACTOR. El motor comprueba que el
-       actor esté entre el personal con capacidad de autorizar (P-02). El campo
-       que se contrasta es `actor`, no `usuario`: quien EJECUTA el cambio, no
-       sobre quién recae. Confundirlos daría por buena una escalada en la que
-       la víctima está autorizada y el atacante no. -->
+  <!-- EV-04. A permission change with its ACTOR, checked against P-02. The field
+       is `actor`, not `usuario`: who EXECUTES the change, not who it affects. -->
   <rule id="107104" level="7">
     <if_sid>107100</if_sid>
     <field name="event">permission_change</field>
     <description>op.acc.4 · EV-04 · $(actor) cambió permisos sobre $(recurso)</description>
   </rule>
 
-  <!-- EV-05. La revisión periódica de permisos. Es la única evidencia
-       EXISTENCIAL del control: le basta un hecho lo bastante reciente
-       (ANTIGUEDAD_MAXIMA contra P-03) y, por eso mismo, nunca cumple por
-       ausencia. Si no consta ninguna revisión, no se acredita. -->
+  <!-- EV-05. The periodic permission review, checked against P-03. The only
+       existential evidence of the control; never passes by absence. -->
   <rule id="107105" level="3">
     <if_sid>107100</if_sid>
     <field name="event">permission_review</field>
     <description>op.acc.4 · EV-05 · revisión de permisos registrada ($(alcance))</description>
   </rule>
 
-  <!-- ===== op.acc.4.5 · Política de acceso remoto ===== -->
+  <!-- ===== op.acc.4.5 · Remote access policy ===== -->
 
-  <!-- EV-06. Una conexión remota con su canal, puerto, origen y cuenta. El
-       motor la contrasta contra los usuarios con autorización expresa (P-05).
-       El canal y el origen viajan en el mismo hecho para que la traza del
-       auditor llegue hasta el detalle sin abrir otro evento. -->
+  <!-- EV-06. A remote connection with channel, port, origin and account, checked
+       against P-05. Everything travels in the same fact so the auditor trace reaches
+       the detail without opening another event. -->
   <rule id="107106" level="5">
     <if_sid>107100</if_sid>
     <field name="event">remote_access</field>
     <description>op.acc.4 · EV-06 · acceso remoto: $(usuario) por $(canal) desde $(origen)</description>
   </rule>
 
-  <!-- ===== El latido ===== -->
+  <!-- ===== Heartbeat ===== -->
 
-  <!-- 107110. No acredita ninguna evidencia: las HABILITA. Sin él, el silencio
-       de cualquiera de las aserciones negativas de arriba no puede convertirse
-       en CUMPLE. Nivel 3 para que quede en el índice sin ser ruido. -->
+  <!-- 107110. Proves no evidence: it ENABLES them. Without it the silence of the
+       negative assertions above cannot count as compliance. Level 3 keeps it in the
+       index without noise. -->
   <rule id="107110" level="3">
     <if_sid>107100</if_sid>
     <field name="event">collector_run</field>
     <description>op.acc.4 · pasada del recolector: $(resultado)</description>
   </rule>
 
-  <!-- ===== Degradación =====
+  <!-- ===== Degradation =====
 
-       El agente NO emite veredictos de cumplimiento, pero SÍ tiene que poder
-       decir que no pudo mirar. Un `evidence_state` con estado=NO_EVALUABLE y
-       su `causa` es lo único que distingue «la fuente no se pudo leer» de «se
-       leyó y no había nada», y las dos cosas se arreglan en sitios distintos.
-
-       No hay regla para estado=CUMPLE ni estado=NO_CUMPLE a propósito: en este
-       control el veredicto no es del agente. Si alguna vez apareciera uno,
-       casaría con 107100 (nivel 0) y no generaría alerta, que es exactamente
-       lo que debe pasar. -->
+       `causa` distinguishes «source unreadable» from «read, nothing there»; they
+       are fixed in different places. -->
   <rule id="107150" level="7">
     <if_sid>107100</if_sid>
     <field name="event">evidence_state</field>

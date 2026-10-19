@@ -1,40 +1,12 @@
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_2_json_rules.xml
+     Deployable copy for servers without access to the plugin repository; keep both in sync. -->
 <group name="ensfacil,op_acc_2,score,">
 
-  <!-- ================================================================
-       op.acc.2 · Requisitos de acceso
-       Rango reservado: 106900-106999
-       Base 106900 · eventos 106901-106949 · evidence_state 106950-106953
+  <!-- op.acc.2 · Access requirements. Reserved range 106900-106999:
+       base 106900 · events 106901-106949 · evidence_state 106950-106953
        control_state 106960-106964 · score_snapshot 106970-106974
-
-       Mapa evidencia → rule ID, que es lo que `relatedRules` acredita en
-       dashboard/ens/core/evidence/catalog.ts. Fuera quedan 106900 (nivel 0,
-       nunca genera alerta), 106923 (inerte para el plugin) y 106906-106908
-       (diagnóstico del recolector: no acreditan ninguna evidencia):
-
-         EV-01   106901 106902 106903 106904 106905
-         EV-02   106920 106921 106922
-         EV-03   106910 106911 106912
-         EV-04   106913 106914
-         EV-05   106930 106931 106932 106933
-         EV-06   106935 106936
-         EV-07   106924 106925 106926 106927
-
-       Los pares NO_CUMPLE/CUMPLE del mismo evento son cuatro:
-       106903/106904 (umask_check), 106905/106901 (sca_check),
-       106924/106925 (rootcheck) y 106933/106930 (privilege_check). En los
-       cuatro, la variante con &lt;field name="estado"&gt; va ANTES que la
-       genérica: Wazuh evalúa las reglas hermanas del mismo if_sid en el
-       orden en que se cargan y se queda con la primera que matchea.
-
-       Al añadir o mover una regla hay que tocar TRES sitios a la vez: este
-       fichero, la fuente canónica
-       plugin-wazuh-ens/agent/rules/ensfacil_op_acc_2_json_rules.xml y el catálogo
-       del plugin. Una regla que el catálogo acredita y el manager no tiene
-       rompe la cadena CUMPLE → evidencia → rule ID → evento crudo en su
-       último escalón y nada avisa, porque el identificador es numérico y la
-       regla existe en algún XML del repo. Lo comprueba
-       plugin-wazuh-ens/tests/check-consistency.py.
-       ================================================================ -->
+       In the four NO_CUMPLE/CUMPLE pairs of the same event, the variant with <field name="estado"> goes BEFORE the generic one: Wazuh keeps the first sibling rule that matches, in load order.
+       Adding or moving a rule also requires touching the canonical source and the plugin catalog (plugin-wazuh-ens/tests/check-consistency.py checks it). -->
 
   <rule id="106900" level="0">
     <decoded_as>json</decoded_as>
@@ -42,17 +14,9 @@
     <description>op.acc.2 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== op.acc.2.1 · Protección de los recursos (EV-01, EV-03, EV-07) ===== -->
+  <!-- ===== op.acc.2.1 · Resource protection (EV-01, EV-03, EV-07) ===== -->
 
-  <!-- El par NO_CUMPLE/CUMPLE de sca_check, con el patrón de 106903/106904.
-       Red de seguridad de la regla R-B del recolector ("los eventos de
-       recuento solo se emiten cuando la evidencia no encontró
-       incumplimientos"): si esa disciplina se rompe, sin esta regla un
-       sca_check con estado=NO_CUMPLE matchearía 106901 y aparecería en Wazuh
-       como nivel 3 diciendo CUMPLE y sin el grupo non_conformity. Es el fallo
-       que la adenda A2 de la auditoría documentó en 106810 y 106825 de
-       op.acc.1. VA ANTES QUE 106901 a propósito: el orden del fichero decide
-       cuál matchea. -->
+  <!-- The NO_CUMPLE/CUMPLE pair of sca_check. GOES BEFORE 106901: without it a NO_CUMPLE sca_check would match the generic one and show as CUMPLE in Wazuh. -->
   <rule id="106905" level="10">
     <if_sid>106900</if_sid>
     <field name="event">sca_check</field>
@@ -95,7 +59,7 @@
     <info type="text">requisito=op.acc.2.1 evidencia=EV-01 nivel=BAJO estado=CUMPLE ev_id=OK-02 formato=json_line</info>
   </rule>
 
-  <!-- ===== op.acc.2.2 · Derechos según responsable (EV-03, EV-04) ===== -->
+  <!-- ===== op.acc.2.2 · Rights per owner (EV-03, EV-04) ===== -->
 
   <rule id="106910" level="7">
     <if_sid>106900</if_sid>
@@ -137,7 +101,7 @@
     <info type="text">requisito=op.acc.2.2 evidencia=EV-04 nivel=BAJO estado=NO_CUMPLE ev_id=NC-04 formato=json_line</info>
   </rule>
 
-  <!-- ===== op.acc.2.3 · Acceso a componentes del SO (EV-02, EV-07) ===== -->
+  <!-- ===== op.acc.2.3 · Access to OS components (EV-02, EV-07) ===== -->
 
   <rule id="106920" level="10">
     <if_sid>106900</if_sid>
@@ -163,19 +127,8 @@
     <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-07 formato=json_line</info>
   </rule>
 
-  <!-- FIM nativo de Wazuh sobre las rutas críticas declaradas en P-02.
-       Ajusta el pcre2 a las rutas reales del cliente.
-
-       INERTE PARA EL PLUGIN (no borrar).
-       Re-etiqueta alertas syscheck nativas, que NO llevan el campo `ensfacil`
-       ni `control`. El proveedor de datos del plugin
-       (core/data-source/opensearch-provider.ts) filtra el indice por
-       `data.control` O `data.ensfacil`, asi que esta alerta nunca llega al
-       motor: no acredita EV-02 ni aparece en la trazabilidad del informe.
-       La cobertura real de EV-02 la dan 106920/106921/106922, que si vienen del
-       emisor ENSFácil con `ensfacil=op.acc.2`.
-       Se conserva porque para el SOC si tiene valor: un cambio en /etc/passwd o
-       /etc/sudoers sigue generando alerta de nivel 10 en Wazuh. -->
+  <!-- Native Wazuh FIM over the critical P-02 paths; adjust the pcre2 to the customer real paths.
+       INERT FOR THE PLUGIN (do not delete): syscheck alerts carry neither `ensfacil` nor `control`, so the data provider does not fetch them and they do not accredit EV-02. Kept because it has value for the SOC. -->
   <rule id="106923" level="10">
     <if_group>syscheck</if_group>
     <field name="file" type="pcre2">/etc/passwd|/etc/shadow|/etc/sudoers|/etc/ssh/sshd_config|/etc/crontab</field>
@@ -184,11 +137,7 @@
     <info type="text">requisito=op.acc.2.3 evidencia=EV-02 nivel=BAJO estado=NO_CUMPLE ev_id=NC-08 formato=fim</info>
   </rule>
 
-  <!-- El par NO_CUMPLE/CUMPLE de rootcheck. Mismo motivo que 106905, y aquí
-       muerde más: EV-07 es una evidencia de aserción negativa, cumple cuando
-       no produce hechos. Un rootcheck NO_CUMPLE etiquetado como CUMPLE es un
-       barrido que SÍ encontró algo presentado como barrido limpio.
-       VA ANTES QUE 106925. -->
+  <!-- The NO_CUMPLE/CUMPLE pair of rootcheck. GOES BEFORE 106925: EV-07 complies by absence of facts, so a NO_CUMPLE rootcheck labelled CUMPLE is a sweep that DID find something presented as a clean sweep. -->
   <rule id="106924" level="10">
     <if_sid>106900</if_sid>
     <field name="event">rootcheck</field>
@@ -222,11 +171,9 @@
     <info type="text">requisito=op.acc.2.3 evidencia=EV-07 nivel=BAJO estado=NO_CUMPLE ev_id=NC-10 formato=json_line</info>
   </rule>
 
-  <!-- ===== Refuerzo R1 · solo nivel ALTO (EV-05, EV-06) ===== -->
+  <!-- ===== R1 reinforcement · ALTO level only (EV-05, EV-06) ===== -->
 
-  <!-- El par NO_CUMPLE/CUMPLE de privilege_check. Nivel 12 como 106931
-       (excessive_privilege): los dos dicen lo mismo, que hay privilegios por
-       encima de lo que el modelo de P-05 autoriza. VA ANTES QUE 106930. -->
+  <!-- The NO_CUMPLE/CUMPLE pair of privilege_check. GOES BEFORE 106930. Level 12 like 106931: both say there are privileges above what P-05 authorises. -->
   <rule id="106933" level="12">
     <if_sid>106900</if_sid>
     <field name="event">privilege_check</field>
@@ -276,73 +223,8 @@
     <info type="text">requisito=op.acc.2.r1.2 evidencia=EV-06 nivel=ALTO estado=CUMPLE ev_id=OK-09 formato=json_line</info>
   </rule>
 
-  <!-- ===== Diagnóstico operativo del recolector (collector_run, collector_warning,
-       collector_missing) ==============================================================
-
-       Los tres eventos existían desde el primer día y NINGUNO tenía regla: solo
-       casaban con la base 106900, que es nivel 0, no genera alerta y por tanto no
-       llega al índice. op.acc.1 ya les había dado regla a dos de ellos (106830 y
-       106831); aquí faltaban los tres. El aviso estaba escrito y fechado en la
-       cabecera de scripts/ens_opacc2_watchdog.py, esperando a la tarea que tocara
-       este XML. Es ésta.
-
-       LOS TRES SON HIGIENE OPERATIVA DEL PIPELINE, no evidencias de op.acc.2: no
-       llevan `requisito` ni `evidencia` ENS, no llevan bloque `info` y no llevan
-       `cumple`, `no_cumple` ni `non_conformity` en su grupo. El SOC filtra por
-       `non_conformity`, y ahí solo puede haber incumplimientos demostrados.
-
-       NADA DE ETIQUETAS LITERALES EN ESTE COMENTARIO, y no es manía: las suites
-       del runbook derivan el contrato del XML con awk y grep de una línea (ver
-       tests/test_fake.sh y tests/test_contrato.sh), y un `info type` escrito con
-       sus angulos dentro de un comentario se cuenta como si fuera una regla de
-       verdad. Se detectó escribiendo justo este bloque.
-
-       · collector_run (ens_opacc2_collect.sh, al cerrar cada pasada) es el que
-         importa de verdad, y por qué importa está explicado por extenso junto a su
-         gemelo 106891 en ensfacil_op_acc_1_json_rules.xml. En corto: el motor del
-         plugin lee ESTE evento desde el índice para saber si la ausencia de hechos
-         de una evidencia puede llegar a significar CUMPLE
-         (`resolveCollectorCoverage` en dashboard/ens/core/evidence/judgment.ts).
-         Sin él en el índice, la cobertura es siempre DESCONOCIDA y la evidencia se
-         queda en gris permanente aunque la máquina esté sana. Es el fallo que se
-         vio en el primer despliegue real de op.acc.1 el 31/07/2026.
-
-         HOY NINGUNA EVIDENCIA DE op.acc.2 ESTÁ MIGRADA, así que hoy este latido no
-         decide ningún veredicto aquí. Se le da regla igualmente y a propósito: el
-         recolector ya declara `resultado` y `evidencias_cubiertas` con el contrato
-         que el motor exige (ver el bloque "Latido" de ens_opacc2_collect.sh), y la
-         alternativa es que la primera evidencia que se migre repita exactamente el
-         fallo de op.acc.1, con un gris permanente en producción y nadie sabiendo
-         por qué. Además vale ya, sin migrar nada: es la única señal indexada de que
-         una pasada terminó, y con qué cobertura.
-
-       · collector_warning (parámetro de opacc2.env mal escrito, umask no octal,
-         candado no abrible, librería que no carga). Hoy un operador que teclea mal
-         un parámetro no se entera por ningún canal visible: la librería aplica su
-         valor por defecto en silencio, el cron entierra stdout y stderr, y el dato
-         del error solo vive en el NDJSON local de la máquina.
-
-       · collector_missing (ens_opacc2_watchdog.py, cuando no ve latido en la
-         ventana). Viene siempre acompañado de siete evidence_state NO_EVALUABLE
-         (regla 106952, nivel 3, uno por evidencia) que ya hacen visible la ausencia
-         de datos evidencia a evidencia. Pero esos siete son indistinguibles de un
-         NO_EVALUABLE ordinario y aislado: nada en ellos dice "esto es un colector
-         entero callado N horas". 106908 es esa señal de cabecera.
-
-       NIVELES: 3 para el latido, 5 para el aviso, 7 para el colector muerto. Los
-       mismos que op.acc.1 (106891, 106830, 106831) y por las mismas razones, que
-       están escritas allí. El resumen del criterio: 3 es el mínimo que sigue
-       generando alerta con la configuración por defecto del manager, y es lo que le
-       toca a un latido que se repite cada hora en cada agente y que en una máquina
-       sana es el pulso normal; 5 y 7 son para sucesos puntuales y raros, cuyo valor
-       está justamente en destacar sobre ese pulso.
-
-       POR QUÉ 106906-106908: son los tres primeros ids libres de la banda de
-       eventos del control (106901-106949, ver el mapa de la cabecera), comprobados
-       libres en los cuatro ficheros de reglas del producto. 106915 no se toca: está
-       reservada para la fase 3 de op.acc.2. No se acreditan en `relatedRules` del
-       catálogo, igual que sus gemelas de op.acc.1: un latido no acredita una
-       evidencia, la habilita. -->
+  <!-- ===== Collector operational diagnostics =====
+       collector_run, collector_warning and collector_missing are OPERATIONAL HYGIENE of the pipeline, not evidences: no `requisito`, `evidencia`, `info` block, nor `cumple`/`no_cumple`/`non_conformity` in their group. -->
 
   <rule id="106906" level="3">
     <if_sid>106900</if_sid>
@@ -365,7 +247,7 @@
     <group>ENS_op.acc.2,collector_diagnostico,operativo,no_evaluable,disponibilidad,</group>
   </rule>
 
-  <!-- ===== Estados de evidencia (genéricos) ===== -->
+  <!-- ===== Evidence states (generic) ===== -->
 
   <rule id="106950" level="3">
     <if_sid>106900</if_sid>
@@ -399,7 +281,7 @@
     <group>ENS_op.acc.2,evidence_state,no_aplica,</group>
   </rule>
 
-  <!-- ===== Estado del control ===== -->
+  <!-- ===== Control state ===== -->
 
   <rule id="106960" level="3">
     <if_sid>106900</if_sid>
@@ -433,55 +315,7 @@
     <group>ENS_op.acc.2,control_state,no_aplica,</group>
   </rule>
 
-  <!-- EL NO_EVALUABLE DE LOS AGREGADOS (106964, 106973 y 106974). Por que
-       faltaba, que arregla y que NO arregla.
-
-       Hasta hoy `control_state` y `score_snapshot` solo tenian regla para
-       CUMPLE, PARCIAL, NO_CUMPLE y NO_APLICA, y `score_snapshot` ni siquiera
-       para NO_APLICA. Un agregado con esos estados no casaba con ninguna regla:
-       caia en la base 106900, que es level="0", no genera alerta y por tanto NO
-       LLEGA AL INDICE. El estado solo se colaba por `evidence_state`, que si
-       tiene el suyo (106952).
-
-       Era deuda tolerable mientras NO_EVALUABLE fuese un residuo. Ya no lo es:
-       la rama 3 de `score_de` en scripts/ens_opacc2_score.py publica el nivel
-       como NO_EVALUABLE cuando no hay ninguna no conformidad demostrada y
-       quedan requisitos sin medir, y tambien cuando no hubo latido del
-       recolector en la ventana. `estado_requisito` hace lo propio con el
-       requisito cuyas evidencias estan todas sin medir. Es un veredicto de
-       primera clase, y un veredicto que no llega al indice es un veredicto que
-       el auditor no puede recorrer: con el viajan `requisitos_sin_medir`,
-       `requisitos_aplicables`, `requisitos_medidos` y `motivo`, que es lo unico
-       que dice QUE falta por medir y sobre cuanto se ha pronunciado el nivel.
-
-       QUE NO ARREGLA, para no venderlo de mas: el semaforo del plugin no
-       depende de esto. El motor resuelve cada evidencia por su `evidence_state`
-       (core/evidence/engine.ts), y ninguna evidencia de op.acc.2 declara
-       `control_state` ni `score_snapshot` en `expectedEventTypes` (a
-       proposito: ver el comentario de los `control_state` en score.py sobre el
-       NO_APLICA de r1.2 que se expandiria a EV-05 y EV-06). `score_snapshot`
-       esta ademas en GENERIC_EVENT_TYPES y su unico consumidor, el grafico de
-       tendencia, exige `score` o `compliance` numerico: ni el NO_EVALUABLE ni
-       el NO_APLICA traen numero, asi que los descarta igual que antes. Lo que
-       se gana es la linea de alerta y la traza del auditor, no un color
-       distinto.
-
-       NIVEL 3 EN LAS TRES, NI 7 NI 10, y sin `non_conformity` en el <group>. Un
-       NO_EVALUABLE no es una no conformidad, y un NO_APLICA menos: mismo valor
-       que el NO_EVALUABLE de evidencia (106952) y que el de 106606 en
-       mp.info.6, que se bajo de 10 a 3 por este mismo motivo. 3 es ademas el
-       minimo que sigue generando alerta, que es todo lo que este arreglo
-       necesita. Estos eventos late score.py en CADA pasada de CADA agente: con
-       nivel 7 o 10, una maquina en estado de fabrica llenaria el SOC de
-       severidad alta por no haber configurado nada.
-
-       NO SE ACREDITAN EN `relatedRules` del catalogo, y es deliberado: un id de
-       agregado no significa una evidencia concreta, y meterlo ahi seria el
-       fallo de 106824 al reves. Ver la cabecera de
-       dashboard/ens/core/evidence/catalog.ts.
-
-       NO CONFUNDIR CON 106915, que sigue reservada y libre: aquella es para el
-       NO_CUMPLE por denegados repetidos de la fase 3 (decision D-8). -->
+  <!-- NO_EVALUABLE of the aggregates (106964, 106973 and 106974). Without their own rule they would fall on base 106900, which is level="0" and does NOT REACH THE INDEX: they carry `requisitos_sin_medir`, `requisitos_aplicables`, `requisitos_medidos` and `motivo`, the only thing saying what is left to measure. -->
   <rule id="106964" level="3">
     <if_sid>106900</if_sid>
     <field name="event">control_state</field>
@@ -490,7 +324,7 @@
     <group>ENS_op.acc.2,control_state,no_evaluable,</group>
   </rule>
 
-  <!-- ===== Snapshot de puntuación ===== -->
+  <!-- ===== Score snapshot ===== -->
 
   <rule id="106970" level="3">
     <if_sid>106900</if_sid>
@@ -516,26 +350,7 @@
     <group>ENS_op.acc.2,score_snapshot,no_cumple,non_conformity,</group>
   </rule>
 
-  <!-- El criterio entero (por que faltaban, que arreglan, por que nivel 3) esta
-       en el comentario de 106964, arriba. Una nota propia de las dos:
-
-       NINGUNA DESCRIPCION LLEVA `score=` NI `compliance=`, a diferencia de sus
-       tres hermanas. No es un descuido: los dos estados se publican
-       DELIBERADAMENTE sin numero (`if score is not None` en
-       scripts/ens_opacc2_score.py), asi que `$(score)` se renderizaria literal
-       y un porcentaje al lado de un "no medido" o de un "no aplica" se lee como
-       cumplimiento parcial. En su lugar van los campos que esos eventos SI
-       traen: `requisitos_sin_medir` y `motivo` en el NO_EVALUABLE, `motivo` a
-       secas en el NO_APLICA, que no tiene nada sin medir porque no tiene nada
-       aplicable.
-
-       QUE ESTA REGLA DE NO_APLICA (106974) EXISTA AQUI Y NO EN op.acc.1 NO ES
-       UNA ASIMETRIA GRATUITA: los dos controles pueden emitir ese estado, pero
-       el `score_de` de op.acc.1 lo emite con score=0 y el de aqui sin numero.
-       Un 0 en el indice lo pinta el grafico de tendencia como "0 % de
-       cumplimiento" para un nivel que sencillamente no aplica, o sea una
-       afirmacion falsa en rojo. Alli la regla espera a que el emisor devuelva
-       None; aqui ya lo hace. -->
+  <!-- NEITHER of these two descriptions carries `score=` or `compliance=`, unlike their three siblings: both states are deliberately published WITHOUT a number, so `$(score)` would render literally and a percentage next to "not measured" or "not applicable" would read as partial compliance. -->
   <rule id="106973" level="3">
     <if_sid>106900</if_sid>
     <field name="event">score_snapshot</field>

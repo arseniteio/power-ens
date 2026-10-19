@@ -1,32 +1,24 @@
-<!-- Reglas de op.exp.2 · Configuración de seguridad.
-     El mismo fichero, byte a byte, vive en tres sitios: agent/rules/ del plugin
-     (fuente canónica) y manager/ de los runbooks linux/op.exp.2
-     y zimbra/zimbra-ldap/op.exp.2. Si se modifica uno hay que copiarlo a los otros dos: lo
-     comprueba plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- op.exp.2 rules · Security configuration.
+     Canonical copy: agent/rules/ of the plugin. The copies in manager/ of the
+     op.exp.2 runbooks must stay byte-identical. -->
 <group name="ensfacil,op_exp_2,">
 
   <!-- ================================================================
-       op.exp.2 · Configuración de seguridad
-       Rango reservado: 110300-110399
-       Base 110300 · hechos crudos 110301-110349
-       degradación 110350 · diagnóstico del recolector 110390-110391
+       op.exp.2 · Security configuration
+       Reserved range: 110300-110399
+       Base 110300 · raw facts 110301-110349
+       degradation 110350 · collector diagnostics 110390-110391
 
-       Control nacido en el modelo nuevo: el agente emite HECHOS y el motor los
-       contrasta con los parámetros de la pantalla de Configuración. Ninguna
-       regla lleva `estado` de cumplimiento.
+       The agent emits FACTS; the engine contrasts them with the Configuration
+       screen parameters. No rule carries a compliance `estado`.
 
-       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       dashboard/ens/core/evidence/catalog.ts:
-
-         EV-01 110301 · EV-02 110302 y 110303 · EV-03 110304
+       Evidence -> rule ID map (`relatedRules` in dashboard/ens/core/evidence/catalog.ts):
+         EV-01 110301 · EV-02 110302 and 110303 · EV-03 110304
          EV-04 110305 · EV-05 110306 · EV-06 110307
 
-       EV-07 no tiene regla: la conformidad PREVIA a la entrada en operación no
-       deja ningún hecho que un agente pueda observar después.
-
-       Fuera del mapa quedan 110300 (base, nivel 0), 110350 (la degradación:
-       dice que no se pudo medir), 110390 (el latido: no acredita evidencia, la
-       habilita) y 110391 (avisos operativos del recolector).
+       EV-07 has no rule: conformity BEFORE entering operation leaves no observable fact.
+       Outside the map: 110300 (base, level 0), 110350 (degradation: could not be measured),
+       110390 (heartbeat: enables evidence, does not prove it), 110391 (collector warnings).
        ================================================================ -->
 
   <rule id="110300" level="0">
@@ -35,81 +27,77 @@
     <description>op.exp.2 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== op.exp.2.1, .2 y .3 · Línea base ===== -->
+  <!-- ===== op.exp.2.1, .2 and .3 · Baseline ===== -->
 
-  <!-- EV-01. Qué políticas SCA ha evaluado de verdad el agente de Wazuh en esta
-       máquina (según su ossec.log) y cuándo. El motor contrasta el conjunto con
-       la política que P-01 asigna al perfil. -->
+  <!-- EV-01. SCA policies the Wazuh agent actually evaluated on this machine (per
+       its ossec.log) and when. Contrasted with the policy P-01 assigns to the profile. -->
   <rule id="110301" level="3">
     <if_sid>110300</if_sid>
     <field name="event">sca_evaluation</field>
     <description>op.exp.2 · EV-01 · perfil $(perfil): políticas SCA evaluadas $(politicas)</description>
   </rule>
 
-  <!-- ===== op.exp.2.1 · Cuentas y contraseñas estándar ===== -->
+  <!-- ===== op.exp.2.1 · Standard accounts and passwords ===== -->
 
-  <!-- EV-02. Una cuenta que no está retirada: shell interactiva o credencial
-       utilizable. El motor la contrasta con la lista de cuentas estándar P-03. -->
+  <!-- EV-02. An account that is not retired: interactive shell or usable
+       credential. Contrasted with the standard accounts list P-03. -->
   <rule id="110302" level="3">
     <if_sid>110300</if_sid>
     <field name="event">login_account</field>
     <description>op.exp.2 · EV-02 · cuenta no retirada: $(usuario) ($(plano))</description>
   </rule>
 
-  <!-- EV-02. Una autenticación con éxito. Mismo campo `usuario` y misma lista
-       P-03: una cuenta estándar que además se usa. -->
+  <!-- EV-02. A successful authentication. Same `usuario` field and same list P-03. -->
   <rule id="110303" level="3">
     <if_sid>110300</if_sid>
     <field name="event">account_authenticated</field>
     <description>op.exp.2 · EV-02 · autenticación con éxito: $(usuario) por $(canal)</description>
   </rule>
 
-  <!-- ===== op.exp.2.2 · Mínima funcionalidad ===== -->
+  <!-- ===== op.exp.2.2 · Minimum functionality ===== -->
 
-  <!-- EV-03. Una función expuesta: un socket en escucha o un backend del
-       directorio. El motor la casa con la fila de su perfil en P-02. -->
+  <!-- EV-03. An exposed function: a listening socket or a directory backend.
+       Matched against the row of its profile in P-02. -->
   <rule id="110304" level="3">
     <if_sid>110300</if_sid>
     <field name="event">service_exposed</field>
     <description>op.exp.2 · EV-03 · función expuesta: $(servicio) en $(protocolo)/$(puerto) ($(exposicion))</description>
   </rule>
 
-  <!-- ===== op.exp.2.3 · Seguridad por defecto ===== -->
+  <!-- ===== op.exp.2.3 · Secure defaults ===== -->
 
-  <!-- EV-04. Un valor por defecto inseguro. Es un hallazgo, no un veredicto:
-       el responsable puede haberlo autorizado como excepción en P-04. -->
+  <!-- EV-04. An insecure default value. A finding, not a verdict: it may be
+       authorised as an exception in P-04. -->
   <rule id="110305" level="7">
     <if_sid>110300</if_sid>
     <field name="event">insecure_default</field>
     <description>op.exp.2 · EV-04 · valor por defecto inseguro: $(desviacion)</description>
   </rule>
 
-  <!-- ===== op.exp.2.4 · Máquinas virtuales ===== -->
+  <!-- ===== op.exp.2.4 · Virtual machines ===== -->
 
-  <!-- EV-05. La máquina es virtual o aloja máquinas virtuales. El motor exige
-       que conste en el inventario de virtualización P-06. -->
+  <!-- EV-05. The machine is virtual or hosts virtual machines. Must appear in the
+       virtualization inventory P-06. -->
   <rule id="110306" level="3">
     <if_sid>110300</if_sid>
     <field name="event">virtualization_role</field>
     <description>op.exp.2 · EV-05 · $(maquina) es $(rol) ($(plataforma))</description>
   </rule>
 
-  <!-- ===== op.exp.2.2 y .3 · Evolución de la línea base ===== -->
+  <!-- ===== op.exp.2.2 and .3 · Baseline evolution ===== -->
 
-  <!-- EV-06. Puntuación SCA de una política, leída de la API de Wazuh. La serie
-       en la ventana se contrasta con el umbral P-05. -->
+  <!-- EV-06. SCA score of a policy, read from the Wazuh API. The series in the
+       window is contrasted with the threshold P-05. -->
   <rule id="110307" level="3">
     <if_sid>110300</if_sid>
     <field name="event">sca_score</field>
     <description>op.exp.2 · EV-06 · puntuación SCA $(politica): $(puntuacion)</description>
   </rule>
 
-  <!-- ===== Degradación =====
-
-       El agente no emite veredictos, pero sí dice que no pudo mirar: la
-       `causa` distingue «la fuente no se pudo leer» de «se leyó y no había
-       nada». No hay regla para estado=CUMPLE ni NO_CUMPLE a propósito: si
-       apareciera uno, casaría con 110300 (nivel 0) y no llegaría al índice. -->
+  <!-- ===== Degradation =====
+       The `causa` distinguishes «the source could not be read» from «it was read
+       and nothing was found». There is deliberately no rule for estado=CUMPLE or
+       NO_CUMPLE: one would match 110300 (level 0) and never reach the index. -->
   <rule id="110350" level="7">
     <if_sid>110300</if_sid>
     <field name="event">evidence_state</field>
@@ -117,18 +105,18 @@
     <description>op.exp.2 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <!-- ===== Diagnóstico del recolector ===== -->
+  <!-- ===== Collector diagnostics ===== -->
 
-  <!-- 110390. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
-       el silencio de las aserciones negativas no puede valer como cumplimiento. -->
+  <!-- 110390. Heartbeat. Proves no evidence: it ENABLES it. Without it, the silence
+       of negative assertions cannot count as compliance. -->
   <rule id="110390" level="3">
     <if_sid>110300</if_sid>
     <field name="event">collector_run</field>
     <description>op.exp.2 · pasada del recolector: $(resultado)</description>
   </rule>
 
-  <!-- 110391. Aviso operativo: el recolector sigue, pero algo de su entorno no
-       es como debería (sin root, .env ilegible). -->
+  <!-- 110391. Operational warning: the collector continues but its environment is
+       not as expected (no root, unreadable .env). -->
   <rule id="110391" level="5">
     <if_sid>110300</if_sid>
     <field name="event">collector_warning</field>

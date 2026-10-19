@@ -1,36 +1,30 @@
-<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_cont_3_json_rules.xml
-     Este fichero es idéntico, byte a byte, en dos sitios: la fuente canónica
-     del plugin y la carpeta manager/ del runbook linux/op.cont.3. Si se
-     modifica uno, hay que copiar el otro: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_cont_3_json_rules.xml
+     Byte-identical in two places: the plugin canonical source and manager/ of the
+     linux/op.cont.3 runbook (checked by plugin-wazuh-ens/tests/check-consistency.py). -->
 <group name="ensfacil,op_cont_3,">
 
   <!-- ================================================================
-       op.cont.3 · Pruebas periódicas
-       Rango reservado: 111700-111799
-       Base 111700 · hechos crudos 111701-111749 · evidence_state 111750
-       · diagnóstico del recolector 111797-111799
+       op.cont.3 · Periodic tests
+       Reserved range: 111700-111799
+       Base 111700 · raw facts 111701-111749 · evidence_state 111750
+       · collector diagnostics 111797-111799
 
-       Todo lo emite el recolector del MANAGER (agent.id=000), que solo lee
-       ficheros locales y no usa credenciales: los dos registros TSV de la
-       organización en /etc/ensfacil/ y, para cada prueba, las alertas de
-       alerts.json (y de sus archivos diarios) de su ventana. Pasa cada 6 h y
-       reemite ENTERO lo que dice de cada prueba: son hechos de estado.
+       Everything is emitted by the MANAGER collector (agent.id=000), which reads only local
+       files and uses no credentials: the two organization TSV registers in /etc/ensfacil/ and,
+       for each test, the alerts of alerts.json (and its daily archives) in its window. It runs
+       every 6 h and re-emits EVERYTHING it says about each test: these are state facts.
 
-       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       public/ens/core/evidence/catalog.ts:
+       Evidence -> rule ID map (`relatedRules` in public/ens/core/evidence/catalog.ts):
 
-         EV-01 111701 y 111702 · EV-02 111702 · EV-03 111705
-         EV-04 111702, 111705 y 111706 · EV-05 111703 y 111704
+         EV-01 111701 and 111702 · EV-02 111702 · EV-03 111705
+         EV-04 111702, 111705 and 111706 · EV-05 111703 and 111704
          EV-06 111707 · EV-07 111704 · EV-08 111706
 
-       EV-02, EV-04 y EV-07 no tienen hecho propio: los juzga la policy con
-       los de las demás.
+       EV-02, EV-04 and EV-07 have no fact of their own: the policy judges them with the others.
 
-       Ninguna regla lleva `estado` de cumplimiento, ni ninguna descripción
-       lleva un campo largo (la cronología de 111705, las rutas de 111707): la
-       descripción viaja en cada alerta. Añadir o mover una regla obliga a
-       tocar los dos ficheros y el catálogo a la vez.
+       No rule carries a compliance `estado`, and no description carries a long field (the
+       111705 timeline, the 111707 paths): the description travels in each alert. Adding or
+       moving a rule requires touching both files and the catalog together.
        ================================================================ -->
 
   <rule id="111700" level="0">
@@ -39,81 +33,77 @@
     <description>op.cont.3 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== Primera obligación: probar con periodicidad ===== -->
+  <!-- ===== First obligation: test periodically ===== -->
 
-  <!-- EV-01. Cada 6 h, uno por pasada. Cómo se leyó el registro de pruebas
-       (/etc/ensfacil/continuity-test-register.tsv): si existe, si se pudo
-       leer, si su cabecera es la documentada y cuántas filas se descartaron.
-       Va ANTES de las filas: sin él, un registro vacío no se distingue de uno
-       que no se leyó. -->
+  <!-- EV-01. Every 6 h, one per run. How the test register
+       (/etc/ensfacil/continuity-test-register.tsv) was read: whether it exists, could be read,
+       has the documented header and how many rows were discarded. It goes BEFORE the rows:
+       without it an empty register cannot be told from an unread one. -->
   <rule id="111701" level="3">
     <if_sid>111700</if_sid>
     <field name="event">continuity_test_register_read</field>
     <description>op.cont.3 · EV-01 · registro de pruebas $(fichero): presente=$(presente), $(filas) filas válidas, $(filas_invalidas) descartadas</description>
   </rule>
 
-  <!-- EV-01 (y EV-02 y EV-04). Cada 6 h, una por fila válida del registro de
-       pruebas, con lo que el recolector pudo medir de su ventana. -->
+  <!-- EV-01 (and EV-02, EV-04). Every 6 h, one per valid row of the test register, with what
+       the collector could measure of its window. -->
   <rule id="111702" level="3">
     <if_sid>111700</if_sid>
     <field name="event">continuity_test_recorded</field>
     <description>op.cont.3 · EV-01 · prueba $(tipo) del $(inicio): $(escenario), resultado declarado $(resultado), medición $(medicion)</description>
   </rule>
 
-  <!-- ===== Segunda obligación: corregir lo detectado ===== -->
+  <!-- ===== Second obligation: correct what was detected ===== -->
 
-  <!-- EV-05. Cada 6 h, uno por pasada. Cómo se leyó el registro de
-       deficiencias (/etc/ensfacil/continuity-deficiency-register.tsv). -->
+  <!-- EV-05. Every 6 h, one per run. How the deficiency register
+       (/etc/ensfacil/continuity-deficiency-register.tsv) was read. -->
   <rule id="111703" level="3">
     <if_sid>111700</if_sid>
     <field name="event">continuity_deficiency_register_read</field>
     <description>op.cont.3 · EV-05 · registro de deficiencias $(fichero): presente=$(presente), $(filas) filas válidas, $(filas_invalidas) descartadas</description>
   </rule>
 
-  <!-- EV-05 (y EV-07). Cada 6 h, una por fila válida del registro de
-       deficiencias. La columna `estado` del registro viaja como `situacion`:
-       un campo `estado` es el veredicto del hecho para el normalizador. -->
+  <!-- EV-05 (and EV-07). Every 6 h, one per valid row of the deficiency register. The
+       register `estado` column travels as `situacion`: an `estado` field is the fact verdict
+       for the plugin normalizer. -->
   <rule id="111704" level="3">
     <if_sid>111700</if_sid>
     <field name="event">continuity_deficiency_recorded</field>
     <description>op.cont.3 · EV-05 · deficiencia $(deficiencia_id) de la prueba del $(prueba_inicio): $(situacion), plazo $(plazo)</description>
   </rule>
 
-  <!-- ===== Lo que el manager vio durante cada prueba ===== -->
+  <!-- ===== What the manager saw during each test ===== -->
 
-  <!-- EV-03 (y EV-04). Cada 6 h, una por prueba parcial o simulacro con
-       sistemas y por cada agente candidato de esos sistemas: la cronología de
-       paradas (506), desconexiones (504) y arranques (503) en la ventana y las
-       24 h siguientes. -->
+  <!-- EV-03 (and EV-04). Every 6 h, one per partial test or drill with systems and per candidate
+       agent of those systems: the timeline of stops (506), disconnections (504) and starts (503)
+       in the window and the following 24 h. -->
   <rule id="111705" level="3">
     <if_sid>111700</if_sid>
     <field name="event">availability_event_observed</field>
     <description>op.cont.3 · EV-03 · prueba del $(prueba_inicio): $(eventos_total) eventos de disponibilidad del agente $(agente) ($(agente_id))</description>
   </rule>
 
-  <!-- EV-08 (y EV-04). Cada 6 h, una por restauración de mp.info.6 (regla
-       106606) en la ventana de una prueba. Se lee de alerts.json del manager,
-       sin tocar mp.info.6. -->
+  <!-- EV-08 (and EV-04). Every 6 h, one per mp.info.6 restore (rule 106606) in a test window.
+       Read from the manager alerts.json, without touching mp.info.6. -->
   <rule id="111706" level="3">
     <if_sid>111700</if_sid>
     <field name="event">backup_restore_observed</field>
     <description>op.cont.3 · EV-08 · prueba del $(prueba_inicio): restauración en $(agente) ($(agente_id)) el $(instante), resultado=$(resultado)</description>
   </rule>
 
-  <!-- EV-06. Cada 6 h, una por prueba y agente con alertas de FIM en las 24 h
-       siguientes al fin de su ventana, agregadas. -->
+  <!-- EV-06. Every 6 h, one per test and agent with FIM alerts in the 24 h after the end of its
+       window, aggregated. -->
   <rule id="111707" level="3">
     <if_sid>111700</if_sid>
     <field name="event">post_test_change_observed</field>
     <description>op.cont.3 · EV-06 · prueba del $(prueba_inicio): $(cambios) cambios de FIM en $(agente) ($(agente_id)) tras la ventana</description>
   </rule>
 
-  <!-- ===== Degradación =====
+  <!-- ===== Degradation =====
 
-       El recolector no emite veredictos, pero sí tiene que poder decir que no
-       pudo mirar: la `causa` distingue «la fuente no se pudo leer»
-       (COLLECTION) de «no hay contra qué medir» (CONFIGURATION), y las dos se
-       arreglan en sitios distintos. -->
+       The collector issues no verdicts but must be able to say it could not look: `causa`
+       distinguishes «source unreadable» (COLLECTION) from «nothing to measure against»
+       (CONFIGURATION); they are fixed in different places. -->
   <rule id="111750" level="5">
     <if_sid>111700</if_sid>
     <field name="event">evidence_state</field>
@@ -121,27 +111,25 @@
     <description>op.cont.3 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <!-- ===== El recolector ===== -->
+  <!-- ===== Collector ===== -->
 
-  <!-- 111797. El latido, al final de cada pasada. No acredita ninguna
-       evidencia: dice qué se barrió, que es lo que delimita en el motor la
-       última pasada de cada hecho de estado. -->
+  <!-- 111797. Heartbeat, at the end of each run. Proves no evidence: it says what was swept,
+       which delimits in the engine the last run of each state fact. -->
   <rule id="111797" level="3">
     <if_sid>111700</if_sid>
     <field name="event">collector_run</field>
     <description>op.cont.3 · pasada del recolector ($(tipo_servidor)): $(resultado), cubre $(evidencias_cubiertas)</description>
   </rule>
 
-  <!-- 111798. Aviso operativo: .env ilegible, sin root, candado, una fila del
-       registro descartada, una ruta o un log_alert_level distintos de los
-       esperados. -->
+  <!-- 111798. Operational warning: unreadable .env, no root, lock, a discarded register row,
+       an unexpected path or log_alert_level. -->
   <rule id="111798" level="5">
     <if_sid>111700</if_sid>
     <field name="event">collector_warning</field>
     <description>op.cont.3 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
-  <!-- 111799. El recolector ha estado parado más tiempo del que admite su cron. -->
+  <!-- 111799. The collector was stopped longer than its cron allows. -->
   <rule id="111799" level="7">
     <if_sid>111700</if_sid>
     <field name="event">collector_missing</field>

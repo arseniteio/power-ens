@@ -1,39 +1,34 @@
-<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_6_json_rules.xml
-     Este fichero es idéntico, byte a byte, en tres sitios: la fuente canónica
-     del plugin y la carpeta manager/ de los runbooks op.exp.6 de Linux y de
-     LDAP. Si se modifica uno, hay que copiar los otros dos: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_6_json_rules.xml
+     Byte-identical in three places: the plugin source and manager/ of the Linux
+     and LDAP op.exp.6 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
 <group name="ensfacil,op_exp_6,">
 
   <!-- ================================================================
-       op.exp.6 · Protección frente a código dañino
-       Rango reservado: 110700-110799
-       Base 110700 · hechos crudos 110701-110749 · evidence_state 110750
-       · diagnóstico del recolector 110797-110799
+       op.exp.6 · Protection against malicious code
+       Reserved range: 110700-110799
+       Base 110700 · raw facts 110701-110749 · evidence_state 110750
+       · collector diagnostics 110797-110799
 
-       Mapa evidencia -> rule ID, que es lo que acredita `relatedRules` en
-       dashboard/ens/core/evidence/catalog.ts:
+       Evidence -> rule ID map (`relatedRules` in dashboard/ens/core/evidence/catalog.ts):
 
          EV-01 110701 · EV-02 110702 · EV-03 110703 · EV-04 110704
          EV-05 110705 · EV-06 110706 · EV-07 110707, 110708
          EV-09 110709, 110710 · EV-10 110710 · EV-11 110710, 110711
          EV-12 110712, 110713
 
-       110710 (`edr_capability_observed`) es un hecho por capacidad: su
-       `evidence_id` dice de cuál habla (EV-09 YARA, EV-10 rootcheck, EV-11
-       respuesta activa).
+       110710 (`edr_capability_observed`) is one fact per capability: its
+       `evidence_id` says which one it speaks of (EV-09 YARA, EV-10 rootcheck, EV-11
+       active response).
 
-       EV-08 no tiene hecho: la consulta a VirusTotal la hace el manager y su
-       resultado no vuelve al agente. Los hallazgos de rootcheck (EV-10) tampoco
-       quedan en el agente. El recolector lo dice con un evidence_state
-       NO_EVALUABLE que recoge la 110750; no se les inventa un evento.
+       EV-08 has no fact: the VirusTotal query is made by the manager and its result
+       does not return to the agent. Rootcheck findings (EV-10) are not kept on the
+       agent either. The collector reports it with a NO_EVALUABLE evidence_state
+       caught by 110750.
 
-       Fuera del mapa quedan la 110700 (base, nivel 0), la 110750 (la
-       degradación) y las 110797-110799 (el recolector: habilitan, no
-       acreditan).
-
-       Ninguna regla lleva `estado` de cumplimiento, y añadir o mover una obliga
-       a tocar los tres ficheros y el catálogo a la vez.
+       Outside the map: 110700 (base, level 0), 110750 (degradation) and
+       110797-110799 (collector: they enable, do not prove).
+       No rule carries a compliance `estado`; adding or moving one requires touching
+       the three files and the catalog together.
        ================================================================ -->
 
   <rule id="110700" level="0">
@@ -42,134 +37,128 @@
     <description>op.exp.6 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== op.exp.6.1 y 6.2 · Antimalware en todos los equipos ===== -->
+  <!-- ===== op.exp.6.1 and 6.2 · Antimalware on every machine ===== -->
 
-  <!-- EV-01. El antimalware de un plano de la máquina (el sistema; en un
-       servidor de correo, además, el del servicio de correo): qué producto
-       hay, si está instalado y si su servicio corre. Se contrasta
-       `producto_activo` con la fila del equipo y el plano en P-02. -->
+  <!-- EV-01. The antimalware of one plane of the machine (the system; on a mail
+       server, also the mail service's): which product, whether installed and whether
+       its service runs. `producto_activo` is contrasted with the row of the machine
+       and plane in P-02. -->
   <rule id="110701" level="3">
     <if_sid>110700</if_sid>
     <field name="event">antimalware_status</field>
     <description>op.exp.6 · EV-01 · antimalware del plano $(plano) en $(equipo): $(producto_activo)</description>
   </rule>
 
-  <!-- ===== op.exp.6.4 · Bases de detección actualizadas ===== -->
+  <!-- ===== op.exp.6.4 · Up-to-date detection databases ===== -->
 
-  <!-- EV-02. El instante de publicación de las firmas del antimalware de un
-       plano. Su antigüedad la mide el motor contra P-03 y contra el reloj. -->
+  <!-- EV-02. The publication instant of the antimalware signatures of one plane.
+       The engine measures their age against P-03 and the clock. -->
   <rule id="110702" level="3">
     <if_sid>110700</if_sid>
     <field name="event">antimalware_signatures_updated</field>
     <description>op.exp.6 · EV-02 · firmas de $(producto) ($(plano)) publicadas el $(fecha)</description>
   </rule>
 
-  <!-- ===== op.exp.6.5 · Configuración y protección en tiempo real ===== -->
+  <!-- ===== op.exp.6.5 · Configuration and real-time protection ===== -->
 
-  <!-- EV-03. Un ajuste observado del antimalware de un plano. Se contrasta
-       `valor` con la fila de su plano y su ajuste en P-04. -->
+  <!-- EV-03. An observed antimalware setting of one plane. `valor` is contrasted
+       with the row of its plane and setting in P-04. -->
   <rule id="110703" level="3">
     <if_sid>110700</if_sid>
     <field name="event">antimalware_setting</field>
     <description>op.exp.6 · EV-03 · $(ajuste)=$(valor) en el plano $(plano)</description>
   </rule>
 
-  <!-- ===== op.exp.6.1 · Prevención y reacción ===== -->
+  <!-- ===== op.exp.6.1 · Prevention and reaction ===== -->
 
-  <!-- EV-04. Una detección del antimalware con la acción que se tomó. Es un
-       hallazgo sobre la máquina, no un veredicto del control: cuánto pesa lo
-       decide el motor. -->
+  <!-- EV-04. An antimalware detection with the action taken. A finding about the
+       machine, not a verdict of the control: how much it weighs is decided by the engine. -->
   <rule id="110704" level="10">
     <if_sid>110700</if_sid>
     <field name="event">malware_detected</field>
     <description>op.exp.6 · EV-04 · detección de $(amenaza) en $(fichero): $(accion)</description>
   </rule>
 
-  <!-- ===== op.exp.6.r1.1 · Escaneo periódico ===== -->
+  <!-- ===== op.exp.6.r1.1 · Periodic scan ===== -->
 
-  <!-- EV-05. El instante de fin de un escaneo completo del sistema. Se mide
-       contra P-06. -->
+  <!-- EV-05. The end instant of a full system scan. Measured against P-06. -->
   <rule id="110705" level="3">
     <if_sid>110700</if_sid>
     <field name="event">full_scan_completed</field>
     <description>op.exp.6 · EV-05 · escaneo completo terminado el $(fecha) ($(ficheros_escaneados) ficheros)</description>
   </rule>
 
-  <!-- ===== op.exp.6.r2.1 · Funciones críticas al arranque ===== -->
+  <!-- ===== op.exp.6.r2.1 · Critical functions at boot ===== -->
 
-  <!-- EV-06. Lo que el agente de Wazuh analizó en su último arranque, leído
-       de su propio log: rutas vigiladas por FIM, análisis al arrancar y
-       rootcheck. Las rutas se contrastan con P-07. -->
+  <!-- EV-06. What the Wazuh agent analyzed at its last start, read from its own
+       log: paths watched by FIM, boot analysis and rootcheck. Paths are contrasted with P-07. -->
   <rule id="110706" level="3">
     <if_sid>110700</if_sid>
     <field name="event">boot_integrity_check</field>
     <description>op.exp.6 · EV-06 · análisis al arranque del agente ($(arranque_agente)): FIM terminado $(fim_fin)</description>
   </rule>
 
-  <!-- ===== op.exp.6.r3.1 · Lista blanca ===== -->
+  <!-- ===== op.exp.6.r3.1 · Allowlist ===== -->
 
-  <!-- EV-07. El estado del mecanismo de lista blanca de ejecución. -->
+  <!-- EV-07. State of the execution allowlist mechanism. -->
   <rule id="110707" level="3">
     <if_sid>110700</if_sid>
     <field name="event">execution_control_status</field>
     <description>op.exp.6 · EV-07 · lista blanca de ejecución: $(mecanismo), modo $(modo)</description>
   </rule>
 
-  <!-- EV-07. Una ejecución que el mecanismo registró fuera de su lista, con la
-       decisión que tomó. Se contrasta la ruta con P-08. -->
+  <!-- EV-07. An execution the mechanism recorded outside its list, with the decision
+       it took. The path is contrasted with P-08. -->
   <rule id="110708" level="5">
     <if_sid>110700</if_sid>
     <field name="event">execution_observed</field>
     <description>op.exp.6 · EV-07 · ejecución de $(ruta) registrada por $(mecanismo): $(decision)</description>
   </rule>
 
-  <!-- ===== op.exp.6.r4.1 · Capacidad EDR ===== -->
+  <!-- ===== op.exp.6.r4.1 · EDR capability ===== -->
 
-  <!-- EV-09. Una coincidencia de reglas YARA sobre un fichero. -->
+  <!-- EV-09. A match of YARA rules on a file. -->
   <rule id="110709" level="10">
     <if_sid>110700</if_sid>
     <field name="event">content_rule_match</field>
     <description>op.exp.6 · EV-09 · coincidencia YARA $(regla) en $(fichero)</description>
   </rule>
 
-  <!-- EV-09, EV-10 y EV-11. Si una capacidad EDR está desplegada en la
-       máquina. Se contrasta con la fila de su capacidad en P-09. -->
+  <!-- EV-09, EV-10 and EV-11. Whether an EDR capability is deployed on the machine.
+       Contrasted with the row of its capability in P-09. -->
   <rule id="110710" level="3">
     <if_sid>110700</if_sid>
     <field name="event">edr_capability_observed</field>
     <description>op.exp.6 · $(evidence_id) · capacidad EDR $(capacidad) desplegada: $(desplegada)</description>
   </rule>
 
-  <!-- EV-11. Una respuesta activa de contención ejecutada en la máquina. -->
+  <!-- EV-11. A containment active response executed on the machine. -->
   <rule id="110711" level="5">
     <if_sid>110700</if_sid>
     <field name="event">active_response_executed</field>
     <description>op.exp.6 · EV-11 · respuesta activa $(comando) $(accion)</description>
   </rule>
 
-  <!-- ===== op.exp.6.3 · Ficheros de fuentes externas ===== -->
+  <!-- ===== op.exp.6.3 · Files from external sources ===== -->
 
-  <!-- EV-12. Un fichero de fuente externa analizado por la pasarela que lo
-       recibe (en un servidor de correo, el análisis de amavis). -->
+  <!-- EV-12. A file from an external source analyzed by the gateway that receives it
+       (on a mail server, the amavis analysis). -->
   <rule id="110712" level="3">
     <if_sid>110700</if_sid>
     <field name="event">external_file_scanned</field>
     <description>op.exp.6 · EV-12 · fichero externo analizado por $(via): $(resultado)</description>
   </rule>
 
-  <!-- EV-12. Un dispositivo de almacenamiento extraíble conectado. Se contrasta
-       con la política de P-10. -->
+  <!-- EV-12. A removable storage device connected. Contrasted with the P-10 policy. -->
   <rule id="110713" level="5">
     <if_sid>110700</if_sid>
     <field name="event">removable_device_connected</field>
     <description>op.exp.6 · EV-12 · dispositivo extraíble conectado: $(dispositivo)</description>
   </rule>
 
-  <!-- ===== Degradación =====
-
-       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
-       mirar: la `causa` distingue «la fuente no se pudo leer» de «se leyó y no
-       había nada», y las dos se arreglan en sitios distintos. -->
+  <!-- ===== Degradation =====
+       The `causa` distinguishes «the source could not be read» from «it was read
+       and nothing was found»; they are fixed in different places. -->
   <rule id="110750" level="5">
     <if_sid>110700</if_sid>
     <field name="event">evidence_state</field>
@@ -177,26 +166,26 @@
     <description>op.exp.6 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <!-- ===== El recolector ===== -->
+  <!-- ===== Collector ===== -->
 
-  <!-- 110797. El latido. No acredita ninguna evidencia: las HABILITA. Sin él,
-       el silencio de EV-04, EV-05, EV-07 y EV-12 no puede valer. -->
+  <!-- 110797. Heartbeat. Proves no evidence: it ENABLES it. Without it, the silence
+       of EV-04, EV-05, EV-07 and EV-12 cannot count. -->
   <rule id="110797" level="3">
     <if_sid>110700</if_sid>
     <field name="event">collector_run</field>
     <description>op.exp.6 · pasada del recolector: $(resultado)</description>
   </rule>
 
-  <!-- 110798. Aviso operativo: .env ilegible, recolector sin root, candado.
-       No es una evidencia ni un juicio: es higiene del propio pipeline. -->
+  <!-- 110798. Operational warning: unreadable .env, collector without root, lock.
+       Pipeline hygiene, not evidence. -->
   <rule id="110798" level="5">
     <if_sid>110700</if_sid>
     <field name="event">collector_warning</field>
     <description>op.exp.6 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
-  <!-- 110799. El recolector ha estado parado más tiempo del que admite su cron.
-       Lo emite la pasada siguiente, al ver el hueco. -->
+  <!-- 110799. The collector was stopped longer than its cron allows. Emitted by the
+       next run when it sees the gap. -->
   <rule id="110799" level="7">
     <if_sid>110700</if_sid>
     <field name="event">collector_missing</field>

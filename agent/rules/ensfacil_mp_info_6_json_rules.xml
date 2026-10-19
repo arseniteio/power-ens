@@ -1,23 +1,22 @@
-<!-- FUENTE CANÓNICA: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
-     Este fichero es idéntico, byte a byte, en la fuente canónica del plugin y
-     en la carpeta manager/ de cada runbook de mp.info.6: lo comprueba
-     plugin-wazuh-ens/tests/check-consistency.py. Si se modifica uno, hay que
-     copiar los otros. -->
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
+     Byte-identical in the plugin's canonical source and in manager/ of every
+     mp.info.6 runbook (checked by plugin-wazuh-ens/tests/check-consistency.py).
+     Changing one requires copying the others. -->
 <group name="ensfacil,mp.info.6,">
 
   <!-- ================================================================
-       mp.info.6 · Copias de seguridad
-       Rango reservado: 106600-106799
-       Base 106600 · hechos crudos 106601-106649 · evidence_state 106650
-       · diagnóstico del recolector 106797-106799
+       mp.info.6 · Backups
+       Reserved range: 106600-106799
+       Base 106600 · raw facts 106601-106649 · evidence_state 106650
+       · collector diagnostics 106797-106799
 
-       Reglas COMUNES a todos los runbooks de mp.info.6. El campo `origen`
-       dice qué recolector emitió el hecho; el nombre del evento y la regla
-       que lo acredita son los mismos para todos. Cada recolector escribe la
-       misma línea NDJSON en /var/log/ensfacil/mp_info_6.json.
+       Rules COMMON to every mp.info.6 runbook. The `origen` field tells which
+       collector emitted the fact; the event name and the rule that supports it
+       are the same for all. Each collector writes the same NDJSON line to
+       /var/log/ensfacil/mp_info_6.json.
 
-       Mapa evento -> rule ID -> evidencia, que es lo que acredita
-       `relatedRules` en dashboard/ens/core/evidence/catalog.ts:
+       Event -> rule ID -> evidence map, as supported by `relatedRules` in
+       dashboard/ens/core/evidence/catalog.ts:
 
          106601 backup_run        EV-01, EV-02
          106602 backup_schedule   EV-02
@@ -25,14 +24,14 @@
          106604 backup_access     EV-04
          106605 backup_storage    EV-06
          106606 restore_test      EV-05
-         106797 collector_run     EV-07 (el latido; además habilita las demás)
+         106797 collector_run     EV-07 (heartbeat; it also enables the others)
 
-       Fuera del mapa: 106600 (base, nivel 0), 106650 (la degradación: el
-       recolector dice que no pudo mirar), 106798 (aviso operativo) y 106799
-       (hueco en las pasadas del recolector).
+       Outside the map: 106600 (base, level 0), 106650 (degradation: the
+       collector reports it could not measure), 106798 (operational warning)
+       and 106799 (gap in the collector passes).
 
-       Ninguna regla lleva un veredicto en su descripción ni en su grupo: son
-       hechos, y el semáforo lo decide el motor del plugin.
+       No rule carries a verdict in its description or group: they are facts,
+       and the plugin engine decides the traffic light.
        ================================================================ -->
 
   <rule id="106600" level="0">
@@ -41,75 +40,74 @@
     <description>mp.info.6 · evento ENSFácil base</description>
   </rule>
 
-  <!-- ===== mp.info.6.1 y mp.info.6.2.a · Ejecución y frecuencia de la copia ===== -->
+  <!-- ===== mp.info.6.1 and mp.info.6.2.a · Backup run and frequency ===== -->
 
-  <!-- EV-01 y EV-02. La última copia observada: cuándo terminó bien, cuándo
-       terminó mal, su tipo y su destino. `resultado_ultima` distingue una
-       copia que nunca ha salido bien (`error` con `ultima_correcta=-`) de una
-       máquina que simplemente no se ha medido todavía. -->
+  <!-- EV-01 and EV-02. The last backup observed: when it ended well, when it
+       ended badly, its type and destination. `resultado_ultima` tells a backup
+       that never succeeded (`error` with `ultima_correcta=-`) from a machine
+       not measured yet. -->
   <rule id="106601" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^backup_run$</field>
     <description>mp.info.6 · EV-01,EV-02 · última copia observada: $(resultado_ultima) ($(tipo))</description>
   </rule>
 
-  <!-- EV-02. La planificación declarada o detectada de la copia: cada cuántas
-       horas y de dónde sale ese dato (el cron real, `zmschedulebackup` o una
-       planificación declarada por el cliente). Una línea de cron comentada no
-       cuenta como planificación activa: eso lo decide el recolector, no esta
-       regla. -->
+  <!-- EV-02. The declared or detected backup schedule: every how many hours
+       and where the data comes from (real cron, `zmschedulebackup` or a
+       schedule declared by the client). A commented cron line does not count
+       as an active schedule: the collector decides that, not this rule. -->
   <rule id="106602" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^backup_schedule$</field>
     <description>mp.info.6 · EV-02 · planificación $(planificacion) ($(fuente))</description>
   </rule>
 
-  <!-- EV-03. La retención configurada: cuántos días se conservan y cuál es la
-       copia más antigua que sigue presente. -->
+  <!-- EV-03. The configured retention: days kept and the oldest backup still
+       present. -->
   <rule id="106603" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^backup_retention$</field>
     <description>mp.info.6 · EV-03 · retención $(retencion_dias) días, copia más antigua $(copia_mas_antigua)</description>
   </rule>
 
-  <!-- EV-04. Quién puede leer el repositorio de copias: ruta, modo,
-       propietario, grupo y la lista de cuentas con lectura. -->
+  <!-- EV-04. Who can read the backup repository: path, mode, owner, group and
+       the list of accounts with read access. -->
   <rule id="106604" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^backup_access$</field>
     <description>mp.info.6 · EV-04 · acceso a $(ruta): modo $(modo), propietario $(propietario):$(grupo)</description>
   </rule>
 
-  <!-- ===== mp.info.6.r2.1 · Repositorio alternativo ===== -->
+  <!-- ===== mp.info.6.r2.1 · Alternative repository ===== -->
 
-  <!-- EV-06. El destino de la copia: si está en la misma máquina o no, de qué
-       tipo es (local, montaje, remoto) y si está activo. -->
+  <!-- EV-06. The backup destination: same machine or not, its type (local,
+       mount, remote) and whether it is active. -->
   <rule id="106605" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^backup_storage$</field>
     <description>mp.info.6 · EV-06 · destino $(destino) ($(tipo)): activo=$(activo)</description>
   </rule>
 
-  <!-- ===== mp.info.6.r1.1 · Prueba de restauración ===== -->
+  <!-- ===== mp.info.6.r1.1 · Restore test ===== -->
 
-  <!-- EV-05. Una prueba de restauración sobre la cuenta o el fichero testigo:
-       si restauró bien, si el contenido coincide con lo esperado y si la
-       limpieza posterior del testigo se completó. Una limpieza fallida deja
-       el testigo `ensfacil_*` sin borrar: el recolector lo trata como
-       degradación, no esta regla. -->
+  <!-- EV-05. A restore test on the account or the witness file: whether the
+       restore worked, whether the content matches the expected one and whether
+       the later cleanup of the witness completed. A failed cleanup leaves the
+       `ensfacil_*` witness undeleted: the collector treats it as degradation,
+       not this rule. -->
   <rule id="106606" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^restore_test$</field>
     <description>mp.info.6 · EV-05 · prueba de restauración $(fecha): resultado=$(resultado), limpieza=$(limpieza)</description>
   </rule>
 
-  <!-- ===== Degradación =====
+  <!-- ===== Degradation =====
 
-       El agente no emite veredictos, pero sí tiene que poder decir que no pudo
-       mirar: la `causa` distingue «la fuente no se pudo leer» (COLLECTION), «el
-       parámetro necesario no está configurado» (CONFIGURATION) o «se leyó y no
-       había nada que medir» (EVIDENCE), y las tres se arreglan en sitios
-       distintos. -->
+       The agent emits no verdicts, but it must be able to say it could not
+       measure: `causa` tells «the source could not be read» (COLLECTION),
+       «the required parameter is not configured» (CONFIGURATION) or «it was
+       read and there was nothing to measure» (EVIDENCE); each is fixed in a
+       different place. -->
   <rule id="106650" level="5">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^evidence_state$</field>
@@ -117,30 +115,30 @@
     <description>mp.info.6 · $(evidence_id) no se ha podido medir ($(causa)): $(motivo)</description>
   </rule>
 
-  <!-- ===== El recolector ===== -->
+  <!-- ===== Collector ===== -->
 
-  <!-- 106797. El latido. Acredita EV-07 (el recolector pasa y declara lo que
-       ha mirado) y habilita las demás: sin un latido reciente el motor no
-       puede distinguir «esta máquina está sana y calla» de «el recolector
-       lleva días parado». -->
+  <!-- 106797. The heartbeat. Supports EV-07 (the collector runs and declares
+       what it looked at) and enables the others: without a recent heartbeat
+       the engine cannot tell «this machine is healthy and silent» from «the
+       collector has been stopped for days». -->
   <rule id="106797" level="3">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^collector_run$</field>
     <description>mp.info.6 · pasada del recolector ($(rol)): $(resultado), cubiertas=$(evidencias_cubiertas)</description>
   </rule>
 
-  <!-- 106798. Aviso operativo: .env ilegible, recolector sin permisos,
-       parámetro mal escrito. No lleva requisito ni evidencia: es higiene del
-       propio pipeline. -->
+  <!-- 106798. Operational warning: unreadable .env, collector without
+       permissions, misspelled parameter. No requirement or evidence: hygiene
+       of the pipeline itself. -->
   <rule id="106798" level="4">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^collector_warning$</field>
     <description>mp.info.6 · aviso del recolector ($(parametro)): $(motivo)</description>
   </rule>
 
-  <!-- 106799. El recolector ha estado parado más tiempo del que admite su
-       cron: durante ese tramo pudo haber ocurrido una copia o una
-       restauración que ya no se puede reconstruir. -->
+  <!-- 106799. The collector was stopped for longer than its cron allows: a
+       backup or restore may have happened in that span that can no longer be
+       reconstructed. -->
   <rule id="106799" level="7">
     <if_sid>106600</if_sid>
     <field name="event" type="pcre2">^collector_missing$</field>
