@@ -249,7 +249,7 @@ console.log('4. Migration');
   set(reseeded, 'op.exp.5', 'P-05', undefined);
   check('a mapped parameter without value (a new seed) takes the stored value', JSON.stringify(valueOf(normalizeOrganizationData(reseeded).configuration, 'op.exp.5', 'P-05')) === '["srv-app01 | pre-app01 | informe 2026-05"]');
 
-  check('the summary counts moves, writes and conflicts', /2 dato\(s\) pasan .* 1 dato\(s\) con valores distintos/.test(summarizeOrganizationMigration({ moved: ['a', 'b'], written: [], conflicts: ['c'] })));
+  check('the summary counts moves, writes and conflicts', /2 dato\(s\) unificado\(s\) .* 1 dato\(s\) con valores distintos/.test(summarizeOrganizationMigration({ moved: ['a', 'b'], written: [], conflicts: ['c'] })));
   const rowCells = (value: unknown) => sameParameterValue({ type: 'table' }, value as any, ['a | b']);
   check('«a | b» and «a | b | » are the same row; order does not matter', rowCells(['a | b | ']) && sameParameterValue({ type: 'list' }, ['x', 'y'], ['y', 'x']));
 }
@@ -399,7 +399,7 @@ console.log('7. Server');
   check('the migration waits for the next save, with its conflicts', service.getPendingOrganizationMigration()?.moved.includes('entorno_preproduccion') && service.getPendingOrganizationMigration()?.conflicts.includes('grupos_privilegiados'));
   await service.updateActiveGlobalConfiguration({ ...active.global, ensLevel: 'ALTO' });
   check('the first save writes the block and says so in its reason', saved.length === 1 && 'organizationData' in saved[0].configuration &&
-    /Configuración global ENS actualizada\. Datos de la organización: 1 dato\(s\) pasan/.test(saved[0].changeReason || ''), saved[0]?.changeReason);
+    /Configuración global ENS actualizada\. Datos de la organización: 1 dato\(s\) unificado\(s\)/.test(saved[0].changeReason || ''), saved[0]?.changeReason);
   check('the conflict stays open after saving: each control keeps its value', JSON.stringify(valueOf(saved[0].configuration, 'op.acc.4', 'P-06')) === '["root"]' && service.getPendingOrganizationMigration() === undefined);
   await service.saveActiveENSConfiguration(setOrganizationValue(service.getActiveENSConfiguration(), 'grupos_privilegiados', ['sudo']), 'Datos de la organización: elegido.');
   check('choosing writes the value into every mapped parameter', JSON.stringify(valueOf(saved[1].configuration, 'op.acc.4', 'P-06')) === '["sudo"]' &&

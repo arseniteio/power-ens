@@ -14,6 +14,11 @@ destructive behaviour must be requested (--sustituir).
 
 Dry-run by default; --apply to write.
 
+ORGANISATION DATA (`configuration.organizationData`, plugin 1.4.0) IS KEPT AS IT IS. A parameter of the
+control that reads an organisation item and has no value (a new control, or after --sustituir) takes the
+item's value, as the plugin does on load; a parameter with a different value is left for the plugin to
+show as a conflict.
+
 THE PER-AGENT LAYER AND THE CUSTOM TEMPLATES (`configuration.agents` and `configuration.templates`,
 plugin 1.3.0) ARE NOT TOUCHED: the whole `_source` is written and only `controls` changes. If a
 parameter is withdrawn from the block and an agent or custom template had a value for it, a warning is
@@ -49,6 +54,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ensfacil_history import save_previous_version  # noqa: E402
+import ensfacil_organization as organization  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
@@ -236,6 +242,25 @@ elif previous and args.sustituir:
 controls = [c for c in controls if c["controlId"] != control_id]
 controls.append(block)
 cfg["controls"] = controls
+
+# --- organisation data: kept; the control's empty parameters that read an item take its value
+shape_errors = organization.validate_shape(cfg.get("organizationData"))
+if shape_errors:
+    print("WARNING: configuration.organizationData is not valid and the plugin will not load the environment: {}".format(
+        " ".join(shape_errors)))
+items = organization.load_items()
+if cfg.get("organizationData") and items:
+    print("Organisation data (configuration.organizationData): kept, {} item(s) with value.".format(
+        len((cfg["organizationData"].get("values") or {}) if isinstance(cfg["organizationData"], dict) else {})))
+for item in items or []:
+    if not any(view["controlId"] == control_id for view in item.get("views", [])) or shape_errors:
+        continue
+    stored = organization.stored_value(cfg, item["id"])
+    if stored is None:
+        continue
+    single = {"controls": [block]}
+    for _, pid, _, value in organization.write_through(single, item, stored, only_empty=True):
+        print("  {} takes «{}» from Datos de la organización: {}".format(pid, item["label"], json.dumps(value, ensure_ascii=False)[:70]))
 
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 cfg["updatedAt"] = now

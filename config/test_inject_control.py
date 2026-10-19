@@ -231,6 +231,29 @@ def main():
                   and "local file" in r.stdout, r.stdout + r.stderr)
         state["history_fails"] = False
 
+        # --- 1.4.0: organisation data is kept and an empty parameter that reads an item takes its value
+        org_block = json.loads(json.dumps(BLOCK))
+        org_block["parameters"].append({"id": "P-11", "name": "grupos_privilegiados", "type": "list", "required": False, "value": None})
+        org_path = os.path.join(tmp, "org-block.json")
+        with open(org_path, "w", encoding="utf-8") as f:
+            json.dump(org_block, f)
+        organization = {"values": {"grupos_privilegiados": ["sudo", "wheel"]}}
+        state["doc"] = {"configuration": {"controls": [], "organizationData": json.loads(json.dumps(organization))}, "updatedAt": ""}
+        r = seed(url, org_path, "--apply")
+        check("organisation data · kept as it is", state["doc"]["configuration"].get("organizationData") == organization, r.stdout)
+        check("organisation data · a new control's parameter takes the item value",
+              values().get("P-11") == ["sudo", "wheel"] and "takes «Grupos con privilegio administrativo»" in r.stdout, r.stdout)
+        configured = json.loads(json.dumps(CONFIGURED))
+        configured["parameters"].append({"id": "P-11", "value": ["root"]})
+        state["doc"] = {"configuration": {"controls": [configured], "organizationData": json.loads(json.dumps(organization))}, "updatedAt": ""}
+        seed(url, org_path, "--apply")
+        check("organisation data · a different value is left for the plugin to show as a conflict", values().get("P-11") == ["root"], str(values()))
+        seed(url, org_path, "--apply", "--sustituir")
+        check("organisation data · with --sustituir the parameter takes the item value again", values().get("P-11") == ["sudo", "wheel"], str(values()))
+        state["doc"] = {"configuration": {"controls": [], "organizationData": {"values": {"retencion": None}}}, "updatedAt": ""}
+        r = seed(url, org_path)
+        check("organisation data · an invalid block is warned about", "configuration.organizationData is not valid" in r.stdout, r.stdout)
+
         # --- does not touch the other controls
         other = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intact"}]}
         state["doc"] = {"configuration": {"controls": [other]}, "updatedAt": ""}

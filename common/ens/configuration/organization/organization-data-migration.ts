@@ -322,8 +322,8 @@ export const summarizeOrganizationMigration = (
   report: Pick<ENSOrganizationMigrationReport, 'moved' | 'written' | 'conflicts'>
 ): string => {
   const parts = [
-    report.moved.length ? `${report.moved.length} dato(s) pasan a Datos de la organización con el valor que ya tenían sus controles` : '',
-    report.written.length ? `${report.written.length} parámetro(s) toman el valor de la organización` : '',
+    report.moved.length ? `${report.moved.length} dato(s) unificado(s) con el valor que ya tenían sus controles` : '',
+    report.written.length ? `${report.written.length} parámetro(s) toman el valor común` : '',
     report.conflicts.length ? `${report.conflicts.length} dato(s) con valores distintos entre controles, pendientes de elegir` : '',
   ].filter(Boolean);
   return parts.length ? `Datos de la organización: ${parts.join('; ')}.` : 'Datos de la organización: sin cambios.';

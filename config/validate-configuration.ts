@@ -13,7 +13,9 @@
  * `traceabilityLevel` or `availabilityLevel` that is not BAJO, MEDIO or ALTO. `inject-control.py` and
  * `set-parameters.py` write what they are given; this check says whether the plugin will accept it.
  *
- * A 1.2.0 document is checked as the plugin loads it: converted first.
+ * A 1.2.0 document is checked as the plugin loads it: converted first. The organisation data
+ * (`organizationData`, 1.4.0) too: what the plugin moves on load, the items with a value, and the items
+ * whose controls hold different values (a choice pending in Configuración > General, not an error).
  *
  * Exits 0 if the document is valid and 1 if not, listing each error.
  */
@@ -31,6 +33,12 @@ import {
 import { getCustomTemplates } from '../common/ens/configuration/templates';
 import { validateControlParameterValues } from '../common/ens/configuration/services/validation-engine';
 import type { ENSControlConfiguration } from '../common/ens/configuration/types';
+import {
+  checkOrganizationDataKeys,
+  describeOrganizationData,
+  normalizeOrganizationData,
+  summarizeOrganizationMigration,
+} from '../common/ens/configuration/organization';
 
 declare const process: {
   argv: string[];
@@ -73,11 +81,30 @@ if (!result.valid) {
 console.log('VALID STRUCTURE: the plugin will load this configuration.');
 
 const conversion = planTemplateMigration(configuration);
-const model = conversion.configuration;
 
 if (conversion.changed) {
   console.log(`1.2.0 document: ${summarizeTemplateMigration(conversion)} The plugin converts it on load and writes it with the next save; each agent's values do not change.`);
 }
+
+const organization = normalizeOrganizationData(conversion.configuration);
+const model = organization.configuration;
+const organizationStates = describeOrganizationData(model);
+const withValue = organizationStates.filter(state => state.status === 'value').map(state => state.item.id);
+
+if (organization.moved.length || organization.written.length) {
+  console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [] })} The plugin does it on load and writes it with the next save.`);
+}
+console.log(`organisation data: ${withValue.length ? withValue.join(', ') : 'no item with value'}`);
+organizationStates
+  .filter(state => state.status === 'conflict')
+  .forEach(state =>
+    console.log(
+      `  PENDING CHOICE «${state.item.label}» (${state.item.id}): ${state.candidates
+        .map(candidate => `${candidate.from} keeps ${candidate.keeps.join(', ') || 'none'}`)
+        .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.`
+    )
+  );
+checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
 
 const templates = getCustomTemplates(model);
 console.log(`custom templates: ${templates.length ? templates.map(template => `${template.controlId} «${template.name}» (${template.id})`).join(', ') : 'none'}`);

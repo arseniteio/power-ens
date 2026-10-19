@@ -82,6 +82,26 @@ A value without object is exact text and removes any mode; emptying the value al
 Mode, parameter, length (512 characters at most) and no leading or trailing spaces are checked; RE2
 syntax is checked by `npx --yes tsx config/validate-configuration.ts` on the written document.
 
+ORGANISATION DATA (plugin 1.4.0). The data several controls ask (who may administer, pre-production
+environment, CCN-authorised algorithms, privileged groups, the Statement of Applicability…) is set once
+in `configuration.organizationData` and written into every parameter that reads it. The `organization`
+key sets an item by its id (list in Configuración > General > «Datos de la organización»):
+
+    {
+      "organization": {
+        "grupos_privilegiados": ["sudo", "wheel"],
+        "entorno_preproduccion": ["srv-app01 | pre-app01 | informe 2026-05"],
+        "retencion": null
+      }
+    }
+
+`null` (or empty) removes the item and its value in every parameter that reads it. The P-xx form keeps
+working: a parameter that is organisation data (op.acc.1 P-11, op.exp.4 P-06…) writes to its item, and
+the plan lists every other parameter that changes with it. A parameter that reads only part of an item
+(op.exp.3 P-03 is the «configuracion» rows of «Personal autorizado») changes only that part. If the item
+has no value yet and the parameter reads only part of it, only the parameter is written: the plugin moves
+it to the item on load, or shows the conflict. Per-agent values work as before.
+
 BEFORE WRITING, the version being replaced is saved in the `wazuh-ens-configuration` history, like the
 plugin does, or, if the index does not accept it, in a local file `active-antes-<date>.json`. The tool
 says where.
@@ -103,6 +123,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ensfacil_history import save_previous_version  # noqa: E402
+import ensfacil_organization as organization  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
@@ -154,6 +175,7 @@ with open(args.fichero, encoding="utf-8") as f:
     wanted = json.load(f)
 
 per_agent = wanted.pop("agents", None) or {}
+per_item = wanted.pop("organization", None) or {}
 
 try:
     current = req("GET", "/%s/_doc/%s" % (INDEX, DOC))["_source"]
@@ -354,6 +376,62 @@ for agent, controls in per_agent.items():
             elif entry_problem(control_id, pid, v):
                 errors.append("agent %s: %s %s %s" % (aid, control_id, pid, entry_problem(control_id, pid, v)))
 
+# --- organisation data: items set by id and P-xx that are a view of an item
+items = organization.load_items()
+# item id -> (new value, what asked for it)
+item_changes = {}
+# (control, parameter) written as a parameter only: the item has no value and the view is partial
+partial_only = set()
+
+if per_item and items is None:
+    errors.append("cannot find common/ens/configuration/organization/organization-data-items.ts: "
+                  "organisation data is declared from the config/ directory of the plugin repo")
+errors += organization.validate_shape(config.get("organizationData"))
+
+
+def ask_item(item_id, value, source):
+    if item_id in item_changes:
+        errors.append("organisation data %s is set twice (%s and %s): set it once"
+                      % (item_id, item_changes[item_id][1], source))
+    else:
+        item_changes[item_id] = (value, source)
+
+
+for item_id, entry in (per_item or {}).items():
+    item = organization.get_item(items, item_id)
+    editable = [i["id"] for i in items or [] if i.get("views")]
+    if item is None or not item.get("views"):
+        errors.append("organisation data has no item %s (items: %s)" % (item_id, ", ".join(editable)))
+    elif isinstance(entry, dict):
+        errors.append("organisation data %s takes a plain value (no matchMode)" % item_id)
+    elif not organization.is_empty(entry) and not valid_value(entry):
+        errors.append("organisation data %s has a value that is not text, number, boolean or list of texts" % item_id)
+    else:
+        ask_item(item_id, None if organization.is_empty(entry) else entry, "organization." + item_id)
+
+for control_id, values in wanted.items():
+    if control_id not in by_id or items is None:
+        continue
+    for pid, entry in values.items():
+        found = organization.find_link(items, control_id, pid)
+        if not found or entry_problem(control_id, pid, entry):
+            continue
+        item, view = found
+        new, _, _ = unwrap(entry)
+        new = None if is_empty(new) else new
+        stored = organization.stored_value(config, item["id"])
+        parameter = next(x for x in by_id[control_id]["parameters"] if x["id"] == pid)
+        if stored is None and not organization.is_identity(view):
+            partial_only.add((control_id, pid))
+            continue
+        result = organization.assign_view(item, stored, view, parameter.get("type"), new)
+        seen = organization.view_value(item, view, parameter.get("type"), result)
+        if not organization.same_value(parameter.get("type"), seen, new) or organization.is_empty(seen) != organization.is_empty(new):
+            errors.append("%s %s is part of organisation data %s and its value does not fit there "
+                          "(a «|» inside an entry, or more cells than columns)" % (control_id, pid, item["id"]))
+        else:
+            ask_item(item["id"], result, "%s %s" % (control_id, pid))
+
 if errors:
     for e in errors:
         print("ERROR: " + e, file=sys.stderr)
@@ -377,6 +455,13 @@ for control_id, values in sorted(wanted.items()):
     for par in by_id[control_id]["parameters"]:
         if par["id"] not in values:
             continue
+        found = organization.find_link(items, control_id, par["id"]) if items else None
+        if found and (control_id, par["id"]) not in partial_only:
+            print("   %-6s is part of «%s» (Datos de la organización): see below" % (par["id"], found[0]["label"]))
+            continue
+        if found:
+            print("   %-6s part of «%s», which has no value yet: only the parameter is written; the plugin "
+                  "moves it on load or shows the conflict" % (par["id"], found[0]["label"]))
         new, new_mode, _ = unwrap(values[par["id"]])
         old = par.get("value")
         old_mode = stored_mode(par.get("matchMode"))
@@ -398,6 +483,21 @@ for control_id, values in sorted(wanted.items()):
             par["matchMode"] = "regex"
         else:
             par.pop("matchMode", None)
+        changes += 1
+
+for item_id, (new, source) in sorted(item_changes.items()):
+    item = organization.get_item(items, item_id)
+    old = organization.stored_value(config, item_id)
+    print("── organisation data «%s» (%s), from %s" % (item["label"], item_id, source))
+    if json.dumps(old) == json.dumps(new):
+        print("   unchanged")
+    else:
+        print("   %s  ->  %s" % (short(old) if old is not None else "(no value)", short(new) if new is not None else "(no value)"))
+        organization.set_stored_value(config, item_id, new)
+        changes += 1
+    for control_id, pid, before, after in organization.write_through(config, item, new):
+        print("   %s %-6s %s  ->  %s" % (control_id, pid, short(before) if before not in (None, "", []) else "(no value)",
+                                       short(after) if after is not None else "(no value)"))
         changes += 1
 
 for agent, controls in sorted(per_agent.items()):

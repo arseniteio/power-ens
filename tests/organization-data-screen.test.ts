@@ -62,7 +62,7 @@ client.setENSConfigurationHttp(() => ({
   check('«Elegir este valor» saves the value in every mapped parameter', JSON.stringify(param(chosen.configuration, 'op.acc.4', 'P-06').value) === '["sudo","wheel"]' &&
     JSON.stringify(chosen.configuration.organizationData.values.grupos_privilegiados) === '["sudo","wheel"]', chosen?.configuration?.organizationData);
   check('with a reason that names the item and the source', /«Grupos con privilegio administrativo» con el valor de op\.acc\.1 P-11/.test(chosen.changeReason), chosen.changeReason);
-  check('the first save also records the migration', /Datos de la organización: 1 dato\(s\) pasan/.test(chosen.changeReason), chosen.changeReason);
+  check('the first save also records the migration', /Datos de la organización: 1 dato\(s\) unificado\(s\)/.test(chosen.changeReason), chosen.changeReason);
   check('the screen is told', savedCount === 1);
   screen = await h.render(OrganizationDataPanel, props());
   check('no conflict left', !/Valores distintos entre controles/.test(screen));

@@ -7,7 +7,8 @@ Covered:
   - it does not invent: it rejects an unseeded control, a nonexistent parameter, an organization
     parameter per agent and an impossible value shape, writing nothing;
   - dry-run by default;
-  - the «Expresión regular» mode (`matchMode`) in the organization and in an agent.
+  - the «Expresión regular» mode (`matchMode`) in the organization and in an agent;
+  - organisation data (1.4.0): items by id, the P-xx form writing to its item, partial views.
 
     python3 test_set_parameters.py
 
@@ -253,6 +254,84 @@ def main():
             version = state["version"]
             r = run_script(url, tmp, content, "--apply")
             check("regex · refuses " + name, r.returncode == 1 and reason in r.stderr and state["version"] == version, r.stderr)
+
+        # --- 1.4.0: organisation data
+        org_doc = {"configuration": {"controls": [
+            {"controlId": "op.acc.1", "parameters": [{"id": "P-11", "type": "list", "value": ["sudo"]}, {"id": "P-06", "type": "duration_days", "value": 365}]},
+            {"controlId": "op.acc.2", "parameters": [{"id": "P-12", "type": "list", "value": ["sudo"]}]},
+            {"controlId": "op.acc.4", "parameters": [{"id": "P-06", "type": "list", "value": ["root"]}]},
+            {"controlId": "op.exp.3", "parameters": [{"id": "P-03", "type": "list", "value": ["dioni"]}]},
+            {"controlId": "mp.info.6", "parameters": [{"id": "P-07", "type": "list", "value": ["root"]}, {"id": "P-03", "type": "duration_days", "value": 30}]},
+        ]}}
+
+        def org_param(control_id, parameter_id):
+            control = next(c for c in state["doc"]["configuration"]["controls"] if c["controlId"] == control_id)
+            return next(x for x in control["parameters"] if x["id"] == parameter_id)
+
+        state["doc"] = json.loads(json.dumps(org_doc))
+        version = state["version"]
+        r = run_script(url, tmp, {"organization": {"grupos_privilegiados": ["sudo", "wheel"]}})
+        check("organisation · dry-run lists every parameter that changes and writes nothing",
+              state["version"] == version and "op.acc.4 P-06" in r.stdout and "DRY-RUN" in r.stdout, r.stdout + r.stderr)
+        r = run_script(url, tmp, {"organization": {"grupos_privilegiados": ["sudo", "wheel"]}}, "--apply")
+        cfg = state["doc"]["configuration"]
+        check("organisation · an item is stored and written into every parameter that reads it",
+              r.returncode == 0 and cfg["organizationData"]["values"]["grupos_privilegiados"] == ["sudo", "wheel"]
+              and all(org_param(c, p)["value"] == ["sudo", "wheel"] for c, p in [("op.acc.1", "P-11"), ("op.acc.2", "P-12"), ("op.acc.4", "P-06")]),
+              r.stdout + r.stderr + json.dumps(cfg.get("organizationData")))
+        r = run_script(url, tmp, {"op.acc.4": {"P-06": ["wheel"]}}, "--apply")
+        check("organisation · the P-xx form writes to the item and to the other parameters",
+              r.returncode == 0 and state["doc"]["configuration"]["organizationData"]["values"]["grupos_privilegiados"] == ["wheel"]
+              and org_param("op.acc.1", "P-11")["value"] == ["wheel"] and "is part of «Grupos con privilegio administrativo»" in r.stdout,
+              r.stdout + r.stderr)
+        r = run_script(url, tmp, {"organization": {"grupos_privilegiados": None}}, "--apply")
+        cfg = state["doc"]["configuration"]
+        check("organisation · null removes the item and the value of every parameter (no null written)",
+              r.returncode == 0 and "grupos_privilegiados" not in cfg["organizationData"]["values"]
+              and "value" not in org_param("op.acc.2", "P-12") and "null" not in json.dumps(cfg), r.stdout + r.stderr)
+
+        state["doc"] = json.loads(json.dumps(org_doc))
+        r = run_script(url, tmp, {"op.exp.3": {"P-03": ["ana"]}}, "--apply")
+        check("organisation · part of an item without value: only the parameter is written",
+              r.returncode == 0 and org_param("op.exp.3", "P-03")["value"] == ["ana"] and "organizationData" not in state["doc"]["configuration"]
+              and "has no value yet" in r.stdout, r.stdout + r.stderr)
+        run_script(url, tmp, {"organization": {"personal_autorizado": ["root | configuracion, copias", "ana | mantenimiento | srv"]}}, "--apply")
+        r = run_script(url, tmp, {"op.exp.3": {"P-03": ["bob"]}}, "--apply")
+        cfg = state["doc"]["configuration"]
+        check("organisation · part of an item: only its rows change, the other uses stay",
+              r.returncode == 0 and cfg["organizationData"]["values"]["personal_autorizado"] == ["root | copias", "ana | mantenimiento | srv", "bob | configuracion"]
+              and org_param("op.exp.3", "P-03")["value"] == ["bob"] and org_param("mp.info.6", "P-07")["value"] == ["root"],
+              r.stdout + r.stderr + json.dumps(cfg.get("organizationData")))
+        run_script(url, tmp, {"organization": {"retencion": ["cuentas | | 400", "copias | | 45"]}}, "--apply")
+        check("organisation · a one-value parameter reads its row as a number",
+              org_param("op.acc.1", "P-06")["value"] == 400 and org_param("mp.info.6", "P-03")["value"] == 45,
+              json.dumps(state["doc"]["configuration"]["controls"]))
+
+        for name, content, reason in [
+            ("an unknown item", {"organization": {"nope": ["x"]}}, "has no item nope"),
+            ("the informative item", {"organization": {"sistemas_alcance": ["x"]}}, "has no item sistemas_alcance"),
+            ("a mode on an item", {"organization": {"grupos_privilegiados": {"value": "^a$", "matchMode": "regex"}}}, "takes a plain value"),
+            ("an item set twice", {"organization": {"grupos_privilegiados": ["a"]}, "op.acc.1": {"P-11": ["b"]}}, "is set twice"),
+            ("a value that does not fit the item", {"op.exp.3": {"P-03": ["a | b"]}}, "does not fit there"),
+        ]:
+            state["doc"] = json.loads(json.dumps(org_doc))
+            state["doc"]["configuration"]["organizationData"] = {"values": {"personal_autorizado": ["root | configuracion"]}}
+            version = state["version"]
+            r = run_script(url, tmp, content, "--apply")
+            check("organisation · refuses " + name, r.returncode == 1 and reason in r.stderr and state["version"] == version, r.stdout + r.stderr)
+        if lab and os.path.exists(lab):
+            with open(lab, encoding="utf-8") as handle:
+                state["doc"] = {"configuration": json.load(handle)["_source"]["configuration"]}
+            r = run_script(url, tmp, {"op.acc.1": {"P-11": ["sudo", "wheel", "admin"]}}, "--apply")
+            check("organisation · lab copy: the P-xx form resolves the groups conflict in every control",
+                  r.returncode == 0 and org_param("op.acc.4", "P-06")["value"] == ["sudo", "wheel", "admin"]
+                  and state["doc"]["configuration"]["organizationData"]["values"] == {"grupos_privilegiados": ["sudo", "wheel", "admin"]},
+                  r.stdout + r.stderr)
+        state["doc"] = json.loads(json.dumps(org_doc))
+        state["doc"]["configuration"]["organizationData"] = {"values": {"retencion": None}}
+        r = run_script(url, tmp, {"op.acc.1": {"P-11": ["x"]}}, "--apply")
+        check("organisation · refuses to write over an invalid block, saying where",
+              r.returncode == 1 and "organizationData.values.retencion" in r.stderr, r.stderr)
 
         for name, content, reason in [
             ("rejects an organization parameter per agent", {"agents": {"028": {"op.acc.1": {"P-04": ["x"]}}}}, "organization parameter"),
