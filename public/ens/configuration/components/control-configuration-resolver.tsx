@@ -24,9 +24,7 @@ interface ControlConfigurationResolverProps {
   control: ENSControlConfiguration;
   activeLevel: ENSLevel;
   onConfigurationSaved: () => void;
-  // Los parámetros de este nivel de la pantalla (Organización): el estado se
-  // calcula solo con ellos y el formulario los enseña arriba; el resto va en
-  // un desplegable. Sin esto, todos.
+  // Parameters of this screen level (Organización): the state is computed from them alone and the form shows them first; the rest go in a dropdown. Without it, all.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;
@@ -82,10 +80,7 @@ const getConfigurationStateDescription = (
     );
   }
 
-  // El motivo, no solo el recuento: "P-07 tiene un valor inválido: 'abc' no es
-  // un umask octal" se arregla corrigiendo; "faltan P-01, P-03" se arregla
-  // rellenando. Decirlo mal manda al auditor a buscar un campo vacío que está
-  // lleno.
+  // The reason, not just the count: an invalid value is fixed by correcting, a missing one by filling.
   if (state.status === 'INVALID') {
     return (
       `Valores inválidos para el nivel ${activeLevel}: ${state.validation.issues
@@ -140,7 +135,7 @@ export const ControlConfigurationResolver = ({
   secondaryDescription,
   focusParameterId,
 }: ControlConfigurationResolverProps) => {
-  // Con un parámetro pedido por la URL se abre directamente el formulario.
+  // With a parameter requested by the URL, the form opens directly.
   const [
     isConfiguring,
     setIsConfiguring,

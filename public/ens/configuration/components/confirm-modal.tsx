@@ -10,13 +10,11 @@ import {
 interface ConfirmModalProps {
   title: string;
   confirmLabel: string;
-  // Si se da, hay que teclearla para confirmar. Es la regla de la casa para lo
-  // que reescribe en bloque la configuración (ver la cabecera de
-  // `control-configuration-reset.tsx`): un «¿seguro?» se acepta sin leerlo.
+  // If given, it must be typed to confirm (house rule for bulk rewrites; see `control-configuration-reset.tsx`).
   typedWord?: string;
   danger?: boolean;
   onCancel: () => void;
-  // Devuelve un error para enseñarlo, o nada si fue bien.
+  // Returns an error to show, or nothing on success.
   onConfirm: () => Promise<string | undefined>;
   children: React.ReactNode;
 }
@@ -40,8 +38,7 @@ export const ConfirmModal = ({
     setBusy(true);
     setError(undefined);
     const failure = await onConfirm();
-    // Si fue bien, quien abrió el modal lo cierra: no se toca el estado de un
-    // componente que ya no está.
+    // On success the caller closes the modal; state of an unmounted component is not touched.
     if (failure) {
       setBusy(false);
       setError(failure);

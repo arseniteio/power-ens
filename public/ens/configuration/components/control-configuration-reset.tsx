@@ -16,17 +16,8 @@ import {
 import { updateActiveControlConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 import type { ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 
-// Borrar la configuración declarada de un control.
-//
-// EL BOTÓN PIDE ESCRIBIR EL ID DEL CONTROL, y no es celo burocrático. Esta casa
-// ya perdió la configuración de op.acc.2 —de 83 % a 17 %— por una operación
-// destructiva que «avisaba por pantalla»: un «¿seguro?» se acepta sin leerlo,
-// y quien lo acepta suele estar haciendo otra cosa. Tener que teclear
-// `op.acc.2` obliga a mirar QUÉ se está borrando.
-//
-// Y lo que se borra son los VALORES, no el control: si desapareciera el bloque,
-// la tarjeta se iría de la pantalla y el control quedaría imposible de
-// reconfigurar desde la UI. Ver la cabecera de `configuration-reset-service`.
+// Deletes the declared configuration of a control.
+// The button asks to type the control id: a "¿seguro?" is accepted without reading. Only the VALUES are deleted, not the control (see `configuration-reset-service`).
 
 interface ControlConfigurationResetProps {
   control: ENSControlConfiguration;
@@ -50,9 +41,7 @@ export const ControlConfigurationReset = ({
     setError(null);
   };
 
-  // Sobre un control que no tiene nada declarado no hay nada que borrar, y
-  // ofrecer el botón sugeriría que sí. Se dice en vez de callar: un botón
-  // ausente sin explicación es un botón que el operador busca durante un rato.
+  // A control with nothing declared has nothing to delete; this is stated instead of hiding the button.
   if (summary.clearedParameters === 0) {
     return (
       <EuiText size='s' color='subdued'>
@@ -94,9 +83,7 @@ export const ControlConfigurationReset = ({
       close();
       onConfigurationSaved();
     } catch (caught) {
-      // El error se ENSEÑA. Un borrado que falla en silencio deja al operador
-      // creyendo que borró, y la próxima decisión la toma sobre datos que
-      // siguen ahí.
+      // The error is shown: a silent failure would leave the operator believing it was deleted.
       setError(
         caught instanceof Error
           ? caught.message

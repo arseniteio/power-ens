@@ -25,14 +25,12 @@ import { withMatchMode } from '../../../../common/ens/configuration/services/par
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
   onConfigurationSaved: () => void;
-  // Qué parámetros se enseñan arriba (por defecto, todos) y cuáles en un
-  // desplegable aparte, con su título. Se guarda SIEMPRE el control entero:
-  // filtrar lo que se enseña no puede borrar lo que no se enseña.
+  // Parameters shown first (default, all) and those in a separate dropdown, with its title. The whole control is ALWAYS saved: filtering what is shown cannot delete what is not shown.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;
   secondaryDescription?: string;
-  // El parámetro que pide la URL: se abre su desplegable y se lleva a la vista.
+  // Parameter requested by the URL: its dropdown opens and it scrolls into view.
   focusParameterId?: string;
 }
 
@@ -127,9 +125,7 @@ export const ConfigurationSession = ({
   const [saveError, setSaveError] =
     useState<string | undefined>();
 
-  // Motivos por los que el guardado se ha rechazado sin llegar a salir de la
-  // pantalla. Van aparte de `saveError` (errores del servidor) porque el arreglo
-  // es distinto: aquí el auditor corrige un campo, allí reintenta.
+  // Reasons why the save was rejected before leaving the screen; apart from `saveError` (server errors) because the fix differs: here a field is corrected, there it is retried.
   const [valueIssues, setValueIssues] =
     useState<string[]>([]);
 
@@ -151,10 +147,7 @@ export const ConfigurationSession = ({
       return;
     }
 
-    // Un valor inválido se rechaza aquí, con el motivo. Guardarlo y dejar que el
-    // fallo reaparezca luego como un control degradado sin explicación es lo que
-    // había que dejar de hacer: la ausencia se arregla rellenando, esto se
-    // arregla corrigiendo, y el auditor tiene que poder distinguirlo.
+    // An invalid value is rejected here, with the reason: absence is fixed by filling, this by correcting.
     const issues = validateControlParameterValues(
       draftControl,
       values

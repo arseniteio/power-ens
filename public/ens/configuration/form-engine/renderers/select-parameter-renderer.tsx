@@ -7,24 +7,7 @@ import {
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// Renderer de parámetros `type: 'select'` con opciones declaradas.
-//
-// Por qué existe: hasta ahora los tres selects del producto (op.acc.1 P-01
-// `fuente_identidad`, op.acc.2 P-05 `modelo_privilegios` y mp.info.6 P-10
-// `herramienta_backup`) se editaban como texto libre, y su validación degeneraba
-// en "no está vacío" porque ningún bloque declaraba `options`: `herramienta_backup
-// = 'cualquier cosa'` se daba por bueno y el control salía evaluable.
-//
-// Declarar las opciones sin ofrecerlas en el formulario habría sido PEOR que el
-// estado anterior: el campo dejaría escribir valores que el guardado rechaza
-// después. Las dos cosas van juntas, y por eso este renderer entra en el mismo
-// cambio que las `options` de los bloques.
-//
-// La lista de opciones y la resolución del valor actual vienen de
-// `resolveSelectFieldModel` (services/parameter-value-validator), no de aquí: el
-// formulario tiene que entender las opciones EXACTAMENTE igual que el validador
-// —incluida la tolerancia con mayúsculas y espacios—, o habría valores que el
-// desplegable ofrece y el motor rechaza.
+// Renderer of `type: 'select'` parameters with declared options. Options and current value come from `resolveSelectFieldModel` (services/parameter-value-validator), so the dropdown and the validator understand options identically (including case and whitespace tolerance).
 
 export const SelectParameterRenderer = ({
   parameter,
@@ -41,9 +24,7 @@ export const SelectParameterRenderer = ({
     value
   );
 
-  // La opción vacía está siempre disponible: dejar un parámetro sin valor es una
-  // respuesta legítima —el control se degrada a NO EVALUABLE, que es honesto— y
-  // un desplegable que no deja volver atrás obligaría a inventarse un valor.
+  // The empty option is always available: leaving a parameter unset is legitimate (the control degrades to NO EVALUABLE).
   const options = [
     {
       value: '',
