@@ -12,6 +12,7 @@ import {
   validateCommonMatchModesShape,
   validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
+import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
 
 interface Options {
   logger: Logger;
@@ -91,6 +92,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, `configuration.controls no es válida: ${modeErrors.slice(0, 5).join(' ')}`);
     }
 
+    const organizationErrors = validateOrganizationDataShape(bodyText.configuration.organizationData);
+    if (organizationErrors.length) {
+      return failure(response, 400, `configuration.organizationData no es válida: ${organizationErrors.slice(0, 5).join(' ')}`);
+    }
+
     const access = await administrator(context, response, 'save the configuration');
     if (access.error) return access.error;
     const username = access.usuario!.username;
@@ -120,10 +126,18 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { templates: previous2.templates }
           : {};
 
+      // And for the organisation data.
+      const keptOrganizationData =
+        !Object.prototype.hasOwnProperty.call(bodyText.configuration, 'organizationData') &&
+        previous2.organizationData && typeof previous2.organizationData === 'object'
+          ? { organizationData: previous2.organizationData }
+          : {};
+
       const configurationValue = {
         ...bodyText.configuration,
         ...keepsAgents,
         ...keptTemplates,
+        ...keptOrganizationData,
         createdAt: initial ? now : text(previous2.createdAt) || now,
         createdBy: initial ? username : text(previous2.createdBy) || username,
         updatedAt: now,

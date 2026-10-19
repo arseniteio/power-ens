@@ -9,6 +9,7 @@ import type {
   ENSControlConfiguration,
   ENSControlParameter,
 } from '../types';
+import { isOrganizationDataParameter } from '../organization/organization-data-items';
 
 export interface ENSConfigurationResetSummary {
   controlId: string;
@@ -16,6 +17,12 @@ export interface ENSConfigurationResetSummary {
   clearedParameters: number;
   parameterIds: string[];
 }
+
+// Organisation data is shared with other controls: it is edited in General, not deleted with one control.
+const isShared = (
+  control: ENSControlConfiguration,
+  parameter: ENSControlParameter
+): boolean => isOrganizationDataParameter(control.controlId, parameter.id);
 
 const hasValue = (
   parameter: ENSControlParameter
@@ -42,7 +49,7 @@ const hasValue = (
 export const summarizeControlConfigurationReset = (
   control: ENSControlConfiguration
 ): ENSConfigurationResetSummary => {
-  const withValue = control.parameters.filter(hasValue);
+  const withValue = control.parameters.filter(parameter => hasValue(parameter) && !isShared(control, parameter));
 
   return {
     controlId: control.controlId,
@@ -67,6 +74,10 @@ export const buildClearedControlConfiguration = (
   return {
     ...control,
     parameters: control.parameters.map(parameter => {
+      if (isShared(control, parameter)) {
+        return parameter;
+      }
+
       const cleared = { ...parameter };
 
       delete cleared.value;

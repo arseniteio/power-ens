@@ -1,4 +1,4 @@
-import type { ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
+import type { ENSAgentParameterValue, ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
 
 export type {
   ENSAgentControlOverrides,
@@ -186,6 +186,13 @@ export interface ENSConfigurationVersion {
   agents?: ENSAgentsConfiguration;
   // Custom control templates (1.3.0). Its presence marks a 1.3.0 document; built-ins live in code.
   templates?: ENSCustomTemplate[];
+  // Shared data asked once (1.4.0); each mapped control parameter is a view of its item. Absent: not migrated.
+  organizationData?: ENSOrganizationData;
+}
+
+export interface ENSOrganizationData {
+  // Value of each item by id; an absent key is no value, never `null`. Unknown ids (a later version) are kept.
+  values: Record<string, ENSAgentParameterValue>;
 }
 export type ENSConfigurationLifecycleStatus =
   | 'DRAFT'

@@ -2,6 +2,7 @@ import { withRequestTimeout } from '../../../platform/request-timeout';
 import { ENSFACIL_CONFIGURATION_PATH } from '../../../constants';
 
 import { ENSConfigurationVersion } from '../types';
+import { normalizeOrganizationData } from '../organization/organization-data-migration';
 
 const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 
@@ -112,8 +113,9 @@ export async function saveENSConfiguration(
 ): Promise<ENSConfigurationServerState> {
   const normalizedChangeReason = changeReason?.trim();
 
+  // Every save writes each organisation item into its mapped parameters (items in conflict stay as they are).
   const requestBody: ENSConfigurationSaveRequest = {
-    configuration: withoutDerivedParameterStatuses(configuration),
+    configuration: withoutDerivedParameterStatuses(normalizeOrganizationData(configuration).configuration),
     ...(normalizedChangeReason
       ? { changeReason: normalizedChangeReason }
       : {}),

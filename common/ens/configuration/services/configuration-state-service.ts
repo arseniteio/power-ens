@@ -20,6 +20,11 @@ import {
   planTemplateMigration,
   summarizeTemplateMigration,
 } from '../agents/template-migration';
+import {
+  ENSOrganizationMigrationReport,
+  normalizeOrganizationData,
+  summarizeOrganizationMigration,
+} from '../organization/organization-data-migration';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
@@ -31,17 +36,30 @@ let pendingTemplateMigration: ENSTemplateMigrationPlan | undefined;
 export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefined =>
   pendingTemplateMigration;
 
+// The organisation data migration done on load, same rule: in memory until the next save. Only set when it moves,
+// writes or finds a conflict; adding the empty block needs no notice.
+let pendingOrganizationMigration: ENSOrganizationMigrationReport | undefined;
+
+export const getPendingOrganizationMigration = (): ENSOrganizationMigrationReport | undefined =>
+  pendingOrganizationMigration;
+
 const commitPersisted = (
   configuration: ENSConfigurationVersion
 ): ENSConfigurationVersion => {
   pendingTemplateMigration = undefined;
+  pendingOrganizationMigration = undefined;
   return ensConfigurationRepository.commitPersisted(configuration);
 };
 
-// The save that first writes the conversion also says so in the history and the audit trail.
+// The save that first writes a conversion also says so in the history and the audit trail.
 const withPendingConversion = (reason: string): string => {
-  const conversion = pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '';
-  return conversion && !reason.includes(conversion) ? `${reason} ${conversion}` : reason;
+  const conversions = [
+    pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '',
+    pendingOrganizationMigration && (pendingOrganizationMigration.moved.length || pendingOrganizationMigration.written.length)
+      ? summarizeOrganizationMigration({ ...pendingOrganizationMigration, conflicts: [] })
+      : '',
+  ].filter(conversion => conversion && !reason.includes(conversion));
+  return conversions.length ? `${reason} ${conversions.join(' ')}` : reason;
 };
 
 export const getENSConfigurationHydrationState =
@@ -88,8 +106,14 @@ export const hydrateENSConfiguration = (
       const migration = planTemplateMigration(configuration);
       pendingTemplateMigration = migration.changed ? migration : undefined;
 
+      const organization = normalizeOrganizationData(migration.configuration);
+      pendingOrganizationMigration =
+        organization.moved.length || organization.written.length || organization.conflicts.length
+          ? organization
+          : undefined;
+
       return ensConfigurationRepository.completeHydration(
-        migration.configuration
+        organization.configuration
       );
     } catch (error) {
       ensConfigurationRepository.failHydration(
