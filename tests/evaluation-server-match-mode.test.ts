@@ -1,14 +1,4 @@
-/**
- * The server evaluation with «Expresión regular» at each level: every agent row of op.acc.1 EV-05 (service accounts
- * with interactive login, judged against P-03) is judged with the value AND the mode resolved for that agent.
- *
- *   npx --yes tsx tests/evaluation-server-match-mode.test.ts
- *
- *   1. Modes at every level: common regex, template regex, exact override over a regex template, regex override,
- *      exact template over a regex common value. Same as the browser engine.
- *   2. A document without matchMode compares literally, as 1.2.0 did.
- *   3. An invalid override pattern leaves only that agent's EV-05 NO_EVALUABLE, with the reason.
- */
+/** Server evaluation with regular-expression mode at each level. */
 import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService } from '../server/lib/evaluation/evaluation-service';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
