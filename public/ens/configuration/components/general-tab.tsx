@@ -9,6 +9,7 @@ import {
 
 import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import { GlobalConfigurationPanel } from './global-configuration-panel';
+import { OrganizationDataPanel } from './organization-data-panel';
 import { scopeModeLabel } from './labels';
 
 interface GeneralTabProps {
@@ -22,6 +23,10 @@ export const GeneralTab = ({ configuration, onConfigurationSaved }: GeneralTabPr
   return (
     <>
       <GlobalConfigurationPanel configuration={configuration.global} onConfigurationSaved={onConfigurationSaved} />
+
+      <EuiSpacer size='l' />
+
+      <OrganizationDataPanel configuration={configuration} onConfigurationSaved={onConfigurationSaved} />
 
       <EuiSpacer size='l' />
 

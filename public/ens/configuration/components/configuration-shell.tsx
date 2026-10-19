@@ -43,6 +43,7 @@ import { lifecycleLabel } from './labels';
 import { ControlsTab } from './controls-tab';
 import { AgentsTab } from './agents-tab';
 import { GeneralTab } from './general-tab';
+import { OrganizationDataNotice } from './organization-data-panel';
 
 // The URL decides what is shown, so the control detail links here and the browser's «back» works.
 export const ConfigurationShell = () => {
@@ -138,6 +139,10 @@ export const ConfigurationShell = () => {
             </EuiCallOut>
             <EuiSpacer size='m' />
           </>
+        )}
+
+        {target.view !== 'general' && (
+          <OrganizationDataNotice configuration={activeConfiguration} onOpen={() => navigate({ view: 'general' })} />
         )}
 
         <EuiTabs>

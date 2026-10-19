@@ -22,6 +22,7 @@ import {
 } from '../agents/template-migration';
 import {
   ENSOrganizationMigrationReport,
+  keepOrganizationParameters,
   normalizeOrganizationData,
   summarizeOrganizationMigration,
 } from '../organization/organization-data-migration';
@@ -186,7 +187,7 @@ export const updateActiveControlConfiguration = async (
           control =>
             control.controlId ===
             controlConfiguration.controlId
-              ? controlConfiguration
+              ? keepOrganizationParameters(controlConfiguration, control)
               : control
         ),
     };

@@ -4,6 +4,7 @@
 import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
+  ENSControlConfiguration,
   ENSControlParameter,
   ENSOrganizationData,
 } from '../types';
@@ -12,6 +13,7 @@ import {
   ENS_ORGANIZATION_DATA_ITEMS,
   ENSOrganizationDataItem,
   ENSOrganizationDataView,
+  isOrganizationDataParameter,
 } from './organization-data-items';
 import {
   ENSOrganizationRow,
@@ -325,4 +327,25 @@ export const summarizeOrganizationMigration = (
     report.conflicts.length ? `${report.conflicts.length} dato(s) con valores distintos entre controles, pendientes de elegir` : '',
   ].filter(Boolean);
   return parts.length ? `Datos de la organización: ${parts.join('; ')}.` : 'Datos de la organización: sin cambios.';
+};
+
+// A control saved from its form keeps the organisation values it had: they are edited only in General, and a form
+// opened before a change there must not bring the old value back.
+export const keepOrganizationParameters = (
+  next: ENSControlConfiguration,
+  current: ENSControlConfiguration | undefined
+): ENSControlConfiguration => {
+  if (!current) return next;
+  let changed = false;
+  const parameters = next.parameters.map(parameter => {
+    if (!isOrganizationDataParameter(next.controlId, parameter.id)) return parameter;
+    const stored = current.parameters.find(candidate => candidate.id === parameter.id);
+    if (JSON.stringify(stored?.value) === JSON.stringify(parameter.value)) return parameter;
+    changed = true;
+    const kept: ENSControlParameter = { ...parameter };
+    if (stored?.value === undefined) delete kept.value;
+    else kept.value = stored.value;
+    return kept;
+  });
+  return changed ? { ...next, parameters } : next;
 };
