@@ -1,18 +1,4 @@
-/**
- * op.acc.5 · la elección de refuerzo, el incumplimiento directo de R1 y el
- * juicio de sus evidencias, de punta a punta por el motor real.
- *
- *     docker run --rm -v "$PWD":/w -w /w node:22-alpine npx --yes tsx tests/op-acc-5-judgment.test.ts
- *
- * POR QUÉ EXISTE. op.acc.5 es el primer control cuyo DENOMINADOR depende de un
- * parámetro: los refuerzos R1 a R4 son una elección declarada en P-01, no una
- * acumulación. Si la policy fallara en silencio, el porcentaje contaría los
- * cuatro refuerzos a la vez —o ninguno— y nada daría error. Y R1 en MEDIO o
- * ALTO tiene que incumplir sin mirar un log.
- *
- * Reglas de la casa: cada caso mueve UN eje respecto del anterior y lleva al
- * lado la reversión que demuestra que no pasaría siempre.
- */
+/** op.acc.5: reinforcement choice, direct R1 breach and judgment of its evidences, through the real engine. */
 import { opAcc5CatalogDefinition } from '../common/ens/catalog/op-acc-5';
 import { opAcc5Configuration } from '../common/ens/configuration/data/op-acc-5-parameters';
 import type {
@@ -28,37 +14,33 @@ import { requirementVerdict } from '../common/ens/core/evaluation/utils/verdict'
 
 declare const process: { exit(code: number): void };
 
-// --- comprobador mínimo ----------------------------------------------------
+const failures: string[] = [];
 
-const fallos: string[] = [];
-
-const comprueba = (
-  nombre: string,
-  condicion: boolean,
-  detalle: string = ''
+const check = (
+  name: string,
+  condition: boolean,
+  detail: string = ''
 ): void => {
-  if (condicion) {
-    console.log(`  ok   ${nombre}`);
+  if (condition) {
+    console.log(`  ok   ${name}`);
 
     return;
   }
 
-  fallos.push(nombre);
-  console.log(`  FAIL ${nombre}${detalle ? ` — ${detalle}` : ''}`);
+  failures.push(name);
+  console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const bloque = (titulo: string): void => console.log(`\n${titulo}`);
+const section = (title: string): void => console.log(`\n${title}`);
 
-// --- fixtures --------------------------------------------------------------
+const NOW = new Date('2026-09-16T12:00:00Z');
 
-const AHORA = new Date('2026-09-16T12:00:00Z');
-
-const hace = (horas: number): string =>
-  new Date(AHORA.getTime() - horas * 3600 * 1000).toISOString();
+const ago = (horas: number): string =>
+  new Date(NOW.getTime() - horas * 3600 * 1000).toISOString();
 
 type Valores = Record<string, string | number | boolean | string[]>;
 
-const configuracion = (valores: Valores): ENSControlConfiguration => ({
+const buildConfiguration = (valores: Valores): ENSControlConfiguration => ({
   ...opAcc5Configuration,
   parameters: opAcc5Configuration.parameters.map(parameter =>
     Object.prototype.hasOwnProperty.call(valores, parameter.id)
@@ -67,8 +49,7 @@ const configuracion = (valores: Valores): ENSControlConfiguration => ({
   ),
 });
 
-// La configuración COMPLETA de un cliente R2 de nivel MEDIO.
-const COMPLETA: Valores = {
+const COMPLETE: Valores = {
   'P-01': 'R2',
   'P-02': ['sede | sede.organismo.es | /var/log/sede/autenticacion.json'],
   'P-03': 5,
@@ -87,126 +68,123 @@ const COMPLETA: Valores = {
 };
 
 const sin = (valores: Valores, ...ids: string[]): Valores => {
-  const copia = { ...valores };
-  ids.forEach(id => delete copia[id]);
+  const copy = { ...valores };
+  ids.forEach(id => delete copy[id]);
 
-  return copia;
+  return copy;
 };
 
-let secuencia = 0;
+let sequence = 0;
 
-const hecho = (
+const fact = (
   eventType: string,
   evidenceId: string | undefined,
   attributes: Record<string, unknown>,
   horas = 1
 ): ENSNormalizedEvent => ({
-  id: `ev-${++secuencia}`,
+  id: `ev-${++sequence}`,
   controlId: 'op.acc.5',
   evidenceId,
   eventType,
   sourceType: 'WAZUH_ALERT',
-  timestamp: hace(horas),
+  timestamp: ago(horas),
   agentId: '001',
   agentName: 'portal-01',
   attributes,
 });
 
-const latido = (cubiertas: string, horas = 1) =>
-  hecho('collector_run', undefined, {
+const heartbeat = (covered: string, horas = 1) =>
+  fact('collector_run', undefined, {
     resultado: 'completada',
-    evidencias_cubiertas: cubiertas,
+    evidencias_cubiertas: covered,
   }, horas);
 
-// Lo que emite un servicio R2 sano durante una pasada.
-const SANO: ENSNormalizedEvent[] = [
-  hecho('access_log_source', 'EV-01', { servicio: 'sede', dias_conservados: 400 }),
-  hecho('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'activado', intentos: 5, reactivacion: 'intervencion' }),
-  hecho('failed_attempt_streak', 'EV-02', { servicio: 'sede', usuario: 'eve', intentos: 3, bloqueo_registrado: 'no' }),
-  hecho('credential_age', 'EV-04', { servicio: 'sede', usuario: 'ana', dias_desde_cambio: 30 }),
-  hecho('credential_disable_delay', 'EV-05', { servicio: 'sede', usuario: 'bob', motivo: 'compromiso', horas: 4 }),
-  hecho('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R2' }),
-  hecho('external_auth_success', 'EV-01', { servicio: 'sede', usuario: 'ana', refuerzo: 'R2' }),
-  latido('EV-03,EV-06,EV-09'),
+const HEALTHY: ENSNormalizedEvent[] = [
+  fact('access_log_source', 'EV-01', { servicio: 'sede', dias_conservados: 400 }),
+  fact('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'activado', intentos: 5, reactivacion: 'intervencion' }),
+  fact('failed_attempt_streak', 'EV-02', { servicio: 'sede', usuario: 'eve', intentos: 3, bloqueo_registrado: 'no' }),
+  fact('credential_age', 'EV-04', { servicio: 'sede', usuario: 'ana', dias_desde_cambio: 30 }),
+  fact('credential_disable_delay', 'EV-05', { servicio: 'sede', usuario: 'bob', motivo: 'compromiso', horas: 4 }),
+  fact('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R2' }),
+  fact('external_auth_success', 'EV-01', { servicio: 'sede', usuario: 'ana', refuerzo: 'R2' }),
+  heartbeat('EV-03,EV-06,EV-09'),
 ];
 
-const evalua = (
-  nivel: ENSLevel,
+const evaluate = (
+  level: ENSLevel,
   valores: Valores,
-  eventos: ENSNormalizedEvent[]
+  events: ENSNormalizedEvent[]
 ) => {
-  const configuration = configuracion(valores);
+  const configuration = buildConfiguration(valores);
 
   const evidences = resolveEvidenceForControl(
     'op.acc.5',
-    eventos,
+    events,
     undefined,
-    nivel,
+    level,
     configuration,
-    AHORA
+    NOW
   );
 
   const runtime = runPolicyRuntime(
     buildPolicyContext(
       opAcc5CatalogDefinition,
       configuration,
-      nivel,
-      eventos,
+      level,
+      events,
       evidences,
-      AHORA
+      NOW
     )
   );
 
   return evaluateENSControl(
     opAcc5CatalogDefinition,
     configuration,
-    nivel,
+    level,
     evidences,
     runtime,
-    eventos
+    events
   );
 };
 
-type Resultado = ReturnType<typeof evalua>;
+type Result = ReturnType<typeof evaluate>;
 
-const req = (resultado: Resultado, id: string) => {
-  const encontrado = resultado.requirements.find(item => item.id === id);
+const req = (result: Result, id: string) => {
+  const found = result.requirements.find(item => item.id === id);
 
-  if (!encontrado) {
+  if (!found) {
     throw new Error(`fixture rota: ${id}`);
   }
 
-  return encontrado;
+  return found;
 };
 
-const veredicto = (resultado: Resultado, id: string) =>
-  requirementVerdict(req(resultado, id));
+const verdict = (result: Result, id: string) =>
+  requirementVerdict(req(result, id));
 
-const aplicables = (resultado: Resultado): string[] =>
-  resultado.requirements
+const applicable = (result: Result): string[] =>
+  result.requirements
     .filter(item => requirementVerdict(item) !== 'NO_APLICA')
     .map(item => item.id);
 
-const evidenciaDe = (resultado: Resultado, id: string) =>
-  resultado.evidences.find(item => item.id === id);
+const evidenceOf = (result: Result, id: string) =>
+  result.evidences.find(item => item.id === id);
 
-const REFUERZOS = [
+const REINFORCEMENTS = [
   'op.acc.5.r1.1', 'op.acc.5.r1.2', 'op.acc.5.r2.1',
   'op.acc.5.r3.1', 'op.acc.5.r3.2', 'op.acc.5.r3.3',
   'op.acc.5.r4.1', 'op.acc.5.r4.2', 'op.acc.5.r4.3',
 ];
 
-// --- 0. el catálogo ------------------------------------------------------------
-
-bloque('0. Catálogo: nueve requisitos documentales y R6/R7 sin niveles');
+section('0. Catalog: nine documentary requirements and R6/R7 without levels');
 
 {
   const documentales = opAcc5CatalogDefinition.requirements
     .filter(item => item.evidenceIds.length === 0)
     .map(item => item.id);
 
-  comprueba(
-    'exactamente los nueve documentales van sin evidencia técnica',
+  check(
+    'exactly the nine documentary ones go without technical evidence',
     JSON.stringify(documentales) ===
       JSON.stringify([
         'op.acc.5.1', 'op.acc.5.2', 'op.acc.5.3', 'op.acc.5.9',
@@ -216,350 +194,334 @@ bloque('0. Catálogo: nueve requisitos documentales y R6/R7 sin niveles');
     documentales.join(', ')
   );
 
-  comprueba(
-    'el control está ACTIVE',
+  check(
+    'the control is ACTIVE',
     opAcc5CatalogDefinition.status === 'ACTIVE'
   );
 }
 
-// --- 1. el denominador sigue a P-01 --------------------------------------------
-
-bloque('1. Solo cuenta el refuerzo elegido en P-01');
+section('1. Only the reinforcement chosen in P-01 counts');
 
 {
-  const r2 = evalua('MEDIO', COMPLETA, SANO);
+  const r2 = evaluate('MEDIO', COMPLETE, HEALTHY);
 
-  comprueba(
-    'MEDIO + R2: cuentan la base, r2.1 y R5 (12 requisitos)',
-    aplicables(r2).length === 12,
-    aplicables(r2).join(', ')
+  check(
+    'MEDIO + R2: the base, r2.1 and R5 count (12 requirements)',
+    applicable(r2).length === 12,
+    applicable(r2).join(', ')
   );
 
-  comprueba(
-    'MEDIO + R2: r1.*, r3.* y r4.* salen NO_APLICA',
-    REFUERZOS.filter(id => id !== 'op.acc.5.r2.1').every(
-      id => veredicto(r2, id) === 'NO_APLICA'
+  check(
+    'MEDIO + R2: r1.*, r3.* and r4.* come out NO_APLICA',
+    REINFORCEMENTS.filter(id => id !== 'op.acc.5.r2.1').every(
+      id => verdict(r2, id) === 'NO_APLICA'
     )
   );
 
-  comprueba(
-    'MEDIO + R2: R6 y R7 no cuentan en ningún caso',
-    veredicto(r2, 'op.acc.5.r6.1') === 'NO_APLICA' &&
-      veredicto(r2, 'op.acc.5.r7.1') === 'NO_APLICA'
+  check(
+    'MEDIO + R2: R6 and R7 do not count in any case',
+    verdict(r2, 'op.acc.5.r6.1') === 'NO_APLICA' &&
+      verdict(r2, 'op.acc.5.r7.1') === 'NO_APLICA'
   );
 
-  const r3 = evalua('MEDIO', { ...COMPLETA, 'P-01': 'R3' }, SANO);
+  const r3 = evaluate('MEDIO', { ...COMPLETE, 'P-01': 'R3' }, HEALTHY);
 
-  comprueba(
-    'reversión: el MISMO caso con R3 cuenta r3.1, r3.2 y r3.3 (14) y r2.1 sale NO_APLICA',
-    aplicables(r3).length === 14 &&
-      veredicto(r3, 'op.acc.5.r2.1') === 'NO_APLICA' &&
+  check(
+    'reversal: the SAME case with R3 counts r3.1, r3.2 and r3.3 (14) and r2.1 comes out NO_APLICA',
+    applicable(r3).length === 14 &&
+      verdict(r3, 'op.acc.5.r2.1') === 'NO_APLICA' &&
       ['op.acc.5.r3.1', 'op.acc.5.r3.2', 'op.acc.5.r3.3'].every(
-        id => veredicto(r3, id) !== 'NO_APLICA'
+        id => verdict(r3, id) !== 'NO_APLICA'
       ),
-    aplicables(r3).join(', ')
+    applicable(r3).join(', ')
   );
 
-  const sinP01 = evalua('MEDIO', sin(COMPLETA, 'P-01'), SANO);
+  const withoutP01 = evaluate('MEDIO', sin(COMPLETE, 'P-01'), HEALTHY);
 
-  comprueba(
-    'sin P-01 no se descarta ningún refuerzo: los nueve cuentan, sin demostrar',
-    REFUERZOS.every(id => veredicto(sinP01, id) === 'NO_CUMPLE') &&
-      REFUERZOS.every(id => req(sinP01, id).evidenced === false),
-    REFUERZOS.map(id => `${id}=${veredicto(sinP01, id)}`).join(', ')
+  check(
+    'without P-01 no reinforcement is discarded: all nine count, unproven',
+    REINFORCEMENTS.every(id => verdict(withoutP01, id) === 'NO_CUMPLE') &&
+      REINFORCEMENTS.every(id => req(withoutP01, id).evidenced === false),
+    REINFORCEMENTS.map(id => `${id}=${verdict(withoutP01, id)}`).join(', ')
   );
 
-  comprueba(
-    'y el control no puede salir CUMPLE sin declarar el mecanismo',
-    sinP01.status !== 'CUMPLE'
+  check(
+    'and the control cannot come out CUMPLE without declaring the mechanism',
+    withoutP01.status !== 'CUMPLE'
   );
 }
 
-// --- 2. R1 en MEDIO y ALTO ------------------------------------------------------
-
-bloque('2. R1 en MEDIO o ALTO incumple sin mirar un log');
+section('2. R1 at MEDIO or ALTO breaches without looking at a log');
 
 {
-  for (const nivel of ['MEDIO', 'ALTO'] as ENSLevel[]) {
-    const r1 = evalua(nivel, { ...COMPLETA, 'P-01': 'R1' }, []);
+  for (const level of ['MEDIO', 'ALTO'] as ENSLevel[]) {
+    const r1 = evaluate(level, { ...COMPLETE, 'P-01': 'R1' }, []);
 
-    comprueba(
-      `${nivel} + R1: r1.1 y r1.2 NO_CUMPLE MEDIDOS, sin ningún evento`,
+    check(
+      `${level} + R1: r1.1 and r1.2 MEASURED NO_CUMPLE, without any event`,
       ['op.acc.5.r1.1', 'op.acc.5.r1.2'].every(
         id =>
-          veredicto(r1, id) === 'NO_CUMPLE' && req(r1, id).evidenced === true
+          verdict(r1, id) === 'NO_CUMPLE' && req(r1, id).evidenced === true
       )
     );
 
-    comprueba(
-      `${nivel} + R1: el motivo dice que R1 no es admisible`,
-      req(r1, 'op.acc.5.r1.1').observations.some(texto =>
-        /R1 \(contraseña sola\).*no figura entre las opciones/.test(texto)
+    check(
+      `${level} + R1: the motive says R1 is not admissible`,
+      req(r1, 'op.acc.5.r1.1').observations.some(text =>
+        /R1 \(contraseña sola\).*no figura entre las opciones/.test(text)
       )
     );
 
-    comprueba(
-      `${nivel} + R1: la no conformidad es MEDIDA`,
+    check(
+      `${level} + R1: the nonconformity is MEASURED`,
       r1.nonConformities.some(
         nc => nc.requirementId === 'op.acc.5.r1.1' && nc.origin === 'MEDIDA'
       )
     );
 
-    comprueba(
-      `${nivel} + R1: R2, R3 y R4 no cuentan (13 aplicables)`,
-      aplicables(r1).length === 13,
-      aplicables(r1).join(', ')
+    check(
+      `${level} + R1: R2, R3 and R4 do not count (13 applicable)`,
+      applicable(r1).length === 13,
+      applicable(r1).join(', ')
     );
   }
 
-  const bajo = evalua('BAJO', { ...COMPLETA, 'P-01': 'R1' }, []);
+  const low = evaluate('BAJO', { ...COMPLETE, 'P-01': 'R1' }, []);
 
-  comprueba(
-    'reversión: BAJO + R1 no es un incumplimiento directo (sin datos: sin demostrar)',
+  check(
+    'reversal: BAJO + R1 is not a direct breach (no data: unproven)',
     ['op.acc.5.r1.1', 'op.acc.5.r1.2'].every(
-      id => req(bajo, id).evidenced === false
+      id => req(low, id).evidenced === false
     ) &&
-      !req(bajo, 'op.acc.5.r1.1').observations.some(texto =>
-        /no figura entre las opciones/.test(texto)
+      !req(low, 'op.acc.5.r1.1').observations.some(text =>
+        /no figura entre las opciones/.test(text)
       )
   );
 
-  comprueba(
-    'BAJO + R1: R5 no rige y cuentan la base y R1 (11 aplicables)',
-    aplicables(bajo).length === 11,
-    aplicables(bajo).join(', ')
+  check(
+    'BAJO + R1: R5 does not apply and the base and R1 count (11 applicable)',
+    applicable(low).length === 11,
+    applicable(low).join(', ')
   );
 
-  const bajoR1Sano = evalua(
+  const lowR1Healthy = evaluate(
     'BAJO',
-    { ...COMPLETA, 'P-01': 'R1' },
+    { ...COMPLETE, 'P-01': 'R1' },
     [
-      ...SANO.filter(event => event.eventType !== 'external_auth_success'),
-      hecho('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R1' }),
-      hecho('password_policy', 'EV-02', { servicio: 'sede', complejidad: 'activada', longitud_minima: 12 }),
+      ...HEALTHY.filter(event => event.eventType !== 'external_auth_success'),
+      fact('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R1' }),
+      fact('password_policy', 'EV-02', { servicio: 'sede', complejidad: 'activada', longitud_minima: 12 }),
     ]
   );
 
-  comprueba(
-    'BAJO + R1 con contraseña observada y normas de complejidad: r1.1 y r1.2 CUMPLE',
-    veredicto(bajoR1Sano, 'op.acc.5.r1.1') === 'CUMPLE' &&
-      veredicto(bajoR1Sano, 'op.acc.5.r1.2') === 'CUMPLE',
-    `${veredicto(bajoR1Sano, 'op.acc.5.r1.1')} / ${veredicto(bajoR1Sano, 'op.acc.5.r1.2')}`
+  check(
+    'BAJO + R1 with observed password and complexity rules: r1.1 and r1.2 CUMPLE',
+    verdict(lowR1Healthy, 'op.acc.5.r1.1') === 'CUMPLE' &&
+      verdict(lowR1Healthy, 'op.acc.5.r1.2') === 'CUMPLE',
+    `${verdict(lowR1Healthy, 'op.acc.5.r1.1')} / ${verdict(lowR1Healthy, 'op.acc.5.r1.2')}`
   );
 
-  const bajoR1SinNormas = evalua(
+  const lowR1WithoutRules = evaluate(
     'BAJO',
-    { ...COMPLETA, 'P-01': 'R1' },
+    { ...COMPLETE, 'P-01': 'R1' },
     [
-      ...SANO.filter(event => event.eventType !== 'external_auth_success'),
-      hecho('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R1' }),
-      hecho('password_policy', 'EV-02', { servicio: 'sede', complejidad: 'desactivada' }),
+      ...HEALTHY.filter(event => event.eventType !== 'external_auth_success'),
+      fact('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'ana', refuerzo: 'R1' }),
+      fact('password_policy', 'EV-02', { servicio: 'sede', complejidad: 'desactivada' }),
     ]
   );
 
-  comprueba(
-    'reversión: sin normas de complejidad r1.2 NO_CUMPLE medido',
-    veredicto(bajoR1SinNormas, 'op.acc.5.r1.2') === 'NO_CUMPLE' &&
-      req(bajoR1SinNormas, 'op.acc.5.r1.2').evidenced === true
+  check(
+    'reversal: without complexity rules r1.2 NO_CUMPLE measured',
+    verdict(lowR1WithoutRules, 'op.acc.5.r1.2') === 'NO_CUMPLE' &&
+      req(lowR1WithoutRules, 'op.acc.5.r1.2').evidenced === true
   );
 }
 
-// --- 3. el caso completo sano llega al 100 % -----------------------------------
-
-bloque('3. Un cliente R2 de MEDIO bien configurado y sano cumple entero');
+section('3. A well-configured, healthy R2 client at MEDIO complies entirely');
 
 {
-  const sano = evalua('MEDIO', COMPLETA, SANO);
+  const healthy = evaluate('MEDIO', COMPLETE, HEALTHY);
 
-  comprueba(
-    'MEDIO + R2 sano: CUMPLE al 100 %',
-    sano.status === 'CUMPLE' && sano.score === 100,
-    `${sano.status} ${sano.score} · ${sano.requirements
+  check(
+    'MEDIO + healthy R2: CUMPLE at 100 %',
+    healthy.status === 'CUMPLE' && healthy.score === 100,
+    `${healthy.status} ${healthy.score} · ${healthy.requirements
       .filter(item => requirementVerdict(item) === 'NO_CUMPLE')
       .map(item => `${item.id}: ${item.observations.slice(-1)[0] || ''}`)
       .join(' | ')}`
   );
 
-  comprueba(
-    'EV-07 CUMPLE y no la arrastran a NO_APLICA los refuerzos no elegidos que la comparten',
-    evidenciaDe(sano, 'EV-07')?.status === 'CUMPLE',
-    evidenciaDe(sano, 'EV-07')?.status
+  check(
+    'EV-07 CUMPLE and the unchosen reinforcements that share it do not drag it to NO_APLICA',
+    evidenceOf(healthy, 'EV-07')?.status === 'CUMPLE',
+    evidenceOf(healthy, 'EV-07')?.status
   );
 
-  comprueba(
-    'EV-08 (solo R3 y R4) sale NO_APLICA con R2',
-    evidenciaDe(sano, 'EV-08')?.status === 'NO_APLICA',
-    evidenciaDe(sano, 'EV-08')?.status
+  check(
+    'EV-08 (only R3 and R4) comes out NO_APLICA with R2',
+    evidenceOf(healthy, 'EV-08')?.status === 'NO_APLICA',
+    evidenceOf(healthy, 'EV-08')?.status
   );
 
-  const conR1 = evalua('MEDIO', COMPLETA, [
-    ...SANO,
-    hecho('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'luis', refuerzo: 'R1' }),
+  const conR1 = evaluate('MEDIO', COMPLETE, [
+    ...HEALTHY,
+    fact('external_auth_success', 'EV-07', { servicio: 'sede', usuario: 'luis', refuerzo: 'R1' }),
   ]);
 
-  comprueba(
-    'reversión: UNA autenticación sin OTP tumba r2.1 (NO_CUMPLE medido)',
-    veredicto(conR1, 'op.acc.5.r2.1') === 'NO_CUMPLE' &&
+  check(
+    'reversal: ONE authentication without OTP brings r2.1 down (measured NO_CUMPLE)',
+    verdict(conR1, 'op.acc.5.r2.1') === 'NO_CUMPLE' &&
       req(conR1, 'op.acc.5.r2.1').evidenced === true
   );
 }
 
-// --- 4. op.acc.5.8 -------------------------------------------------------------
-
-bloque('4. op.acc.5.8: límite configurado, bloqueo efectivo y reactivación');
+section('4. op.acc.5.8: configured limit, effective lockout and reactivation');
 
 {
-  const base = (eventos: ENSNormalizedEvent[]) =>
-    evalua('MEDIO', COMPLETA, eventos);
+  const base = (events: ENSNormalizedEvent[]) =>
+    evaluate('MEDIO', COMPLETE, events);
 
-  comprueba(
-    'política de 5 intentos, P-03=5, rachas de 3 y EV-03 cubierta sin fallos: CUMPLE',
-    veredicto(base(SANO), 'op.acc.5.8') === 'CUMPLE'
+  check(
+    'policy of 5 attempts, P-03=5, streaks of 3 and EV-03 covered without failures: CUMPLE',
+    verdict(base(HEALTHY), 'op.acc.5.8') === 'CUMPLE'
   );
 
-  const desactivado = base([
-    ...SANO.filter(event => event.eventType !== 'lockout_policy'),
-    hecho('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'desactivado', reactivacion: 'intervencion' }),
+  const disabled = base([
+    ...HEALTHY.filter(event => event.eventType !== 'lockout_policy'),
+    fact('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'desactivado', reactivacion: 'intervencion' }),
   ]);
 
-  comprueba(
-    'bloqueo desactivado: NO_CUMPLE MEDIDO aunque no haya número que comparar',
-    veredicto(desactivado, 'op.acc.5.8') === 'NO_CUMPLE' &&
-      req(desactivado, 'op.acc.5.8').evidenced === true
+  check(
+    'lockout disabled: MEASURED NO_CUMPLE even though there is no number to compare',
+    verdict(disabled, 'op.acc.5.8') === 'NO_CUMPLE' &&
+      req(disabled, 'op.acc.5.8').evidenced === true
   );
 
-  const automatico = base([
-    ...SANO.filter(event => event.eventType !== 'lockout_policy'),
-    hecho('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'activado', intentos: 5, reactivacion: 'automatica' }),
+  const automatic = base([
+    ...HEALTHY.filter(event => event.eventType !== 'lockout_policy'),
+    fact('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'activado', intentos: 5, reactivacion: 'automatica' }),
   ]);
 
-  comprueba(
-    'reactivación automática por tiempo: NO_CUMPLE',
-    veredicto(automatico, 'op.acc.5.8') === 'NO_CUMPLE'
+  check(
+    'automatic reactivation by time: NO_CUMPLE',
+    verdict(automatic, 'op.acc.5.8') === 'NO_CUMPLE'
   );
 
-  const racha = base([
-    ...SANO,
-    hecho('failed_attempt_streak', 'EV-02', { servicio: 'sede', usuario: 'eve', intentos: 7, bloqueo_registrado: 'si' }),
+  const streak = base([
+    ...HEALTHY,
+    fact('failed_attempt_streak', 'EV-02', { servicio: 'sede', usuario: 'eve', intentos: 7, bloqueo_registrado: 'si' }),
   ]);
 
-  comprueba(
-    'una racha de 7 con P-03=5: NO_CUMPLE',
-    veredicto(racha, 'op.acc.5.8') === 'NO_CUMPLE'
+  check(
+    'a streak of 7 with P-03=5: NO_CUMPLE',
+    verdict(streak, 'op.acc.5.8') === 'NO_CUMPLE'
   );
 
-  const sinLatido = base(SANO.filter(event => event.eventType !== 'collector_run'));
+  const withoutHeartbeat = base(HEALTHY.filter(event => event.eventType !== 'collector_run'));
 
-  comprueba(
-    'sin latido, el silencio de EV-03 no vale: sin demostrar',
-    veredicto(sinLatido, 'op.acc.5.8') === 'NO_CUMPLE' &&
-      req(sinLatido, 'op.acc.5.8').evidenced === false
+  check(
+    'without heartbeat, EV-03\'s silence is worthless: unproven',
+    verdict(withoutHeartbeat, 'op.acc.5.8') === 'NO_CUMPLE' &&
+      req(withoutHeartbeat, 'op.acc.5.8').evidenced === false
   );
 
-  const sinPolitica = base(SANO.filter(event => event.eventType !== 'lockout_policy'));
+  const withoutPolicy = base(HEALTHY.filter(event => event.eventType !== 'lockout_policy'));
 
-  comprueba(
-    'solo rachas pequeñas y ninguna política: sin demostrar (cero fallos no prueban un límite)',
-    veredicto(sinPolitica, 'op.acc.5.8') === 'NO_CUMPLE' &&
-      req(sinPolitica, 'op.acc.5.8').evidenced === false
+  check(
+    'only small streaks and no policy: unproven (zero failures do not prove a limit)',
+    verdict(withoutPolicy, 'op.acc.5.8') === 'NO_CUMPLE' &&
+      req(withoutPolicy, 'op.acc.5.8').evidenced === false
   );
 
-  const noDeclarada = base([
-    ...SANO.filter(event => event.eventType !== 'lockout_policy'),
-    hecho('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'no_declarado', reactivacion: 'desconocida' }),
+  const undeclaredOne = base([
+    ...HEALTHY.filter(event => event.eventType !== 'lockout_policy'),
+    fact('lockout_policy', 'EV-02', { servicio: 'sede', bloqueo: 'no_declarado', reactivacion: 'desconocida' }),
   ]);
 
-  comprueba(
-    'política no declarada (lo que emite el agente): la EVIDENCIA EV-02 tampoco sale en verde',
-    evidenciaDe(noDeclarada, 'EV-02')?.status === 'NO_EVALUABLE',
-    evidenciaDe(noDeclarada, 'EV-02')?.status
+  check(
+    'undeclared policy (what the agent emits): the EVIDENCE EV-02 does not come out green either',
+    evidenceOf(undeclaredOne, 'EV-02')?.status === 'NO_EVALUABLE',
+    evidenceOf(undeclaredOne, 'EV-02')?.status
   );
 
-  const sinP04 = evalua('MEDIO', sin(COMPLETA, 'P-04'), SANO);
+  const withoutP04 = evaluate('MEDIO', sin(COMPLETE, 'P-04'), HEALTHY);
 
-  comprueba(
-    'sin P-04 (procedimiento de reactivación) no hay CUMPLE',
-    veredicto(sinP04, 'op.acc.5.8') !== 'CUMPLE'
+  check(
+    'without P-04 (reactivation procedure) there is no CUMPLE',
+    verdict(withoutP04, 'op.acc.5.8') !== 'CUMPLE'
   );
 }
 
-// --- 5. P-09 y el aviso del último acceso ----------------------------------------
-
-bloque('5. op.acc.5.r5.2: P-09 declara, P-ATT acredita');
+section('5. op.acc.5.r5.2: P-09 declares, P-ATT accredits');
 
 {
-  const noAvisa = evalua('MEDIO', { ...COMPLETA, 'P-09': false, 'P-ATT': (COMPLETA['P-ATT'] as string[]).filter(fila => !fila.startsWith('op.acc.5.r5.2')) }, SANO);
+  const doesNotWarn = evaluate('MEDIO', { ...COMPLETE, 'P-09': false, 'P-ATT': (COMPLETE['P-ATT'] as string[]).filter(row => !row.startsWith('op.acc.5.r5.2')) }, HEALTHY);
 
-  comprueba(
-    'P-09 = no: NO_CUMPLE medido',
-    veredicto(noAvisa, 'op.acc.5.r5.2') === 'NO_CUMPLE' &&
-      req(noAvisa, 'op.acc.5.r5.2').evidenced === true
+  check(
+    'P-09 = no: measured NO_CUMPLE',
+    verdict(doesNotWarn, 'op.acc.5.r5.2') === 'NO_CUMPLE' &&
+      req(doesNotWarn, 'op.acc.5.r5.2').evidenced === true
   );
 
-  const siSinDocumento = evalua('MEDIO', { ...COMPLETA, 'P-ATT': (COMPLETA['P-ATT'] as string[]).filter(fila => !fila.startsWith('op.acc.5.r5.2')) }, SANO);
+  const yesWithoutDocument = evaluate('MEDIO', { ...COMPLETE, 'P-ATT': (COMPLETE['P-ATT'] as string[]).filter(row => !row.startsWith('op.acc.5.r5.2')) }, HEALTHY);
 
-  comprueba(
-    'P-09 = sí sin documento: sin demostrar',
-    veredicto(siSinDocumento, 'op.acc.5.r5.2') === 'NO_CUMPLE' &&
-      req(siSinDocumento, 'op.acc.5.r5.2').evidenced === false
+  check(
+    'P-09 = sí without document: unproven',
+    verdict(yesWithoutDocument, 'op.acc.5.r5.2') === 'NO_CUMPLE' &&
+      req(yesWithoutDocument, 'op.acc.5.r5.2').evidenced === false
   );
 
-  const conDocumento = evalua('MEDIO', COMPLETA, SANO);
+  const withDocument = evaluate('MEDIO', COMPLETE, HEALTHY);
 
-  comprueba(
-    'reversión: con la fila en P-ATT, acreditado documentalmente',
-    veredicto(conDocumento, 'op.acc.5.r5.2') === 'CUMPLE' &&
-      req(conDocumento, 'op.acc.5.r5.2').attested === true
+  check(
+    'reversal: with the row in P-ATT, documentarily accredited',
+    verdict(withDocument, 'op.acc.5.r5.2') === 'CUMPLE' &&
+      req(withDocument, 'op.acc.5.r5.2').attested === true
   );
 }
 
-// --- 6. EV-06 y EV-09 contra P-02 ---------------------------------------------
-
-bloque('6. EV-06 y EV-09: hallazgos en servicios de P-02');
+section('6. EV-06 and EV-09: findings on P-02 services');
 
 {
-  const revela = evalua('MEDIO', COMPLETA, [
-    ...SANO,
-    hecho('auth_error_verbose', 'EV-06', { servicio: 'sede', patron: 'usuario_inexistente', mensaje: 'El usuario no existe' }),
+  const reveals = evaluate('MEDIO', COMPLETE, [
+    ...HEALTHY,
+    fact('auth_error_verbose', 'EV-06', { servicio: 'sede', patron: 'usuario_inexistente', mensaje: 'El usuario no existe' }),
   ]);
 
-  comprueba(
-    'un rechazo revelador en «sede» (declarado en P-02): EV-06 y op.acc.5.7 NO_CUMPLE',
-    evidenciaDe(revela, 'EV-06')?.status === 'NO_CUMPLE' &&
-      veredicto(revela, 'op.acc.5.7') === 'NO_CUMPLE'
+  check(
+    'a revealing rejection on «sede» (declared in P-02): EV-06 and op.acc.5.7 NO_CUMPLE',
+    evidenceOf(reveals, 'EV-06')?.status === 'NO_CUMPLE' &&
+      verdict(reveals, 'op.acc.5.7') === 'NO_CUMPLE'
   );
 
-  const fuera = evalua('MEDIO', COMPLETA, [
-    ...SANO,
-    hecho('auth_error_verbose', 'EV-06', { servicio: 'intranet', patron: 'usuario_inexistente', mensaje: 'El usuario no existe' }),
+  const outside = evaluate('MEDIO', COMPLETE, [
+    ...HEALTHY,
+    fact('auth_error_verbose', 'EV-06', { servicio: 'intranet', patron: 'usuario_inexistente', mensaje: 'El usuario no existe' }),
   ]);
 
-  comprueba(
-    'reversión: el mismo hallazgo en un servicio fuera de P-02 no cuenta',
-    evidenciaDe(fuera, 'EV-06')?.status === 'CUMPLE'
+  check(
+    'reversal: the same finding on a service outside P-02 does not count',
+    evidenceOf(outside, 'EV-06')?.status === 'CUMPLE'
   );
 
-  const laguna = evalua('MEDIO', COMPLETA, [
-    ...SANO,
-    hecho('access_log_gap', 'EV-09', { servicio: 'sede', tipo: 'truncado_sin_rotacion' }),
+  const lacuna = evaluate('MEDIO', COMPLETE, [
+    ...HEALTHY,
+    fact('access_log_gap', 'EV-09', { servicio: 'sede', tipo: 'truncado_sin_rotacion' }),
   ]);
 
-  comprueba(
-    'una laguna en «sede»: op.acc.5.r5.1 NO_CUMPLE',
-    veredicto(laguna, 'op.acc.5.r5.1') === 'NO_CUMPLE'
+  check(
+    'a gap on «sede»: op.acc.5.r5.1 NO_CUMPLE',
+    verdict(lacuna, 'op.acc.5.r5.1') === 'NO_CUMPLE'
   );
 }
 
-// --- 7. la máquina sin servicio para usuarios externos -------------------------
-
-bloque('7. Sin ningún servicio de acceso externo (wazuh-real y el LDAP hoy)');
+section('7. Without any external access service (wazuh-real and the LDAP today)');
 
 {
-  // Lo que emite de verdad el recolector en una máquina sin sujeto: inventario,
-  // la degradación de las nueve evidencias y el latido sin nada cubierto.
-  const degradaciones = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'].map(id =>
+  const degradations = ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'].map(id =>
     ({
-      ...hecho('evidence_state', id, {
+      ...fact('evidence_state', id, {
         causa: 'CONFIGURATION',
         motivo: 'no hay ningun servicio de acceso externo declarado en OPACC5_SERVICIOS',
       }),
@@ -567,63 +529,63 @@ bloque('7. Sin ningún servicio de acceso externo (wazuh-real y el LDAP hoy)');
     })
   );
 
-  const vacio = [
-    hecho('listening_service', undefined, { proceso: 'sshd', direccion: '0.0.0.0', puerto: 22121 }),
-    ...degradaciones,
-    latido(''),
+  const empty = [
+    fact('listening_service', undefined, { proceso: 'sshd', direccion: '0.0.0.0', puerto: 22121 }),
+    ...degradations,
+    heartbeat(''),
   ];
 
-  const resultado = evalua('MEDIO', sin({ ...COMPLETA, 'P-01': 'R2' }, 'P-02'), vacio);
+  const result = evaluate('MEDIO', sin({ ...COMPLETE, 'P-01': 'R2' }, 'P-02'), empty);
 
-  const tecnicos = resultado.requirements.filter(
+  const technicalOnes = result.requirements.filter(
     item =>
       requirementVerdict(item) !== 'NO_APLICA' &&
       (item.evidenceIds || []).length > 0
   );
 
-  comprueba(
-    'ningún requisito técnico sale CUMPLE: no hay sujeto que medir',
-    tecnicos.every(item => requirementVerdict(item) === 'NO_CUMPLE'),
-    tecnicos.map(item => `${item.id}=${requirementVerdict(item)}`).join(', ')
+  check(
+    'no technical requirement comes out CUMPLE: there is no subject to measure',
+    technicalOnes.every(item => requirementVerdict(item) === 'NO_CUMPLE'),
+    technicalOnes.map(item => `${item.id}=${requirementVerdict(item)}`).join(', ')
   );
 
-  comprueba(
-    'y ninguno como incumplimiento MEDIDO: todos sin demostrar',
-    tecnicos.every(item => item.evidenced === false)
+  check(
+    'and none as a MEASURED breach: all unproven',
+    technicalOnes.every(item => item.evidenced === false)
   );
 
-  comprueba(
-    'la no conformidad de configuración nombra P-02',
-    resultado.nonConformities.some(
+  check(
+    'the configuration nonconformity names P-02',
+    result.nonConformities.some(
       nc => nc.id === 'NC-CFG' && nc.parameterIds.includes('P-02')
     )
   );
 
-  comprueba(
-    'las evidencias quedan NO_EVALUABLE, ninguna en verde ni en rojo',
-    resultado.evidences
+  check(
+    'evidences stay NO_EVALUABLE, none green or red',
+    result.evidences
       .filter(evidence => evidence.status !== 'NO_APLICA')
       .every(evidence => evidence.status === 'NO_EVALUABLE'),
-    resultado.evidences.map(evidence => `${evidence.id}=${evidence.status}`).join(', ')
+    result.evidences.map(evidence => `${evidence.id}=${evidence.status}`).join(', ')
   );
 
-  comprueba(
-    'reversión: lo documental atestado sigue acreditado aunque no haya servicio',
-    veredicto(resultado, 'op.acc.5.1') === 'CUMPLE' &&
-      req(resultado, 'op.acc.5.1').attested === true
+  check(
+    'reversal: attested documentary items stay accredited even without a service',
+    verdict(result, 'op.acc.5.1') === 'CUMPLE' &&
+      req(result, 'op.acc.5.1').attested === true
   );
 
-  comprueba(
-    'el control sale PARCIAL, nunca CUMPLE',
-    resultado.status === 'PARCIAL',
-    `${resultado.status} ${resultado.score}`
+  check(
+    'the control comes out PARCIAL, never CUMPLE',
+    result.status === 'PARCIAL',
+    `${result.status} ${result.score}`
   );
 }
 
 console.log(
-  fallos.length
-    ? `\n${fallos.length} check(s) FAIL`
+  failures.length
+    ? `\n${failures.length} check(s) FAIL`
     : '\nall checks pass'
 );
 
-process.exit(fallos.length ? 1 : 0);
+process.exit(failures.length ? 1 : 0);
