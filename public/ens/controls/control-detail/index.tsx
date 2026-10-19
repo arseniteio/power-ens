@@ -223,7 +223,7 @@ export const ControlDetailENS = ({
 
   const measures = nonConformityItems.filter(item => item.origin === 'MEDIDA');
 
-  const documentales = measures.filter(item => item.documental);
+  const documentary = measures.filter(item => item.documental);
   const technicalMeasures = measures.filter(item => !item.documental);
 
   const unevidenced = nonConformityItems.filter(
@@ -349,8 +349,8 @@ export const ControlDetailENS = ({
       ? 'Sin acciones pendientes'
       : [
           technicalMeasures.length > 0 ? `Corregir ${technicalMeasures.length}` : '',
-          documentales.length > 0
-            ? `Renovar documentación ${documentales.length}`
+          documentary.length > 0
+            ? `Renovar documentación ${documentary.length}`
             : '',
           unevidenced.length > 0
             ? `Habilitar prueba ${unevidenced.length}`
@@ -381,7 +381,7 @@ export const ControlDetailENS = ({
     {
       etiqueta: 'Medidas',
       valor: `${measures.length}${
-        documentales.length > 0 ? ` · ${documentales.length} documental${documentales.length === 1 ? '' : 'es'}` : ''
+        documentary.length > 0 ? ` · ${documentary.length} documental${documentary.length === 1 ? '' : 'es'}` : ''
       }`,
     },
     {
@@ -411,7 +411,7 @@ export const ControlDetailENS = ({
     },
     {
       etiqueta: 'documentales · renovar o completar la documentación',
-      valor: documentales.length,
+      valor: documentary.length,
       color: 'danger' as const,
     },
     {
@@ -480,27 +480,27 @@ export const ControlDetailENS = ({
     if (!needsRemote) return;
     const controller = new AbortController();
     // Only cancellations made by the screen are silenced; a timeout also aborts the controller and must show.
-    let cancelada = false;
+    let cancelled = false;
     fetchTraceabilityPage({ controlId: control.id, agentId: displayedAgent, from: pageFrom, size: tracePageSize }, controller)
       .then(page => {
-        if (!cancelada) setRemotePage({ key: remoteKey, items: page.items || [] });
+        if (!cancelled) setRemotePage({ key: remoteKey, items: page.items || [] });
       })
       .catch(error => {
-        if (!cancelada) setRemotePage({ key: remoteKey, error });
+        if (!cancelled) setRemotePage({ key: remoteKey, error });
       });
     return () => {
-      cancelada = true;
+      cancelled = true;
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteKey, needsRemote]);
 
-  const paginaRemota = remotePage?.key === remoteKey ? remotePage : undefined;
-  const traceLoading = needsRemote && !paginaRemota;
-  const traceError = needsRemote ? paginaRemota?.error : undefined;
+  const remotePageIndex = remotePage?.key === remoteKey ? remotePage : undefined;
+  const traceLoading = needsRemote && !remotePageIndex;
+  const traceError = needsRemote ? remotePageIndex?.error : undefined;
 
   const traceabilityPageItems = (needsRemote
-    ? paginaRemota?.items || []
+    ? remotePageIndex?.items || []
     : initials.slice(pageFrom, pageFrom + tracePageSize)
   ).map((item, index) => toTraceItem(item, pageFrom + index));
 
@@ -823,11 +823,11 @@ export const ControlDetailENS = ({
 
   // The control is not measured on this machine: neither 'no data' nor 'all compliant'.
   if (!complianceResult) {
-    const catalogo = getENSCatalogControl(control.id);
+    const catalog = getENSCatalogControl(control.id);
     const motive =
-      displayedAgent && catalogo
+      displayedAgent && catalog
         ? describeNotMeasuredOnAgent(
-            catalogo,
+            catalog,
             displayedAgent,
             nameOf(displayedAgent),
             getActiveControlConfiguration(control.id, displayedAgent)
@@ -1495,9 +1495,9 @@ export const ControlDetailENS = ({
           },
           {
             clave: 'documentales',
-            titulo: `Documentales · ${documentales.length}`,
+            titulo: `Documentales · ${documentary.length}`,
             pie: 'Cuentan igual. La acción es renovar o completar la documentación.',
-            items: documentales,
+            items: documentary,
           },
           {
             clave: 'no-evidenciadas',

@@ -119,9 +119,9 @@ const ControlReport = ({
     usesPanorama: Boolean(panorama),
     panoramaLoading: Boolean(panorama?.loading),
     notMeasured: () => {
-      const catalogo = getENSCatalogControl(controlId);
-      return catalogo && agentId
-        ? describeNotMeasuredOnAgent(catalogo, agentId, machine?.name, getActiveControlConfiguration(controlId, agentId))
+      const catalog = getENSCatalogControl(controlId);
+      return catalog && agentId
+        ? describeNotMeasuredOnAgent(catalog, agentId, machine?.name, getActiveControlConfiguration(controlId, agentId))
         : undefined;
     },
   });

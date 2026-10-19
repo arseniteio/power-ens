@@ -260,8 +260,8 @@ bloque('5. La ficha del control no cuenta lo documental bajo «Corregir el siste
   const fuente = readFileSync(join(__dirname, '..', 'public/ens/controls/control-detail/index.tsx'), 'utf8');
 
   comprueba(
-    'separa las documentales de las medidas técnicas',
-    /const documentales = measures\.filter\(item => item\.documental\)/.test(fuente) &&
+    'separa las documentary de las medidas técnicas',
+    /const documentary = measures\.filter\(item => item\.documental\)/.test(fuente) &&
       /const technicalMeasures = measures\.filter\(item => !item\.documental\)/.test(fuente)
   );
   comprueba(
@@ -271,9 +271,9 @@ bloque('5. La ficha del control no cuenta lo documental bajo «Corregir el siste
       !/`Corregir \$\{medidas\.length\}`/.test(fuente)
   );
   comprueba(
-    'el bloque «Corregir el sistema auditado» lista solo las técnicas, y las documentales tienen el suyo',
+    'el bloque «Corregir el sistema auditado» lista solo las técnicas, y las documentary tienen el suyo',
     /pie: 'Corregir el sistema auditado\.',\s*items: technicalMeasures,/.test(fuente) &&
-      /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentales,/.test(fuente)
+      /pie: 'Cuentan igual\. La acción es renovar o completar la documentación\.',\s*items: documentary,/.test(fuente)
   );
 }
 

@@ -105,13 +105,13 @@ export const OverviewENS = () => {
       data
         ? buildMatrix(controls, machines, data.controls, data.agents || [], {
             isManagerOnly: id => {
-              const catalogo = getENSCatalogControl(id);
-              return Boolean(catalogo && isManagerOnlyControl(catalogo));
+              const catalog = getENSCatalogControl(id);
+              return Boolean(catalog && isManagerOnlyControl(catalog));
             },
             notMeasuredReason: (id, agent) => {
-              const catalogo = getENSCatalogControl(id);
-              return catalogo
-                ? describeNotMeasuredOnAgent(catalogo, agent, nameOf(agent), getActiveControlConfiguration(id, agent))?.text
+              const catalog = getENSCatalogControl(id);
+              return catalog
+                ? describeNotMeasuredOnAgent(catalog, agent, nameOf(agent), getActiveControlConfiguration(id, agent))?.text
                 : undefined;
             },
           })

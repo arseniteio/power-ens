@@ -267,11 +267,11 @@ export const buildOpNub1ReportModel = (
     r12?.observations || [],
   );
 
-  const documentales = (result?.requirements || []).filter(
+  const documentary = (result?.requirements || []).filter(
     requirement => DOCUMENTARY.includes(requirement.id) || requirement.attested,
   );
   const technical = (result?.requirements || []).filter(
-    requirement => !documentales.includes(requirement),
+    requirement => !documentary.includes(requirement),
   );
   const field12 = field(
     'op.nub.1.campo12',
@@ -281,7 +281,7 @@ export const buildOpNub1ReportModel = (
     ALL_EVIDENCES,
     [
       `Bloque documental (se negocia con el proveedor): ${variableDescription('bloque_documental') || 'sin datos'}`,
-      ...documentales.map(describeRequirement),
+      ...documentary.map(describeRequirement),
       `Bloque técnico (se configura): ${variableDescription('bloque_tecnico') || 'sin datos'}`,
       ...technical.map(describeRequirement),
     ],

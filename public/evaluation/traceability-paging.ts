@@ -5,6 +5,6 @@ export const traceabilityPageSource = (options: {
   pageFrom: number;
   pageSize: number;
 }): 'local' | 'remote' => {
-  const hasta = Math.min(options.pageFrom + options.pageSize, options.available);
-  return hasta > options.initialCount ? 'remote' : 'local';
+  const until = Math.min(options.pageFrom + options.pageSize, options.available);
+  return until > options.initialCount ? 'remote' : 'local';
 };

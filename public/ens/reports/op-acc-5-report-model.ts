@@ -207,7 +207,7 @@ export const buildOpAcc5ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  const documentales = (result?.requirements || []).filter(requirement =>
+  const documentary = (result?.requirements || []).filter(requirement =>
     [
       'op.acc.5.1',
       'op.acc.5.2',
@@ -222,16 +222,16 @@ export const buildOpAcc5ReportModel = (
   const documentaryField = field(
     'op.acc.5.documental',
     'Requisitos procedimentales — acreditación documental',
-    !documentales.length
+    !documentary.length
       ? 'SIN_DATOS'
-      : documentales.every(requirement => requirement.status === 'CUMPLE')
+      : documentary.every(requirement => requirement.status === 'CUMPLE')
       ? 'CUMPLE'
-      : documentales.some(requirement => requirement.status === 'CUMPLE')
+      : documentary.some(requirement => requirement.status === 'CUMPLE')
       ? 'PARCIAL'
       : 'NO_CUMPLE',
-    `${documentales.filter(requirement => requirement.status === 'CUMPLE').length} de ${documentales.length} acreditados documentalmente · procedimiento de reactivación (P-04): ${formatValue(parameterValue('P-04'))}`,
+    `${documentary.filter(requirement => requirement.status === 'CUMPLE').length} de ${documentary.length} acreditados documentalmente · procedimiento de reactivación (P-04): ${formatValue(parameterValue('P-04'))}`,
     [],
-    documentales.map(
+    documentary.map(
       requirement => `${requirement.id}: ${requirement.observations[0] || 'sin atestación'}`
     ),
   );

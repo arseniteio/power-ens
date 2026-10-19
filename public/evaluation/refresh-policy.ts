@@ -142,8 +142,8 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
   let lastCheck: number | undefined;
   let lastLoad: number | undefined;
   let failureCount = 0;
-  let aMediasDesde: number | undefined;
-  let ultimoErrorDeRefresco: string | undefined;
+  let partialSince: number | undefined;
+  let lastRefreshError: string | undefined;
   let released = false;
   let releasedWithRetry = false;
 
@@ -152,7 +152,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
     deps.onChange(state);
   };
 
-  const cancela = () => {
+  const cancel = () => {
     if (current) {
       current.cancelled = true;
       current.controller.abort();
@@ -166,7 +166,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
 
   const load = (mode: 'load' | 'refresh', options: { retryRefresh?: boolean } = {}) => {
     if (!key) return;
-    cancela();
+    cancel();
     const request: RefreshRequest = { key, controller: new AbortController(), cancelled: false, startedAt: deps.now(), retryRefresh: options.retryRefresh };
     current = request;
     lastLoad = request.startedAt;
@@ -180,12 +180,12 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         // A stored result the server cannot refresh counts as a failure, but only a NEW error does: the same error repeated does not lengthen the wait.
         const error = (data as any)?.meta?.refreshError;
         const pending = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending);
-        aMediasDesde = pending ? aMediasDesde ?? deps.now() : undefined;
+        partialSince = pending ? partialSince ?? deps.now() : undefined;
         if (!error) {
           failureCount = 0;
-          ultimoErrorDeRefresco = undefined;
-        } else if (`${error.at}|${error.message}` !== ultimoErrorDeRefresco) {
-          ultimoErrorDeRefresco = `${error.at}|${error.message}`;
+          lastRefreshError = undefined;
+        } else if (`${error.at}|${error.message}` !== lastRefreshError) {
+          lastRefreshError = `${error.at}|${error.message}`;
           if (!options.retryRefresh) failureCount += 1;
         }
         emits({ type: 'success', key: request.key, data });
@@ -221,7 +221,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       key = next;
       lastCheck = undefined;
       failureCount = 0;
-      aMediasDesde = undefined;
+      partialSince = undefined;
       load('load');
     },
     retry() {
@@ -237,10 +237,10 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       const data: any = state.key === key ? state.data : undefined;
       if (failureCount > 0 && now - (lastLoad ?? 0) < backoffAfter(failureCount)) return 'skip';
       // First partial load: every 2 s for 2 minutes, then every 15 s; nothing while the tab is hidden.
-      const aMedias = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending);
+      const partial = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending);
       const each =
-        aMediasDesde !== undefined && now - aMediasDesde >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
-      if (aMedias) {
+        partialSince !== undefined && now - partialSince >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
+      if (partial) {
         if (!deps.visible() || now - (lastLoad ?? 0) < each) return 'skip';
         load('refresh');
         return 'reload';
@@ -277,15 +277,15 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
     suspend() {
       if (current) {
         releasedWithRetry = Boolean(current.retryRefresh);
-        cancela();
+        cancel();
         released = true;
       } else if (probing) {
-        cancela();
+        cancel();
         lastCheck = undefined;
       }
     },
     dispose() {
-      cancela();
+      cancel();
       key = undefined;
     },
   };
