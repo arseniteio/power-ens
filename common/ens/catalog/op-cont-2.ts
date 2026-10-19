@@ -6,32 +6,18 @@ export const opCont2CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Continuidad del servicio',
   dimension: 'Disponibilidad (ÚNICA dimensión)',
-  // El Anexo II aplica op.cont.2 por el NIVEL de la Disponibilidad, no por la
-  // categoría del sistema, y solo en ALTO: se evalúa con `availabilityLevel`
-  // de la configuración global y, si no está declarado, con el nivel ENS. Un
-  // sistema de categoría MEDIA no puede tener D en ALTO, así que allí es
-  // NO_APLICA siempre.
+  // Annex II applies op.cont.2 by the Availability LEVEL, not the system category, and only at ALTO: evaluated with `availabilityLevel` of the global configuration and, if not declared, the ENS level. A MEDIA-category system cannot have D at ALTO, so there it is always NO_APLICA.
   levelDimension: 'D',
-  // Es de la ORGANIZACIÓN, no de una máquina: el plan, sus funciones, sus
-  // contratos y su formación se declaran en la pantalla de Configuración y la
-  // policy juzga su vigencia (`policies/op-cont-2.policy.ts`). Se evalúa una
-  // vez, en la fila del manager (000), como los demás controles de la
-  // organización. No tiene runbook ni reglas: ninguna máquina emite hechos para
-  // él (`tests/controls-without-runbook.json`).
+  // Belongs to the ORGANISATION, not a machine: the plan, its functions, contracts and training are declared on the Configuration screen and the policy judges their validity (`policies/op-cont-2.policy.ts`). Evaluated once, on the manager row (000).
+  // No runbook or rules: no machine emits facts for it (`tests/controls-without-runbook.json`).
   measurementPlanes: ['manager'],
   description:
     'op.cont.2 es un control de planificación y su acreditación es documental: existe el plan, identifica funciones, contempla medios alternativos contratados, se ha formado a las personas y está integrado con los demás planes de la organización.',
   levels: ['ALTO'],
   status: 'ACTIVE',
   version: '1.0.0',
-  // Las evidencias de cada requisito son las del diseño (spec 2026-10-09 §5),
-  // no las que la plantilla asocia. Cada requisito es un contenido del plan
-  // («dicho plan contemplará…»), así que los cinco se apoyan en EV-01 (el plan
-  // y su vigencia) además de su propia declaración: 2.3 en EV-04 (contratos) y
-  // 2.4 en EV-06 (formación); 2.1, 2.2 y 2.5 juzgan P-03, P-02 y P-06 en la
-  // decisión del requisito. La plantilla no da evidencia a 2.5: se le asigna
-  // EV-01. EV-02, EV-05, EV-07 y EV-08 quedan como datos del informe, sin
-  // requisito que las juzgue, y EV-03 es de R2, que no se exige.
+  // The evidences of each requirement are the design's, not the template's. Each requirement is a plan content, so all five rest on EV-01 (the plan and its validity) besides their own declaration: 2.3 on EV-04 (contracts), 2.4 on EV-06 (training); 2.1, 2.2 and 2.5 judge P-03, P-02 and P-06 in the requirement decision.
+  // The template gives 2.5 no evidence: EV-01 is assigned. EV-02, EV-05, EV-07 and EV-08 stay as report data with no requirement judging them, and EV-03 is R2, which is not required.
   requirements: [
     {
       id: 'op.cont.2.1',

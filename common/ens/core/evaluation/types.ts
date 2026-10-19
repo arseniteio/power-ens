@@ -1,73 +1,35 @@
-// Una máquina, nombrada como la nombra el auditor. Sale de la consolidación
-// entre agentes: el resultado de UN agente no la lleva, porque ahí la máquina ya
-// es el contexto entero de la pantalla.
+// A machine, named as the auditor names it. Comes from consolidation across agents; one agent's result does not carry it.
 export interface ENSAgentRef {
   agentId: string;
   agentName?: string;
 }
 
-// Un motivo y las máquinas en las que ocurre. El mismo motivo repetido en siete
-// agentes es UN motivo observado siete veces, no siete motivos: agrupar por
-// texto es lo que hace que la vista general siga leyéndose cuando el parque
-// crece. La estructura viaja cruda —sin recortar ni redactar— para que cada
-// consumidor decida cuántos grupos enseña y cómo; el motor no recorta nada.
+// A motive and the machines where it occurs. The same motive on seven agents is ONE motive observed seven times. The structure travels raw (not trimmed) so each consumer decides how many groups to show.
 export interface ENSObservationGroup {
-  // El motivo tal cual lo escribió el motor, SIN prefijo de agente.
+  // The motive as the engine wrote it, WITHOUT agent prefix.
   text: string;
 
-  // En qué máquinas se ha observado, en orden estable de aparición. Vacío
-  // solo si el motivo no procede de ninguna máquina en concreto.
+  // Machines where it was observed, in stable order of appearance. Empty only if the motive comes from no particular machine.
   agents: ENSAgentRef[];
 }
 
-// Cómo se ha llegado al incumplimiento. El VEREDICTO es el mismo en los dos
-// casos —NO_CUMPLE—, pero ni la acción ni quién la ejecuta lo son, y esa es
-// justo la información que no se puede perder:
-//
-//   MEDIDA          se ha mirado y el resultado no conforma. Es un hallazgo
-//                   sobre el sistema: hay algo que corregir en la máquina.
-//   NO_EVIDENCIADA  no se ha podido demostrar. La carga de la prueba es del
-//                   auditado, así que cuenta en contra igual — pero lo que hay
-//                   que hacer es habilitar la prueba, no corregir la máquina.
-//
-// Decisión del responsable del 04/08. Revierte la parte de `346e56b` que
-// publicaba `NO_EVALUABLE` sin número: un auditor no escribe «no evaluable»,
-// escribe «no evidenciado» y lo cuenta en contra. Lo que `346e56b` sí acertó
-// —y aquí se conserva entero— es que las dos cosas no se explican igual.
+// How the noncompliance was reached. The verdict is the same (NO_CUMPLE) but the action and who performs it differ.
+//   MEDIDA          looked at and does not conform: something to fix on the machine.
+//   NO_EVIDENCIADA  could not be proven: counts against anyway (the burden of proof is the audited party's), but the action is to enable the proof, not fix the machine.
 export type ENSNonConformityOrigin = 'MEDIDA' | 'NO_EVIDENCIADA';
 
-// De quién es el hueco cuando el incumplimiento es NO_EVIDENCIADA. Es lo que
-// decide a quién le toca arreglarlo, y por eso se publica en vez de quedarse
-// dentro del texto:
-//
-//   CATALOG       el producto no declara qué acreditaría el requisito. Es
-//                 cierto para todas las máquinas por igual y no cambia por
-//                 mirar otra: NO es un hallazgo por máquina y consolidando
-//                 nunca se multiplica ni se atribuye a un agente.
-//   CONFIGURATION falta un parámetro obligatorio, o la política declarada está
-//                 vacía. Es del despliegue del cliente, no de una máquina en
-//                 concreto, pero afecta a las que se nombran. Lo arregla quien
-//                 configura ENSFácil.
-//   COLLECTION    no ha llegado NADA de esa máquina: agente caído, recolector
-//                 sin ejecutar, sin latido. **No es un hallazgo sobre la
-//                 máquina, es un fallo de RECOGIDA**, y lo arregla quien opera
-//                 Wazuh y los agentes — otra persona y otra acción.
-//   EVIDENCE      el dato llegó pero no basta para pronunciarse: contrato de
-//                 calidad incumplido, campo ilegible, o el propio agente
-//                 declara que no ha podido medir y dice por qué. Lo arregla
-//                 quien mantiene el productor de la evidencia.
+// Whose gap it is when the noncompliance is NO_EVIDENCIADA; decides who fixes it.
+//   CATALOG       the product does not declare what would accredit the requirement. True for all machines alike, never multiplied or attributed to an agent.
+//   CONFIGURATION a required parameter is missing or the declared policy is empty. Fixed by whoever configures ENSFácil.
+//   COLLECTION    NOTHING arrived from that machine (agent down, collector not run, no heartbeat). A COLLECTION failure, not a finding on the machine; fixed by whoever operates Wazuh and the agents.
+//   EVIDENCE      data arrived but is not enough (quality contract, unreadable field, or the agent declares it could not measure). Fixed by whoever maintains the evidence producer.
 export type ENSGapCause =
   | 'CATALOG'
   | 'CONFIGURATION'
   | 'COLLECTION'
   | 'EVIDENCE';
 
-// Un hallazgo de incumplimiento. UNA SOLA lista: hasta el 04/08 los huecos de
-// medida viajaban aparte, en `measurementGaps`, con su propio contador y su
-// propio color. Con el criterio nuevo eso ya no se sostiene —el veredicto es el
-// mismo— y mantener dos contadores invitaba a leer uno de ellos como «esto no
-// cuenta», que es exactamente lo que la decisión revierte. El diagnóstico no se
-// pierde: baja de ser una categoría de veredicto a ser `origin` + `cause`.
+// A noncompliance finding. ONE list only, with `origin` + `cause` carrying the diagnosis; two lists with two counters let one be read as "this does not count".
 export interface ENSNonConformity {
   id: string;
   evidenceId: string;
@@ -78,32 +40,23 @@ export interface ENSNonConformity {
   expected?: string;
   actual?: string;
 
-  // Medido y no conforme, o no evidenciado. Ver `ENSNonConformityOrigin`.
+  // Measured and nonconforming, or unevidenced. See `ENSNonConformityOrigin`.
   origin: ENSNonConformityOrigin;
 
-  // Solo en las `MEDIDA`: lo demostrado es una DECLARACIÓN de la pantalla (un
-  // contrato, una certificación vencida o ausente), no un hallazgo sobre la
-  // máquina. Cuenta igual, pero la acción es renovar o completar el documento,
-  // no corregir la máquina.
+  // Only on `MEDIDA`: what is proven is a screen DECLARATION (an absent or expired contract or certification), not a finding on the machine. The action is to renew or complete the document.
   documental?: boolean;
 
-  // Solo en las `NO_EVIDENCIADA`. En las medidas no hay hueco del que hablar.
+  // Only on `NO_EVIDENCIADA`.
   cause?: ENSGapCause;
 
-  // Máquinas en las que se ha demostrado ESTE hallazgo, con este mismo texto.
-  // Solo lo rellena la consolidación: una tarjeta idéntica en seis máquinas es
-  // una tarjeta con seis máquinas, no seis tarjetas. Si el hallazgo difiere
-  // (otra cuenta, otro valor), el texto difiere y son tarjetas distintas.
-  // Vacío en las de causa CATALOG: no hay máquina a la que atribuirlas.
+  // Machines where THIS finding with this same text was proven. Filled only by consolidation: an identical card on six machines is one card with six machines.
+  // Empty for cause CATALOG (no machine to attribute it to).
   agents?: ENSAgentRef[];
 
-  // Todas las evidencias implicadas, no solo la primera: `evidenceId` existe
-  // para que la tarjeta tenga un ancla, pero el que va a arreglarlo necesita la
-  // lista entera.
+  // All involved evidences, not only the first: `evidenceId` is the card's anchor but whoever fixes it needs the whole list.
   evidenceIds: string[];
 
-  // Parámetros de la pantalla de Configuración que desbloquearían la medida. Es
-  // lo que convierte «no se ha podido demostrar» en una acción ejecutable.
+  // Configuration screen parameters that would unblock the measure; turns "could not be proven" into an executable action.
   parameterIds: string[];
 }
 
@@ -128,32 +81,19 @@ export interface ENSRequirementResult {
   status: ENSComplianceStatus;
   level: ENSLevel[];
 
-  // ¿Se ha llegado a medir? Con `status` a NO_CUMPLE, esto es lo que distingue
-  // «hemos mirado y está mal» de «no lo has podido demostrar». El veredicto no
-  // lo dice porque el veredicto es el mismo a propósito.
-  //
-  // `false` en un requisito NO_APLICA no significa nada: ahí no hay nada que
-  // medir. Consolidando entre agentes es `true` solo si TODAS las máquinas lo
-  // midieron: basta una sin demostrar para que el conjunto no esté demostrado.
+  // Was it actually measured? With `status` NO_CUMPLE this separates "looked and it is wrong" and "could not be proven". `false` on NO_APLICA means nothing.
+  // Consolidated across agents it is `true` only if ALL machines measured it.
   evidenced?: boolean;
 
-  // Acreditado por DOCUMENTO, no por telemetría. Viaja hasta la pantalla y el
-  // informe para que un auditor pueda separar de un vistazo lo que se midió de
-  // lo que se declaró. Un CUMPLE atestado es tan válido como uno medido —para
-  // los requisitos organizativos, el documento ES la prueba que el ENS pide—
-  // pero presentarlos igual sería esconder de qué tipo es cada uno.
+  // Accredited by DOCUMENT, not telemetry. Travels to the screen and report so an auditor can tell measured from declared at a glance.
   attested?: boolean;
 
-  // Juzgado desde una declaración de la pantalla con su vigencia, no desde los
-  // hechos de una máquina (ver `documental` en `ENSPolicyDecision`). Con
-  // NO_CUMPLE, un documento vencido o ausente: ni «medido» ni «corregir la
-  // máquina».
+  // Judged from a screen declaration with its validity, not from machine facts (see `documental` in `ENSPolicyDecision`). With NO_CUMPLE: an expired or absent document.
   documental?: boolean;
 
   observations: string[];
 
-  // Los mismos motivos sin aplanar. Como en `ENSEvidenceResult`, solo lo
-  // rellena la consolidación entre agentes.
+  // The same motives unflattened. As in `ENSEvidenceResult`, filled only by consolidation across agents.
   observationGroups?: ENSObservationGroup[];
 
   evidenceIds?: string[];
@@ -165,26 +105,12 @@ export interface ENSEvidenceResult {
   status: ENSComplianceStatus;
   description: string;
 
-  // Por qué la evidencia está como está: qué cuenta concreta incumple, qué
-  // parámetro falta, por qué un gris es un gris justificado.
-  //
-  // Este campo NO existía, y su ausencia vaciaba en silencio todo el trabajo de
-  // escribir buenos motivos: `ENSEvidenceResolved` los trae desde el motor, y
-  // aquí se perdían. Los dos modelos de informe los leían igual
-  // (`evidences.get(id)?.observations`) y recibían siempre `[]`, así que el
-  // motivo de una evidencia en gris o en rojo no llegaba nunca al auditor.
-  // Afecta a los tres controles, no solo al que estrenó las primitivas de
-  // juicio: también al gris justificado de EV-06 de mp.info.6.
-  //
-  // Consolidando varios agentes cada motivo llega prefijado con la máquina (o
-  // con las máquinas) en las que se observó, para el consumidor que solo sabe
-  // leer texto plano —los dos modelos de informe—. El que quiera enseñarlo bien
-  // tiene la misma información sin aplanar en `observationGroups`.
+  // Why the evidence is as it is: which concrete account fails, which parameter is missing, why a grey is justified. Without this field the motives written by the engine were silently lost
+  // before reaching the report models.
+  // Consolidated across agents, each motive arrives prefixed with the machine(s) where it was observed for plain-text consumers; `observationGroups` has the unflattened form.
   observations: string[];
 
-  // Los mismos motivos, agrupados por texto y con las máquinas de cada uno.
-  // Solo lo rellena la consolidación entre agentes: con un agente seleccionado
-  // el motivo no necesita decir de qué máquina viene.
+  // The same motives grouped by text with each one's machines. Filled only by consolidation across agents.
   observationGroups?: ENSObservationGroup[];
 
   requirements: string[];
@@ -252,35 +178,19 @@ export interface ENSComplianceResult {
 
   policyRuntime?: ENSPolicyRuntimeResult;
 
-  // Las máquinas que ha resumido este resultado. Solo lo rellena la
-  // consolidación: sin él, la vista general dice «todos los agentes» sin decir
-  // cuántos son, y «afecta a 6» no se distingue de «afecta a todas».
+  // Machines this result summarised. Filled only by consolidation, so "affects 6" and "affects all" are told apart.
   consolidatedAgents?: ENSAgentRef[];
 
   level: ENSLevel;
   status: ENSComplianceStatus;
 
-  // OPCIONAL, y desde el 04/08 solo falta en un caso: NO_APLICA. Un control que
-  // no aplica no se puntúa —el 0 se pinta en rojo igual que un incumplimiento
-  // real—, pero todo lo que aplica SIEMPRE trae número, porque todo lo que
-  // aplica tiene veredicto. Antes también se omitía en NO_EVALUABLE, y ese
-  // hueco sin número es el que dejaba fuera del porcentaje lo no demostrado.
+  // OPTIONAL, absent only for NO_APLICA: a control that does not apply is not scored (a 0 is painted red like a real failure), but everything that applies always carries a number.
   score?: number;
 
   coverage: number;
 
-  // El DENOMINADOR del porcentaje es `applicableRequirements`, no
-  // `measuredRequirements`. Entre el 30/07 y el 04/08 fue al revés, y tenía
-  // sentido mientras un requisito sin medir no era un incumplimiento: dejarlo
-  // en el denominador lo hacía restar igual que uno incumplido, que era
-  // precisamente el error. Con el criterio nuevo eso deja de ser un error y
-  // pasa a ser la definición: lo no demostrado NO CUMPLE, luego resta.
-  //
-  // `measuredRequirements` sigue publicándose, pero ya no divide nada: ahora es
-  // el DIAGNÓSTICO. «60 %, 5 de 8 requisitos demostrados» y «60 %, 8 de 8
-  // demostrados» son dos máquinas muy distintas con el mismo número, y el par
-  // es lo que las separa. Mismos campos que `requisitos_aplicables` /
-  // `requisitos_medidos` de los agentes.
+  // The DENOMINATOR of the percentage is `applicableRequirements`, not `measuredRequirements`: what is not proven does NOT comply, so it subtracts.
+  // `measuredRequirements` is still published as the DIAGNOSTIC: "60 %, 5 of 8 proven" and "60 %, 8 of 8 proven" are very different machines. Same fields as `requisitos_aplicables` / `requisitos_medidos` of the agents.
   applicableRequirements: number;
   measuredRequirements: number;
   unmeasuredRequirements: string[];
@@ -297,12 +207,7 @@ export interface ENSComplianceResult {
   missingEvidences: string[];
   relatedRules: string[];
 
-  // TODAS las no conformidades, medidas y no evidenciadas, en una sola lista y
-  // con un solo contador. Quien quiera separarlas filtra por `origin`, que es
-  // lo que hace la pantalla para presentarlas en dos bloques bajo un único
-  // total. La lista `measurementGaps` que vivía aquí ya no existe: dos listas
-  // con dos contadores es lo que permitía leer una de ellas como «esto no
-  // cuenta».
+  // ALL noncompliances, measured and unevidenced, in one list with one counter; filter by `origin` to split them.
   nonConformities: ENSNonConformity[];
 
   observations: string[];

@@ -1,10 +1,7 @@
 import { getENSComplianceResultByControl } from './ens-engine';
 import { ENSNormalizedEvent } from './data-source';
 
-// `status` explícito en los tres: una alerta real siempre trae `data.estado`, y
-// el motor ya no infiere cumplimiento a partir del nombre del evento. Sin este
-// campo la fixture simularía un evento que ningún agente emite y saldría
-// NO_EVALUABLE.
+// Explicit `status` on all three: a real alert always carries `data.estado`, and the engine no longer infers compliance from the event name.
 const events: ENSNormalizedEvent[] = [
   {
     id: 'test-ev-01',
@@ -23,9 +20,7 @@ const events: ENSNormalizedEvent[] = [
     agentId: '010',
     agentName: 'agent-010',
     controlId: 'mp.info.6',
-    // `restore_ok`, que es el nombre que emite la regla 106651. Antes decía
-    // `restore_success`, un sinónimo que el catálogo declaraba y que no emite
-    // ninguna regla: la fixture simulaba un evento que ninguna máquina produce.
+    // `restore_ok`, the name rule 106651 emits (the old `restore_success` was declared by the catalog but emitted by no rule).
     eventType: 'restore_ok',
     sourceType: 'WAZUH_ALERT',
     status: 'CUMPLE',

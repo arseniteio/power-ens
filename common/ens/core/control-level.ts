@@ -4,15 +4,7 @@ import {
   ENSLevel,
 } from '../configuration/types';
 
-// Nivel con el que se evalúa UN control.
-//
-// Todos los controles se evalúan con el nivel ENS global salvo los que declaran
-// en su catálogo que se rigen por el nivel de una dimensión (`levelDimension`).
-// Para esos, manda el nivel de esa dimensión en la configuración global si está
-// declarado; si no lo está, el global, exactamente como antes de existir.
-//
-// Es la única bifurcación: un control sin `levelDimension`, o una configuración
-// sin el nivel de la dimensión, devuelven `level` tal cual.
+// Level with which ONE control is evaluated. All use the global ENS level except those declaring in their catalog that they follow a dimension's level (`levelDimension`); for those, the dimension's level in the global configuration rules if declared, else the global one.
 export const resolveControlLevel = (
   control: Pick<ENSControlDefinition, 'levelDimension'>,
   level: ENSLevel,

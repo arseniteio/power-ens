@@ -20,38 +20,15 @@ import {
   ENSEvidenceResolved,
 } from './types';
 
-// El motor juzga la evidencia; el agente solo aporta el hecho crudo.
+// The engine judges the evidence; the agent only supplies the raw fact. This is the single place where "the engine decides this evidence", the same for every control.
 //
-// Este fichero es el ÚNICO sitio donde vive «el motor decide esta evidencia», y
-// es idéntico para los tres controles. No hay —ni puede haber— un evaluador por
-// control: tener uno solo en op.acc.1 produjo dos caminos de evaluación sobre
-// los mismos datos y se desconectó en `3e92f5c`.
-//
-// Invariante, por encima de cualquier primitiva: la ausencia de un dato no
-// produce una afirmación. Sin hecho observado o sin parámetro, NO_EVALUABLE con
-// motivo. Nunca un CUMPLE falso, y tampoco un NO_CUMPLE MEDIDO falso.
-//
-// El criterio del 04/08 no cambia nada de esto. Lo que decide este fichero es la
-// OBSERVACIÓN —qué se ha podido mirar y qué no—, no el veredicto: una evidencia
-// sin dato sigue saliendo NO_EVALUABLE, con su `gapCause` diciendo por qué. Que
-// eso cuente como incumplimiento del requisito lo decide `applyAuditVerdict`, en
-// `evaluation/utils/verdict.ts`. Fundir las dos capas sería perder justo la
-// distinción que el responsable pidió conservar: mirando la tabla de evidencias
-// se tiene que poder ver si la máquina se midió y falló, o si nunca se midió.
+// Invariant: absence of data never produces an assertion. Without an observed fact or a parameter the result is NO_EVALUABLE with a motive;
+// never a false CUMPLE nor a false measured NO_CUMPLE.
+// This file decides the OBSERVATION (what could be looked at), not the verdict: an evidence without data stays NO_EVALUABLE with its `gapCause`;
+// that it counts against the requirement is decided by `applyAuditVerdict` (`evaluation/utils/verdict.ts`).
 
-// --- Cobertura del recolector (T1.3) ---------------------------------------
-//
-// «El recolector corrió y no encontró nada» y «el recolector no corrió» son dos
-// situaciones distintas, y de esa distinción depende si la ausencia de hechos
-// puede llegar a significar CUMPLE:
-//
-//   - NINGUNO_EN_LISTA con cobertura CONFIRMADA y cero hechos → sí es CUMPLE
-//     (se ha mirado y no hay ninguna cuenta prohibida autenticándose).
-//   - Con cobertura DESCONOCIDA o AUSENTE, ese mismo caso es el falso verde que
-//     el producto prohíbe, así que se queda en NO_EVALUABLE.
-//
-// Aquí es donde se decide si el producto miente: con la cobertura sin resolver,
-// «cero hechos» es indistinguible de «agente apagado».
+// Collector coverage. "The collector ran and found nothing" differs from the collector not having run:
+// NINGUNO_EN_LISTA with CONFIRMED coverage and zero facts is CUMPLE; with UNKNOWN or ABSENT coverage the same case is a false green and stays NO_EVALUABLE.
 export type ENSCollectorCoverage =
   | 'CONFIRMADA'
   | 'AUSENTE'
@@ -60,12 +37,10 @@ export type ENSCollectorCoverage =
 export interface ENSCollectorCoverageResult {
   coverage: ENSCollectorCoverage;
 
-  // El motivo va SIEMPRE, también cuando la cobertura está confirmada: es lo
-  // que el auditor lee para saber sobre qué latido concreto se sostiene un
-  // CUMPLE que nadie ha observado directamente.
+  // The motive is ALWAYS present, even when coverage is confirmed: it tells the auditor which heartbeat a CUMPLE rests on.
   reason: string;
 
-  // Latido en el que se apoya la respuesta, para la traza.
+  // Heartbeat the answer rests on, for the trace.
   event?: ENSNormalizedEvent;
 }
 
@@ -75,31 +50,18 @@ const DEFAULT_COLLECTOR_RUN_EVENT_TYPES = [
 
 const DEFAULT_COLLECTOR_RUN_MAX_AGE_HOURS = 24;
 
-// Cota SUPERIOR de la ventana. Un latido no puede venir del futuro: si lo hace,
-// o el reloj está desviado o el dato está manipulado, y en ninguno de los dos
-// casos demuestra que el recolector haya mirado nada. Sin esta cota, un
-// `collector_run` fechado en 2099 valdría como latido perpetuo y volvería verde
-// para siempre a cualquier evidencia de aserción negativa, aunque el agente
-// llevara meses apagado. Es un fallo real, ya visto en revisión de este
-// producto, y el mismo margen y el mismo criterio que aplica el agente en
-// `ens_opacc1_score.py` (MARGEN_FUTURO) — los dos lados tienen que tratar igual
-// un ts adelantado o vuelve a haber dos interpretaciones del mismo evento.
+// UPPER bound of the window. A heartbeat cannot come from the future (skewed clock or tampered data); without this bound a `collector_run` dated 2099
+// would be a perpetual heartbeat. Same margin and criterion as the agent in `ens_opacc1_score.py` (MARGEN_FUTURO): both sides must treat an advanced ts alike.
 const COLLECTOR_RUN_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
-// Campos del latido. No se declaran por evidencia en el catálogo a propósito:
-// son el contrato agente↔motor, idéntico para los tres controles, y ponerlos en
-// el catálogo invitaría a que cada evidencia lo declarara distinto.
+// Heartbeat fields. Not declared per evidence in the catalog on purpose: they are the agent-engine contract, identical for every control.
 const COLLECTOR_RUN_RESULT_FIELD = 'resultado';
 
 const COLLECTOR_RUN_SUCCESS_VALUES = [
   'completada',
 ];
 
-// Lista blanca de evidencias que ESA pasada llegó a mirar. No es lo mismo que
-// «sobre las que emitió algo»: una evidencia de aserción negativa calla
-// legítimamente cuando no hay nada que reportar, y ese silencio es justo el
-// caso que puede significar CUMPLE. Lo que hace falta saber es si la fuente se
-// pudo leer.
+// Whitelist of evidences THAT pass managed to look at; not the same as those it emitted something for, since a negative-assertion evidence legitimately stays silent.
 const COLLECTOR_RUN_COVERAGE_FIELD = 'evidencias_cubiertas';
 
 const parseTimestamp = (
@@ -116,17 +78,9 @@ const parseTimestamp = (
     : undefined;
 };
 
-// Un latido del mismo control y agente (ya filtrados por
-// `resolveEvidenceForControl`), con ejecución correcta, cubriendo la ventana
-// evaluada y declarando esta evidencia → CONFIRMADA; uno que declare fallo o
-// que declare NO haber cubierto esta evidencia → AUSENTE; ninguno del que se
-// pueda decir nada → DESCONOCIDA.
-//
-// Regla de fondo, y la razón de que falten datos se resuelva siempre hacia
-// DESCONOCIDA: CONFIRMADA hay que GANÁRSELA. Un latido que no declara su
-// resultado, o que no declara qué llegó a mirar, no demuestra cobertura —
-// demuestra que el recolector es más viejo que este contrato. Y lo que no
-// consta no puede convertir un silencio en un CUMPLE.
+// A heartbeat of the same control and agent (already filtered by `resolveEvidenceForControl`), with a successful run, covering the evaluated window and declaring this evidence: CONFIRMED;
+// one declaring failure or declaring it did NOT cover this evidence: ABSENT; none that says anything: UNKNOWN.
+// CONFIRMED must be EARNED: a heartbeat that does not declare its result or what it looked at only proves an older collector.
 export const resolveCollectorCoverage = (
   definition: ENSEvidenceDefinition,
   judgment: ENSEvidenceJudgment,
@@ -155,8 +109,7 @@ export const resolveCollectorCoverage = (
         definition.sourceTypes.includes(
           event.sourceType
         ) &&
-        // El latido no es de ninguna evidencia en particular; si alguno viene
-        // marcado, solo cuenta para la suya.
+        // The heartbeat belongs to no evidence in particular; if one is tagged, it counts only for its own.
         (!event.evidenceId ||
           event.evidenceId === definition.id)
     )
@@ -277,15 +230,11 @@ export const resolveCollectorCoverage = (
   };
 };
 
-// --- Lectura del parámetro -------------------------------------------------
+// Parameter reading.
 
-// Tolera el valor heredado en forma de cadena: lo que hay en el índice para
-// muchos parámetros de tipo `list` son cadenas escritas a mano antes de que el
-// formulario supiera editar listas. Se parte por saltos de línea y por comas,
-// igual que `configuration/form-engine/renderers/list-parameter-renderer.tsx`
-// —el motor y la pantalla tienen que leer el valor guardado de la misma forma—,
-// y NUNCA por `|`, que en este producto separa los campos de un mismo elemento
-// ('srv-dc01 | Windows').
+// Tolerates the legacy string form (hand-written strings from before the form could edit lists). Split by newlines and commas, as
+// `configuration/form-engine/renderers/list-parameter-renderer.tsx` does (engine and screen must read the stored value alike), and NEVER by `|`,
+// which separates the fields of one element ('srv-dc01 | Windows').
 export const parseReferenceList = (
   value: unknown
 ): string[] => {
@@ -312,17 +261,8 @@ export const parseReferenceList = (
   return [];
 };
 
-// --- Lectura de un parámetro de tipo TABLA ---------------------------------
-//
-// `parseReferenceList` no sirve para una tabla, y no es un descuido suyo: parte
-// por comas, y una celda `multiselect` ('lectura,escritura' en P-06 de op.acc.2)
-// lleva comas dentro. Aplicada a una tabla rompería una fila en pedazos que no
-// significan nada.
-//
-// Una tabla se lee en dos pasos: filas y celdas. Las FILAS son los elementos del
-// array (o las líneas, si el valor llegó como cadena de un bloque sembrado a
-// mano); NUNCA se parten por comas. Las CELDAS sí se parten por `|`, que es el
-// separador de campos del producto ('/srv/datos | 750 | root:ops').
+// Reading a TABLE parameter. `parseReferenceList` does not fit: it splits by commas and a `multiselect` cell ('lectura,escritura') contains commas.
+// Two steps: ROWS are the array elements (or lines, for a string), never split by commas; CELLS are split by `|`.
 export const parseReferenceRows = (
   value: unknown
 ): string[] => {
@@ -342,9 +282,7 @@ export const parseReferenceRows = (
   return [];
 };
 
-// Una fila cruda ('jgomez | srv01 | ops') repartida entre las columnas
-// declaradas. Las celdas que la fila no trae quedan vacías, que es lo mismo que
-// una celda en blanco: ese eje no se declara. Las que sobran se descartan.
+// A raw row ('jgomez | srv01 | ops') spread across the declared columns. Missing cells stay empty (that axis is not declared); extra ones are dropped.
 export const splitRowCells = (
   row: string,
   columns: ENSParameterColumn[]
@@ -360,21 +298,10 @@ export const splitRowCells = (
   return parsed;
 };
 
-// --- Comparación de valores ------------------------------------------------
-//
-// DOS reglas de mayúsculas, y la diferencia no es cosmética: decide en qué
-// dirección se equivoca el motor cuando la política y la máquina escriben el
-// mismo nombre distinto.
-//
-//   - Contra una lista PROHIBIDA (`NINGUNO_EN_LISTA`), sin distinguir
-//     mayúsculas: 'ADMIN' y 'admin' cuentan los dos como la cuenta prohibida.
-//     Equivocarse aquí produce un NO_CUMPLE de más, nunca un CUMPLE falso.
-//   - Contra una lista AUTORIZADA o una celda de la tabla, DISTINGUIENDO
-//     mayúsculas. En Linux 'Admin' y 'admin' son dos cuentas distintas, así que
-//     tratarlas como la misma autorizaría a una cuenta que nadie autorizó: un
-//     CUMPLE falso, que es lo único que este producto no puede hacer. Es además
-//     lo que P-07 y P-09 llevan escrito en su propia descripción («la
-//     comparación es literal y distingue mayúsculas»).
+// Value comparison. TWO case rules, deciding the direction in which the engine errs:
+// - Against a FORBIDDEN list (`NINGUNO_EN_LISTA`) case-insensitive: errs towards an extra NO_CUMPLE, never a false CUMPLE.
+// - Against an AUTHORISED list or a table cell, case-SENSITIVE: 'Admin' and 'admin' are different Linux accounts, and merging them would authorise an account nobody authorised.
+//   P-07 and P-09 state it in their own description.
 const normalizeForComparison = (
   value: unknown
 ): string =>
@@ -386,8 +313,7 @@ const normalizeStrict = (
   value: unknown
 ): string => String(value).trim();
 
-// Modo octal como número. Tolera el cero inicial ('0750' y '750' son el mismo
-// modo) y rechaza cualquier cosa que no sean dígitos octales.
+// Octal mode as a number. Tolerates the leading zero and rejects anything but octal digits.
 const toOctalMode = (
   value: unknown
 ): number | undefined => {
@@ -400,17 +326,13 @@ const toOctalMode = (
   return parseInt(text, 8);
 };
 
-// «El modo observado no concede ni un permiso que el declarado no conceda.»
-// Igualdad NO: un recurso más restrictivo que lo declarado no crea riesgo y
-// declararlo desviación produciría no conformidades que ningún auditor firma.
-// Lo que no puede pasar nunca es lo contrario, y es justo lo que esto mide.
+// "The observed mode grants no permission the declared one does not." Not equality: a more restrictive resource creates no risk.
 const grantsNothingExtra = (
   observed: number,
   declared: number
 ): boolean => (observed & ~declared) === 0;
 
-// Celda `multiselect`: dentro de la celda sí manda la coma, que es como la
-// declara el formulario ('lectura,escritura').
+// `multiselect` cell: inside the cell the comma separates values.
 const splitCellOptions = (
   cell: string
 ): string[] =>
@@ -419,16 +341,8 @@ const splitCellOptions = (
     .map(option => option.trim())
     .filter(Boolean);
 
-// ¿Lo observado casa con lo que la política declara en ESA celda?
-//
-// `undefined` significa «no se puede comparar», que no es lo mismo que «no
-// casa»: un modo que no es octal o un número que no es un número dejan el eje
-// sin decidir, y de ahí sale NO_EVALUABLE, nunca NO_CUMPLE.
-//
-// La comparación la elige el TIPO DE COLUMNA que el parámetro ya declara. Es lo
-// que evita el catálogo de casos particulares: la ACL declarada y el umask
-// mínimo se comparan igual porque los dos son `octal`, sin que ninguna evidencia
-// tenga que decir cómo.
+// Does the observed value match what the policy declares in THAT cell? `undefined` means "cannot compare", not "does not match": the axis stays undecided and the result is NO_EVALUABLE.
+// The comparison is chosen by the COLUMN TYPE the parameter already declares, so no per-evidence special cases exist.
 const cellMatches = (
   observed: string,
   cell: string,
@@ -505,8 +419,7 @@ type ENSParameterReference =
       values: string[];
       // Set by a parameter in regex mode: replaces the comparison with `values`.
       matches?: (value: string) => boolean;
-      // Qué se compara realmente: la lista entera o una columna suya. Va en la
-      // referencia para que el motivo que lee el auditor lo diga.
+      // What is really compared: the whole list or one column of it. Goes in the reference so the auditor's motive says it.
       description: string;
     }
   | { kind: 'UMBRAL'; threshold: number; description: string }
@@ -530,10 +443,7 @@ const THRESHOLD_PRIMITIVES: ENSEvidenceJudgment['primitive'][] = [
   'UMBRAL_MINIMO',
 ];
 
-// Cuánto dura una hora de cada tipo de parámetro. La unidad del plazo la dice el
-// TIPO del parámetro y no una declaración aparte en el catálogo: si estuvieran
-// los dos, podrían discrepar, y un plazo de 30 leído como horas donde son días
-// convierte un CUMPLE en un NO_CUMPLE sin que nada avise.
+// Hours per unit of each parameter type. The deadline unit comes from the parameter TYPE, not a separate catalog declaration that could disagree.
 const DURATION_HOURS_BY_TYPE: Record<string, number> = {
   duration_hours: 1,
   duration_days: 24,
@@ -556,22 +466,10 @@ const resolveDurationHours = (
     : amount * factor;
 };
 
-// La lista contra la que se compara. Es AQUÍ donde se resuelve el aviso que dejó
-// el agente de configuración: hoy `parseReferenceList` devuelve filas enteras, y
-// la primera evidencia que apunte a un parámetro `table` compararía
-// 'jgomez | srv01 | ops' contra 'jgomez' y no casaría jamás.
-//
-// Tres casos, y el del medio es el que no existía:
-//
-//   - Parámetro sin `columns` (o con una sola): lista plana, exactamente como
-//     hasta hoy. P-04 de op.acc.1 —la única evidencia migrada— entra por aquí y
-//     no cambia de comportamiento.
-//   - Parámetro con dos o más columnas y `parameterColumn` declarada: se proyecta
-//     ESA columna de cada fila.
-//   - Parámetro con dos o más columnas y sin `parameterColumn`: NO se compara
-//     nada. Comparar la fila entera sería el fallo silencioso; elegir la primera
-//     columna por defecto sería el mismo fallo aplazado a la primera tabla cuya
-//     clave no fuera la columna 1.
+// The list to compare against. Three cases:
+// - no `columns` (or one): flat list, as before (op.acc.1 P-04 enters here);
+// - two or more columns with `parameterColumn`: that column of each row is projected;
+// - two or more columns without `parameterColumn`: nothing is compared (the whole row would be a silent failure, and defaulting to the first column the same failure postponed).
 const resolveReferenceValues = (
   judgment: ENSEvidenceJudgment,
   parameter: ENSControlParameter,
@@ -626,8 +524,7 @@ const resolveReferenceValues = (
   };
 };
 
-// Nunca se recurre a `defaultValue`: juzgar contra un valor que el auditor no ha
-// puesto es exactamente la pantalla que miente. Solo cuenta lo configurado.
+// `defaultValue` is never used: judging against a value the auditor did not set is a lying screen.
 const resolveParameterReference = (
   judgment: ENSEvidenceJudgment,
   parameter: ENSControlParameter | undefined,
@@ -678,10 +575,7 @@ const resolveParameterReference = (
     }
   }
 
-  // El margen solo significa algo sumado a un número o a un plazo. Declararlo en
-  // una primitiva de lista es un error del catálogo, y se dice en vez de
-  // ignorarse: un margen que no hace nada es la misma mentira que un parámetro
-  // editable sin efecto.
+  // A margin only means something added to a number or deadline. Declaring it on a list primitive is a catalog error and is reported, not ignored.
   const wantsTolerance = Boolean(
     judgment.toleranceParameterId
   );
@@ -699,10 +593,7 @@ const resolveParameterReference = (
     };
   }
 
-  // Margen ausente o vacío -> se aplica sin margen. Es el extremo ESTRICTO: una
-  // ventana más corta nunca produce un CUMPLE que la ventana con margen no
-  // produjera, así que su ausencia no puede fabricar un verde. Un margen que
-  // está pero no se puede leer es otra cosa y no se adivina.
+  // Missing or empty margin: applied without margin, the STRICT extreme (a shorter window never yields a CUMPLE the margin window would not). An unreadable margin is not guessed.
   let toleranceHours = 0;
   let toleranceAmount = 0;
   let toleranceMotive = '';
@@ -837,14 +728,13 @@ const resolveParameterReference = (
   };
 };
 
-// --- Lectura de los hechos crudos ------------------------------------------
+// Reading the raw facts.
 
 interface ENSObservedFact {
   event: ENSNormalizedEvent;
   text: string;
 
-  // Solo en `CONFORME_A_TABLA`: la clave que busca su fila y lo que el agente
-  // observó de cada eje contrastado.
+  // Only in `CONFORME_A_TABLA`: the key that looks up its row and what the agent observed on each contrasted axis.
   key?: string;
   values?: Record<string, string>;
 }
@@ -854,9 +744,7 @@ interface ENSUnusableFactEvent {
   reason: string;
 }
 
-// Nombra los hechos, que es lo que el auditor necesita: no «algo falló», sino
-// qué cuenta concreta. Se quitan los repetidos y se corta en cinco para que la
-// observación siga siendo legible.
+// Names the facts (which concrete account), deduplicated and cut to five to stay readable.
 const describeFacts = (
   facts: ENSObservedFact[]
 ): string => {
@@ -885,12 +773,9 @@ const describeFacts = (
     : shown.join(', ');
 };
 
-// --- Juicio ----------------------------------------------------------------
+// Judgment.
 
-// `now` es un parámetro y no una llamada suelta a `new Date()` porque la
-// cobertura del recolector se mide contra una ventana con dos cotas: sin poder
-// congelar el reloj, la prueba de que un latido del futuro NO vale sería
-// imposible de escribir de forma determinista.
+// `now` is a parameter so the clock can be frozen: the heartbeat is measured against a window with two bounds, and the future-heartbeat case needs a deterministic test.
 export const judgeEvidence = (
   definition: ENSEvidenceDefinition,
   judgment: ENSEvidenceJudgment,
@@ -925,10 +810,7 @@ export const judgeEvidence = (
     toleranceParameter
   );
 
-  // Los eventos de hecho son SOLO los tipos declarados en `factEventTypes`. El
-  // `evidence_state` del agente no entra aquí y su `estado` no se lee en ningún
-  // punto de este fichero: cuando una evidencia declara `judgment`, deja de
-  // mandar sobre ella.
+  // Fact events are ONLY the types in `factEventTypes`. The agent's `evidence_state` does not enter here and its `estado` is never read: once an evidence declares `judgment`, it stops ruling.
   const factEvents = sortByTimestampDesc(
     events.filter(
       event =>
@@ -961,11 +843,7 @@ export const judgeEvidence = (
       return;
     }
 
-    // `CONFORME_A_TABLA` lee VARIOS campos del mismo evento: la clave que busca
-    // su fila y lo observado de cada eje. Un evento sin clave no se puede
-    // contrastar con ninguna fila, así que es ilegible; los ejes que falten se
-    // resuelven abajo, contra la fila, porque un eje que la política no declara
-    // tampoco hace falta que el agente lo observe.
+    // `CONFORME_A_TABLA` reads several fields of one event: the row key and what was observed per axis. An event without key is unreadable; missing axes are resolved below against the row.
     if (judgment.primitive === 'CONFORME_A_TABLA') {
       const keyFields = judgment.factKeyFields?.length
         ? judgment.factKeyFields
@@ -1054,10 +932,8 @@ export const judgeEvidence = (
     });
   });
 
-  // `gapCause` solo se rellena cuando el estado es NO_EVALUABLE: es el POR QUÉ
-  // de la falta de medida, y de él sale la acción de la no conformidad no
-  // evidenciada. Sin parámetro es CONFIGURATION; sin latido, COLLECTION; con el
-  // dato llegado pero ilegible, EVIDENCE.
+  // `gapCause` is filled only when the state is NO_EVALUABLE: it is WHY nothing was measured and drives the unevidenced nonconformity's action.
+  // No parameter: CONFIGURATION; no heartbeat: COLLECTION; data arrived but unreadable: EVIDENCE.
   const buildResult = (
     status: ENSEvidenceResolved['status'],
     motives: string[],
@@ -1114,7 +990,7 @@ export const judgeEvidence = (
     ? `No hay ningún hecho observado utilizable para ${definition.id}: llegaron ${factEvents.length} evento(s) de tipo ${judgment.factEventTypes.join(', ')}, pero ninguno aporta valor en el campo '${readFieldName}'.`
     : `No hay ningún hecho observado para ${definition.id}: no ha llegado ningún evento de tipo ${judgment.factEventTypes.join(', ')}.`;
 
-  // Caso 1: ni hecho ni parámetro.
+  // Case 1: neither fact nor parameter.
   if (
     !observedFacts.length &&
     reference.kind === 'SIN_PARAMETRO'
@@ -1127,14 +1003,12 @@ export const judgeEvidence = (
         'Sin hecho observado y sin parámetro de referencia no se puede afirmar ni negar el cumplimiento.',
       ],
       factEvents[0],
-      // Faltan las dos cosas, pero solo una desbloquea: sin el parámetro no hay
-      // veredicto ni aunque llegue el hecho, así que la acción es configurarlo.
+      // Both are missing but only one unblocks: without the parameter there is no verdict even if the fact arrives, so the action is to configure it.
       'CONFIGURATION'
     );
   }
 
-  // Caso 2: hay hecho, pero no hay parámetro contra el que contrastarlo. Nunca
-  // un veredicto: sin la referencia configurada, el hecho no dice nada.
+  // Case 2: a fact but no parameter to compare against. Never a verdict.
   if (reference.kind === 'SIN_PARAMETRO') {
     return buildResult(
       'NO_EVALUABLE',
@@ -1147,9 +1021,7 @@ export const judgeEvidence = (
     );
   }
 
-  // Caso 3: hay parámetro, pero no se ha observado ningún hecho. Es donde vive
-  // la tentación del falso verde: «no se ha visto nada malo, luego cumple». Solo
-  // deja de serlo cuando consta que el recolector ejecutó y cubrió la ventana.
+  // Case 3: a parameter but no observed fact. The false-green temptation: it stops being one only when the collector is known to have run and covered the window.
   if (!observedFacts.length) {
     const coverage = resolveCollectorCoverage(
       definition,
@@ -1160,42 +1032,20 @@ export const judgeEvidence = (
 
     const coverageMotive = `Cobertura del recolector: ${coverage.coverage}. ${coverage.reason}`;
 
-    // Solo la aserción NEGATIVA puede cumplirse por ausencia. «Ninguno de los
-    // hechos observados está en la lista» sigue siendo cierto con cero hechos
-    // observados, siempre que conste que se ha mirado — es literalmente lo que
-    // acredita EV-03: nadie se autenticó con una cuenta prohibida.
-    //
-    // Las demás no: «todos los hechos observados están en la lista», «ningún
-    // valor observado supera el umbral», «hay un hecho reciente» y «cada hecho
-    // casa con su fila» son afirmaciones POSITIVAS sobre un sistema del que no
-    // se ha observado nada. Que sean vacuamente ciertas en lógica no las hace
-    // ciertas en una auditoría: cero copias de seguridad observadas no acredita
-    // que las copias se hagan a tiempo. Se quedan en NO_EVALUABLE aunque la
-    // cobertura esté confirmada.
-    //
-    // La segunda que sí cumple por ausencia es `NINGUNO_FUERA_DE_LISTA`, y por
-    // qué merece la pena distinguirla de `TODOS_EN_LISTA` —con la que comparte
-    // la comparación exacta— es la decisión de diseño de todo este fichero: no
-    // es la comparación lo que cambia, es QUÉ ES EL HECHO. Los hechos de
-    // `TODOS_EN_LISTA` ACREDITAN algo que existe en la máquina (una cuenta
-    // activa, un acceso al repositorio), y no observar ninguno es no haber
-    // mirado. Los de `NINGUNO_FUERA_DE_LISTA` son HALLAZGOS de un barrido (un
-    // binario SUID, un recurso world-writable, una elevación de privilegio), y
-    // no encontrar ninguno es el resultado normal de una máquina sana. Obligar
-    // a las cuatro evidencias de barrido a un NO_EVALUABLE permanente para no
-    // duplicar una comparación de tres líneas convertiría el gris en el color
-    // de una máquina correcta, y el gris cuenta en contra desde el 04/08.
-    const admiteCumplimientoPorAusencia =
+    // Only a NEGATIVE assertion can be met by absence ("none of the observed facts is in the list" holds with zero facts if it was looked at: EV-03).
+    // The others ("all observed facts are in the list", "no value exceeds the threshold", "there is a recent fact", "each fact matches its row") are POSITIVE statements about a system nothing was observed of,
+    // and stay NO_EVALUABLE even with confirmed coverage.
+    // `NINGUNO_FUERA_DE_LISTA` also passes by absence. It differs from `TODOS_EN_LISTA` not in the comparison but in WHAT THE FACT IS: the latter's facts ACCREDIT something that exists
+    // (an active account), so observing none is not having looked; the former's are FINDINGS of a sweep (SUID binary, world-writable resource), so finding none is the normal healthy result.
+    const allowsComplianceByAbsence =
       judgment.primitive === 'NINGUNO_EN_LISTA' ||
       judgment.primitive ===
         'NINGUNO_FUERA_DE_LISTA';
 
-    // Ni siquiera con cobertura confirmada: si llegaron eventos de hecho que no
-    // se han podido leer, no se ha observado «nada», se ha observado algo
-    // ilegible. Afirmar cumplimiento sería afirmar sobre lo que falta.
+    // Not even with confirmed coverage: facts that arrived but could not be read mean something unreadable was observed, and asserting compliance would assert about what is missing.
     if (
       coverage.coverage === 'CONFIRMADA' &&
-      admiteCumplimientoPorAusencia &&
+      allowsComplianceByAbsence &&
       !unusableFactEvents.length
     ) {
       return buildResult(
@@ -1217,7 +1067,7 @@ export const judgeEvidence = (
         missingFactsMotive,
         coverageMotive,
         ...(coverage.coverage === 'CONFIRMADA' &&
-        !admiteCumplimientoPorAusencia
+        !allowsComplianceByAbsence
           ? [
               `La primitiva ${judgment.primitive} afirma algo sobre los hechos observados, así que no puede acreditarse sin observar ninguno, ni siquiera con la cobertura confirmada.`,
             ]
@@ -1236,26 +1086,15 @@ export const judgeEvidence = (
           ),
       ],
       factEvents[0] || coverage.event,
-      // ÉSTE es el caso del agente caído: no hay hechos y el latido no consta.
-      // La causa es de RECOGIDA y no un hallazgo sobre la máquina. Si llegaron
-      // eventos de hecho ilegibles, entonces sí llegó algo y la culpa es del
-      // productor de la evidencia, no de la recogida.
+      // The fallen-agent case: no facts and no heartbeat. The cause is COLLECTION, not a finding on the machine. If unreadable fact events arrived, the producer of the evidence is at fault.
       unusableFactEvents.length ? 'EVIDENCE' : 'COLLECTION'
     );
   }
 
-  // Caso 4: hecho observado y parámetro válido. Aquí sí hay veredicto.
+  // Case 4: observed fact and valid parameter. This is where a verdict exists.
 
-  // ANTIGUEDAD_MAXIMA sale por su propio camino porque es la única primitiva
-  // EXISTENCIAL: a las demás les incumple UN hecho, a ésta le CUMPLE uno. «La
-  // última copia no puede ser más vieja que 24 h» se satisface con una copia
-  // reciente, aunque haya otras cien antiguas — que las haya es lo normal.
-  //
-  // Y por eso mide contra el reloj y no contra un número que traiga el agente
-  // ya restado: un evento que dijera `horas_desde_la_copia: 2` seguiría diciendo
-  // 2 dentro de un mes, y afirmaría cumplimiento con el agente apagado. Aquí el
-  // hecho es el INSTANTE de la copia, y su antigüedad crece sola hasta que el
-  // veredicto se cae, que es lo que un auditor espera.
+  // ANTIGUEDAD_MAXIMA has its own path because it is the only EXISTENTIAL primitive: the others fail on ONE fact, this one passes on one. It measures against the clock, not a pre-subtracted number
+  // from the agent (which would keep saying 2 a month later with the agent off). The fact is the copy INSTANT and its age grows by itself.
   if (reference.kind === 'VENTANA') {
     const windowMs =
       reference.hours * 60 * 60 * 1000;
@@ -1279,9 +1118,7 @@ export const judgeEvidence = (
         return;
       }
 
-      // Misma cota superior y mismo motivo que el latido del recolector: un
-      // hecho fechado por delante del reloj no demuestra nada, y sin esta cota
-      // un `2099` dejaría la evidencia en verde para siempre.
+      // Same upper bound and reason as the collector heartbeat: a future-dated fact proves nothing.
       if (
         timestamp >
         nowMs + COLLECTOR_RUN_FUTURE_TOLERANCE_MS
@@ -1335,13 +1172,8 @@ export const judgeEvidence = (
         ...(unreadable.length ||
         unusableFactEvents.length
           ? [
-              // A diferencia de las primitivas universales, aquí un hecho
-              // ilegible NO tumba el cumplimiento: la afirmación es existencial
-              // y el testigo que la sostiene ya está identificado. Exigir que
-              // TODOS los eventos fueran legibles convertiría en gris a
-              // cualquier máquina con una copia antigua mal formada, teniendo
-              // delante una copia reciente y correcta. Se dice cuántos se han
-              // descartado para que el auditor lo vea.
+              // Unlike the universal primitives, an unreadable fact does NOT break compliance here: the assertion is existential and its witness is already identified.
+              // The number discarded is reported for the auditor.
               `Se han descartado ${unreadable.length + unusableFactEvents.length} hecho(s) sin marca de tiempo legible; el veredicto se sostiene sobre el que sí la trae.`,
             ]
           : []),
@@ -1355,12 +1187,8 @@ export const judgeEvidence = (
   let complianceMotive = '';
   let undecidableMotive: string | undefined;
 
-  // Qué desbloquea lo que no se ha podido decidir. Por defecto es del productor
-  // del hecho (EVIDENCE): un valor que no se puede leer lo arregla el agente.
-  // `CONFORME_A_TABLA` lo sube a CONFIGURATION cuando lo que falta es una FILA,
-  // por el mismo criterio que el caso «sin parámetro»: sin la decisión escrita
-  // no hay veredicto ni aunque el hecho llegue perfecto, así que la acción es
-  // declararla en la pantalla y no tocar la máquina.
+  // What unblocks what could not be decided. By default it belongs to the fact producer (EVIDENCE); `CONFORME_A_TABLA` raises it to CONFIGURATION when a ROW is missing:
+  // without the written decision there is no verdict even with a perfect fact.
   let undecidableCause: ENSGapCause = 'EVIDENCE';
 
   if (reference.kind === 'UMBRAL') {
@@ -1404,10 +1232,7 @@ export const judgeEvidence = (
 
     const checks = judgment.tableChecks ?? [];
 
-    // Índice por la clave declarada, que puede ser de varias columnas: un mismo
-    // sujeto tiene filas para recursos distintos. Si la política repite la
-    // MISMA clave entera, manda la última fila: es lo que ve el auditor al
-    // final de la rejilla.
+    // Index by the declared key, possibly multi-column (one subject has rows for different resources). If the policy repeats the SAME whole key, the last row wins (what the auditor sees last in the grid).
     const rowsByKey = new Map<
       string,
       Record<string, string>
@@ -1433,8 +1258,7 @@ export const judgeEvidence = (
     const breaches: string[] = [];
     const undecidables: string[] = [];
 
-    // Lo que no se ha podido decidir porque falta POLÍTICA, no porque falte
-    // dato. Se cuenta aparte porque decide la acción de la no conformidad.
+    // What could not be decided because POLICY is missing, not data. Counted apart because it decides the nonconformity action.
     let policyGaps = 0;
 
     observedFacts.forEach(fact => {
@@ -1442,13 +1266,8 @@ export const judgeEvidence = (
         normalizeStrict(fact.key ?? '')
       );
 
-      // Sin fila NO hay incumplimiento demostrado: hay una decisión que nadie ha
-      // escrito. El motor no puede afirmar que un modo 777 esté mal si la
-      // política no dice cuál debía ser. Sale NO_EVALUABLE con causa
-      // CONFIGURATION —que bajo el criterio del 04/08 cuenta igual en contra—,
-      // y así la tabla de evidencias sigue distinguiendo «se midió y falló» de
-      // «nunca hubo contra qué medir», que es justo lo que el responsable pidió
-      // conservar.
+      // No row is NOT a proven failure: it is a decision nobody wrote. The engine cannot say a 777 mode is wrong if the policy does not say what it should be.
+      // NO_EVALUABLE with cause CONFIGURATION, so the table still separates "measured and failed" and "nothing to measure against".
       if (!row) {
         policyGaps += 1;
 
@@ -1467,9 +1286,7 @@ export const judgeEvidence = (
           row[check.column] ?? ''
         );
 
-        // Celda vacía = ese eje no se declara. Es el contrato escrito de P-08:
-        // «propietario y ACL se pueden dejar vacíos cuando ese eje no se
-        // declara». No se juzga y se dice.
+        // Empty cell = that axis is not declared (P-08 contract: owner and ACL may be left empty). Not judged, and reported.
         if (!cell) {
           return;
         }
@@ -1522,8 +1339,7 @@ export const judgeEvidence = (
         return;
       }
 
-      // Una fila que no declara ni un eje de los contrastados no acredita nada:
-      // el recurso está en la política, pero la política no dice nada de él.
+      // A row declaring none of the contrasted axes accredits nothing.
       if (!judgedAxes) {
         policyGaps += 1;
 
@@ -1545,14 +1361,11 @@ export const judgeEvidence = (
       undecidableMotive = `No se ha podido contrastar: ${undecidables.slice(0, 5).join('; ')}${undecidables.length > 5 ? ` y ${undecidables.length - 5} caso(s) más` : ''}.`;
     }
   } else {
-    // NINGUNO_EN_LISTA incumple con lo que SÍ está en la lista; TODOS_EN_LISTA y
-    // NINGUNO_FUERA_DE_LISTA, con lo que NO está.
+    // NINGUNO_EN_LISTA fails with what IS in the list; TODOS_EN_LISTA and NINGUNO_FUERA_DE_LISTA, with what is NOT.
     const mustBeInList =
       judgment.primitive !== 'NINGUNO_EN_LISTA';
 
-    // Ver la nota de las dos reglas de mayúsculas, arriba: contra una lista
-    // autorizada se compara literal, o 'Admin' pasaría por el 'admin' que el
-    // responsable autorizó.
+    // See the two case rules above: against an authorised list the comparison is literal.
     const compare = mustBeInList
       ? normalizeStrict
       : normalizeForComparison;
@@ -1598,9 +1411,7 @@ export const judgeEvidence = (
     );
   }
 
-  // No basta con que lo observado no incumpla: si además hay eventos de hecho
-  // que no se han podido leer, lo observado está incompleto y afirmar
-  // cumplimiento sería afirmar sobre lo que falta.
+  // Not enough that the observed does not fail: with unreadable fact events the observation is incomplete, and asserting compliance would assert about what is missing.
   if (unusableFactEvents.length) {
     return buildResult(
       'NO_EVALUABLE',

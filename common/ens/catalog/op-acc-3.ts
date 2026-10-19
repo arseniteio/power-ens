@@ -33,11 +33,8 @@ export const opAcc3CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['MEDIO', 'ALTO'],
       },
-      // EV-03 (concurrencia en tareas críticas) vive aquí y no en op.acc.3.1
-      // porque «quien autoriza y quien controla son personas distintas» ES el
-      // control dual que mide P-04. Hasta el 06/08/2026 no la reclamaba ningún
-      // requisito: la policy la evaluaba contra `op.acc.3`, el id del CONTROL,
-      // que no casa con ninguno, y el veredicto se perdía sin ruido.
+      // EV-03 (concurrency in critical tasks) lives here and not in op.acc.3.1 because "who authorises and who controls are different people" IS the dual control P-04 measures.
+      // It was previously claimed by no requirement: the policy evaluated it against `op.acc.3`, the CONTROL id, which matches none, and the verdict was lost silently.
       evidenceIds: ['EV-02', 'EV-03', 'EV-06'],
       parameterIds: ['P-01', 'P-02', 'P-03', 'P-04', 'P-06'],
     },

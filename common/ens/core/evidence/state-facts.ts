@@ -1,41 +1,10 @@
-// Hechos de ESTADO: se juzgan con la última observación, no con la ventana.
-//
-// POR QUÉ. El motor juzgaba todos los hechos de la ventana. Para una ACCIÓN es
-// lo correcto: una edición no autorizada de hace tres semanas sigue contando.
-// Para un ESTADO no lo es: una política de contraseñas corregida a las 12:00 y
-// observada a las 12:07 seguía incumpliendo por la foto de las 11:47, y lo
-// habría seguido haciendo hasta que esa foto saliera de la ventana, un mes
-// después. Un auditor leía un incumplimiento que ya no existía.
-//
-// CUÁL ES LA ÚLTIMA OBSERVACIÓN, Y POR QUÉ NO ES «LA ÚLTIMA PASADA». Un
-// recolector no mira todo en cada pasada: op.exp.3 emite el inventario de
-// servicios una vez al día y op.exp.2 solo puede leer el SCA cuando hay un
-// escaneo reciente. Tomar «la última pasada» a secas dejaba esas evidencias sin
-// un solo hecho y las hundía a NO_EVALUABLE, que es tan falso como la foto
-// vieja.
-//
-// El corte se toma POR EVIDENCIA y con las DOS señales que deja el recolector,
-// la más reciente de ellas: el latido que declara haberla cubierto
-// (`evidencias_cubiertas`) y la emisión de un hecho suyo. Hacen falta las dos
-// porque ningún recolector declara hoy la cobertura de TODAS sus evidencias
-// —op.acc.6 declara seis de doce—, y con solo la primera señal seguían
-// contando fotos de hace días: una contraseña con caducidad 99999 corregida el
-// día 17 seguía suspendiendo el 21.
-//
-// EL CORTE SE MIDE A FECHA DE `now`. La serie diaria evalúa este mismo motor en
-// días pasados; juzgar el 10 con una pasada del 17 sería inventarse el pasado.
-//
-// Y SIN CORTE NO SE DESCARTA NADA. Si el latido no declara cobertura, o no hay
-// una pasada anterior con la que delimitar, se conserva todo: en la duda, más
-// hechos, nunca menos.
-//
-// VARIOS RECOLECTORES DEL MISMO CONTROL EN LA MISMA MÁQUINA. En un servidor de
-// buzones, mp.info.6 tiene dos: el del PBS y el de Zimbra, cada uno con su
-// latido y a su minuto. Con los latidos mezclados, la pasada de Zimbra de las
-// 10:40 delimitaba con el latido del PBS de las 10:00 y borraba sus hechos. Si
-// las evidencias declaran `stateFactCollectorField` (`origen`), latidos y
-// hechos se agrupan por máquina y por ese campo: cada recolector delimita solo
-// los suyos. Sin el campo, todo es un solo recolector, como siempre.
+// STATE facts are judged by the latest observation, not the window. For an ACTION the window is right (an unauthorised edit from three weeks ago still counts); for a STATE it is not
+// (a password policy fixed at 12:00 and observed at 12:07 kept failing from the 11:47 snapshot for a month).
+// The latest observation is NOT "the last pass": a collector does not look at everything each pass (op.exp.3 emits the service inventory once a day), and taking the bare last pass sank those evidences to NO_EVALUABLE.
+// The cut is taken PER EVIDENCE with the more recent of the collector's TWO signals: the heartbeat declaring it covered (`evidencias_cubiertas`) and the emission of one of its facts.
+// THE CUT IS MEASURED AS OF `now` (the daily series evaluates past days). WITHOUT A CUT NOTHING IS DISCARDED: when in doubt, more facts.
+// SEVERAL COLLECTORS OF THE SAME CONTROL ON ONE MACHINE (mp.info.6: PBS and Zimbra, each with its heartbeat): if the evidences declare `stateFactCollectorField` (`origen`),
+// heartbeats and facts are grouped by machine and that field, so each collector delimits only its own. Without the field, all is one collector.
 import type { ENSNormalizedEvent } from '../data-source/types';
 import { parseReferenceList } from './judgment';
 import { getEventFieldValue } from './normalized-events';
@@ -44,8 +13,7 @@ import { getEvidenceDefinitions } from './registry';
 const COLLECTOR_RUN_EVENT_TYPE = 'collector_run';
 const COLLECTOR_RUN_COVERAGE_FIELD = 'evidencias_cubiertas';
 
-// Dos latidos más juntos que esto son la misma pasada (un reintento, un
-// recolector que late al empezar y al terminar). No delimitan nada.
+// Two heartbeats closer than this are the same pass (a retry, a collector that beats at start and end). They delimit nothing.
 const SAME_RUN_TOLERANCE_MS = 60 * 1000;
 
 export const getStateFactEventTypes = (controlId: string): Set<string> =>
@@ -60,8 +28,7 @@ interface CollectorRun {
   covered: string[];
 }
 
-// El recolector de un evento dentro de su máquina: el valor del campo que
-// declaran las evidencias del control, o '' si no declaran ninguno.
+// A event's collector within its machine: the value of the field the control's evidences declare, or '' if none.
 type CollectorOf = (event: ENSNormalizedEvent) => string;
 
 const collectorKey = (
@@ -109,9 +76,7 @@ const collectorRunsByCollector = (
   return runs;
 };
 
-// Instante a partir del cual cuenta la última observación de una evidencia: el
-// latido anterior a la última pasada que la miró. «Mirarla» es declararla en
-// `evidencias_cubiertas` o emitir un hecho suyo, lo que ocurra más tarde.
+// Instant from which an evidence's latest observation counts: the heartbeat before the last pass that looked at it ("looked" = declared in `evidencias_cubiertas` or emitted a fact, whichever is later).
 const boundaryFor = (
   runs: CollectorRun[] | undefined,
   evidenceId: string,
@@ -186,8 +151,7 @@ export const keepLatestRunStateFacts = (
     return events;
   }
 
-  // Última emisión de un hecho de estado de cada evidencia, por recolector de
-  // cada máquina.
+  // Last emission of a state fact of each evidence, per collector of each machine.
   const lastFact = new Map<string, number>();
 
   events.forEach(event => {
@@ -235,8 +199,7 @@ export const keepLatestRunStateFacts = (
       return true;
     }
 
-    // Las evidencias que declaran este tipo como estado. Si el hecho dice a
-    // cuál pertenece, solo cuenta esa.
+    // The evidences declaring this type as state. If the fact says which one it belongs to, only that one counts.
     const owners = definitions.filter(
       definition =>
         (definition.stateFactEventTypes || []).includes(event.eventType) &&
@@ -250,8 +213,7 @@ export const keepLatestRunStateFacts = (
     const collector = collectorKey(event, collectorOf);
     const time = Date.parse(event.timestamp);
 
-    // Con varias dueñas manda la más permisiva: descartar un hecho que otra
-    // evidencia todavía necesita sería dejarla sin nada que mirar.
+    // With several owners the most permissive rules: discarding a fact another evidence still needs would leave it with nothing to look at.
     return owners.some(definition => {
       const boundary = boundaryOf(collector, definition.id);
 
@@ -264,8 +226,7 @@ export const keepLatestRunStateFacts = (
   });
 };
 
-// Las evidencias que pueden ser dueñas de un tipo de hecho de estado: un hecho
-// que declara OTRA evidencia no es de estado para el motor y no se descarta.
+// The evidences that can own a state fact type: a fact declared by ANOTHER evidence is not state for the engine and is not discarded.
 export const getStateFactOwnerEvidenceIds = (
   controlId: string,
   eventType: string
@@ -280,34 +241,10 @@ export const getStateFactCollectorField = (
   controlId: string
 ): string | undefined => collectorFieldOf(stateFactDefinitions(controlId));
 
-// LO QUE EL SERVIDOR PUEDE DEJAR DE LEER, Y POR QUÉ NO CAMBIA NADA.
-//
-// El servidor evalúa sobre la ventana entera, y los hechos de estado se repiten
-// en cada pasada: leerlos todos para quedarse con la última es casi todo el
-// volumen de algunos controles. El motor descarta, a fecha de un instante, los
-// hechos de estado de cada evidencia hasta su corte (arriba). El servidor
-// calcula ese MISMO corte antes de leer —con los latidos y el último hecho de
-// cada evidencia, que saca de una agregación— para ahora y para el final de
-// cada día de la serie, y no lee lo que queda por debajo del corte en TODOS
-// esos instantes (`prunableRanges` y `buildStateFactKeepClause` en el
-// servidor). Lo que el motor ve en cada instante es lo mismo leyendo todo o
-// solo eso: lo prueba `tests/evaluation-queries.test.ts`.
-//
-// EL CORTE EXACTO, por recolector y a fecha de varios instantes (ahora y el
-// final de cada día de la serie). Es el mismo corte que `keepLatestRunStateFacts`
-// —el latido anterior a la última vez que se miró cada evidencia, siendo
-// «mirar» lo más tardío entre el latido que la cubre y su último hecho—, con el
-// último hecho que da `lastFactOf` (el servidor lo saca de una agregación).
-//
-// Por recolector, el mínimo de los cortes de sus tipos con hechos: un solo
-// rango por recolector y día, que el motor vuelve a recortar con su regla. Si
-// algún tipo con hechos no tiene corte (su recolector no late, o no hay pasada
-// anterior), ese recolector no se poda en ese instante (`undefined`).
-//
-// `lastFactOf(collector, evidenceId, at)`: el último hecho de estado de esa
-// evidencia (suyo o sin evidencia declarada) del recolector hasta `at`, o
-// `undefined` si no hay. Si devuelve MENOS de lo que hay (un hecho que no supo
-// atribuir), el corte solo puede salir antes: se lee de más, nunca de menos.
+// What the server can skip reading. The server evaluates over the whole window and state facts repeat every pass. It computes this SAME cut before reading (from the heartbeats and each evidence's last fact, taken from an aggregation)
+// for now and the end of each series day, and does not read what lies below the cut at ALL those instants (`prunableRanges`, `buildStateFactKeepClause` in the server). The engine sees the same at each instant: `tests/evaluation-queries.test.ts`.
+// Exact cut per collector at several instants: same as `keepLatestRunStateFacts`, with the last fact given by `lastFactOf(collector, evidenceId, at)`. Per collector, the minimum of the cuts of its types with facts: one range per collector and day.
+// If some type with facts has no cut, that collector is not pruned at that instant (`undefined`). If `lastFactOf` returns LESS than exists, the cut can only be earlier: more is read, never less.
 export const computeStateFactCutoffsByCollector = (
   controlId: string,
   runEvents: ENSNormalizedEvent[],
@@ -315,43 +252,42 @@ export const computeStateFactCutoffsByCollector = (
   lastFactOf: (collector: string, evidenceId: string, at: number) => number | undefined,
   collectors: string[]
 ): Map<string, (number | undefined)[]> => {
-  const salida = new Map<string, (number | undefined)[]>();
+  const output = new Map<string, (number | undefined)[]>();
   const definitions = stateFactDefinitions(controlId);
 
   if (!definitions.length) {
-    return salida;
+    return output;
   }
 
   const collectorOf = collectorOfField(collectorFieldOf(definitions));
-  const tipos = Array.from(new Set(definitions.flatMap(definition => definition.stateFactEventTypes || [])));
+  const types = Array.from(new Set(definitions.flatMap(definition => definition.stateFactEventTypes || [])));
 
   collectors.forEach(collectorValue => {
-    salida.set(
+    output.set(
       collectorValue,
       instants.map(instant => {
         const at = instant.getTime();
         const runs = collectorRunsByCollector(controlId, runEvents, at, collectorOf);
-        // Los latidos son de una sola máquina: la clave del recolector es
-        // `agente|valor`.
-        const clave = [...runs.keys()].find(key => key.slice(key.indexOf('|') + 1) === collectorValue);
-        const propios = clave ? runs.get(clave) : undefined;
-        let minimo: number | undefined;
+        // Heartbeats belong to a single machine: the collector key is `agent|value`.
+        const matchedKey = [...runs.keys()].find(key => key.slice(key.indexOf('|') + 1) === collectorValue);
+        const own = matchedKey ? runs.get(matchedKey) : undefined;
+        let minimum: number | undefined;
 
-        for (const tipo of tipos) {
-          const duenas = definitions.filter(definition => (definition.stateFactEventTypes || []).includes(tipo));
-          const conHechos = duenas.filter(definition => lastFactOf(collectorValue, definition.id, at) !== undefined);
-          if (!conHechos.length) continue;
-          for (const definition of duenas) {
-            const corte = boundaryFor(propios, definition.id, lastFactOf(collectorValue, definition.id, at));
-            if (corte === undefined) return undefined;
-            minimo = minimo === undefined ? corte : Math.min(minimo, corte);
+        for (const type of types) {
+          const owners = definitions.filter(definition => (definition.stateFactEventTypes || []).includes(type));
+          const withFacts = owners.filter(definition => lastFactOf(collectorValue, definition.id, at) !== undefined);
+          if (!withFacts.length) continue;
+          for (const definition of owners) {
+            const cut = boundaryFor(own, definition.id, lastFactOf(collectorValue, definition.id, at));
+            if (cut === undefined) return undefined;
+            minimum = minimum === undefined ? cut : Math.min(minimum, cut);
           }
         }
 
-        return minimo;
+        return minimum;
       })
     );
   });
 
-  return salida;
+  return output;
 };

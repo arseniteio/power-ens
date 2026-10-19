@@ -1,33 +1,12 @@
 import { ENSNormalizedEvent } from './types';
 
-// Patrones de nombre de evento que permiten inferir un estado cuando el evento
-// NO declara `estado`. Solo apuntan a NO_CUMPLE: la inferencia por nombre puede
-// empujar hacia el incumplimiento, nunca hacia el cumplimiento.
-//
-// Por qué solo en esa dirección: el nombre de un evento describe un hecho
-// observado, no un veredicto. Que un hecho se llame `auth_success` significa que
-// una autenticación funcionó, no que el control ENS se cumpla. Afirmar
-// cumplimiento a partir del nombre convierte cualquier hecho técnico
-// desconocido en un CUMPLE, que es exactamente el falso verde que el producto
-// no puede permitirse.
-//
-// Cada patrón, justificado:
-//   error / failed  la operación que la evidencia debía acreditar no se completó
-//   missing         el artefacto que la evidencia exige no está
-//   unauthorized    acceso o identidad fuera de lo autorizado; no conformidad
-//
-// Salvedad conocida de `missing`: una ausencia solo acusa cuando el despliegue
-// garantiza que, de haber ocurrido el hecho, se habría observado, y el nombre
-// del evento no lo sabe. mp.info.6 tuvo dos `*_missing` con estados distintos
-// por ese motivo (la copia ausente, medida; la prueba de restauración ausente,
-// sin medir); con su contrato de hechos ya no emite ninguno que una evidencia
-// escuche (`collector_missing` es diagnóstico del recolector).
-//
-// Lo que eso implica AQUÍ: el nombre del evento NO basta para decidir un
-// `*_missing`. Si algún día uno llegara sin `estado` a una evidencia, este
-// patrón lo pondría en rojo sin haberlo medido: lo que procede entonces es que
-// el emisor declare su `estado`, no que se infiera aquí. Este fichero lo
-// comparten todos los controles.
+// Event-name patterns that allow inferring a state when the event declares NO `estado`. They point only to NO_CUMPLE: name inference may push towards failure, never towards compliance
+// (an `auth_success` fact means an authentication worked, not that the ENS control is met).
+//   error / failed  the operation the evidence had to accredit did not complete
+//   missing         the artifact the evidence requires is not there
+//   unauthorized    access or identity outside what is authorised
+// Known caveat of `missing`: an absence accuses only when the deployment guarantees the fact would have been observed, which the event name does not know. The event name does NOT suffice to decide a `*_missing`:
+// the emitter should declare its `estado`. This file is shared by all controls.
 const ADVERSE_EVENT_PATTERNS = [
   'error',
   'failed',
@@ -56,10 +35,7 @@ const normalizeENSStatus = (status?: string, eventType?: string): string => {
   if (['NO_EVALUABLE', 'UNKNOWN', 'SIN_DATOS'].includes(value)) return 'NO_EVALUABLE';
   if (['NO_APLICA', 'NOT_APPLICABLE', 'N/A'].includes(value)) return 'NO_APLICA';
 
-  // Sin `estado` declarado el motor no afirma cumplimiento. Antes, cualquier
-  // nombre que contuviera `success`, `ok` o `configured` —y `authorized_access`
-  // literal— salia CUMPLE: la ausencia de dato producia una afirmacion de
-  // conformidad. Ahora la ausencia de dato produce NO_EVALUABLE.
+  // Without a declared `estado` the engine asserts no compliance. Before, any name containing `success`, `ok` or `configured` came out CUMPLE; now absence of data yields NO_EVALUABLE.
   return (
     inferAdverseStatusFromEventType(eventType) ||
     'NO_EVALUABLE'
@@ -220,12 +196,7 @@ export const normalizeWazuhAlert = (hit: any): ENSNormalizedEvent => {
   const rule = source.rule || {};
   const agent = source.agent || {};
 
-  // Sin traducciones por control. Aquí vivía un caso especial que convertía
-  // `offsite_ok` en `offsite_success` para que EV-06 de mp.info.6 resolviera:
-  // un control cableado en un fichero que comparten todos. Se retiró cuando el
-  // nombre se corrigió en la regla. Si vuelve a hacer falta una traducción
-  // aquí, lo que hay que arreglar es el nombre en la regla, no taparlo en el
-  // normalizador.
+  // No per-control translations. A special case once turned `offsite_ok` into `offsite_success` for mp.info.6 EV-06: a control wired into a shared file. If a translation is needed again, fix the name in the rule instead.
   const eventType =
     data.event ||
     rule.groups?.join(',') ||

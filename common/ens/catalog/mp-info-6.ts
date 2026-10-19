@@ -9,8 +9,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
   description:
     'Control ENS orientado a garantizar la existencia, conservación, protección y recuperación de copias de seguridad.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
-  // Las copias se miden solo en las máquinas que la organización declara en
-  // P-04: no toda máquina del alcance ENS hace copias ni las guarda.
+  // Backups are measured only on the machines the organisation declares in P-04: not every ENS scope machine makes or keeps backups.
   scopeParameter: 'P-04',
   status: 'ACTIVE',
   version: '1.0.0',

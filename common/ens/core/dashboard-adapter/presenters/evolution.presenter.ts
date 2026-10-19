@@ -1,16 +1,6 @@
-// El gráfico de evolución.
-//
-// Hasta el 05/08 este fichero promediaba por SEMANA los `score_snapshot` del
-// agente. Eran otro número: el agente puntúa sobre su propio denominador y no
-// lee los parámetros que el auditor declara en la pantalla, así que el panel y
-// la línea podían discrepar sin que nada lo dijera —y discrepaban: op.acc.2 en
-// 0 % arriba y la línea en otro sitio—.
-//
-// Ahora la serie la calcula el motor, día a día, y este fichero solo la pinta.
-// Quién la produce y con qué criterio: `core/timeline/compliance-timeline.ts`.
+// The evolution chart. The series is computed by the engine day by day and this file only paints it; see `core/timeline/compliance-timeline.ts`. It no longer averages the agent's `score_snapshot` per week, which was another number.
 import { ENSComplianceState } from '../../compliance-state/types';
-// `import type`: solo es un tipo, y como valor arrastraría el motor entero a
-// este presentador. Ver la cabecera de `dashboard-adapter.ts`.
+// `import type`: only a type; as a value it would drag the whole engine into this presenter. See the header of `dashboard-adapter.ts`.
 import type { ENSComplianceTimelinePoint } from '../../timeline/compliance-timeline';
 import {
   EvolutionModel,
@@ -39,8 +29,7 @@ export const buildEvolutionModel = (
         .controlSummary.parcial
     ) > 0;
 
-  // Sin serie, un único punto con el valor de ahora. Es el mismo número que
-  // habría dado el último punto, así que la tarjeta nunca contradice al panel.
+  // Without a series, a single point with the current value, the same number the last point would give, so the card never contradicts the panel.
   const fallbackRows:
     EvolutionRowModel[] =
       hasEvaluableControls

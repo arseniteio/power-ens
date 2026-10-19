@@ -24,48 +24,21 @@ export interface ENSEvidenceQualityRequirements {
   rejectSynthetic?: boolean;
 }
 
-// Primitivas de juicio del motor. Son deliberadamente pocas y deliberadamente
-// iguales para los tres controles: el evaluador por control (op-acc-1.evaluator)
-// dio dos caminos de evaluación sobre los mismos datos y se desconectó en
-// `3e92f5c`. Aquí no hay código por control, solo una declaración en el catálogo.
+// Judgment primitives of the engine: deliberately few and identical for every control (no code per control, only a catalog declaration).
+// They are named by what they mean to an AUDITOR; seven exist because each answers a different audit question.
 //
-// Se nombran por lo que significan para un AUDITOR, no por cómo se implementan.
-// Hay siete y no una por evidencia porque cada una responde a una pregunta de
-// auditoría distinta; dos que respondieran a la misma pregunta serían el
-// evaluador por control con otro nombre. El razonamiento completo, evidencia a
-// evidencia, está en la documentación interna de desarrollo.
-//
-// Contra una LISTA de referencia:
-//
-//   NINGUNO_EN_LISTA        Ningún hecho observado figura en la lista PROHIBIDA.
-//                           Aserción negativa: cero hechos con cobertura
-//                           confirmada es CUMPLE.
-//   TODOS_EN_LISTA          Todo hecho observado figura en la lista AUTORIZADA.
-//                           Los hechos ACREDITAN algo (cuentas activas, accesos
-//                           al repositorio): cero hechos es no haber medido.
-//   NINGUNO_FUERA_DE_LISTA  Ningún HALLAZGO de un barrido queda fuera de la
-//                           lista autorizada. Misma comparación que
-//                           TODOS_EN_LISTA y regla de ausencia opuesta: aquí
-//                           cero hechos con cobertura confirmada significa «se
-//                           barrió y no se encontró nada», que sí es CUMPLE.
-//
-// Contra un UMBRAL numérico:
-//
-//   UMBRAL_MAXIMO     Ningún valor observado supera el del parámetro.
-//   UMBRAL_MINIMO     Ningún valor observado queda por debajo del parámetro.
-//
-// Contra un PLAZO:
-//
-//   ANTIGUEDAD_MAXIMA El hecho más reciente no es más viejo que el plazo. Es la
-//                     única primitiva EXISTENCIAL —le basta UN hecho lo bastante
-//                     reciente—, y por eso nunca cumple por ausencia.
-//
-// Contra una TABLA de política:
-//
-//   CONFORME_A_TABLA  Cada hecho observado casa con LA FILA que le corresponde
-//                     en la tabla, columna a columna. Es la primitiva de
-//                     `op.acc.2.2`: los derechos de cada recurso siguen la
-//                     decisión escrita del responsable.
+// Against a reference LIST:
+//   NINGUNO_EN_LISTA        No observed fact is in the FORBIDDEN list. Negative assertion: zero facts with confirmed coverage is CUMPLE.
+//   TODOS_EN_LISTA          Every observed fact is in the AUTHORISED list. Facts ACCREDIT something: zero facts means nothing was measured.
+//   NINGUNO_FUERA_DE_LISTA  No sweep FINDING is outside the authorised list. Same comparison as TODOS_EN_LISTA, opposite absence rule:
+//                           zero facts with confirmed coverage means "swept and found nothing", which is CUMPLE.
+// Against a numeric THRESHOLD:
+//   UMBRAL_MAXIMO           No observed value exceeds the parameter.
+//   UMBRAL_MINIMO           No observed value is below the parameter.
+// Against a DEADLINE:
+//   ANTIGUEDAD_MAXIMA      The latest fact is not older than the deadline. The only EXISTENTIAL primitive (ONE recent fact suffices), so it never passes by absence.
+// Against a policy TABLE:
+//   CONFORME_A_TABLA        Each observed fact matches ITS row in the table, column by column (op.acc.2.2).
 export type ENSEvidenceJudgmentPrimitive =
   | 'NINGUNO_EN_LISTA'
   | 'TODOS_EN_LISTA'
@@ -75,109 +48,59 @@ export type ENSEvidenceJudgmentPrimitive =
   | 'ANTIGUEDAD_MAXIMA'
   | 'CONFORME_A_TABLA';
 
-// Una columna de la tabla de política contrastada contra un campo del hecho.
-//
-// El nombre de la columna y el del campo se declaran por separado a propósito:
-// la columna dice lo que el responsable DECIDIÓ ('acl_esperada') y el campo, lo
-// que el agente OBSERVÓ ('acl'). Llamarlos igual por convención invitaría a
-// nombrar el hecho crudo con el vocabulario de la política, que es justo la
-// confusión que la migración deshace.
+// A policy-table column checked against a fact field. Declared separately on purpose: the column is what the owner DECIDED ('acl_esperada'), the field what the agent OBSERVED ('acl').
 export interface ENSEvidenceTableCheck {
   column: string;
   factField: string;
 }
 
-// Declara que de esta evidencia decide el motor, no el agente.
-//
-// El agente emite el HECHO CRUDO (qué cuentas se han autenticado, qué días
-// lleva una copia sin hacerse) y el motor lo contrasta con el parámetro que el
-// auditor configuró en la pantalla. Cuando una evidencia declara `judgment`, su
-// `evidence_state` deja de mandar sobre ella: el motor no lee `estado` en este
-// camino.
-//
-// Invariante que ninguna primitiva puede romper: sin hecho observado o sin
-// parámetro, NO_EVALUABLE con motivo. Nunca CUMPLE por ausencia, y nunca
-// NO_CUMPLE por ausencia.
+// Declares that the engine, not the agent, decides this evidence. The agent emits the RAW FACT and the engine compares it with the screen parameter;
+// `evidence_state` no longer rules and `estado` is not read on this path.
+// Invariant: without an observed fact or a parameter, NO_EVALUABLE with a motive; never CUMPLE or NO_CUMPLE by absence.
 export interface ENSEvidenceJudgment {
   primitive: ENSEvidenceJudgmentPrimitive;
 
-  // `id` del ENSControlParameter (p.ej. 'P-04'), no su `name`. El `id` es lo
-  // estable entre el bloque semilla de `config/` y lo que devuelve el índice.
+  // `id` of the ENSControlParameter (e.g. 'P-04'), not its `name`: the `id` is stable between the `config/` seed block and the index.
   parameterId: string;
 
-  // Tipos de evento que transportan el hecho crudo. Es una lista, como
-  // `expectedEventTypes`, porque un mismo hecho puede llegar por más de un tipo
-  // (`generic_account_login` y `auth_success` para EV-03 de op.acc.1) y porque
-  // durante una migración conviven el tipo viejo y el nuevo.
+  // Event types carrying the raw fact. A list because one fact may arrive under several types and old and new types coexist during a migration.
   factEventTypes: string[];
 
-  // Campo del evento cuyo valor se contrasta. Se busca primero en `attributes` y
-  // luego en la raíz del evento normalizado. Si el campo trae una lista, cada
-  // elemento cuenta como un hecho observado independiente.
-  //
-  // En `CONFORME_A_TABLA` no se usa: allí los campos los declaran `factKeyField`
-  // y `tableChecks`.
+  // Event field whose value is checked: looked up in `attributes` first, then at the root of the normalized event. A list value counts as independent facts.
+  // Unused in `CONFORME_A_TABLA` (`factKeyField` and `tableChecks` declare the fields there).
   factField: string;
 
-  // Columna del parámetro que hace de lista de referencia, cuando el parámetro
-  // NO es una lista plana.
-  //
-  // ES OBLIGATORIA EN CUANTO EL PARÁMETRO DECLARA DOS O MÁS COLUMNAS, y sin ella
-  // el juicio se queda en NO_EVALUABLE con motivo. Es deliberado: la lista de
-  // usuarios autorizados (P-07 de op.acc.1) es una tabla `usuario | sistema |
-  // rol`, y comparar la FILA ENTERA contra el nombre de una cuenta no encuentra
-  // nunca a nadie — un `TODOS_EN_LISTA` que declara no autorizada a toda la
-  // plantilla, o un `NINGUNO_EN_LISTA` que da por buena a cualquiera. Adivinar
-  // la columna (la primera, por ejemplo) sería peor: acertaría en P-07 y
-  // fallaría en silencio en la siguiente tabla cuya clave no fuera la columna 1.
+  // Parameter column acting as reference list when the parameter is NOT flat.
+  // MANDATORY as soon as the parameter declares two or more columns; without it the judgment stays NO_EVALUABLE with a motive.
+  // Comparing the WHOLE ROW with an account name never matches, and guessing the column would fail silently on the next table whose key is not column 1.
   parameterColumn?: string;
 
-  // --- solo `CONFORME_A_TABLA` ---------------------------------------------
+  // Only `CONFORME_A_TABLA`.
 
-  // Columna que identifica la fila de la tabla ('recurso' en la ACL declarada).
+  // Column that identifies the table row.
   tableKeyColumn?: string;
 
-  // Campo del hecho que trae esa clave. Por defecto, el mismo nombre que
-  // `tableKeyColumn`.
+  // Fact field carrying that key. Defaults to the same name as `tableKeyColumn`.
   factKeyField?: string;
 
-  // Cuando una sola columna NO identifica la fila. Un sujeto tiene privilegios
-  // sobre varios recursos (`root` sobre `sudo` y sobre el cortafuegos), así que
-  // con clave simple el índice se queda con la última fila y juzga el sudo de
-  // root contra su fila de cortafuegos: un incumplimiento inventado. Si se
-  // declaran, mandan sobre `tableKeyColumn` / `factKeyField`.
+  // When one column does NOT identify the row (a subject has privileges over several resources). If declared, they take precedence over `tableKeyColumn` / `factKeyField`.
   tableKeyColumns?: string[];
   factKeyFields?: string[];
 
-  // Columnas contrastadas y campo del hecho de cada una. Una columna que no
-  // figure aquí NO se compara aunque la fila la traiga rellena: lo que se juzga
-  // se declara, no se deduce.
+  // Compared columns and the fact field of each. A column not listed is NOT compared even if the row fills it: what is judged is declared, not deduced.
   tableChecks?: ENSEvidenceTableCheck[];
 
-  // --- primitivas numéricas y de plazo --------------------------------------
+  // Numeric and deadline primitives.
 
-  // Segundo parámetro que se SUMA al umbral o al plazo. Es el margen de
-  // tolerancia de mp.info.6 (P-02 sobre P-01): política de pleno derecho, vive
-  // en la pantalla y tiene que poder sumarse desde el catálogo sin escribir
-  // código para esa evidencia.
-  //
-  // Si no existe o está vacío se aplica SIN margen, que es el extremo estricto:
-  // una ventana más corta nunca produce un CUMPLE que la ventana con margen no
-  // produjera. Si existe pero no se puede leer, NO_EVALUABLE: eso no es un
-  // margen ausente, es un margen ilegible.
+  // Second parameter ADDED to the threshold or deadline (the mp.info.6 tolerance, P-02 over P-01).
+  // Missing or empty: applied WITHOUT margin (the strict extreme). Present but unreadable: NO_EVALUABLE.
   toleranceParameterId?: string;
 
-  // Tipos de evento del latido del recolector. Es lo que permite distinguir
-  // «he mirado y no había nada» de «no he podido mirar», y de esa distinción
-  // depende si la ausencia de hechos puede llegar a significar CUMPLE (ver
-  // `resolveCollectorCoverage` en judgment.ts). Por defecto, `collector_run`.
+  // Heartbeat event types. They tell "looked and found nothing" apart from not having been able to look (see `resolveCollectorCoverage` in judgment.ts). Default `collector_run`.
   collectorRunEventTypes?: string[];
 
-  // Antigüedad máxima, en horas, de un latido para que cuente como cobertura
-  // de la ventana evaluada. Por defecto 24 (los tres recolectores laten cada
-  // hora, así que 24 tolera un día entero de fallos de red sin dejar de
-  // reconocer un recolector vivo). La ventana tiene también cota SUPERIOR, que
-  // no se configura aquí porque es tolerancia de reloj, no de política.
+  // Maximum age in hours of a heartbeat to count as coverage of the evaluated window. Default 24 (collectors beat hourly).
+  // The window's UPPER bound is not configured here: it is clock tolerance, not policy.
   collectorRunMaxAgeHours?: number;
 }
 
@@ -196,35 +119,18 @@ export interface ENSEvidenceDefinition {
   auditQuestion: string;
   qualityRequirements?: ENSEvidenceQualityRequirements;
 
-  // Opcional. Sin `judgment`, la evidencia se resuelve como siempre: manda el
-  // `evidence_state` que emite el agente.
+  // Optional. Without `judgment`, the evidence resolves as before: the agent's `evidence_state` rules.
   judgment?: ENSEvidenceJudgment;
 
-  // Tipos de hecho que describen un ESTADO de la máquina (una política, un
-  // servicio en ejecución, un banner) y que el recolector reemite ENTEROS en
-  // cada pasada. Se juzgan con la última pasada, no con la ventana: una
-  // configuración ya corregida no puede seguir incumpliendo un mes por la foto
-  // de ayer. Ver `state-facts.ts`.
-  //
-  // Solo se declara lo que se ha COMPROBADO que se reemite en todas las
-  // pasadas. Un tipo que el recolector emite solo cuando cambia (una firma) o
-  // que es una acción (un acceso, una edición) NO va aquí: descartarlo haría
-  // desaparecer el único hecho que lo demuestra.
+  // Fact types describing a machine STATE that the collector reissues WHOLE on every pass. Judged by the last pass, not the window (see `state-facts.ts`).
+  // Declare only what is VERIFIED to be reissued on every pass: a type emitted only on change or an action must not be here, or its only proof disappears.
   stateFactEventTypes?: string[];
 
-  // Campo que distingue a los recolectores de un mismo control en una misma
-  // máquina (`origen` en mp.info.6: en un servidor de buzones pasan el del PBS
-  // y el de Zimbra, cada uno a su minuto y con su latido). Si se declara, la
-  // última pasada de un hecho de estado se delimita con los latidos de SU
-  // recolector —los que traen el mismo valor en ese campo— y un recolector no
-  // descarta los hechos del otro. Ver `state-facts.ts`.
+  // Field distinguishing the collectors of one control on one machine (`origen` in mp.info.6: PBS and Zimbra). If declared, the last pass is delimited by the heartbeats
+  // of ITS collector (same value in that field), so one collector does not discard the other's facts.
   stateFactCollectorField?: string;
 
-  // El recolector de esta evidencia solo declara huecos (`evidence_state` con
-  // NO_EVALUABLE y su causa), nunca veredictos: el veredicto lo pone la policy.
-  // Un evento que llegue declarando CUMPLE, NO_CUMPLE o PARCIAL —un veredicto
-  // del recolector anterior que siga en la ventana— no es compatible con ella
-  // y no la resuelve.
+  // This evidence's collector only declares gaps (`evidence_state` NO_EVALUABLE with cause), never verdicts. An event declaring CUMPLE, NO_CUMPLE or PARCIAL is incompatible and resolves nothing.
   agentDeclaresOnlyGaps?: boolean;
 }
 
@@ -257,24 +163,15 @@ export interface ENSEvidenceResolved {
   latestSuccessfulAttributes?: Record<string, unknown>;
   observations: string[];
 
-  // POR QUÉ no hay medida, cuando no la hay. Solo viaja con `status`
-  // NO_EVALUABLE, y es lo que evita que la causa del incumplimiento se tenga que
-  // adivinar leyendo el texto del motivo:
-  //
-  //   COLLECTION     no ha llegado nada: agente caído, recolector sin ejecutar,
-  //                  sin latido. Problema de RECOGIDA, no de la máquina.
-  //   EVIDENCE       llegó el dato pero no basta: contrato de calidad, campo
-  //                  ilegible, o el agente declara que no ha podido medir.
-  //   CONFIGURATION  falta el parámetro contra el que juzgar, o está vacío.
-  //
-  // Nunca CATALOG: esa causa es del requisito, no de la evidencia — es la de un
-  // requisito que no declara ninguna.
+  // WHY there is no measure; travels only with `status` NO_EVALUABLE.
+  //   COLLECTION     nothing arrived: agent down, collector not run, no heartbeat.
+  //   EVIDENCE       data arrived but is not enough: quality contract, unreadable field, or the agent says it could not measure.
+  //   CONFIGURATION  the parameter to judge against is missing or empty.
+  // Never CATALOG: that cause belongs to the requirement, not the evidence.
   gapCause?: ENSGapCause;
 }
 
-// La parte de la evidencia resuelta que se copia tal cual desde el catálogo,
-// antes de saber nada del veredicto ni del evento que lo sostiene. La construye
-// `engine.ts` y la consume también `judgment.ts`.
+// The part of the resolved evidence copied from the catalog before anything is known about the verdict or the event. Built by `engine.ts`, also consumed by `judgment.ts`.
 export type ENSEvidenceBaseFields = Omit<
   ENSEvidenceResolved,
   | 'status'

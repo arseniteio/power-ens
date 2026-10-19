@@ -1,5 +1,4 @@
-// Del fichero de tipos, no del barrel `../../../catalog`: el barrel de alto
-// nivel es por donde vuelve el ciclo transitivo del TDZ de `Settings`.
+// From the types file, not the `../../../catalog` barrel: the top-level barrel brings back the transitive TDZ cycle of `Settings`.
 import {
   ENSControlStatus,
   ENSRequirementDefinition,
@@ -20,28 +19,19 @@ export interface ENSRequirementEvaluationResult {
   title: string;
   level: ENSLevel[];
 
-  // El VEREDICTO, ya con la convención de auditoría aplicada: nunca
-  // NO_EVALUABLE en un requisito que aplica.
+  // The VERDICT with the audit convention applied: never NO_EVALUABLE on an applicable requirement.
   status: ENSComplianceStatus;
 
   applicable: boolean;
 
-  // ¿Se ha llegado a MEDIR? Es lo único que separa aguas abajo un NO_CUMPLE
-  // demostrado de uno no evidenciado, porque el veredicto ya no los distingue.
+  // Was it MEASURED? The only thing that separates a proven NO_CUMPLE from an unevidenced one downstream, since the verdict no longer does.
   evidenced: boolean;
 
-  // Acreditado por DOCUMENTO, no por telemetría. Viaja aparte de `status` a
-  // propósito: el requisito cumple, pero la pantalla y el informe tienen que
-  // poder decir «acreditado documentalmente» y nunca confundirlo con medido.
-  // Llega por dos caminos: `P-ATT`, solo en requisitos que el catálogo declara
-  // SIN NINGUNA evidencia técnica, y una decisión de la policy con `attested`,
-  // solo si ninguna medida del requisito está en contra.
+  // Accredited by DOCUMENT, not telemetry; travels apart from `status` so the screen and report say "acreditado documentalmente" and never confuse it with measured.
+  // Two paths: `P-ATT`, only for requirements the catalog declares WITHOUT ANY technical evidence, and a policy decision with `attested`, only if no measure of the requirement is against.
   attested?: boolean;
 
-  // Juzgado desde una DECLARACIÓN de la pantalla (la decisión de la policy
-  // lleva `documental`), no desde los hechos de una máquina. Con NO_CUMPLE es
-  // un documento vencido o ausente: el informe no lo presenta como «medido» ni
-  // manda a corregir la máquina.
+  // Judged from a screen DECLARATION (the policy decision carries `documental`), not machine facts. With NO_CUMPLE it is an expired or absent document.
   documental?: boolean;
 
   score: number;
@@ -49,21 +39,16 @@ export interface ENSRequirementEvaluationResult {
   evidenceIds: string[];
 }
 
-// Lo que cuenta como una medida EN CONTRA del requisito: no conforma, o
-// conforma a medias, que para un requisito es lo mismo (ver `resolveMeasurement`).
+// What counts as a measure AGAINST the requirement: does not conform, or conforms halfway (the same for a requirement; see `resolveMeasurement`).
 const MEASURED_AGAINST: ENSComplianceStatus[] = ['NO_CUMPLE', 'PARCIAL'];
 
-// El motivo de una declaración que la policy acredita. Dice SIEMPRE que es
-// documental, como `describeAttestation`: es lo que impide que se lea como una
-// medida en la pantalla y en el informe.
+// Motive of a declaration the policy accredits. ALWAYS says it is documentary, like `describeAttestation`, so it is not read as a measure.
 const ATTESTED_PREFIX = 'Acreditado documentalmente';
 
 const describePolicyAttestation = (reason: string): string =>
   reason.startsWith(ATTESTED_PREFIX) ? reason : `${ATTESTED_PREFIX}: ${reason}`;
 
-// Por qué una evidencia está sin medir, con el vocabulario que lee el auditor
-// en el informe y en la ficha del control (`ETIQUETA_DE_CAUSA` de
-// `reports/index.tsx`): tiene que ser literalmente la misma cadena.
+// Why an evidence is unmeasured, in the vocabulary the auditor reads in the report and the control card (`ETIQUETA_DE_CAUSA` in `reports/index.tsx`): must be literally the same string.
 const GAP_CAUSE_LABEL: Record<string, string> = {
   CATALOG: 'catálogo',
   CONFIGURATION: 'sin configurar',
@@ -76,14 +61,8 @@ const describeUnmeasured = (evidence: ENSEvidenceResolved): string =>
     ? `${evidence.id} sin medir (${GAP_CAUSE_LABEL[evidence.gapCause] || evidence.gapCause})`
     : `${evidence.id} sin medir`;
 
-// La MEDIDA del requisito, no su veredicto: aquí `NO_EVALUABLE` significa
-// literalmente «no se ha podido medir», y esa distinción es la que alimenta
-// después `evidenced` y la causa del hueco. El veredicto lo aplica
-// `applyAuditVerdict` una capa más abajo, en `evaluateRequirement`.
-//
-// Se mantiene intacta la lógica de 346e56b: un incumplimiento demostrado manda
-// sobre un hueco, y un hueco no fabrica un PARCIAL. Lo que cambia es qué se
-// publica cuando el resultado es un hueco.
+// The MEASURE of the requirement, not its verdict: here `NO_EVALUABLE` literally means "could not be measured". The verdict is applied by `applyAuditVerdict` one layer below, in `evaluateRequirement`.
+// A proven failure rules over a gap, and a gap does not fabricate a PARCIAL.
 const resolveMeasurement = (
   requiredEvidenceIds: string[],
   evidences: ENSEvidenceResolved[],
@@ -109,32 +88,8 @@ const resolveMeasurement = (
     evidence => evidence.status === 'NO_CUMPLE'
   );
 
-  // UN INCUMPLIMIENTO MEDIDO TUMBA EL REQUISITO ENTERO. No hay crédito parcial,
-  // y esto cambió el 05/08/2026.
-  //
-  // Antes, un requisito con una evidencia en rojo y otra en verde salía PARCIAL,
-  // que `scoreByStatus` puntúa con 50. En una máquina real de op.acc.2 eso
-  // publicaba **50 %** con sus TRES requisitos aplicables en la lista de no
-  // conformidades medidas: el número decía la mitad de lo que decía su propia
-  // lista, y decía de más.
-  //
-  // Dos razones, y la segunda es la que obliga:
-  //
-  //   · Un requisito del ENS es una afirmación normativa, no una media. Si un
-  //     recurso es world-writable, `op.acc.2.1` NO se cumple; no se cumple a
-  //     medias porque otra evidencia del mismo requisito esté bien. Un auditor
-  //     escribe «no conforme», no «conforme al 50 %».
-  //   · Los tres agentes ya lo hacían así —`medida_requisito` devuelve
-  //     NO_CUMPLE en cuanto UNA evidencia acreditante falla— así que el motor y
-  //     el agente publicaban números distintos sobre los mismos datos, y el que
-  //     lee el auditor era el más generoso de los dos.
-  //
-  // Una evidencia en PARCIAL entra por aquí y NO por el NO_EVALUABLE de abajo, y
-  // la diferencia no es cosmética: PARCIAL es una MEDIDA —el agente miró y
-  // declaró que conforma a medias— así que `evidenced` tiene que salir cierto.
-  // Cayendo al NO_EVALUABLE, la tarjeta etiquetaría como «no evidenciado, fallo
-  // de recogida» un hallazgo real y mandaría al operador a revisar el agente en
-  // vez de la máquina.
+  // A MEASURED FAILURE FAILS THE WHOLE REQUIREMENT; there is no partial credit. An ENS requirement is a normative statement, not an average, and the agents already return NO_CUMPLE as soon as ONE accrediting evidence fails.
+  // A PARCIAL evidence enters here and NOT through the NO_EVALUABLE below: PARCIAL is a MEASURE, so `evidenced` must be true.
   if (hasNonCompliantEvidence || hasPartialEvidence) {
     return 'NO_CUMPLE';
   }
@@ -150,16 +105,8 @@ const resolveMeasurement = (
     return 'NO_EVALUABLE';
   }
 
-  // Llegados aquí no hay ninguna evidencia que incumpla ni que conforme a
-  // medias, y no todas conforman: lo que queda son evidencias que NO SE HAN
-  // PODIDO MEDIR. Sigue siendo NO_EVALUABLE porque esto es la MEDIDA — nadie ha
-  // demostrado que el requisito conforme a medias, sencillamente falta mirar una
-  // parte, y un PARCIAL fabricado con la ausencia de un dato es lo que producía
-  // las cuatro «no conformidades» de op.acc.1 sobre evidencias en gris.
-  //
-  // Que el veredicto de este NO_EVALUABLE sea NO_CUMPLE lo decide
-  // `applyAuditVerdict`, no esta función: aquí seguiría siendo un error decir
-  // PARCIAL, porque PARCIAL afirma que se ha medido medio cumplimiento.
+  // Here no evidence fails or half-conforms and not all conform: what remains could NOT be measured. It stays NO_EVALUABLE because this is the MEASURE; a PARCIAL fabricated from missing data is what produced the four false nonconformities of op.acc.1.
+  // That the verdict of this NO_EVALUABLE is NO_CUMPLE is decided by `applyAuditVerdict`.
   return 'NO_EVALUABLE';
 };
 
@@ -169,14 +116,9 @@ export const evaluateRequirement = (
   evidences: ENSEvidenceResolved[],
   hasMissingRequiredParameters: boolean,
   policyDecisions: ENSPolicyDecision[] = [],
-  // El estado del control en el catálogo. Un control que NO está `ACTIVE` es
-  // uno cuyo lado agente todavía no existe: está definido y se puede ver, pero
-  // ninguna máquina emite sus hechos. Sus requisitos no aplican, igual que un
-  // refuerzo por encima del nivel activo, y por la misma razón: acusar de
-  // incumplimiento a quien nadie ha ido a medir no es exigencia, es ruido.
-  // Fuera del denominador hasta que haya recolector.
+  // The control's catalog state. A control that is not `ACTIVE` has no agent side yet: its requirements do not apply, like a reinforcement above the active level. Out of the denominator until there is a collector.
   controlStatus: ENSControlStatus = 'ACTIVE',
-  // La atestación documental de ESTE requisito, si el auditor la declaró.
+  // The documentary attestation of THIS requirement, if the auditor declared one.
   attestation?: ENSRequirementAttestation
 ): ENSRequirementEvaluationResult => {
   const controlIsActive = controlStatus === 'ACTIVE';
@@ -192,8 +134,7 @@ export const evaluateRequirement = (
       level: requirement.applicability.levels,
       status: 'NO_APLICA',
       applicable: false,
-      // No es que no se haya medido: es que no hay nada que medir. Ver el
-      // comentario de `evidenced` en `../types`.
+      // Not that it was not measured: there is nothing to measure. See the `evidenced` comment in `../types`.
       evidenced: false,
       score: 0,
       observations: [
@@ -206,12 +147,8 @@ export const evaluateRequirement = (
     };
   }
 
-  // La decisión que lee el requisito. Una policy debería emitir UNA por
-  // requisito; si emite varias, manda la primera, salvo que haya una
-  // acreditación (CUMPLE con `attested`): entonces se lee esa, para que una
-  // decisión anterior sin medida no la esconda. Nunca por delante de un
-  // NO_APLICA, que saca el requisito del juego antes que nada. Las demás
-  // decisiones en contra siguen contando: ver la rama de `attested`.
+  // The decision the requirement reads. A policy should emit ONE per requirement; if several, the first rules, unless one is an accreditation (CUMPLE with `attested`), which is read so an earlier decision without a measure does not hide it.
+  // Never ahead of a NO_APLICA, which takes the requirement out of play first. Other decisions against still count: see the `attested` branch.
   const requirementDecisions = policyDecisions.filter(
     decision => decision.requirementId === requirement.id
   );
@@ -225,14 +162,8 @@ export const evaluateRequirement = (
       ? requirementDecisions[0]
       : attestedDecision || requirementDecisions[0];
 
-  // --- LA POLICY SACA EL REQUISITO DEL JUEGO ------------------------------
-  //
-  // Va ANTES que la atestación, y el orden no es cosmético. Hay requisitos que
-  // solo aplican según lo que declara la organización —el refuerzo elegido en
-  // una elección R1/R2/R3/R4—, y eso lo decide la policy, no el nivel. Con la
-  // atestación delante, un documento declarado para un refuerzo NO elegido
-  // devolvía CUMPLE, entraba en el denominador y subía el porcentaje por algo
-  // que el control no exige: un CUMPLE falso con enlace y todo.
+  // THE POLICY TAKES THE REQUIREMENT OUT OF PLAY. This goes BEFORE the attestation, and the order matters: some requirements apply only according to what the organisation declares (the chosen R1/R2/R3/R4 reinforcement),
+  // and with the attestation first a document declared for an unchosen reinforcement returned a false CUMPLE and raised the percentage.
   if (policyDecision?.status === 'NO_APLICA') {
     return {
       id: requirement.id,
@@ -247,26 +178,12 @@ export const evaluateRequirement = (
     };
   }
 
-  // Una decisión de la policy que SÍ se ha pronunciado es una medida —sale de
-  // la configuración declarada—, y ningún documento tapa una medida. La
-  // atestación solo puede sustituir lo que nadie ha podido demostrar.
+  // A policy decision that DID pronounce is a measure (it comes from the declared configuration) and no document covers a measure. Attestation can only replace what nobody could prove.
   const policyMeasured =
     policyDecision !== undefined && policyDecision.status !== 'NO_EVALUABLE';
 
-  // --- ATESTACIÓN DOCUMENTAL ------------------------------------------------
-  //
-  // Solo para requisitos que el catálogo declara SIN NINGUNA evidencia técnica.
-  // Ese es el límite y es duro: si la máquina midió y falló, ningún documento
-  // lo tapa. Se comprueba contra `evidenceIds`, no contra la atestación.
-  //
-  // El ENS acredita así `op.acc.1.5` (eIDAS) y `op.acc.1.r1.1` (singularizar a
-  // la persona): un agente no puede observar ninguno de los dos, y su prueba es
-  // un documento aprobado. Rechazarlos por no tener telemetría dejaba el
-  // control con un techo permanente del 75 % sobre algo que el cliente puede
-  // tener cumplido.
-  //
-  // `attested` viaja aparte de `status` para que la pantalla y el informe
-  // puedan decir «acreditado documentalmente» y nunca confundirlo con medido.
+  // DOCUMENTARY ATTESTATION. Only for requirements the catalog declares WITHOUT ANY technical evidence; a hard limit checked against `evidenceIds`: if the machine measured and failed, no document covers it.
+  // ENS accredits op.acc.1.5 (eIDAS) and op.acc.1.r1.1 that way, because an agent cannot observe them. `attested` travels apart from `status`.
   if (
     !requirement.evidenceIds.length &&
     !policyMeasured &&
@@ -279,8 +196,7 @@ export const evaluateRequirement = (
       level: requirement.applicability.levels,
       status: 'CUMPLE',
       applicable: true,
-      // SÍ está demostrado: con un documento, que para este requisito es la
-      // prueba que el ENS pide.
+      // It IS proven: with a document, which for this requirement is the proof ENS asks for.
       evidenced: true,
       attested: true,
       score: scoreByStatus('CUMPLE'),
@@ -293,24 +209,10 @@ export const evaluateRequirement = (
     ? ['Existen parámetros obligatorios pendientes de configuración.']
     : [];
 
-  // --- DECLARACIÓN ACREDITADA POR LA POLICY (`attested`) --------------------
-  //
-  // La policy ha juzgado una declaración de la pantalla CON SU VIGENCIA —un
-  // contrato no vencido, un plan aprobado dentro de su periodicidad— y la da
-  // por buena. Es lo que `P-ATT` no sabe hacer: una atestación no caduca, y un
-  // plan de 2019 con su enlace acreditaría hoy.
-  //
-  // El requisito cumple MARCADO como documental, igual que con `P-ATT`. Y con
-  // el mismo límite duro, que aquí se comprueba contra lo medido porque el
-  // requisito sí puede tener evidencias: NINGÚN DOCUMENTO TAPA UNA MEDIDA EN
-  // CONTRA. Si una evidencia del requisito —las del catálogo y las que nombra
-  // la decisión— está en NO_CUMPLE o PARCIAL, o lo está otra decisión de la
-  // policy para el mismo requisito, manda la medida: NO_CUMPLE y sin la marca.
-  //
-  // Una evidencia que no se ha podido medir (NO_EVALUABLE) no es una medida en
-  // contra y no lo impide, como no lo impide para `P-ATT` una policy que no ha
-  // podido medir. Quien decide si la declaración basta sin esa medida es la
-  // policy, que es la que conoce el requisito.
+  // DECLARATION ACCREDITED BY THE POLICY (`attested`). The policy judged a screen declaration WITH ITS VALIDITY (an unexpired contract, a plan approved within its periodicity); `P-ATT` cannot do that, as an attestation does not expire.
+  // The requirement passes MARKED as documentary, with the same hard limit checked against the measures: NO DOCUMENT COVERS A MEASURE AGAINST. If an evidence of the requirement (catalog or named by the decision)
+  // is NO_CUMPLE or PARCIAL, or another policy decision for the requirement is, the measure rules: NO_CUMPLE without the mark.
+  // An unmeasurable evidence (NO_EVALUABLE) is not a measure against; whether the declaration suffices without it is the policy's decision.
   if (policyDecision?.attested && policyDecision.status === 'CUMPLE') {
     const relatedEvidenceIds = Array.from(
       new Set([
@@ -350,7 +252,7 @@ export const evaluateRequirement = (
         level: requirement.applicability.levels,
         status: 'NO_CUMPLE',
         applicable: true,
-        // Medido, y en contra: es justo lo que manda.
+        // Measured and against: that rules.
         evidenced: true,
         score: scoreByStatus('NO_CUMPLE'),
         observations: [
@@ -369,14 +271,12 @@ export const evaluateRequirement = (
       level: requirement.applicability.levels,
       status: 'CUMPLE',
       applicable: true,
-      // Demostrado con la prueba que el ENS pide para esto: el documento.
+      // Proven with the proof ENS asks for here: the document.
       evidenced: true,
       attested: true,
       ...(policyDecision.documental ? { documental: true } : {}),
       score: scoreByStatus('CUMPLE'),
-      // Y lo que queda sin medir se dice: el documento basta para el
-      // requisito, pero el auditor tiene que ver qué evidencias no se midieron
-      // y por qué.
+      // What remains unmeasured is reported: the document suffices for the requirement but the auditor must see which evidences were not measured and why.
       observations: [
         describePolicyAttestation(policyDecision.reason),
         ...evidences
@@ -396,10 +296,7 @@ export const evaluateRequirement = (
     requirement.evidenceIds.includes(evidence.id)
   );
 
-  // La medida primero —la decide la policy si hay una, y si no las evidencias—
-  // y el veredicto después. Separarlas es lo que permite que un requisito que
-  // no se ha podido demostrar salga NO_CUMPLE sin que nadie pueda confundirlo
-  // con uno medido: `evidenced` lo dice.
+  // The measure first (the policy's if there is one, else the evidences) and the verdict after. Separating them lets an unprovable requirement come out NO_CUMPLE without confusing it with a measured one: `evidenced` says it.
   const measurement = policyDecision
     ? policyDecision.status
     : resolveMeasurement(
@@ -417,7 +314,7 @@ export const evaluateRequirement = (
     status,
     applicable: true,
     evidenced: isMeasured(measurement),
-    // Un veredicto que sale de una declaración, no de una medida de la máquina.
+    // A verdict from a declaration, not from a machine measure.
     ...(policyDecision?.documental && isMeasured(measurement) ? { documental: true } : {}),
     score: scoreByStatus(status),
     observations: [

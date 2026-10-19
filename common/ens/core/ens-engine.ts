@@ -43,9 +43,7 @@ import { resolveControlLevel } from './control-level';
 import type { ENSControlDefinition } from '../catalog/types';
 import type { ENSComplianceResult } from './evaluation/types';
 
-// Nivel efectivo de un control: el global, salvo que el control se rija por el
-// nivel de una dimensión declarado en la configuración global (op.exp.8 y la
-// Trazabilidad). Ver `control-level.ts`.
+// Effective level of a control: the global one, unless the control follows the level of a dimension declared in the global configuration (op.exp.8 and Traceability). See `control-level.ts`.
 const getControlLevel = (
   catalogControl: Parameters<typeof resolveControlLevel>[0],
   level: ENSLevel
@@ -88,8 +86,7 @@ const getScopedEvents = (
   });
 };
 
-// El nombre de una máquina, para compararlo con el alcance declarado de un
-// control: el del inventario del alcance y, si no lo trae, el de sus eventos.
+// Name of a machine, to compare with a control's declared scope: the scope inventory's, else its events'.
 const resolveAgentName = (
   agentId: string,
   events: ENSNormalizedEvent[],
@@ -99,8 +96,7 @@ const resolveAgentName = (
   events.find(event => event.agentId === agentId && event.agentName)
     ?.agentName;
 
-// ¿Se evalúa este control en la fila de esta máquina? Su plano de medida y, si
-// lo declara, su alcance (ver `scope/measurement-planes.ts`).
+// Is this control evaluated on this machine's row? Its measurement plane and, if declared, its scope (see `scope/measurement-planes.ts`).
 export const isControlEvaluatedOnAgent = (
   control: ENSControlDefinition,
   agentId: string,
@@ -113,8 +109,7 @@ export const isControlEvaluatedOnAgent = (
     getActiveControlConfiguration(control.id)
   );
 
-// Evalúa UN control sobre los eventos ya recortados a la fila (o al conjunto,
-// sin `agentId`). Es el camino único del panel y del detalle.
+// Evaluates ONE control over the events already trimmed to the row (or the whole set, without `agentId`). The single path of the panel and the detail.
 const evaluateControlOnEvents = (
   catalogControl: ENSControlDefinition,
   level: ENSLevel,
@@ -122,22 +117,14 @@ const evaluateControlOnEvents = (
   agentId?: string,
   now?: Date,
   scopeAgents?: ENSAgentScope[],
-  // Hueco de CONFIGURACIÓN impuesto desde fuera: la fila de una máquina que el
-  // alcance declarado nombra y que no es ninguna del alcance ENS (ver
-  // `buildOutOfScopeDeclaredRows`).
+  // CONFIGURATION gap imposed from outside: the row of a machine the declared scope names that is not in the ENS scope (see `buildOutOfScopeDeclaredRows`).
   configurationGap?: string
 ): ENSComplianceResult => {
-  // La configuración se carga ANTES de resolver las evidencias: las que
-  // declaran `judgment` se juzgan contra el parámetro que el auditor puso en
-  // la pantalla, así que el motor no puede resolverlas sin ella.
-  // Resuelta para la fila (agente → plantillas → organización); sin fila, la
-  // vista de organización.
+  // The configuration is loaded BEFORE resolving evidences: those declaring `judgment` are judged against the parameter the auditor set on screen.
+  // Resolved for the row (agent, templates, organisation); without a row, the organisation view.
   const configuration = getActiveControlConfiguration(catalogControl.id, agentId);
 
-  // Sin fila, un control con alcance declarado se mide solo con los hechos de
-  // las máquinas declaradas: los de una máquina que no está en su alcance no
-  // suman ni restan tampoco aquí. Con la fila, el motor ya solo la evalúa si
-  // la máquina está declarada.
+  // Without a row, a control with declared scope is measured only with the facts of the declared machines; a machine outside its scope neither adds nor subtracts here.
   const declaredScope =
     agentId === undefined
       ? getDeclaredScopeAgentNames(catalogControl, configuration)
@@ -149,10 +136,7 @@ const evaluateControlOnEvents = (
       )
     : scopedEvents;
 
-  // Las máquinas que se conocen: las del alcance y, sin él, las de los
-  // eventos. Si el alcance declarado no nombra a ninguna (vacío, o una errata
-  // en los nombres), no hay de quién esperar hechos: lo que no se ha podido
-  // medir es de CONFIGURACIÓN, no de recogida.
+  // Known machines: the scope's and, without it, the events'. If the declared scope names none (empty, or a typo), there is nobody to expect facts from: what could not be measured is CONFIGURATION, not collection.
   const knownAgentNames = declaredScope
     ? (scopeAgents
         ? scopeAgents.map(agent => agent.name)
@@ -173,13 +157,11 @@ const evaluateControlOnEvents = (
         )
       : undefined);
 
-  // Tampoco se esperan hechos de un control que no escucha ninguno (op.cont.2:
-  // solo configuración, sin runbook). Ver `controlExpectsFacts`.
+  // Facts are not expected either from a control that listens to none (op.cont.2). See `controlExpectsFacts`.
   const expectsFacts =
     !unmatchedScopeReason && controlExpectsFacts(catalogControl.id);
 
-  // Los hechos de ESTADO se juzgan con la última pasada del recolector, antes
-  // de que los lean las evidencias y la policy (ver `evidence/state-facts.ts`).
+  // STATE facts are judged with the collector's last pass, before evidences and policy read them (see `evidence/state-facts.ts`).
   const controlEvents = keepLatestRunStateFacts(
     catalogControl.id,
     eventsInScope,
@@ -208,11 +190,8 @@ const evaluateControlOnEvents = (
 
   const resolvedPolicyRuntime = runPolicyRuntime(policyContext);
 
-  // En la fila de una máquina, un recolector que lleva más de 24 h sin latir no
-  // demuestra nada a fecha de `now`: el control no se juzga con esos datos (ver
-  // `evidence/stale-collector.ts`). Sin máquina no
-  // hay fila a la que atribuir el latido, y el conjunto sale de consolidar las
-  // filas, que ya lo aplican.
+  // On a machine's row, a collector silent for over 24 h proves nothing as of `now`: the control is not judged with that data (see `evidence/stale-collector.ts`).
+  // Without a machine there is no row to attribute the heartbeat to; the set is consolidated from rows, which already apply it.
   const stale =
     agentId === undefined
       ? undefined
@@ -267,10 +246,7 @@ const evaluateCatalogControls = (
   );
 };
 
-// Los controles que se evalúan en la fila de una máquina: los de su plano de
-// medida que, si declaran alcance, la tienen declarada (ver
-// `scope/measurement-planes.ts`). Sin máquina, todos: es la evaluación del
-// conjunto de eventos, sin filas.
+// Controls evaluated on a machine's row: those of its measurement plane that, if they declare scope, have it declared. Without a machine, all of them.
 const getCatalogControlsForAgent = (
   agentId?: string,
   agentName?: string
@@ -281,15 +257,8 @@ const getCatalogControlsForAgent = (
         isControlEvaluatedOnAgent(control, agentId, agentName)
       );
 
-// `now` es el instante al que se evalúa. Por defecto es ahora —el caso del
-// panel— y existe como parámetro porque la serie diaria evalúa este mismo
-// motor a fechas pasadas: la ventana del latido y la antigüedad de la copia
-// tienen que medirse contra el día del punto, no contra hoy.
-//
-// Con `agentId`, es la fila de ESA máquina: solo produce resultado para los
-// controles de su plano y de cuyo alcance declarado forma parte. Un control
-// que no se mide en ella no sale, ni como NO_APLICA: no se ha decidido que no
-// aplique, es que no se mide ahí.
+// `now` is the instant evaluated. Defaults to now (the panel) and is a parameter because the daily series evaluates this same engine at past dates.
+// With `agentId`, the row of THAT machine: only controls of its plane and declared scope produce a result. A control not measured there does not appear, not even as NO_APLICA.
 export const getENSComplianceResults = (
   level: ENSLevel,
   events: ENSNormalizedEvent[] = [],
@@ -311,9 +280,7 @@ export const getENSComplianceResults = (
     now
   );
 
-// Los resultados en el orden del catálogo. La fila del manager (000) es la
-// primera al ordenar por id y solo trae sus controles, así que la consolidación
-// los pondría delante de los demás.
+// Results in catalog order: the manager row (000) sorts first by id and carries only its controls, so consolidation would put them ahead of the rest.
 const sortByCatalog = (
   results: ENSComplianceResult[]
 ): ENSComplianceResult[] => {
@@ -328,10 +295,8 @@ const sortByCatalog = (
   );
 };
 
-// Vista de UNA máquina. Los controles que se miden solo en el manager son de la
-// organización, no de la máquina: se muestran con el resultado de la fila del
-// manager. Los de doble plano (op.exp.8) siguen con la fila de la máquina.
-// Seleccionado el propio manager, su fila ya los trae y no hay nada que añadir.
+// View of ONE machine. Manager-only controls belong to the organisation: they show the manager row's result. Dual-plane controls (op.exp.8) keep the machine's row.
+// With the manager itself selected its row already carries them.
 const withOrganizationControls = (
   agentResults: ENSComplianceResult[],
   level: ENSLevel,
@@ -363,10 +328,7 @@ const withOrganizationControls = (
   ]);
 };
 
-// Vista del conjunto. Cada control sale de consolidar las filas que lo miden. Si
-// ninguna lo mide —un control de manager sin el manager en el alcance, que es lo
-// que pasa si no está ACTIVE—, se evalúa sobre todos los eventos, igual que se
-// hace cuando no hay ninguna fila: el panel tiene siempre el catálogo entero.
+// Set view. Each control comes from consolidating the rows that measure it. If none does (a manager control without the manager in scope), it is evaluated over all events, as when there are no rows.
 const withUnmeasuredControls = (
   consolidatedResults: ENSComplianceResult[],
   level: ENSLevel,
@@ -400,8 +362,7 @@ interface ENSAgentIdentity {
   agentName?: string;
 }
 
-// Exportada para el servidor, que arma el estado control a control (ver
-// `control-partition.ts`) y necesita las mismas máquinas, en el mismo orden.
+// Exported for the server, which builds the state control by control (see `control-partition.ts`) and needs the same machines in the same order.
 export const getAgentIdentities = (
   events: ENSNormalizedEvent[],
   requestedAgentId?: string,
@@ -517,16 +478,9 @@ const buildAgentComplianceStates = (
     };
   });
 
-// Las máquinas que el alcance declarado de un control nombra y que no son
-// ninguna de las que conoce el motor (las del alcance ENS y las de los hechos):
-// un nombre mal escrito, o una máquina que está en el grupo de sus copias y no
-// en el del ENS. Cuentan como máquinas declaradas SIN DATOS: se añaden a la
-// CONSOLIDACIÓN —no a las filas del panel, porque no son máquinas del
-// alcance— con todo NO_EVALUABLE por CONFIGURACIÓN y un motivo que las nombra.
-// Sin esto, P-04 = «srv-01, srv-99» con srv-01 al día daba el control
-// demostrado al 100 %.
-// Exportada para el servidor, que consolida las filas de cada máquina sin
-// tener sus hechos a la vez (ver `control-partition.ts`).
+// Machines the control's declared scope names that the engine does not know (a misspelled name, or a machine in the backup group but not in the ENS one). They count as declared machines WITHOUT DATA:
+// added to the CONSOLIDATION, not to panel rows, all NO_EVALUABLE by CONFIGURATION with a motive naming them. Without this, P-04 = "srv-01, srv-99" with srv-01 up to date showed the control 100 % proven.
+// Exported for the server (see `control-partition.ts`).
 export const buildOutOfScopeDeclaredRows = (
   controls: ENSControlDefinition[],
   level: ENSLevel,
@@ -665,10 +619,7 @@ const evaluateENSComplianceResultByControl = (
   events: ENSNormalizedEvent[] = [],
   agentId?: string,
   scopeAgents?: ENSAgentScope[],
-  // El instante al que se evalúa, igual que en la ruta de todos los controles.
-  // Lo necesita la serie diaria del detalle: sin él, cada punto del histórico se
-  // juzgaría contra el reloj de hoy y la línea bajaría hacia el pasado por el
-  // mero hecho de que el pasado es viejo.
+  // The instant evaluated, as in the all-controls path. Needed by the detail's daily series: otherwise each history point would be judged against today's clock.
   now?: Date
 ) => {
   const catalogControl = ENSCatalog.find(
@@ -769,9 +720,7 @@ export const getENSComplianceResultByControl = (
       control => control.id === controlId
     );
 
-    // Misma regla de planos que en `getENSComplianceState`: en la vista de una
-    // máquina, un control solo de manager sale con la fila del manager; en la
-    // del manager, un control que no se mide en él no tiene resultado.
+    // Same plane rule as `getENSComplianceState`: in a machine's view a manager-only control comes out with the manager row; in the manager's view a control not measured there has no result.
     if (
       catalogControl &&
       !isControlMeasuredOnAgent(catalogControl, agentId)
@@ -789,8 +738,7 @@ export const getENSComplianceResultByControl = (
         : undefined;
     }
 
-    // Y la del alcance declarado: en la vista de una máquina que el control
-    // no declara, no tiene resultado.
+    // And declared scope: in a machine's view, a control that does not declare it has no result.
     if (
       catalogControl &&
       !isControlInDeclaredScope(
@@ -821,12 +769,8 @@ export const getENSComplianceResultByControl = (
   ).result;
 };
 
-// La vista de conjunto de UN control y, además, las filas de las máquinas que
-// lo miden. Es la rama sin máquina de `getENSComplianceResultByControl` (que la
-// llama) y la usa el servidor, que evalúa control a control: con las filas
-// arma la lista de máquinas del panel sin volver a evaluar nada. Las filas de
-// las máquinas declaradas que no están en el alcance entran en la
-// consolidación, pero no son filas del panel, y por eso no se devuelven.
+// Set view of ONE control plus the rows of the machines that measure it. It is the machine-less branch of `getENSComplianceResultByControl`, used by the server.
+// Rows of declared machines not in the scope enter the consolidation but are not panel rows, so they are not returned.
 export const getENSControlEvaluation = (
   controlId: string,
   level: ENSLevel,

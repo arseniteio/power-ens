@@ -39,17 +39,10 @@ export interface ENSRequirementDefinition {
   decisionPolicy?: ENSRequirementDecisionPolicy;
 }
 
-// Dimensión de seguridad por cuyo NIVEL se rige un control, cuando no se rige
-// por la categoría del sistema. Dos, las que el Anexo II usa en las medidas que
-// cubre ENSFácil:
-//   - 'T' Trazabilidad: op.exp.8, la única medida de op.exp que se aplica por
-//     el nivel de una dimensión;
-//   - 'D' Disponibilidad: op.cont.2 y op.cont.3, que solo rigen con D en ALTO.
+// Security dimension whose LEVEL governs a control, when not governed by the system category: 'T' Traceability (op.exp.8) and 'D' Availability (op.cont.2, op.cont.3, which apply only with D at ALTO).
 export type ENSLevelDimension = 'T' | 'D';
 
-// Plano en el que se mide un control: en cada máquina del alcance (`agent`) o
-// en el manager de Wazuh (`manager`, agente 000), que no pertenece a ningún
-// grupo. Ver `core/scope/measurement-planes.ts`.
+// Plane where a control is measured: on each scope machine (`agent`) or on the Wazuh manager (`manager`, agent 000, which belongs to no group). See `core/scope/measurement-planes.ts`.
 export type ENSMeasurementPlane = 'agent' | 'manager';
 
 export interface ENSControlDefinition {
@@ -58,23 +51,12 @@ export interface ENSControlDefinition {
   family: string;
   category: string;
   dimension: string;
-  // Opcional. Si se declara, el control se evalúa con el nivel de esa dimensión
-  // de la configuración global (`traceabilityLevel` para 'T',
-  // `availabilityLevel` para 'D') y, si no está
-  // declarado allí, con el nivel ENS global, como todos los demás. `dimension`
-  // sigue siendo texto descriptivo: esto es lo único que el motor lee.
+  // Optional. If declared, the control is evaluated with that dimension's level from the global configuration (`traceabilityLevel` for 'T', `availabilityLevel` for 'D') and, if not declared there, with the global ENS level. `dimension` stays descriptive text: this is all the engine reads.
   levelDimension?: ENSLevelDimension;
-  // Opcional. Planos en los que se mide el control; si falta, `['agent']`, que
-  // es lo que eran todos antes de existir. Con `manager`, el manager entra en el
-  // alcance y el control se evalúa en su fila; sin `agent`, NO se evalúa en la
-  // fila de ninguna otra máquina.
+  // Optional. Planes where the control is measured; default `['agent']`. With `manager` the manager enters the scope and the control is evaluated on its row; without `agent` it is NOT evaluated on any other machine's row.
   measurementPlanes?: ENSMeasurementPlane[];
-  // Opcional. `id` del parámetro de la configuración del control que declara
-  // las máquinas en las que se mide (p. ej. 'P-04' de mp.info.6). Si se
-  // declara, el control solo se evalúa en la fila de las máquinas cuyo nombre
-  // figura en ese parámetro: en las demás no produce resultado, igual que un
-  // control fuera de su plano. Con el parámetro vacío no se mide en ninguna
-  // máquina. Ver `isControlInDeclaredScope` en `core/scope/measurement-planes.ts`.
+  // Optional. `id` of the control's configuration parameter declaring the machines it is measured on (e.g. 'P-04' of mp.info.6). If declared, the control is evaluated only on the rows of the machines listed there; with the parameter empty, on none.
+  // See `isControlInDeclaredScope` in `core/scope/measurement-planes.ts`.
   scopeParameter?: string;
   description: string;
   levels: ENSLevel[];

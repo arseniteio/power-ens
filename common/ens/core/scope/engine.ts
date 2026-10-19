@@ -48,10 +48,7 @@ export const buildENSScopeAgentQueryFilter = (
     const normalizedRequestedAgentId =
       normalizeAgentId(requestedAgentId);
 
-    // En la vista de una máquina, si el manager está en el alcance, sus hechos
-    // también se traen: los controles que se miden solo en el manager son de la
-    // organización y se muestran con el resultado de su fila. El motor decide
-    // qué fila juzga cada control; aquí solo se evita que falten los datos.
+    // In a machine's view, if the manager is in the scope its facts are also fetched: manager-only controls belong to the organisation and show with its row's result. The engine decides which row judges each control; here only missing data is avoided.
     if (
       normalizedRequestedAgentId &&
       !isManagerAgentId(normalizedRequestedAgentId) &&

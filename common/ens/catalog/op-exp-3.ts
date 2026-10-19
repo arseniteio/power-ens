@@ -1,19 +1,8 @@
 import { ENSControlDefinition } from './types';
 
-// op.exp.3 · Gestión de la configuración de seguridad.
-//
-// El eje del Anexo II es la CATEGORÍA del sistema, y los refuerzos son
-// ACUMULATIVOS, no alternativas: BÁSICA = los seis requisitos base; MEDIA = base
-// + R1 entero (r1.1, r1.2, r1.3); ALTA = base + R1 + R2 + R3. BÁSICA/MEDIA/ALTA
-// se leen aquí como BAJO/MEDIO/ALTO. R4 y R5 están definidos en el texto pero no
-// son exigibles en ninguna categoría: van con `levels: []` y no entran nunca en
-// el denominador.
-//
-// Es un control «paraguas»: .1 y .2 remiten a op.exp.2, .3 a op.acc.4, .4 a
-// op.exp.4 y .5 a op.exp.7. Aquí se mide lo que es propio de op.exp.3 —que la
-// configuración se MANTIENE— y lo que depende de una fuente que la máquina no
-// tiene se declara igual, con su evidencia, y sale no evidenciado con su causa en
-// vez de acreditarse con otra cosa.
+// op.exp.3. The Annex II axis is the system CATEGORY and reinforcements are CUMULATIVE: BÁSICA = the six base requirements; MEDIA = base + R1 (r1.1, r1.2, r1.3); ALTA = base + R1 + R2 + R3 (read here as BAJO/MEDIO/ALTO).
+// R4 and R5 are defined but required in no category: `levels: []`, never in the denominator.
+// An "umbrella" control: .1 and .2 refer to op.exp.2, .3 to op.acc.4, .4 to op.exp.4, .5 to op.exp.7. What is measured here is what belongs to op.exp.3 (the configuration is MAINTAINED); what depends on a source the machine lacks is declared with its evidence and comes out unevidenced with its cause.
 export const opExp3CatalogDefinition: ENSControlDefinition = {
   id: 'op.exp.3',
   name: 'Gestión de la configuración de seguridad',
@@ -99,9 +88,7 @@ export const opExp3CatalogDefinition: ENSControlDefinition = {
       parameterIds: ['P-03', 'P-04'],
     },
     {
-      // Documental: que la línea base sea la AUTORIZADA lo dice un documento
-      // aprobado, no una máquina. Se acredita con P-ATT. Lo técnico de R1 —que
-      // no se introduzca nada fuera de ella— es r1.2.
+      // Documentary: that the baseline is the AUTHORISED one is stated by an approved document, accredited with P-ATT. The technical part of R1 (nothing introduced outside it) is r1.2.
       id: 'op.exp.3.r1.1',
       title: 'Línea base de configuración autorizada (R1)',
       description:
@@ -116,10 +103,7 @@ export const opExp3CatalogDefinition: ENSControlDefinition = {
       parameterIds: ['P-01', 'P-ATT'],
     },
     {
-      // Dos ejes, dos evidencias: EV-03 (nada introducido fuera de lo
-      // autorizado) y EV-11 (la verificación formal se hace con la
-      // periodicidad declarada). La plantilla ya los separa en dos condiciones
-      // de incumplimiento; un requisito solo cumple con las dos.
+      // Two axes, two evidences: EV-03 (nothing introduced outside what is authorised) and EV-11 (formal verification at the declared periodicity). A requirement passes only with both.
       id: 'op.exp.3.r1.2',
       title: 'Verificación periódica frente a la línea base (R1)',
       description:

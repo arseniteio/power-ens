@@ -6,24 +6,15 @@ export const opMon2CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Monitorización del sistema',
   dimension: 'Todas',
-  // Se mide SOLO en el manager: los dos registros de la organización viven en
-  // su /etc/ensfacil/, y la base de agentes y los latidos de todos los
-  // recolectores (alerts.json) están en el sistema central. Su resultado es el
-  // de la fila del manager (000).
+  // Measured ONLY on the manager: the two organisation registers live in its /etc/ensfacil/, and the agent base and all collectors' heartbeats (alerts.json) are in the central system. Result is the manager row's (000).
   measurementPlanes: ['manager'],
   description:
     'op.mon.2 pide medir tres cosas: el grado de implantación de las medidas de seguridad, el comportamiento del sistema de gestión de incidentes y los recursos consumidos por el sistema de seguridad.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   status: 'ACTIVE',
   version: '1.0.0',
-  // Es un METACONTROL (spec 2026-10-09 §2). El grado de implantación de todos
-  // los controles (EV-01), los grises (EV-05) y los datos del informe del
-  // art. 32 (EV-07) son salida del motor: van al modelo de informe, sin
-  // veredicto, y quedan en el catálogo sin requisito que los juzgue. Los
-  // requisitos se deciden con lo que deja huella en el manager: los ciclos de
-  // métricas anotados y validados (EV-02), la fiabilidad de la medición
-  // (EV-04), el registro de incidentes de op.exp.7 (EV-03) y los recursos del
-  // último ciclo (EV-06, dato declarado).
+  // A METACONTROL. The implementation degree of all controls (EV-01), the greys (EV-05) and the art. 32 report data (EV-07) are engine output: they go to the report model without verdict, with no requirement judging them. Requirements are decided with what leaves a trace on the manager:
+  // validated metrics cycles (EV-02), measurement reliability (EV-04), the op.exp.7 incident register (EV-03) and the last cycle's resources (EV-06, declared datum).
   requirements: [
     {
       id: 'op.mon.2.1',
@@ -62,9 +53,7 @@ export const opMon2CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible en MEDIA y ALTA. En categoría BÁSICA no aplica.',
       },
-      // Dato declarado: la policy marca su CUMPLE como acreditado
-      // documentalmente (`attested`). La herramienta lo registra, no lo
-      // verifica.
+      // Declared datum: the policy marks its CUMPLE as documentary (`attested`). The tool records it, does not verify it.
       evidenceIds: ['EV-06'],
       parameterIds: ['P-02', 'P-04', 'P-05'],
     },

@@ -8,45 +8,45 @@ export const buildRequirementsSummaryModel = (
   complianceState: ENSComplianceState
 ): RequirementsSummaryModel => {
   const total = complianceState.requirementSummary.totalControls || 0;
-  const cumple = complianceState.requirementSummary.cumple || 0;
-  const parcial = complianceState.requirementSummary.parcial || 0;
-  const noCumple = complianceState.requirementSummary.noCumple || 0;
-  const noAplica = complianceState.requirementSummary.noAplica || 0;
-  const noEvaluable =
+  const compliant = complianceState.requirementSummary.cumple || 0;
+  const partial = complianceState.requirementSummary.parcial || 0;
+  const nonCompliant = complianceState.requirementSummary.noCumple || 0;
+  const notApplicable = complianceState.requirementSummary.noAplica || 0;
+  const notEvaluable =
     complianceState.requirementSummary.noEvaluable || 0;
   const score = complianceState.requirementSummary.scoreAverage || 0;
 
-  const cumplePercent = statusPercent(cumple, total);
-  const parcialPercent = statusPercent(parcial, total);
-  const noCumplePercent = statusPercent(noCumple, total);
-  const noEvaluablePercent = statusPercent(noEvaluable, total);
-  const noAplicaPercent = statusPercent(noAplica, total);
+  const compliantPercent = statusPercent(compliant, total);
+  const partialPercent = statusPercent(partial, total);
+  const nonCompliantPercent = statusPercent(nonCompliant, total);
+  const notEvaluablePercent = statusPercent(notEvaluable, total);
+  const notApplicablePercent = statusPercent(notApplicable, total);
 
-  const cumpleEnd = cumplePercent;
-  const parcialEnd = cumpleEnd + parcialPercent;
-  const noCumpleEnd = parcialEnd + noCumplePercent;
-  const noEvaluableEnd = noCumpleEnd + noEvaluablePercent;
+  const compliantEnd = compliantPercent;
+  const partialEnd = compliantEnd + partialPercent;
+  const nonCompliantEnd = partialEnd + nonCompliantPercent;
+  const notEvaluableEnd = nonCompliantEnd + notEvaluablePercent;
 
   const statusDonut =
-    `conic-gradient(#00A65A 0 ${cumpleEnd}%, ` +
-    `#F5B700 ${cumpleEnd}% ${parcialEnd}%, ` +
-    `#BD271E ${parcialEnd}% ${noCumpleEnd}%, ` +
-    `#98A2B3 ${noCumpleEnd}% ${noEvaluableEnd}%, ` +
-    `#D3DAE6 ${noEvaluableEnd}% 100%)`;
+    `conic-gradient(#00A65A 0 ${compliantEnd}%, ` +
+    `#F5B700 ${compliantEnd}% ${partialEnd}%, ` +
+    `#BD271E ${partialEnd}% ${nonCompliantEnd}%, ` +
+    `#98A2B3 ${nonCompliantEnd}% ${notEvaluableEnd}%, ` +
+    `#D3DAE6 ${notEvaluableEnd}% 100%)`;
 
   return {
     total,
-    cumple,
-    parcial,
-    noCumple,
-    noAplica,
-    noEvaluable,
+    cumple: compliant,
+    parcial: partial,
+    noCumple: nonCompliant,
+    noAplica: notApplicable,
+    noEvaluable: notEvaluable,
     score,
-    cumplePercent,
-    parcialPercent,
-    noCumplePercent,
-    noEvaluablePercent,
+    cumplePercent: compliantPercent,
+    parcialPercent: partialPercent,
+    noCumplePercent: nonCompliantPercent,
+    noEvaluablePercent: notEvaluablePercent,
     statusDonut,
-    noAplicaPercent,
+    noAplicaPercent: notApplicablePercent,
   };
 };
