@@ -34,6 +34,15 @@ five dimensions, BOE literal texts with their provenance and Annex II order.
 - «Niveles incoherentes» notice in Controles and the dashboard, with a link to
   General, when a dimension exceeds the ENS level; General does not save and
   `config/validate-configuration.ts` exits with code 1.
+- The 11 new controls of the auditor's v2.0 package, with status `DRAFT`
+  (documentary, measurement in waves): mp.eq.2, mp.eq.3, mp.eq.4, mp.com.1,
+  mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 and mp.s.4, with their
+  requirements, parameters, evidences, report and configuration block. Index
+  axes: mp.eq.2 by A, mp.eq.4 by C, mp.com.3 by I and A, mp.s.4 by D; the rest
+  by category. They do not enter the index: Controls and the Overview show
+  «Sin medición todavía» and the detail gives the «Fuente necesaria» per
+  evidence. Rule ID bands 111800–112899 reserved, with no rules. They are
+  seeded with `config/inject-control.py <control>` like any other.
 
 ### Changed
 
