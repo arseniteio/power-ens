@@ -1,20 +1,4 @@
-// op.exp.6 · Protection against malicious code. The seven primitives contrast ONE fact against ONE
-// parameter; almost all of op.exp.6 crosses two things: EV-02 up-to-date signatures in EACH plane
-// with antimalware (ANTIGUEDAD_MAXIMA is existential: current Zimbra mail would hide an expired
-// system antivirus; without antimalware there are no signatures, and that is measured); EV-04
-// unremediated or repeated detections, and no reaction mechanism if no antimalware runs; EV-05 last
-// full scan against P-06, and «never scanned» is a failure when the register was read; EV-06 each
-// P-07 path (the host's and «*») covered by a path the agent watched at its last start; EV-07 two
-// judgments in one evidence: the mechanism in enforcement mode AND no unblocked execution outside
-// P-08; EV-08 to EV-11 each EDR capability with what the host shows of it; EV-12 each P-05 route
-// with what the host can prove, and each removable device against P-10.
-// What fits a primitive is left to primitives (EV-01 and EV-03) and only the result is READ here.
-// Invariants (as in `evidence/judgment.ts`): the agent emits instants, not ages, so ages are
-// measured against `context.now`; no fact or parameter is NO_EVALUABLE; absence of facts is a
-// failure only when the ABSENT thing is the antimalware, which a fact states (`antimalware_status`
-// with `producto_activo=ninguno`); a silence (no detection, execution or device) counts only if the
-// run's heartbeat declares the source was read; no default deadline or list.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.6 · Protection against malicious code.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

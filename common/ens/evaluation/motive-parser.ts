@@ -1,13 +1,4 @@
-// Splits a nonconformity motive for reading. Pure, in `common/`: used by the screen and the server (`overview-fields.ts`). Tested by `tests/motive-parser.test.ts`.
-// The motive is text with a regular grammar:
-//   [3 máquinas: a (024), b (028) y 1 más]                       consolidation prefix
-//   Resuelta por la política del control (...), que mide ...:    policy to evidence bridge
-//   EV-01 NO_EVALUABLE: … | EV-11 NO_CUMPLE: …                   one part per evidence
-//   … Además: …                                                  secondary (`combineMeasurements`)
-//   Pregunta de auditoría: …                                     catalog question
-// Inside each part: lists `a; b; c y N más` (`formatList()`), parameters `P-02 (nombre)` (`parameterDisplayName()`) and ISO dates (`iso()`).
-// NOTHING IS LOST: parsing only CUTS the text, `motiveToText(parseMotive(t)) === t`; derived fields are annotations with a position, not substitutions.
-// If the policy published the parts (`reasonParts`, see `policy-kit.ts`) they are used, but ONLY if joined they are exactly the text: a motive replaced later is never painted with another's parts.
+// Splits a nonconformity motive for reading.
 
 export const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
 

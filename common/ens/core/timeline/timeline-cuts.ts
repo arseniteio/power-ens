@@ -151,9 +151,8 @@ const calendarOf = (timeZone?: string): ENSTimelineCalendar =>
 export const startOfDayIn = (date: Date, timeZone?: string): Date =>
   calendarOf(timeZone).startOfDay(date);
 
-// THE SERIES BUDGET. Each point is a COMPLETE engine pass over the event prefix of that day; with a real 30-day window (about 98,000 ENS events) that is roughly a million and a half evaluations
-// on the browser thread and the tab never loads. The exit is NOT trimming events (a point over half the facts is a false number) but reducing HOW MANY POINTS: with a 4-day step the line has eight exact points instead of thirty.
-// The budget is in evaluated events summed over the whole series.
+// Series budget: each point is a complete engine pass, so the cost is cut by using fewer points (a larger step), never by trimming events.
+// Measured in evaluated events summed over the series.
 const MAX_EVALUATED_EVENTS = 400000;
 
 // Step in days that keeps the series within budget. Never below 1 (daily), and today's point always enters.

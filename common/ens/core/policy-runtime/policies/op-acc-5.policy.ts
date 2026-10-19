@@ -1,20 +1,4 @@
-// op.acc.5 · Authentication mechanism (external users). Evidences are judged by the catalog
-// primitives; what no primitive can express is WHICH REQUIREMENTS COUNT, which depends on a
-// parameter:
-// - Reinforcements R1 to R4 are a CHOICE («[R1 o R2 o R3 o R4]»), not cumulative: the one chosen in
-// P-01 counts and the others are NO_APLICA, otherwise the percentage drops for requirements nobody
-// must meet.
-// - R1 (password only) is not admissible from level MEDIO: with MEDIO or ALTO and P-01 = R1 the
-// control fails without reading a log.
-// - op.acc.5.8 has a part no primitive sees: a DISABLED lockout (no number to compare) or one that
-// lifts itself by time fails, and EV-03's silence only counts with the heartbeat declaring it.
-// - op.acc.5.r1.2 requires complexity rules besides guess resistance; op.acc.5.r5.2 is declared in
-// P-09.
-// It does not re-judge any evidence: it reads the verdict the primitive gave (`context.evidences`).
-// Where it decides a technical requirement it reproduces the `resolveMeasurement` rule (a measured
-// failure wins, a gap makes no green, incomplete mandatory configuration blocks CUMPLE), since a
-// decision replaces that consolidation and cannot be more generous.
-// Types come from the file, never from a high-level barrel (Settings TDZ cycle).
+// op.acc.5 · Authentication mechanism (external users).
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,

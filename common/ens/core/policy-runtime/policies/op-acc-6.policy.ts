@@ -1,15 +1,4 @@
-// op.acc.6 · Authentication mechanism (organization users). Second control with its own evaluator,
-// after op.acc.3. What fits a primitive (6.4, 6.5, 6.6, 6.7, r5.1, r6.1, r7.1, r9.2) is decided by
-// its catalog `judgment` and not here: an evidence has a single path.
-// This file decides: 1. which mechanism reinforcement governs (P-01; a CHOICE, not cumulative;
-// non-chosen ones are NO_APLICA; without P-01 none is proven). 2. zones and factors (r1.1, r2.1,
-// r8.1 over EV-02): classify each access origin and listening-channel address against P-02 CIDR
-// ranges and require two factors per zone. 3. attempt limit (6.8 over EV-03 and EV-04): lockout
-// exists, threshold within P-05, account not self-unlocking, plus correlation of failures with
-// lockouts per account. 4. password quality (r1.2 over EV-11): P-10 declares several minimums and
-// only governs with R1 or R2.
-// The agent emits unclassified facts; the policy lives only on screen.
-// Types come from the file, never from a high-level barrel (Settings TDZ cycle).
+// op.acc.6 · Authentication mechanism (organization users).
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,

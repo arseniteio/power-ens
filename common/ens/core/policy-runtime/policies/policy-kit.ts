@@ -1,11 +1,4 @@
-// Helpers shared by the imperative policies: measurement of an evidence, combination, fact reading,
-// screen parameter tables.
-// Import by file path, never through a barrel (it brings back the Settings TDZ cycle); only types
-// and the parameter validator live here.
-// Invariants (as in `evidence/judgment.ts`): ages are measured against `context.now`; no fact or
-// parameter is NO_EVALUABLE with reason and cause, never CUMPLE by absence; what the collector
-// declares unmeasurable keeps its own reason and cause; no default deadline, threshold or list is
-// invented here.
+// Helpers shared by the imperative policies.
 import type { ENSPolicyContext, ENSPolicyDecision, ENSReasonPart } from '../types';
 import type { ENSComplianceStatus, ENSGapCause } from '../../evaluation/types';
 import type { ENSNormalizedEvent } from '../../data-source/types';

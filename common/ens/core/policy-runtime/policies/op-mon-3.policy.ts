@@ -1,38 +1,4 @@
-// op.mon.3 · Surveillance. The template asks for what Wazuh does by trade (collect, correlate,
-// determine exposure surface) and the policy measures that it really does so over what the
-// organization declares. None fits a primitive:
-// 1. TWO PLANES. The MANAGER's collector (agent.id=000) measures central collection, correlation,
-// exposure surface, alert channels and records. Each AGENT's reads its Wazuh state files
-// (wazuh-logcollector.state, wazuh-agentd.state): a source's volume and discards are only visible
-// on the machine reading it. The engine evaluates per machine, so the policy knows which row it is
-// in from the `agent.id` of the facts received (of any control): manager row: everything, and for
-// P-01 sources of OTHER machines, that their agent exists on the manager and is connected; agent
-// row: only op.mon.3.1, with that machine's P-01 sources, the rest NO_APLICA («se mide en el
-// manager»); row without any fact: owner unknown, nothing is taken as good (NO_EVALUABLE,
-// COLLECTION).
-// 2. CROSSINGS BETWEEN TABLES AND FACTS: each P-01 source with its fact (agent + location, or
-// syslog sender IP); each P-03 asset with its SCA and inventory; each P-02 set with the rules that
-// correlate; each P-07 row with the loaded threshold rules; each P-08 channel with the manager
-// configuration; each P-09 inspection with the record.
-// 3. THE SERIES: that the manager collects and does not discard is seen by comparing its counters
-// between two hourly runs (EV-01).
-// Requirements: op.mon.3.1 EV-01 (central collection running, collecting, no discards) and EV-02
-// (each P-01 source read, no discards and, if the row declares it, no gaps). op.mon.3.r1.1 EV-03:
-// P-02 sets loaded with rules that correlate. op.mon.3.r2.1 EV-04 by CAPABILITY: SCA and inventory
-// of each P-03 asset within P-11, vulnerability detector enabled with its source current and no
-// indexer connector errors; per-asset CVE count is not local: reported «sin medir». op.mon.3.r3.1
-// and r4.1 documentary: P-ATT (EV-05, EV-07 reported). op.mon.3.r3.2 EV-06: the P-05 probe ingested
-// and recent. op.mon.3.r5.1 EV-08: each P-07 row watched by a threshold rule. op.mon.3.r5.2 EV-09:
-// each P-08 channel configured, enabled, from its level and with no send errors. op.mon.3.r6.x P-09
-// rules: a «continua» inspection is accredited by the continuous measurement (EV-10 SCA, EV-11
-// detector); a periodic one by it or by its last record row within the periodicity (EV-12); pentest
-// only with the record; EV-13 reported.
-// Invariants (as in `evidence/judgment.ts` and `policy-kit.ts`): no fact or parameter is
-// NO_EVALUABLE with reason and cause, never CUMPLE by absence; ages are measured at the fact's
-// instant (`eventTime`), never from now; no default deadline, threshold or list.
-// Decisions are emitted only for requirements applying to the category: an R1 decision at BÁSICA
-// does not count for the requirement but the bridge would carry it to the evidence table.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.mon.3 · Surveillance.
 import type {
   ENSPolicyContext,
   ENSPolicyDecision,

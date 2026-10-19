@@ -1,20 +1,4 @@
 // Evaluation on the plugin server.
-// The browser does not download facts to judge: it asks here for the result. The server reads the WHOLE window
-// as the viewing user, one control on one machine at a time, judges it with the SAME engine the browser used
-// (`common/ens/core`) and releases the facts.
-//   1. Context: who is viewing, the active configuration, the scope (wazuh-monitoring inventory) and a
-// document-less PROBE (see `queries.ts`).
-//   2. Each row (a control on a machine that measures it): if its fingerprint is unchanged and under 60 minutes
-// old, the stored one; if changed, the stored one is shown at once (marked) and recomputed behind; if none,
-// computed: heartbeats -> state-fact pruning -> the machine's facts page by page -> engine (one at a time) ->
-// released. Up to 4 reads at once, cheap rows first. The list and the panel answer with what exists
-// (`meta.pending`).
-//   3. The overview of a control is consolidated with the engine's consolidation (`consolidateENSControlRows`);
-// a machine's comes from its rows. The panel state is built with `assembleENSComplianceState`. The result equals
-// the engine over all facts at once.
-//   4. The daily series: once the row exists, in the background and behind everything else, the end of each
-// window day is evaluated and stored in the row; until then views asking for it report `meta.seriesPending`.
-// The response of each view is described in `server/README.md`.
 import { createHash } from 'crypto';
 import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../src/core/server';

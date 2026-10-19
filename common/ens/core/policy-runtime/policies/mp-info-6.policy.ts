@@ -1,20 +1,4 @@
-// mp.info.6 · Backups. The agent OBSERVES and this policy JUDGES; each backup origin's collector
-// (Proxmox PBS, Zimbra 10 Network Edition with zmbackup) emits the same facts: backup_run,
-// backup_schedule, backup_retention, backup_access, backup_storage (state), restore_test (action),
-// evidence_state (only NO_EVALUABLE), collector_run (heartbeat).
-// Every fact carries `origen` and `objeto` and may carry `backup_id`; each combination is ONE
-// BACKUP judged separately and the worst result wins. Unknown fields and origins are not filtered.
-// One machine may have two collectors (PBS and Zimbra), each with its own heartbeat: the last run
-// is looked up per `origen`.
-// Why a policy and not catalog primitives: the judgment is backup by backup with several axes per
-// evidence, and no primitive groups by backup or lets the worst win.
-// Invariants as in `op-exp-8.policy.ts`: ages are measured against `context.now`; no fact or
-// parameter is NO_EVALUABLE, never CUMPLE or NO_CUMPLE by absence; what the collector declares
-// unmeasurable (evidence_state NO_EVALUABLE) keeps its own cause and a verdict evidence_state is
-// not read; no default deadline, threshold or list (P-02, the margin, is zero if missing per its
-// sheet).
-// Scope: only the machines P-04 declares are evaluated; none means NO_EVALUABLE by CONFIGURATION.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// mp.info.6 · Backups.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

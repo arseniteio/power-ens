@@ -1,18 +1,4 @@
-// op.exp.10 · Cryptographic key protection. The seven primitives contrast ONE field of ONE fact
-// against ONE parameter; op.exp.10 needs more: EV-01 the actor of each access against P-08 plus
-// coverage (an observed authorized access only accredits monitored stores, and the primitive
-// ignores the heartbeat when there are facts); EV-03/EV-04 each algorithm a service accepts against
-// ITS P-03 usage row and minimum length, and P-04 requires each service declared for the machine to
-// have been observed; EV-05 the observed generation against the machine's function in P-05; EV-06
-// P-01 filtered by `estado` before looking for fingerprint or location; EV-07 expiry against the
-// clock with P-10's warning.
-// EV-02 and EV-08 are judged by their primitive and only the result is READ here.
-// Invariants (as in `evidence/judgment.ts`): the agent emits instants and families, not ages or
-// verdicts, so expiry is measured against `context.now`; no fact or parameter is NO_EVALUABLE;
-// silence is CUMPLE only in negative assertions (no unauthorized access, no generation, no
-// withdrawn keys present, no expired certificates) and only with the last run's heartbeat declaring
-// that evidence covered; no default algorithm, length, account or deadline.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.10 · Cryptographic key protection.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

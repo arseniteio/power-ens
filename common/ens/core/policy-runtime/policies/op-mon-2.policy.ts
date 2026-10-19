@@ -1,30 +1,4 @@
-// op.mon.2 · Metrics system. A METACONTROL: its raw material is the result of the other controls,
-// and a control's policy only sees its events and configuration (`ENSPolicyContext`). It separates
-// what is ENGINE OUTPUT (implementation degree of all controls EV-01, greys EV-05, article-32
-// report data EV-07), which goes to the report model WITHOUT verdict (NO_APLICA with the «dato del
-// informe» reason), from what leaves a dated TRACE, measured on the manager (agent.id 000) with
-// local files and no credentials, which decides.
-// op.mon.2.1: EV-02, the last metrics cycle validated by a P-05 owner is within P-02's periodicity
-// (turned into a deadline) with the Statement of Applicability (P-01) configured; and EV-04,
-// monitoring coverage of the ENS scope (systems with the agent connected and all collectors
-// current) reaches P-06's target. op.mon.2.r1.1: EV-03, each P-03 indicator can be computed from
-// op.exp.7's incident record in the period and the last cycle is on time; with zero incidents it
-// complies if the record exists and the cycle is on time (R1 asks to collect data and «zero
-// incidents» is data; op.exp.7's invariant «no incidents proves nothing about what is done on one»
-// holds there, not here). op.mon.2.r2.1: EV-06, the last cycle, on time, records internal hours,
-// external hours and budget, P-04 saying what goes in each column, validated by a resources owner
-// of P-05. It is DECLARED data: CUMPLE is marked `attested`, never as measurement.
-// Both records belong to the organization and the collector only reads them:
-// `/etc/ensfacil/metrics-cycle-register.tsv` and `/etc/ensfacil/incident-register.tsv` (op.exp.7's,
-// same 13-column format). Without a record, NO_EVALUABLE with cause CONFIGURATION, never CUMPLE by
-// emptiness; an empty record is judged.
-// Invariants (as in `policy-kit.ts`): the collector emits instants, not ages, so ages are measured
-// against the read instant (the fact's `eventTime`); no fact or parameter is NO_EVALUABLE with
-// reason and cause; what the collector declares unmeasurable is combined with what was measured
-// without hiding it; no default policy: the deadline is P-02's period plus the margin the
-// organization declares, the threshold P-06's.
-// Decisions are emitted only for requirements applying at the level (system category).
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.mon.2 · Metrics system.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

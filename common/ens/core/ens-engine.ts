@@ -659,8 +659,7 @@ const buildAgentComplianceStatesByControl = (
     undefined,
     scopeAgents
   )
-    // Solo las filas que miden el control: en las demás no produce resultado,
-    // y una fila sin resultado no entra en la consolidación.
+    // Only the rows that measure the control: the others produce no result, and a row without one is not consolidated.
     .filter(agent => {
       const catalogControl = ENSCatalog.find(
         control => control.id === controlId

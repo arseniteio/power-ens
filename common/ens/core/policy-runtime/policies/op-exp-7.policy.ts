@@ -1,23 +1,4 @@
-// op.exp.7 · Incident management. The seven primitives contrast ONE field of ONE fact against ONE
-// parameter; none of op.exp.7's questions fit: EV-02 crosses TWO fact flows (each High or Critical
-// alert, severity from rule level with P-01, must fall inside a registered incident of its system
-// within P-02's deadline); EV-03 MTTD/MTTR (subtract instants between record phases and with the
-// first alert, compare each severity's MEAN with its P-05 row); EV-04 escalation against P-02 and,
-// from MEDIA, communication to the P-04 owners of each affected system; EV-05 the seals of each
-// day's records of each incident; EV-06 containment of each high or critical incident (P-09 active
-// response on an affected system within the incident, or noted containment); EV-07 GDPR 72 hours
-// from opening, only for P-07 systems; EV-08 CCN-CERT notification of what P-01 declares
-// notifiable; EV-09 reconfiguration over P-10 elements; EV-10 P-11 CDB lists loaded, used and
-// current; EV-12 improvement measures in every closed incident.
-// Invariants (as in `evidence/judgment.ts` and op.exp.4's policy): the collector emits instants,
-// not ages, so ages are measured against `context.now`; no fact or parameter is NO_EVALUABLE, never
-// CUMPLE by absence except EV-02 and only if the heartbeat confirms alerts AND record were read in
-// THAT run; «no incidents» proves nothing about what is done on an incident: EV-03 to EV-08 and
-// EV-12 are NO_EVALUABLE without incidents; no default deadline, level or recipient. The 72 hours
-// of EV-07 are not client policy: GDPR article 33 sets them (op.exp.7.2 refers to it).
-// The subject is the manager: facts arrive with agent.id 000 and name the system they speak of in
-// `sistema` / `sistemas`.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.7 · Incident management.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

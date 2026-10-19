@@ -1,24 +1,4 @@
-// op.exp.5 · Change management. Its central question, «did every REAL change have an approved
-// request whose window covers it?», crosses two populations of facts by system and time interval,
-// which no primitive compares: EV-02 each real change (EV-01) against the request-register rows
-// covering it (same system, approved, window containing it: an interval overlap); EV-03 each
-// authorized request row, column by column, against P-02's minimum fields (and at ALTO R1's impact
-// assessment); EV-04 the approval of a high-risk change must be the RSI's (P-04) and PRECEDE its
-// deployment, the first real change the request covers; EV-06 the P-06 document the request
-// declares must change AFTER the change and within its deadline; EV-07 a service down starting in
-// the hours after a change; EV-09 the reversion point must PRECEDE the change (op.exp.4's EV-09
-// logic over all real changes).
-// The requests are NOT from an ITSM: they are the register the organization keeps on each machine
-// (`/etc/ensfacil/change-register.tsv`), read and emitted row by row by the collector with a header
-// giving the row count. The collector correlates nothing; that is done here.
-// Invariants (as in `evidence/judgment.ts` and `op-exp-4.policy.ts`): the agent emits instants, not
-// ages or verdicts; no fact or parameter is NO_EVALUABLE; this control's questions are NEGATIVE
-// assertions over the real changes («no change without request»), so ONLY with the heartbeat
-// confirming the four change sources were read whole (EV-01 in `evidencias_cubiertas`) a period
-// without changes is CUMPLE, like NINGUNO_FUERA_DE_LISTA; without that heartbeat silence accredits
-// nothing (deliberately unlike op.exp.4's EV-09, whose heartbeat does not declare that evidence);
-// no default window, deadline or account.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.5 · Change management.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

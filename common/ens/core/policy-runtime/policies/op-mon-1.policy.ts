@@ -1,32 +1,4 @@
-// op.mon.1 · Intrusion detection. Wazuh covers this control by existing, so the policy measures
-// what the template really asks: detection covers the declared systems, produces results, answers
-// the risk analysis, its ruleset is current and its exclusions are recorded. None fits a primitive:
-// 1. EVERYTHING IS MEASURED ON THE MANAGER and facts speak of OTHER systems. The manager's
-// collector (agent.id=000) emits one row per agent with its `agente` field, so each P-01 row is
-// crossed with its fact by ID or exact name (EV-02, EV-03). An agent not in P-01 (a test one, a
-// decommissioned one) does not count; one in P-01 not found, or matching two agents, is reported.
-// 2. CROSSINGS BETWEEN TABLES: each P-04 situation against the id ranges of the loaded rules
-// (EV-04); EV-05 only if P-02 requires network detection; each silencing against P-06 (EV-08).
-// 3. THE SERIES: that the engine processes is seen by comparing its counters between two runs
-// (EV-01).
-// Requirements: op.mon.1.1 EV-01 (engine active, processing, with rules), EV-02, EV-03, EV-04 and
-// EV-05. op.mon.1.r1.1 EV-01, the P-03 sets loaded (own measurement, not an evidence) and EV-08
-// with its two axes (age against P-08; silencings against P-06), combined as in op.exp.8.
-// op.mon.1.r2.1 documentary: P-05's procedure table, every row complete, accredits it with the
-// `attested` mark («acreditado documentalmente» on screen); without P-05 it stays unmeasured and
-// P-ATT may accredit it since the catalog declares it without evidences; its decision carries
-// `documental`. op.mon.1.r3.1 required in no category: EV-07 is measured and REPORTED without
-// verdict (NO_APLICA with what there is).
-// EV-06 stays in the catalog with no requirement judging it: NO_APLICA with the «dato del informe»
-// reason so it is not painted grey.
-// Invariants (as in `evidence/judgment.ts`): the collector emits instants and counts, not ages, so
-// ages are measured against `context.now`; no fact or parameter is NO_EVALUABLE with reason and
-// cause, never CUMPLE by absence; what the collector declares unmeasurable keeps its reason and
-// cause; no default deadline, threshold or list.
-// Decisions are emitted only for requirements applying at the level (system category): an R1
-// decision at BÁSICA does not count for the requirement but the bridge would carry it to the
-// evidence table.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.mon.1 · Intrusion detection.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

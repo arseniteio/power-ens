@@ -1,46 +1,4 @@
-// op.nub.1 · Cloud service protection. Mostly CONTRACTUAL: provider conformity and certification,
-// pentest, data jurisdiction and encryption are screen declarations with their validity; the
-// technical part is the integration of cloud services with Wazuh. None fits a primitive:
-// 1. DOCUMENTARY THINGS ARE JUDGED WITH THEIR VALIDITY. Each used service of P-02 is crossed by
-// name with P-03, P-08, P-09 and P-10 (EV-09) and, from MEDIA, with P-04 (EV-08), and each date is
-// compared with `context.now`. What complies is marked `attested`: «acreditado documentalmente» on
-// screen, never measured.
-// 2. TECHNICAL THINGS ARE MEASURED ON THE MANAGER and facts speak of cloud MODULES, not this
-// machine: each P-06 row is crossed with its module (EV-01) and its administrative operations
-// against P-11 (EV-04). A service without integration is a report finding, not a verdict. Accesses
-// without a second factor (EV-07) too: the criterion is op.acc.6.r8.1's and they are reported
-// crossed with it.
-// 3. THE MEASUREMENT WINS OVER THE DOCUMENT. op.nub.1.2 complies accredited if the file is complete
-// and valid and no technical measurement is against; a technical NO_CUMPLE leaves it NO_CUMPLE, and
-// `requirement-evaluator` does the same on its own.
-// Requirements: op.nub.1.1 provider: documentary without technical evidence; NO_APLICA if P-01 is
-// neither provider nor both; otherwise the conformity of each provided service of P-02 in P-03, in
-// force (`attested`). op.nub.1.2 user: EV-09 (file) with EV-01 and EV-04 of the used services P-06
-// integrates; EV-07 reported. op.nub.1.r1.1 EV-08: P-04 certification in force per service.
-// op.nub.1.r1.2 P-05 with a single «ninguno» row is NO_APLICA; empty, or «ninguno» mixed with
-// services, unmeasured (CONFIGURATION); with services, each with its op.pl.5 verification declared,
-// reference and validity (`attested`); «cumple = no» or expired fails. op.nub.1.r2.1 EV-02: the
-// provider's own posture findings per P-07 service; Wazuh 4.14 has no «SCA cloud», so without those
-// findings it is not automatable.
-// There is no P-ATT: documentary things are judged with their validity; op.nub.1 does not declare
-// P-ATT, so no non-expiring attestation can accredit 1.1 or R1.2.
-// P-01 = ninguno leaves the WHOLE control NO_APLICA, declared and auditable.
-// EV-03 (shadow IT), EV-05 (encryption) and EV-06 (region) stay in the catalog with no requirement
-// judging them: NO_APLICA with the «dato del informe» reason so they are not painted grey.
-// EV-08 and EV-09 decisions do NOT carry the `attested` mark, on purpose: the bridge
-// (`policy-evidence-bridge.ts`) does not fill an evidence with an accredited decision so a document
-// is not passed off as a TECHNICAL evidence's measurement and leaked into another requirement.
-// EV-08 and EV-09 are not technical: they ARE the documentary file, each of a single requirement,
-// and their reason says «Acreditado documentalmente». Marked, they would stay «sin recogida»,
-// sending the operator to look for a collector that does not exist. The mark goes on the
-// REQUIREMENT's decision.
-// Invariants (as in `evidence/judgment.ts` and the kit): the collector emits instants and counts,
-// not ages: a record's age is measured at the observation instant (`eventTime`) and a document's
-// against `context.now`; no fact or parameter is NO_EVALUABLE with reason and cause, never CUMPLE
-// by absence; what the collector declares unmeasurable keeps its reason and cause, combined with
-// what was measured; no default deadline, threshold or list.
-// Decisions are emitted only for requirements applying at the level (system category).
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.nub.1 · Cloud service protection.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type { ENSReasonPart } from '../types';
 import type {

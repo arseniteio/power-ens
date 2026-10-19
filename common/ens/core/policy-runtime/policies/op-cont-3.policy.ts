@@ -1,34 +1,4 @@
-// op.cont.3 · Periodic tests. One requirement with two chained obligations: TEST the continuity
-// plan periodically and CORRECT what the test reveals. No primitive expresses it because almost
-// everything is a crossing:
-// 1. BETWEEN TWO organization records the manager's collector only reads: tests
-// (`continuity-test-register.tsv`) and deficiencies (`continuity-deficiency-register.tsv`), joined
-// by the test start; a deficiency stays alive «at the next test» if a later test exists.
-// 2. BETWEEN DECLARED AND MEASURED: each test row states window, systems and result; the manager
-// says which outages and boots it saw for those systems in that window (alerts.json, 503/504/506)
-// and which mp.info.6 restores (106606). Systems match agents by ID or exact name, like P-01 of
-// op.mon.1.
-// 3. AGAINST THE SCREEN: periodicity (P-01), types (P-02), scenarios (P-03) and RTOs (P-07).
-// The requirement decides EV-01, EV-02, EV-04 and EV-05. EV-01: register exists and is read, some
-// test is recorded, P-02 plans a type that exercises alternative means (parcial or simulacro) and
-// the register has one. EV-02: last test, last of each P-02 type (its periodicity or P-01) and of
-// each P-03 scenario (P-01) within deadline. EV-04: in each parcial or simulacro test of the P-01
-// period, each system's longest outage against its P-07 RTO, and the window's restores; declared
-// satisfactory but measured out of target is the discrepancy the control hunts. EV-05: no open
-// deficiency past deadline or alive after the next test, and each test of the period with all its
-// deficiencies declared in follow-up.
-// EV-03, EV-06, EV-07 and EV-08 feed EV-04 and the report: NO_APLICA as «dato del informe» with
-// what was measured in the reason.
-// DEADLINES ARE JUDGED AT THE INSTANT THE RECORD WAS READ (the fact's `ts`), not at evaluation: the
-// fact may be up to 26 h old and judging against the clock would turn a missed collector run into
-// an expired deadline.
-// Invariants (as in `evidence/judgment.ts`): the collector emits instants and counts, not ages or
-// verdicts; no fact, record or parameter is NO_EVALUABLE with reason and cause, never CUMPLE by
-// absence (an EMPTY record is judged: no test recorded); what the collector could not measure keeps
-// its cause and travels on that test's row (`medicion`) without hiding the others; no default
-// deadline, RTO or list.
-// Decisions are emitted only if the requirement applies at the Availability level (`levelDimension:
-// 'D'`, `core/control-level.ts`); below ALTO everything is NO_APLICA.
+// op.cont.3 · Periodic tests.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

@@ -1,13 +1,4 @@
-// System type detection per agent. Pure: takes what the inventory (`wazuh-monitoring`) and the facts (30-day
-// aggregation) say and returns the type with its EVIDENCE.
-// Order (first matching rule wins):
-//   1. id 000 -> Manager
-//   2. os.platform = windows -> Windows
-//   3. facts with data.plano = directorio -> LDAP (Zimbra); only its collector's facts reveal it, so a fresh
-// install without facts is Linux until corrected by hand
-//   4. Linux-family os.platform, or os.uname starting with "Linux" -> Linux
-//   5. no os -> undetected
-// mp.info.6 backup facts (data.origen = pbs or zimbra-ne) only propose a template there, never apply it.
+// System type detection per agent.
 import {
   ENSAgentProfile,
   ENSSystemType,

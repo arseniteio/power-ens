@@ -1,18 +1,4 @@
-// op.exp.4 · Security maintenance and updates. The seven primitives contrast ONE fact against ONE
-// parameter and op.exp.4's central questions fit none: EV-02 classifies the open vulnerability with
-// P-08 (CVSS to criticality) and looks up its deadline in P-01 (criticality to days) against the
-// clock; EV-03 measures pending security updates and pending restart against P-01's LONGEST
-// deadline, and what is observed since the baseline is a bound, not an age; EV-05 an end-of-support
-// date against today, the earliest of the declared (P-05) and the vendor's; EV-07 each change
-// placed in P-04 time bands; EV-09 the reversion point must PRECEDE the change (P-07); EV-10
-// week-by-week debt trend.
-// What primitives judge is left to them (EV-04, EV-06, EV-11) and only their result is READ here;
-// op.exp.4.3 has no decision, EV-04 resolves it alone.
-// Invariants (as in `evidence/judgment.ts`): the agent emits instants, not ages, so the same fact
-// ages by itself against `context.now`; no fact or parameter is NO_EVALUABLE, never CUMPLE by
-// absence except EV-07's negative assertion with a confirmed heartbeat; no default deadline, window
-// or date except P-08's CVSS scale, which the control sheet says applies if undeclared.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.4 · Security maintenance and updates.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

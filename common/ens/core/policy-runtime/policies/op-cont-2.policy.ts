@@ -1,24 +1,4 @@
-// op.cont.2 · Continuity plan. A DOCUMENT control: no machine emits anything that proves it, so the
-// policy watches the VALIDITIES of what the organization declares on screen, against `context.now`:
-// the plan within its review periodicity (P-08), alternative-means contracts not expired, and
-// training of every person in the plan. No primitive compares two declared dates or crosses two
-// screen tables.
-// A requirement that complies is ACCREDITED DOCUMENTARILY (`attested`): a declaration in force, not
-// a measurement. There is no P-ATT on purpose: an attestation does not expire and a 2019 plan with
-// its link would accredit today.
-// All five requirements are plan contents and require EV-01 (the current plan): 2.1 + P-03
-// (functions with owner and activities); 2.2 + P-02 (essential services with RTO and RPO as
-// readable durations); 2.3 + EV-04 (alternative means of P-04 with contract in force); 2.4 + EV-06
-// (owners and deputies of P-03 with current training in P-05); 2.5 + P-06 (at least one integrated
-// plan). R1 and R2 are defined, not required: no levels.
-// EV-02, EV-05, EV-07 and EV-08 cannot be measured today and EV-03 is R2's: they are NO_APLICA with
-// the «dato del informe» reason so they are not painted grey.
-// Governed by the Availability level (`levelDimension: 'D'`): with D at BAJO or MEDIO nothing
-// applies and no decision is emitted.
-// Invariants: without the table, or with a half row or unreadable date, NO_EVALUABLE with cause
-// CONFIGURATION and the row named, never CUMPLE by absence; a declaration saying something is
-// missing or expired is NO_CUMPLE; no default dates or deadlines.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.cont.2 · Continuity plan.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

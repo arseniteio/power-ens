@@ -1,27 +1,4 @@
-// op.exp.8 · Activity log. Two reasons for its own policy:
-// 1. TWO PLANES. The activity log is generated on each SERVER (its auditd, clock, who can read its
-// logs) and collected, kept, reviewed, correlated and answered on the CENTRAL SYSTEM (the manager).
-// Central facts arrive with agent.id=000 and the engine evaluates per agent, so a regular server's
-// row cannot see log review or correlation rules. This policy decides, row by row, WITH WHICH
-// evidences each requirement is measured: the server's on an agent, the server's and the central
-// ones on the manager. What is only central (R1, R3, R5) does not apply in a non-central server's
-// row; it is measured on the manager's and the cross-machine consolidation carries it to the
-// control result.
-// 2. JUDGMENTS THAT FIT NO PRIMITIVE: the time reference has four axes (synchronization, skew,
-// authentication, trace of changes); ingestion crosses P-02 with what each agent received against a
-// deadline; permissions compare an account list per log.
-// The row type comes from the heartbeat: `collector_run` with `tipo_servidor` = `manager` is the
-// central row; `linux` or `ldap`, a server.
-// What fits a primitive is left to it (EV-02, ANTIGUEDAD_MAXIMA against P-12) and only the result
-// is READ here.
-// Invariants (as in `evidence/judgment.ts`): the agent emits instants, not ages, so ages are
-// measured against `context.now`; no fact or parameter is NO_EVALUABLE, never CUMPLE by absence;
-// what the collector declares unmeasurable (evidence_state NO_EVALUABLE) keeps its own reason; no
-// default deadline, threshold or list.
-// The level used (`context.level`) is that of the Traceability dimension, not the system category:
-// the engine resolves it (`core/control-level.ts`) because the catalog declares `levelDimension:
-// 'T'`.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.8 · Activity log.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,

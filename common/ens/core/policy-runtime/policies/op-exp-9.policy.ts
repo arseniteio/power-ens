@@ -1,25 +1,4 @@
-// op.exp.9 · Incident management record. The seven primitives contrast ONE fact against ONE
-// parameter grouped by machine; here almost everything groups by another key no control used, the
-// FILE (`incidente_id`), and crosses two fact flows by it: EV-01 each affected system of each
-// incident keeps its alerts and the window's daily archives verify their chained sum; EV-02 each
-// incident has P-02's report phases, except duration and the end of an open incident; EV-03 every
-// active response observed in an incident's window is recorded as an emergency action of THAT
-// incident; EV-04 every object changed on an affected system during the incident is recorded as a
-// modification derived from THAT incident; EV-05 an incident with legal relevance has every P-03
-// evidence sealed (conditioned by the record mark and P-04); EV-06 each sealed evidence is in a
-// P-05 destination, has chain of custody and its SHA-256 still matches (P-06's longest deadline);
-// EV-07 the period of an open or legally relevant incident remains on disk (the indexer's
-// protection is not visible without credentials); EV-08 a closed incident of a P-07 severity has
-// its audit-event review within the deadline (the clock starts at CLOSING); EV-09 each file row
-// links to it (reference).
-// An EMPTY record is not an ABSENT one. Absent: nothing to judge against. Empty is judged: zero
-// incidents against the alerts the manager saw (P-08, without P-09 groups). What demands nothing
-// (no legally relevant incident, no expired review) is said with the read record as proof, not
-// assumed.
-// Invariants (as in `evidence/judgment.ts`): the collector emits instants and counts, not verdicts
-// or ages, so deadlines are measured against `context.now`; no recent heartbeat, record or
-// parameter is NO_EVALUABLE, never CUMPLE by missing data; no default deadline or level.
-// Types and utilities come from the file, never from a barrel (Settings TDZ cycle).
+// op.exp.9 · Incident management record.
 import { withReasonParts, compositeReason, reasonPartsOf } from './policy-kit';
 import type {
   ENSPolicyContext,
