@@ -9,6 +9,7 @@ import { resolveCurrentUser } from './current-user';
 import {
   checkAgentsConfigurationKeys,
   validateAgentsConfigurationShape,
+  validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
 
 interface Opciones {
@@ -81,6 +82,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
       return fallo(response, 400, `configuration.agents no es válida: ${erroresAgentes.slice(0, 5).join(' ')}`);
     }
 
+    const templateErrors = validateCustomTemplatesShape(cuerpo.configuration.templates);
+    if (templateErrors.length) {
+      return fallo(response, 400, `configuration.templates no es válida: ${templateErrors.slice(0, 5).join(' ')}`);
+    }
+
     const acceso = await administrador(context, response, 'guardar la configuración');
     if (acceso.error) return acceso.error;
     const username = acceso.usuario!.username;
@@ -105,9 +111,16 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Opcione
           ? { agents: previa.agents }
           : {};
 
+      // Same rule for the custom templates: a client that does not know the key cannot drop them.
+      const keptTemplates =
+        !Object.prototype.hasOwnProperty.call(cuerpo.configuration, 'templates') && Array.isArray(previa.templates)
+          ? { templates: previa.templates }
+          : {};
+
       const configuracion = {
         ...cuerpo.configuration,
         ...conservaAgentes,
+        ...keptTemplates,
         createdAt: inicial ? ahora : texto(previa.createdAt) || ahora,
         createdBy: inicial ? username : texto(previa.createdBy) || username,
         updatedAt: ahora,

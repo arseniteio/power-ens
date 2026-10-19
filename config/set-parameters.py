@@ -53,11 +53,36 @@ valor de la organización:
 Solo admiten valor por agente los parámetros por sistema y por plataforma (la
 clasificación de `common/ens/configuration/agents/parameter-classes.ts`); uno de
 organización se rechaza. `null` (o vacío) QUITA el valor propio de ese agente,
-que vuelve a heredar de su plantilla o de la organización; quitar se admite
+que vuelve a heredar de su plantilla o del valor común; quitar se admite
 siempre, también para un valor que no se aplica (un control que ya no está, un
 parámetro que no existe o uno de organización). La clave es el id del agente
 (`7` se normaliza a `007`); un nombre se rechaza, con el id si el documento ya
 conoce ese nombre.
+
+PLANTILLA DE UN AGENTE EN UN CONTROL (plugin 1.3.0). Dentro de un control de un
+agente, la clave `template` asigna la plantilla de ese control; sin ella no se
+toca la asignación:
+
+    {
+      "agents": {
+        "001": {
+          "op.acc.1": { "template": "linux-ubuntu", "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
+          "op.acc.2": { "template": "custom-servidores-web" },
+          "op.exp.2": { "template": "none" },
+          "op.exp.4": { "template": null }
+        }
+      }
+    }
+
+El valor es el id de una plantilla de serie del control (`linux-ubuntu`,
+`zimbra-ldap`, `windows-server`, `manager-wazuh`, `pbs-backup`,
+`zimbra-ne-backup`, las que tenga ese control) o de una plantilla propia de
+`configuration.templates` del mismo control; `none` deja el agente sin plantilla
+(valores comunes) y `null` quita la asignación (vuelve la plantilla de serie de
+su tipo). El valor que se aplica: ajuste propio, plantilla asignada, plantilla
+de serie de su tipo y valor común del control. Un documento de la 1.2.0 (sin la
+clave `configuration.templates`) no admite `template`: se convierte antes
+guardándolo una vez desde Configuración («Guardar la conversión»).
 
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
 `wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
@@ -166,6 +191,32 @@ def clases():
     return json.loads(fuente[inicio:fin + 2])
 
 
+# Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
+BUILTIN_TEMPLATES = {
+    "mp.info.6": ["linux-ubuntu", "zimbra-ldap", "pbs-backup", "zimbra-ne-backup"],
+    "op.acc.1": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
+    "op.acc.2": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
+    "op.acc.3": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
+    "op.acc.4": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
+    "op.acc.5": ["linux-ubuntu", "zimbra-ldap"],
+    "op.acc.6": ["linux-ubuntu", "zimbra-ldap"],
+    "op.cont.3": ["manager-wazuh"],
+    "op.exp.1": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.2": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.3": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.4": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.5": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.6": ["linux-ubuntu", "zimbra-ldap"],
+    "op.exp.7": ["manager-wazuh"],
+    "op.exp.8": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
+    "op.exp.10": ["linux-ubuntu", "zimbra-ldap"],
+    "op.mon.1": ["manager-wazuh"],
+    "op.mon.3": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
+}
+NO_TEMPLATE = "none"
+TEMPLATE_KEY = "template"
+
+
 def vacio(v):
     return v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, list) and not [x for x in v if str(x).strip()])
 
@@ -221,7 +272,25 @@ for agente, controles in por_agente.items():
         continue
     propios = ((agentes_doc.get(aid) or {}).get("controls") or {})
     for control_id, valores in (controles or {}).items():
+        if TEMPLATE_KEY in (valores or {}):
+            plantilla = valores[TEMPLATE_KEY]
+            propias = [t.get("id") for t in (config.get("templates") or []) if isinstance(t, dict) and t.get("controlId") == control_id]
+            if not isinstance(config.get("templates"), list):
+                errores.append("agente %s: el documento es de la 1.2.0 y no admite «template»: guárdalo una vez desde "
+                               "Configuración («Guardar la conversión») y vuelve a ejecutar" % aid)
+            elif vacio(plantilla):
+                pass
+            elif not isinstance(plantilla, str):
+                errores.append("agente %s: %s template tiene que ser el id de una plantilla, «none» o null" % (aid, control_id))
+            elif control_id not in por_id:
+                errores.append("agente %s: el control %s no está sembrado" % (aid, control_id))
+            elif plantilla != NO_TEMPLATE and plantilla not in BUILTIN_TEMPLATES.get(control_id, []) + propias:
+                errores.append("agente %s: %s no tiene la plantilla %s (de serie: %s; propias: %s)" % (
+                    aid, control_id, plantilla, ", ".join(BUILTIN_TEMPLATES.get(control_id, [])) or "ninguna",
+                    ", ".join(propias) or "ninguna"))
         for pid, v in (valores or {}).items():
+            if pid == TEMPLATE_KEY:
+                continue
             # Quitar se admite siempre: también un valor que no se aplica.
             if vacio(v):
                 continue
@@ -281,7 +350,21 @@ for agente, controles in sorted(por_agente.items()):
     for control_id, valores in sorted((controles or {}).items()):
         entrada = dict(propios.get(control_id) or {})
         parametros = dict(entrada.get("parameters") or {})
+        if TEMPLATE_KEY in (valores or {}):
+            nueva = None if vacio(valores[TEMPLATE_KEY]) else valores[TEMPLATE_KEY]
+            vieja = entrada.get("templateId")
+            if nueva == vieja:
+                print("   %s template sin cambio" % control_id)
+            else:
+                print("   %s template %s  ->  %s" % (control_id, vieja or "(la de serie de su tipo)", nueva or "(la de serie de su tipo)"))
+                if nueva:
+                    entrada["templateId"] = nueva
+                else:
+                    entrada.pop("templateId", None)
+                cambios += 1
         for pid, nuevo in sorted((valores or {}).items()):
+            if pid == TEMPLATE_KEY:
+                continue
             viejo = parametros.get(pid)
             if vacio(nuevo):
                 if pid not in parametros:
@@ -296,7 +379,7 @@ for agente, controles in sorted(por_agente.items()):
                 parametros[pid] = nuevo
                 print("   %s %-6s %s  ->  %s" % (control_id, pid, corto(viejo) if viejo is not None else "(hereda)", corto(nuevo)))
             cambios += 1
-        # Lo que una versión posterior guarde junto a `parameters` se conserva.
+        # Other keys stored next to `parameters` (`templateId`, or a later version's) are kept.
         if parametros:
             entrada["parameters"] = parametros
         else:

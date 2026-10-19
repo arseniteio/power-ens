@@ -174,6 +174,14 @@ console.log('4. On load, written with the next save');
   const result: any = await handlers.save(context as any, { body: { configuration: after, changeReason: summarizeTemplateMigration(plan) } } as any, responses as any);
   const history = [...docs.values()].filter(doc => doc.documentType === 'CONFIGURATION_HISTORY');
   check('the server saves the converted document', result.status === 200 && Array.isArray(docs.get('active').configuration.templates), result);
+  const badTemplates: any = await handlers.save(context as any, { body: { configuration: { ...after, templates: [{ id: 'x', controlId: 'op.acc.1', name: 'X', values: { 'P-10': null } }] } } } as any, responses as any);
+  check('the server refuses a template with a null value, saying where', badTemplates.status === 400 && /templates\[0\]\.values\.P-10/.test(badTemplates.body.message), badTemplates);
+  const withTemplate = { ...after, templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }] };
+  await handlers.save(context as any, { body: { configuration: withTemplate } } as any, responses as any);
+  const withoutKey: any = { ...withTemplate };
+  delete withoutKey.templates;
+  await handlers.save(context as any, { body: { configuration: withoutKey } } as any, responses as any);
+  check('a body without the templates key keeps the stored ones', JSON.stringify(docs.get('active').configuration.templates) === JSON.stringify(withTemplate.templates), docs.get('active').configuration.templates);
   check('and keeps the 1.2.0 version in the history', history.some(doc => doc.configuration?.agents?.['024']?.templates?.join() === 'linux-ubuntu,pbs-backup'), history.length);
 
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');

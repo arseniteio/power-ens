@@ -182,6 +182,20 @@ def main():
         comprueba("agents · con --sustituir también avisa de los huérfanos",
                   "P-99 en el agente 028" in r.stdout, r.stdout)
 
+        # --- 1.3.0: custom templates and per-control assignments survive seeding
+        templates = [{"id": "custom-web", "controlId": "op.acc.1", "name": "Web", "values": {"P-01": "LDAP", "P-99": "x"}}]
+        agents = {"028": {"controls": {"op.acc.1": {"templateId": "custom-web", "parameters": {"P-04": ["x"]}}}}}
+        estado["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))],
+                                           "agents": json.loads(json.dumps(agents)),
+                                           "templates": json.loads(json.dumps(templates))},
+                         "updatedAt": ""}
+        r = siembra(url, bloque_path, "--apply")
+        comprueba("templates · reseeding keeps configuration.templates and the assignments",
+                  estado["doc"]["configuration"].get("templates") == templates
+                  and estado["doc"]["configuration"].get("agents") == agents, r.stdout)
+        comprueba("templates · warns about a template value of a withdrawn parameter",
+                  "P-99 en la plantilla custom-web" in r.stdout and "Plantillas propias" in r.stdout, r.stdout)
+
         # --- la versión anterior, al historial ANTES de escribir
         estado["historial"] = []
         previo = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURADO))], "changeReason": "previo"},

@@ -161,6 +161,39 @@ def main():
                   len(h) == 1 and h[0]["doc"]["configuration"]["agents"] == agentes and "Versión anterior guardada en: historial" in r.stdout,
                   r.stdout + str(h)[:200])
 
+        # --- 1.3.0: template assignment per agent and control
+        def reinicia_130(agents=None, templates=None):
+            reinicia(agents)
+            estado["doc"]["configuration"]["templates"] = json.loads(json.dumps(templates or []))
+
+        propia = [{"id": "custom-web", "controlId": "op.acc.1", "name": "Web", "values": {"P-11": ["wheel"]}}]
+        reinicia_130({"028": {"detectedType": "linux", "controls": {"op.acc.1": {"parameters": {"P-07": ["a | b | c"]}}}}}, propia)
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"template": "custom-web"}}, "024": {"op.acc.1": {"template": "zimbra-ldap", "P-07": ["x | y | z"]}}}}, "--apply")
+        cfg = estado["doc"]["configuration"]
+        comprueba("template · assigns a custom template and keeps the overrides",
+                  r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"] == {"parameters": {"P-07": ["a | b | c"]}, "templateId": "custom-web"},
+                  r.stdout + r.stderr + json.dumps(cfg.get("agents")))
+        comprueba("template · a built-in and an override together, for a new agent",
+                  cfg["agents"]["024"]["controls"]["op.acc.1"] == {"templateId": "zimbra-ldap", "parameters": {"P-07": ["x | y | z"]}}, json.dumps(cfg["agents"].get("024")))
+        comprueba("template · custom templates survive", cfg.get("templates") == propia)
+        r = ejecuta(url, tmp, {"agents": {"028": {"op.acc.1": {"template": "none"}}, "024": {"op.acc.1": {"template": None, "P-07": None}}}}, "--apply")
+        cfg = estado["doc"]["configuration"]
+        comprueba("template · «none» pins the common values; null removes the assignment",
+                  r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"]["templateId"] == "none"
+                  and "controls" not in cfg["agents"]["024"] and "null" not in json.dumps(cfg["agents"]), json.dumps(cfg["agents"]))
+        for nombre, contenido, motivo, legacy in [
+            ("a built-in of another control", {"agents": {"028": {"op.acc.1": {"template": "manager-wazuh"}}}}, "no tiene la plantilla manager-wazuh", False),
+            ("an unknown id", {"agents": {"028": {"op.acc.1": {"template": "nope"}}}}, "no tiene la plantilla nope", False),
+            ("a 1.2.0 document", {"agents": {"028": {"op.acc.1": {"template": "linux-ubuntu"}}}}, "Guardar la conversión", True),
+        ]:
+            if legacy:
+                reinicia(agentes)
+            else:
+                reinicia_130({"028": {}}, propia)
+            version = estado["version"]
+            r = ejecuta(url, tmp, contenido, "--apply")
+            comprueba("template · refuses " + nombre, r.returncode == 1 and motivo in r.stderr and estado["version"] == version, r.stderr)
+
         for nombre, contenido, motivo in [
             ("rechaza un parámetro de organización por agente", {"agents": {"028": {"op.acc.1": {"P-04": ["x"]}}}}, "parámetro de organización"),
             ("rechaza un parámetro que no existe", {"agents": {"028": {"op.acc.1": {"P-99": "x"}}}}, "no declara el parámetro P-99"),

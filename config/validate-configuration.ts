@@ -18,16 +18,10 @@
  * va a aceptar. Revisar a ojo falló dos veces seguidas sobre el mismo
  * parámetro.
  *
- * LA CAPA POR SISTEMA (`configuration.agents`, 1.2.0). Su forma la comprueba
- * el mismo validador estructural (un valor `null` o un objeto en un agente
- * también impide cargar el entorno). Además se comprueba su significado: que
- * cada control y parámetro exista, que no sea de organización, que cada
- * plantilla exista y no choque con otra, y que cada valor sea válido para su
- * parámetro, y que cada perfil sea de un id de agente. Eso no impide cargar el
- * entorno, pero sale con 1: un valor que no se aplica se ignora, y una máquina
- * con un valor inválido se evalúa con una configuración inválida. Las claves
- * que esta versión no conoce son avisos y no cambian la salida. Se imprime una
- * línea por agente con su tipo, sus plantillas y sus valores propios.
+ * Per-agent layer and templates (`configuration.agents`, `configuration.templates`, 1.3.0): their shape is checked by
+ * the same structure validator; their meaning (controls, parameters, assigned templates, custom templates and
+ * values) does not stop the environment from loading but exits with 1. A 1.2.0 document is checked as the plugin
+ * loads it: converted to per-control assignments, with the conversion plan printed. Unknown keys are warnings.
  *
  * Sale con 0 si el documento es válido y con 1 si no, listando cada error.
  */
@@ -36,7 +30,13 @@ import { validateENSConfigurationStructure } from '../common/ens/configuration/s
 import {
   summarizeAgentsConfiguration,
   validateAgentsConfiguration,
+  validateCustomTemplates,
 } from '../common/ens/configuration/agents/agent-configuration-validator';
+import {
+  planTemplateMigration,
+  summarizeTemplateMigration,
+} from '../common/ens/configuration/agents/template-migration';
+import { getCustomTemplates } from '../common/ens/configuration/templates';
 
 declare const process: {
   argv: string[];
@@ -78,38 +78,50 @@ if (!result.valid) {
 
 console.log('ESTRUCTURA VÁLIDA: el plugin cargará esta configuración.');
 
-const agents = summarizeAgentsConfiguration(configuration);
+const conversion = planTemplateMigration(configuration);
+const model = conversion.configuration;
 
-if (!agents.length) {
-  console.log('valores por sistema: ninguno (todo se evalúa con el valor de la organización)');
-  process.exit(0);
+if (conversion.changed) {
+  console.log(`documento de la 1.2.0: ${summarizeTemplateMigration(conversion)} El plugin lo convierte al cargar y lo escribe con el próximo guardado; los valores de cada agente no cambian.`);
 }
 
-console.log(`valores por sistema (${agents.length} agente(s)):`);
-agents.forEach(agent =>
-  console.log(
-    `  ${agent.agentId}${agent.name ? ` ${agent.name}` : ''}` +
-      ` · tipo: ${agent.type || '(sin tipo)'} (${agent.typeSource})` +
-      ` · plantillas: ${agent.templates.join(', ') || '(ninguna)'}` +
-      ` · valores propios: ${agent.ownValues}`
-  )
-);
+const templates = getCustomTemplates(model);
+console.log(`plantillas propias: ${templates.length ? templates.map(template => `${template.controlId} «${template.name}» (${template.id})`).join(', ') : 'ninguna'}`);
 
-const issues = validateAgentsConfiguration(configuration);
-const warnings = issues.filter(issue => issue.severity === 'warning');
-const errors = issues.filter(issue => issue.severity === 'error');
+const templateIssues = validateCustomTemplates(model);
+const agents = summarizeAgentsConfiguration(model);
 
-// Lo que esta versión no conoce (de una versión posterior) se ignora: aviso.
+if (agents.length) {
+  console.log(`agentes con ajustes (${agents.length}):`);
+  agents.forEach(agent =>
+    console.log(
+      `  ${agent.agentId}${agent.name ? ` ${agent.name}` : ''}` +
+        ` · tipo: ${agent.type || '(sin tipo: valores comunes)'} (${agent.typeSource})` +
+        ` · plantillas asignadas: ${Object.entries(agent.assignments).map(([controlId, templateId]) => `${controlId}=${templateId}`).join(', ') || '(ninguna: la de serie de su tipo)'}` +
+        ` · ajustes propios: ${agent.ownValues}`
+    )
+  );
+} else {
+  console.log('agentes con ajustes: ninguno (todo se evalúa con el valor común de cada control)');
+}
+
+const issues = validateAgentsConfiguration(model);
+const warnings = [...issues.filter(issue => issue.severity === 'warning').map(issue => issue.message), ...templateIssues.filter(issue => issue.severity === 'warning').map(issue => issue.message)];
+const errors = [
+  ...issues.filter(issue => issue.severity === 'error').map(issue => `agente ${issue.agentId}: ${issue.message}`),
+  ...templateIssues.filter(issue => issue.severity === 'error').map(issue => `plantilla ${issue.templateId}: ${issue.message}`),
+];
+
 if (warnings.length) {
-  console.log(`avisos (${warnings.length}): claves que esta versión no conoce y que ignora:`);
-  warnings.forEach(issue => console.log(`  - ${issue.message}`));
+  console.log(`avisos (${warnings.length}):`);
+  warnings.forEach(message => console.log(`  - ${message}`));
 }
 
 if (!errors.length) {
-  console.log('VALORES POR SISTEMA VÁLIDOS.');
+  console.log('AJUSTES DE AGENTES Y PLANTILLAS VÁLIDOS.');
   process.exit(0);
 }
 
-console.log(`VALORES POR SISTEMA INVÁLIDOS (${errors.length}): el plugin carga el entorno; lo que «no se aplica» se ignora y se quita en la página del agente o con set-parameters.py (null), y una máquina con un valor inválido se evalúa con una configuración inválida.`);
-errors.forEach(issue => console.log(`  - agente ${issue.agentId}: ${issue.message}`));
+console.log(`AJUSTES DE AGENTES O PLANTILLAS INVÁLIDOS (${errors.length}): el plugin carga el entorno; lo que «no se aplica» se ignora y se quita en la página del agente o con set-parameters.py, y un agente con un valor inválido se evalúa con una configuración inválida.`);
+errors.forEach(message => console.log(`  - ${message}`));
 process.exit(1);

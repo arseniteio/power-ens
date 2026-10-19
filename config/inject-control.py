@@ -21,11 +21,12 @@ destructivo tiene que pedirse (--sustituir).
 
 Dry-run por defecto; --apply para escribir.
 
-LA CAPA POR SISTEMA (`configuration.agents`, plugin 1.2.0) NO SE TOCA: se
-escribe el `_source` entero y solo cambia `controls`. Si un parámetro se retira
-del bloque y algún agente tenía valor propio para él, se avisa: ese valor queda
-huérfano (no lo lee nadie) hasta que se quite en la pantalla. Al sembrar un
-control nuevo no se crean asignaciones ni valores por agente.
+LA CAPA POR AGENTE Y LAS PLANTILLAS PROPIAS (`configuration.agents` y
+`configuration.templates`, plugin 1.3.0) NO SE TOCAN: se escribe el `_source`
+entero y solo cambia `controls`. Si un parámetro se retira del bloque y un agente
+o una plantilla propia tenía valor para él, se avisa: ese valor queda huérfano
+(no lo lee nadie) hasta que se quite en la pantalla. Al sembrar un control nuevo
+no se crean plantillas, asignaciones ni ajustes por agente.
 
 ANTES DE ESCRIBIR, la versión que se sustituye se guarda en el historial de
 `wazuh-ens-configuration`, como hace el plugin, o, si el índice no lo admite,
@@ -190,6 +191,14 @@ huerfanos = sorted(
     for pid in ((((perfil or {}).get("controls") or {}).get(control_id) or {}).get("parameters") or {})
     if pid not in ids_bloque
 ) if anterior else []
+# Values of custom templates for withdrawn parameters are orphaned the same way.
+huerfanos += sorted(
+    "{} en la plantilla {}".format(pid, plantilla.get("id"))
+    for plantilla in (cfg.get("templates") or [])
+    if isinstance(plantilla, dict) and plantilla.get("controlId") == control_id
+    for pid in (plantilla.get("values") or {})
+    if pid not in ids_bloque
+) if anterior else []
 
 if anterior and not args.sustituir:
     valores_previos = {
@@ -220,16 +229,16 @@ if anterior and not args.sustituir:
     if retirados:
         print("  YA NO EXISTEN en el bloque y se pierden: {}".format(", ".join(retirados)))
     if huerfanos:
-        print("  AVISO: valores por agente de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
+        print("  AVISO: valores de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
 elif anterior and args.sustituir:
     con_valor = [
         x.get("id") for x in anterior.get("parameters", []) if tiene_valor(x.get("value"))
     ]
     print("--sustituir: se DESCARTAN los valores ya configurados.")
     print("  se pierden: {}".format(", ".join(con_valor) or "ninguno (no había valores puestos)"))
-    print("  los valores por agente (configuration.agents) se conservan")
+    print("  los ajustes por agente (configuration.agents) y las plantillas propias (configuration.templates) se conservan")
     if huerfanos:
-        print("  AVISO: valores por agente de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
+        print("  AVISO: valores de parámetros retirados, quedan huérfanos: {}".format(", ".join(huerfanos)))
 
 # --- reemplazar el bloque del control sin tocar los demás
 controls = [c for c in controls if c["controlId"] != control_id]
@@ -249,7 +258,9 @@ source["updatedAt"] = ahora
 
 print("Tras la operación:", sorted(c["controlId"] for c in cfg["controls"]))
 if cfg.get("agents"):
-    print("Valores por sistema (configuration.agents): se conservan los de {} agente(s).".format(len(cfg["agents"])))
+    print("Ajustes por agente (configuration.agents): se conservan los de {} agente(s).".format(len(cfg["agents"])))
+if cfg.get("templates"):
+    print("Plantillas propias (configuration.templates): se conservan las {}.".format(len(cfg["templates"])))
 
 if not args.apply:
     print("\n== DRY-RUN ==  nada se ha escrito. Añade --apply si el plan es correcto.")

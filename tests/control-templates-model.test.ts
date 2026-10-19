@@ -138,6 +138,13 @@ console.log('2. Built-in templates');
   check('LDAP: no «adm» among privileged groups; Linux: with it',
     !(getBuiltinTemplates('op.acc.2')[1].values['P-12'] as string[]).includes('adm') && (getBuiltinTemplates('op.acc.2')[0].values['P-12'] as string[]).includes('adm'));
   check('built-in ids and «none» are reserved', ['linux-ubuntu', 'pbs-backup', ENS_NO_TEMPLATE].every(isReservedTemplateId) && !isReservedTemplateId('custom-x'));
+  const script = readFileSync(`${__dirname}/../config/set-parameters.py`, 'utf8');
+  const start = script.indexOf('{', script.indexOf('BUILTIN_TEMPLATES = '));
+  const end = script.indexOf('\n}', start);
+  let fromScript: any;
+  try { fromScript = JSON.parse(script.slice(start, end + 2).replace(/,\s*}/, '}')); } catch (error) { fromScript = undefined; }
+  const fromPlugin = Object.fromEntries(withTemplates.map(id => [id, getBuiltinTemplates(id).map(template => template.id)]));
+  check('set-parameters.py knows the same built-in ids per control', JSON.stringify(fromScript) === JSON.stringify(fromPlugin), fromScript);
   const custom = { templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }] } as any;
   check('control templates: built-ins first, then custom ones', getControlTemplates(custom, 'op.acc.1').map(template => `${template.id}:${template.builtin}`).join() === 'linux-ubuntu:true,zimbra-ldap:true,windows-server:true,custom-web:false');
 }
