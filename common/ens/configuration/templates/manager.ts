@@ -1,4 +1,4 @@
-import type { ENSConfigurationTemplate } from './types';
+import type { ENSPlatformSource } from './types';
 import { CAMPOS_REGISTRO_AUDITD, EVENTOS_AUDITABLES_LINUX } from './linux-ubuntu';
 
 // Manager de Wazuh (agente 000). En su fila solo se evalúan los controles de
@@ -7,11 +7,10 @@ import { CAMPOS_REGISTRO_AUDITD, EVENTOS_AUDITABLES_LINUX } from './linux-ubuntu
 // Casi todo lo suyo es política de organización; lo que es de la plataforma
 // del manager son los registros de op.exp.8: qué fuentes se auditan, con qué
 // campos y qué cuentas escriben los registros (las de Wazuh y del indexer).
-export const managerWazuhTemplate: ENSConfigurationTemplate = {
+export const managerWazuhTemplate: ENSPlatformSource = {
   id: 'manager-wazuh',
   label: 'Manager Wazuh',
-  description:
-    'El manager de Wazuh: fuentes auditables y campos mínimos de auditd, y las cuentas que escriben los registros (root, syslog, wazuh y wazuh-indexer).',
+  description: 'El manager de Wazuh.',
   kind: 'base',
   systemTypes: ['manager'],
   sources: [

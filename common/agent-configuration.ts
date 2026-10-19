@@ -1,31 +1,20 @@
-// Configuración por sistema (1.2.0): la capa `configuration.agents` del
-// documento `active` de wazuh-ens-configuration.
+// Per-agent configuration: the `configuration.agents` and `configuration.templates` layers of the
+// `active` document in wazuh-ens-configuration. Pure types and functions shared by browser and server.
 //
-// Vive en `common/` porque la leen el navegador (pantalla y motor) y el
-// servidor (el guardado la conserva y la valida). Solo tipos y funciones puras.
-//
-// FORMA DEL DOCUMENTO. Solo se AÑADE una clave de primer nivel:
-//
-//   configuration.controls[].parameters[].value   ← sigue siendo el valor de la
-//                                                    ORGANIZACIÓN (el que leen
-//                                                    un plugin 1.1.0, el chatbot
-//                                                    y los scripts)
-//   configuration.agents = {                       ← NUEVO
-//     "<id del agente normalizado>": {
-//       name, aliases[],                  identidad cuando se guardó
-//       detectedType, detectedBy,         tipo detectado y de dónde salió
-//       typeOverride,                     tipo corregido a mano
-//       templates[],                      plantillas aplicadas, en orden
-//       controls: { "<control>": { parameters: { "<P-xx>": valor } } }
+//   configuration.controls[].parameters[].value   common value of the control (what 1.1.0, the chatbot and the scripts read)
+//   configuration.templates = [                    custom templates (1.3.0); built-ins live in code
+//     { id, controlId, name, description?, systemType?, values: { "<P-xx>": value } }
+//   ]
+//   configuration.agents = {
+//     "<normalised agent id>": {
+//       name, aliases[], detectedType, detectedBy, typeOverride,
+//       templates[],                                1.2.0 only: converted to per-control templateId on load
+//       controls: { "<control>": { templateId?, parameters: { "<P-xx>": value } } }
 //     }
 //   }
 //
-// Por qué una clave aparte y no dentro del parámetro: el validador estructural
-// solo admite escalares y listas de texto en `value` (un objeto tumbaría el
-// entorno ENS entero), e `inject-control.py` sustituye el objeto parámetro y
-// solo conserva `value`, así que cualquier dato por agente guardado dentro del
-// parámetro se perdería al resembrar. Una clave de primer nivel sobrevive a los
-// dos scripts, que escriben el `_source` entero tras editar solo `controls`.
+// Top-level keys because the structure validator only admits scalars and string lists in `value`, and
+// inject-control.py replaces the parameter object keeping only `value`.
 
 export type ENSSystemType = 'linux' | 'zimbra-ldap' | 'windows' | 'manager';
 
@@ -33,9 +22,9 @@ export const ENS_SYSTEM_TYPES: ENSSystemType[] = ['linux', 'zimbra-ldap', 'windo
 
 export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   linux: 'Linux',
-  'zimbra-ldap': 'LDAP (Zimbra)',
+  'zimbra-ldap': 'Servidor LDAP',
   windows: 'Windows',
-  manager: 'Manager',
+  manager: 'Manager Wazuh',
 };
 
 // El mismo contrato que `value`: un escalar o una lista de texto. Nunca `null`:
@@ -43,9 +32,20 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
 export interface ENSAgentControlOverrides {
-  // Opcional: una versión posterior puede guardar otras claves en el control
-  // (`assigned`, por ejemplo) sin valores propios.
+  // Absent: the built-in template of the agent's type; ENS_NO_TEMPLATE: no template, common values.
+  templateId?: string;
   parameters?: Record<string, ENSAgentParameterValue>;
+}
+
+export const ENS_NO_TEMPLATE = 'none';
+
+export interface ENSCustomTemplate {
+  id: string;
+  controlId: string;
+  name: string;
+  description?: string;
+  systemType?: ENSSystemType;
+  values: Record<string, ENSAgentParameterValue>;
 }
 
 export interface ENSAgentProfile {
@@ -54,6 +54,7 @@ export interface ENSAgentProfile {
   detectedType?: ENSSystemType;
   detectedBy?: string;
   typeOverride?: ENSSystemType;
+  // 1.2.0 cross-control templates, kept only until the 1.3.0 conversion runs.
   templates?: string[];
   controls?: Record<string, ENSAgentControlOverrides>;
 }
@@ -80,7 +81,8 @@ export const isAgentParameterValue = (value: unknown): value is ENSAgentParamete
   isStringArray(value);
 
 const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOverride', 'templates', 'controls'];
-const CONTROL_KEYS = ['parameters'];
+const CONTROL_KEYS = ['templateId', 'parameters'];
+const TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values'];
 
 // ¿Es `key` un id de agente normalizado (`000`, `024`, `1003`)? Los perfiles
 // se guardan por id: un nombre (`srv-web01`) no casa nunca con la fila de una
@@ -164,6 +166,10 @@ export const validateAgentsConfigurationShape = (
         return;
       }
 
+      if (control.templateId !== undefined && (typeof control.templateId !== 'string' || !control.templateId.trim())) {
+        errors.push(`${cat}.templateId must be a non-empty string (to go back to the built-in template of the type, remove the key).`);
+      }
+
       if (control.parameters === undefined) {
         return;
       }
@@ -185,6 +191,73 @@ export const validateAgentsConfigurationShape = (
 
   return errors;
 };
+
+// Fatal shape of `configuration.templates`: absent, or an array of templates whose values are scalars or
+// string lists. Meaning (control, parameter class, duplicate ids, valid values) is checked elsewhere.
+export const validateCustomTemplatesShape = (
+  value: unknown,
+  path: string = 'configuration.templates'
+): string[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    return [`${path} must be an array of templates.`];
+  }
+
+  const errors: string[] = [];
+
+  value.forEach((template, index) => {
+    const at = `${path}[${index}]`;
+
+    if (!isRecord(template)) {
+      errors.push(`${at} must be an object.`);
+      return;
+    }
+
+    (['id', 'controlId', 'name'] as const).forEach(key => {
+      if (typeof template[key] !== 'string' || !(template[key] as string).trim()) {
+        errors.push(`${at}.${key} must be a non-empty string.`);
+      }
+    });
+
+    (['description', 'systemType'] as const).forEach(key => {
+      if (template[key] !== undefined && typeof template[key] !== 'string') {
+        errors.push(`${at}.${key} must be a string.`);
+      }
+    });
+
+    if (!isRecord(template.values)) {
+      errors.push(`${at}.values must be an object keyed by parameter id.`);
+      return;
+    }
+
+    Object.entries(template.values).forEach(([parameterId, parameterValue]) => {
+      if (!isAgentParameterValue(parameterValue)) {
+        errors.push(
+          `${at}.values.${parameterId} has an invalid value (a string, a number, a boolean or a string array; to clear it, remove the key, never null).`
+        );
+      }
+    });
+  });
+
+  return errors;
+};
+
+export const checkCustomTemplatesKeys = (
+  value: unknown,
+  path: string = 'configuration.templates'
+): string[] =>
+  Array.isArray(value)
+    ? value.flatMap((template, index) =>
+        isRecord(template)
+          ? Object.keys(template)
+              .filter(key => !TEMPLATE_KEYS.includes(key))
+              .map(key => `${path}[${index}].${key}: esta versión no conoce la clave y la ignora.`)
+          : []
+      )
+    : [];
 
 export interface ENSAgentsKeyCheck {
   // Perfiles guardados con una clave que no es un id: su valor no se aplica.

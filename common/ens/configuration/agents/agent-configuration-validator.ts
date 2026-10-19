@@ -1,114 +1,127 @@
-// Validación de SIGNIFICADO de `configuration.agents`: la forma la comprueba
-// `common/agent-configuration.ts` (y con ella el validador estructural); aquí
-// se comprueba que lo que dice cada perfil exista y valga.
-//
-// La usan `config/validate-configuration.ts` (antes de sembrar), la pantalla
-// (avisos) y las pruebas. NO la usa la hidratación: un valor mal escrito en un
-// agente no puede impedir cargar el entorno ENS; en la evaluación, la
-// validación del control de esa máquina lo da por inválido y degrada SU fila.
+// Meaning of `configuration.agents` and `configuration.templates`; the fatal shape is checked in
+// `common/agent-configuration.ts`. Never used on hydration: a bad value degrades its own row, not the whole environment.
 import type {
+  ENSAgentParameterValue,
   ENSAgentProfile,
   ENSConfigurationVersion,
-  ENSControlParameter,
+  ENSControlConfiguration,
 } from '../types';
 import { validateParameterValue } from '../services/parameter-value-validator';
 import { getParameterClass } from './parameter-classes';
 import {
+  ENS_NO_TEMPLATE,
   checkAgentsConfigurationKeys,
+  checkCustomTemplatesKeys,
   describeNonIdAgentKey,
   isNormalisedAgentId,
   knownSystemType,
 } from '../../../agent-configuration';
 import {
-  getConfigurationTemplate,
-  templateConflict,
+  findControlTemplate,
+  getCustomTemplates,
+  hasTemplateParameters,
+  isReservedTemplateId,
 } from '../templates';
 
 export interface ENSAgentConfigurationIssue {
   agentId: string;
   controlId?: string;
   parameterId?: string;
-  // `error`: algo que hay que corregir. `warning`: algo que esta versión no
-  // conoce y se ignora (una versión posterior puede añadir campos).
+  // `error`: to be fixed. `warning`: unknown to this version, or converted on load; ignored.
   severity: 'error' | 'warning';
-  // `huerfano`: un valor que no se aplica (el perfil no es de un id, el
-  // control o el parámetro no existen, o es de organización); se quita con
-  // «Quitar». `valor`: un valor que sí se aplica y no es válido: esa máquina
-  // se evalúa con una configuración inválida. `plantilla`: una plantilla
-  // desconocida o incompatible. `desconocido`: una clave de otra versión.
+  // `huerfano`: not applied, removable. `valor`: applied but invalid. `plantilla`: unknown assignment or 1.2.0
+  // templates. `desconocido`: a key from another version.
   kind: 'huerfano' | 'valor' | 'plantilla' | 'desconocido';
   message: string;
 }
 
+export interface ENSTemplateIssue {
+  templateId: string;
+  controlId?: string;
+  parameterId?: string;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+// Problems of one value for a control parameter: undefined if it is applied and valid.
+export const describeAgentLevelValueIssue = (
+  control: ENSControlConfiguration,
+  parameterId: string,
+  value: ENSAgentParameterValue
+): { kind: 'huerfano' | 'valor'; message: string } | undefined => {
+  const parameter = control.parameters.find(item => item.id === parameterId);
+
+  if (!parameter) {
+    return { kind: 'huerfano', message: `${control.controlId} no declara el parámetro ${parameterId}: el valor no se aplica` };
+  }
+
+  const parameterClass = getParameterClass(control.controlId, parameterId);
+
+  if (parameterClass !== 'system' && parameterClass !== 'platform') {
+    return {
+      kind: 'huerfano',
+      message: `${control.controlId} ${parameterId} es un ajuste común del control: no admite valor por agente ni por plantilla y este no se aplica`,
+    };
+  }
+
+  const verdict = validateParameterValue(parameter, value);
+
+  return verdict.valid
+    ? undefined
+    : { kind: 'valor', message: `${control.controlId} ${parameterId} (${parameter.label}) ${verdict.reason || 'tiene un valor inválido'}` };
+};
+
 export const validateAgentProfile = (
   agentId: string,
   profile: ENSAgentProfile,
-  configuration: Pick<ENSConfigurationVersion, 'controls'>
+  configuration: Pick<ENSConfigurationVersion, 'controls' | 'templates'>
 ): ENSAgentConfigurationIssue[] => {
   const issues: ENSAgentConfigurationIssue[] = [];
-  const error = (kind: ENSAgentConfigurationIssue['kind'], message: string, controlId?: string, parameterId?: string) =>
-    issues.push({ agentId, controlId, parameterId, severity: 'error', kind, message });
+  const add = (
+    severity: ENSAgentConfigurationIssue['severity'],
+    kind: ENSAgentConfigurationIssue['kind'],
+    message: string,
+    controlId?: string,
+    parameterId?: string
+  ) => issues.push({ agentId, controlId, parameterId, severity, kind, message });
 
   if (!isNormalisedAgentId(agentId)) {
-    error('huerfano', `${describeNonIdAgentKey(agentId)}: sus valores no se aplican a ninguna máquina`);
+    add('error', 'huerfano', `${describeNonIdAgentKey(agentId)}: sus valores no se aplican a ninguna máquina`);
   }
 
-  const templates = Array.isArray(profile.templates) ? profile.templates : [];
+  if (Array.isArray(profile.templates) && profile.templates.length) {
+    add('warning', 'plantilla', `plantillas de la 1.2.0 (${profile.templates.join(', ')}): se convierten en asignaciones por control al cargar`);
+  }
 
-  templates.forEach((templateId, index) => {
-    if (!getConfigurationTemplate(templateId)) {
-      error('plantilla', `la plantilla «${templateId}» no existe en esta versión del plugin`);
-      return;
-    }
-
-    const conflict = templateConflict(templateId, templates.slice(0, index));
-
-    if (conflict) {
-      error('plantilla', conflict);
-    }
-  });
-
-  Object.entries(profile.controls || {}).forEach(([controlId, overrides]) => {
+  Object.entries(profile.controls || {}).forEach(([controlId, entry]) => {
     const control = configuration.controls.find(item => item.controlId === controlId);
-    const values = overrides?.parameters || {};
+    const values = entry?.parameters || {};
+    const templateId = entry?.templateId;
 
+    // An assignment alone on a control not yet added is harmless: it applies once the control is added.
     if (!control) {
       if (Object.keys(values).length) {
-        error(
+        add(
+          'error',
           'huerfano',
-          `${controlId} no está en la configuración: sus ${Object.keys(values).length} valor(es) no se aplican (se quitan, o se añade antes el control)`,
+          `${controlId} no está en la configuración: sus ${Object.keys(values).length} ajuste(s) propio(s) no se aplican (se quitan, o se añade antes el control)`,
           controlId
         );
       }
       return;
     }
 
+    if (templateId && templateId !== ENS_NO_TEMPLATE && !findControlTemplate(configuration, controlId, templateId)) {
+      add('error', 'plantilla', `${controlId}: la plantilla asignada «${templateId}» no existe; se aplica la de serie de su tipo`, controlId);
+    }
+
     Object.entries(values).forEach(([parameterId, value]) => {
-      const parameter: ENSControlParameter | undefined = control.parameters.find(item => item.id === parameterId);
-
-      if (!parameter) {
-        error('huerfano', `${controlId} no declara el parámetro ${parameterId}: el valor no se aplica`, controlId, parameterId);
-        return;
-      }
-
-      const parameterClass = getParameterClass(controlId, parameterId);
-
-      if (parameterClass !== 'system' && parameterClass !== 'platform') {
-        error(
-          'huerfano',
-          `${controlId} ${parameterId} es un parámetro de organización: vale para todas las máquinas, no admite valor por agente y este no se aplica`,
-          controlId,
-          parameterId
-        );
-        return;
-      }
-
-      const verdict = validateParameterValue(parameter, value);
-
-      if (!verdict.valid) {
-        error(
-          'valor',
-          `${controlId} ${parameterId} (${parameter.label}) ${verdict.reason || 'tiene un valor inválido'}: esta máquina se evalúa con una configuración inválida`,
+      const issue = describeAgentLevelValueIssue(control, parameterId, value);
+      if (issue) {
+        add(
+          'error',
+          issue.kind,
+          issue.kind === 'valor' ? `${issue.message}: esta máquina se evalúa con una configuración inválida` : issue.message,
           controlId,
           parameterId
         );
@@ -120,7 +133,7 @@ export const validateAgentProfile = (
 };
 
 export const validateAgentsConfiguration = (
-  configuration: Pick<ENSConfigurationVersion, 'controls' | 'agents'>
+  configuration: Pick<ENSConfigurationVersion, 'controls' | 'agents' | 'templates'>
 ): ENSAgentConfigurationIssue[] => {
   const agents = configuration.agents && typeof configuration.agents === 'object' ? configuration.agents : {};
   const warnings = checkAgentsConfigurationKeys(agents).warnings.map(message => ({
@@ -138,16 +151,63 @@ export const validateAgentsConfiguration = (
   ];
 };
 
+export const validateCustomTemplates = (
+  configuration: Pick<ENSConfigurationVersion, 'controls' | 'templates'>
+): ENSTemplateIssue[] => {
+  const issues: ENSTemplateIssue[] = [];
+  const seen = new Set<string>();
+  const names = new Set<string>();
+
+  getCustomTemplates(configuration).forEach(template => {
+    const add = (severity: ENSTemplateIssue['severity'], message: string, parameterId?: string) =>
+      issues.push({ templateId: template.id, controlId: template.controlId, parameterId, severity, message });
+
+    if (isReservedTemplateId(template.id)) {
+      add('error', `el id «${template.id}» es de una plantilla de serie: la propia no se aplica`);
+    }
+    if (seen.has(template.id)) {
+      add('error', `el id «${template.id}» está repetido: solo se aplica la primera plantilla con ese id`);
+    }
+    seen.add(template.id);
+
+    const nameKey = `${template.controlId}|${template.name.trim().toLowerCase()}`;
+    if (names.has(nameKey)) {
+      add('warning', `${template.controlId}: hay otra plantilla llamada «${template.name}»`);
+    }
+    names.add(nameKey);
+
+    const control = configuration.controls.find(item => item.controlId === template.controlId);
+    if (!control) {
+      add('error', `${template.controlId} no está en la configuración: la plantilla «${template.name}» no se aplica`);
+      return;
+    }
+    if (!hasTemplateParameters(template.controlId)) {
+      add('error', `${template.controlId} solo tiene ajustes comunes: la plantilla «${template.name}» no se aplica`);
+      return;
+    }
+
+    Object.entries(template.values).forEach(([parameterId, value]) => {
+      const issue = describeAgentLevelValueIssue(control, parameterId, value);
+      if (issue) add('error', `plantilla «${template.name}»: ${issue.message}`, parameterId);
+    });
+  });
+
+  checkCustomTemplatesKeys(configuration.templates).forEach(message =>
+    issues.push({ templateId: '', severity: 'warning', message })
+  );
+
+  return issues;
+};
+
 export interface ENSAgentConfigurationSummary {
   agentId: string;
   name?: string;
   type?: string;
   typeSource: 'manual' | 'detectado' | 'sin tipo';
-  templates: string[];
+  assignments: Record<string, string>;
   ownValues: number;
 }
 
-// Una línea por agente: tipo (y de dónde sale), plantillas y valores propios.
 export const summarizeAgentsConfiguration = (
   configuration: Pick<ENSConfigurationVersion, 'agents'>
 ): ENSAgentConfigurationSummary[] =>
@@ -158,7 +218,11 @@ export const summarizeAgentsConfiguration = (
       name: profile?.name,
       type: knownSystemType(profile?.typeOverride) || knownSystemType(profile?.detectedType),
       typeSource: knownSystemType(profile?.typeOverride) ? 'manual' : knownSystemType(profile?.detectedType) ? 'detectado' : 'sin tipo',
-      templates: profile?.templates || [],
+      assignments: Object.fromEntries(
+        Object.entries(profile?.controls || {})
+          .filter(([, entry]) => typeof entry?.templateId === 'string')
+          .map(([controlId, entry]) => [controlId, entry!.templateId as string])
+      ),
       ownValues: Object.values(profile?.controls || {}).reduce(
         (total, control) => total + Object.keys(control?.parameters || {}).length,
         0

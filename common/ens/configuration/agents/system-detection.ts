@@ -13,8 +13,8 @@
 //   4. os.platform de la familia Linux, u os.uname que empieza por «Linux»
 //                                             → Linux
 //   5. sin os                                  → sin detectar
-// Los añadidos de copias (mp.info.6) no excluyen: data.origen = pbs propone
-// «Copias con PBS» y data.origen = zimbra-ne, «Copias Zimbra NE».
+// The mp.info.6 backup facts propose a template in that control: data.origen = pbs proposes «Copias con PBS» and
+// data.origen = zimbra-ne, «Copias Zimbra NE».
 import {
   ENSAgentProfile,
   ENSSystemType,
@@ -23,7 +23,7 @@ import {
   normalizeAgentId,
 } from '../../../agent-configuration';
 import type { ENSAgentOS } from '../../core/scope/types';
-import { getBaseTemplateForSystemType } from '../templates';
+import { getBuiltinTemplate } from '../templates';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
 export const ENS_MANAGER_ID = ENS_MANAGER_AGENT_ID;
@@ -151,18 +151,9 @@ export const effectiveSystemType = (
   };
 };
 
-// Las plantillas que se proponen: la de la plataforma y los añadidos que
-// delatan los hechos. Proponer no es aplicar: se aplican con un botón.
-export const suggestedTemplates = (
-  type: ENSSystemType | undefined,
-  detection: ENSSystemDetection
-): string[] => {
-  const base = getBaseTemplateForSystemType(type);
-  return [
-    ...(base ? [base.id] : []),
-    ...detection.addons.map(addon => addon.templateId),
-  ];
-};
+// Built-in alternatives the facts point to in a control (mp.info.6 backups): a proposal, never applied by itself.
+export const proposedTemplates = (controlId: string, detection: ENSSystemDetection): string[] =>
+  detection.addons.map(addon => addon.templateId).filter(id => Boolean(getBuiltinTemplate(controlId, id)));
 
 // El nombre de la máquina en `os.uname` («Linux |host.dominio |…»).
 export const hostnameFromUname = (uname?: string): string | undefined => {

@@ -19,7 +19,7 @@ import {
   detectAgentSystem,
   effectiveSystemType,
   hostnameFromUname,
-  suggestedTemplates,
+  proposedTemplates,
 } from '../common/ens/configuration/agents/system-detection';
 
 declare const process: { exit(code: number): void };
@@ -87,7 +87,7 @@ const WINDOWS = { platform: 'windows', name: 'Microsoft Windows Server 2022 Stan
     const u = detectAgentSystem({ id: '104', os: { platform: 'ubuntu' } }, f['104']);
     comprueba('Ubuntu sin directorio → Linux', u.type === 'linux' && /os\.platform = ubuntu/.test(u.evidence), u);
     comprueba('origen pbs → propone Copias con PBS', u.addons.length === 1 && u.addons[0].templateId === 'pbs-backup', u.addons);
-    comprueba('plantillas propuestas: Linux Ubuntu + PBS', suggestedTemplates(u.type, u).join(',') === 'linux-ubuntu,pbs-backup');
+    comprueba('mp.info.6 proposes «Copias con PBS»; other controls nothing', proposedTemplates('mp.info.6', u).join(',') === 'pbs-backup' && proposedTemplates('op.acc.1', u).length === 0);
     const n = detectAgentSystem({ id: '103' });
     comprueba('sin os → sin detectar y lo dice', n.type === undefined && /se elige a mano/.test(n.evidence), n);
     const r = detectAgentSystem({ id: '105', os: { uname: 'Linux |host |5.15 |x86_64' } });

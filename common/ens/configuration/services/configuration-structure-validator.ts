@@ -7,7 +7,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
-import { validateAgentsConfigurationShape } from '../../../agent-configuration';
+import { validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -525,6 +525,7 @@ export const validateENSConfigurationStructure = (
   // un valor mal escrito en un agente degrada la fila de esa máquina, no el
   // entorno entero.
   errors.push(...validateAgentsConfigurationShape(value.agents));
+  errors.push(...validateCustomTemplatesShape(value.templates));
 
   if (!Array.isArray(value.auditTrail)) {
     errors.push('configuration.auditTrail must be an array.');

@@ -1,4 +1,4 @@
-import type { ENSConfigurationTemplate } from './types';
+import type { ENSPlatformSource } from './types';
 import {
   CAMPOS_REGISTRO_AUDITD,
   EVENTOS_AUDITABLES_LINUX,
@@ -19,11 +19,10 @@ import {
 
 const linux = linuxUbuntuTemplate.values;
 
-export const zimbraLdapTemplate: ENSConfigurationTemplate = {
+export const zimbraLdapTemplate: ENSPlatformSource = {
   id: 'zimbra-ldap',
-  label: 'Servidor LDAP Zimbra',
-  description:
-    'Servidor de directorio de Zimbra sobre Ubuntu: lo de «Linux Ubuntu» más la fuente de identidad LDAP, las cuentas zimbra y ldapcopy, las rutas de Zimbra, slapd en los registros y el canal LDAP.',
+  label: 'Servidor LDAP',
+  description: 'Servidor de directorio de Zimbra sobre Ubuntu: los valores de «Linux» más los del directorio.',
   kind: 'base',
   systemTypes: ['zimbra-ldap'],
   sources: [

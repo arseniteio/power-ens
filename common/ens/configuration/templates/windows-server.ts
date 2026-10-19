@@ -1,4 +1,4 @@
-import type { ENSConfigurationTemplate } from './types';
+import type { ENSPlatformSource } from './types';
 
 // Windows Server. SOLO op.acc.1, op.acc.2, op.acc.3 y op.acc.4 tienen recolector
 // para Windows (`op.acc.{1..4}-windows`); el resto de controles no se mide en
@@ -14,11 +14,10 @@ import type { ENSConfigurationTemplate } from './types';
 //     sus SID (`grupos_privilegiados_sids` de `opacc2.config.template.json`);
 //   - op.acc.4 P-04: el canal (WinRM, puerto 5985) es de la plataforma, pero el
 //     origen permitido es una decisión de cada organización.
-export const windowsServerTemplate: ENSConfigurationTemplate = {
+export const windowsServerTemplate: ENSPlatformSource = {
   id: 'windows-server',
-  label: 'Windows Server',
-  description:
-    'Servidor Windows. Solo op.acc.1-4 tienen recolector para Windows: fija el grupo Administrators y deja sin valor lo que depende del dominio o de cada organización.',
+  label: 'Windows',
+  description: 'Servidor Windows: solo lo que se puede fundamentar para la plataforma; lo que depende del dominio o de la organización queda sin valor.',
   kind: 'base',
   systemTypes: ['windows'],
   onlyControls: ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4'],

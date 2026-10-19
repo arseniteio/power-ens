@@ -1,10 +1,11 @@
-import type { ENSAgentsConfiguration } from '../../../agent-configuration';
+import type { ENSAgentsConfiguration, ENSCustomTemplate } from '../../../agent-configuration';
 
 export type {
   ENSAgentControlOverrides,
   ENSAgentParameterValue,
   ENSAgentProfile,
   ENSAgentsConfiguration,
+  ENSCustomTemplate,
   ENSSystemType,
 } from '../../../agent-configuration';
 
@@ -231,6 +232,8 @@ export interface ENSConfigurationVersion {
   // el valor de organización, y un plugin 1.1.0 la ignora. Ver
   // `common/agent-configuration.ts`.
   agents?: ENSAgentsConfiguration;
+  // Custom control templates (1.3.0). Its presence marks a 1.3.0 document; built-ins live in code.
+  templates?: ENSCustomTemplate[];
 }
 export type ENSConfigurationLifecycleStatus =
   | 'DRAFT'
