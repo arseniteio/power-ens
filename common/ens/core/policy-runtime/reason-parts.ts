@@ -1,8 +1,5 @@
-// `reasonParts` describen UN `reason` (ver `ENSReasonPart`). Quien sustituye el
-// motivo de una decisión (recolector parado, alcance declarado que no nombra a
-// nadie, consolidación de varias máquinas) tiene que soltar las partes: si no,
-// la pantalla enseñaría las de un motivo que ya no es el de la decisión (los
-// veredictos viejos de otro requisito en vez de «Sin datos del recolector…»).
+// `reasonParts` describe ONE `reason`: whoever replaces a decision's reason must drop the parts, or
+// the screen would show parts of a reason that is no longer the decision's.
 import type { ENSPolicyDecision } from './types';
 
 export const withReplacedReason = (
