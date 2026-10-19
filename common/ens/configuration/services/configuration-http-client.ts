@@ -45,6 +45,8 @@ export interface ENSConfigurationExpectedVersion {
 export interface ENSConfigurationServerState {
   configuration: ENSConfigurationVersion | null;
   metadata: ENSConfigurationMetadata | null;
+  // Saved, but something after it failed (the history entry).
+  warning?: string;
 }
 
 interface ENSConfigurationApiResponse {
@@ -53,10 +55,12 @@ interface ENSConfigurationApiResponse {
   data: ENSConfigurationServerState;
 }
 
-interface ENSConfigurationSaveRequest {
+// Keys checked by the route schema (server/routes/configuration.ts); tests/configuration-route-schema.test.ts.
+export interface ENSConfigurationSaveRequest {
   configuration: ENSConfigurationVersion;
   changeReason?: string;
-  expectedVersion?: ENSConfigurationExpectedVersion;
+  // null: there was no configuration when it was loaded, so it must still not exist.
+  expectedVersion?: ENSConfigurationExpectedVersion | null;
 }
 
 const withoutDerivedParameterStatuses = (
@@ -119,7 +123,7 @@ export async function getENSConfiguration(): Promise<
 export async function saveENSConfiguration(
   configuration: ENSConfigurationVersion,
   changeReason?: string,
-  expectedVersion?: ENSConfigurationExpectedVersion,
+  expectedVersion?: ENSConfigurationExpectedVersion | null,
 ): Promise<ENSConfigurationServerState> {
   const normalizedChangeReason = changeReason?.trim();
 
@@ -129,7 +133,7 @@ export async function saveENSConfiguration(
     ...(normalizedChangeReason
       ? { changeReason: normalizedChangeReason }
       : {}),
-    ...(expectedVersion ? { expectedVersion } : {}),
+    ...(expectedVersion !== undefined ? { expectedVersion } : {}),
   };
 
   const response =

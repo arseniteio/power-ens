@@ -16,7 +16,7 @@ import {
   validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
-import { normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
+import { describeOrganizationFills, normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
 
 interface Options {
   logger: Logger;
@@ -35,6 +35,8 @@ const metadata = (doc?: ENSConfigurationStoredDocument, version?: ENSConfigurati
 const correct = (response: any, data: unknown) => response.ok({ body: { statusCode: 200, error: 0, data } });
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 500;
+
+const HISTORY_NOT_WRITTEN = 'Guardado; no se pudo registrar el historial';
 
 const NO_ROLE = 'Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.';
 
@@ -110,8 +112,13 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
     try {
       const { document: previous, version } = await readActiveENSConfigurationWithVersion(internal(context), logger);
+      // null: the browser loaded when there was no configuration, so one created since then is newer.
+      const expectsNone = bodyText.expectedVersion === null;
       const expected = parseConfigurationVersion(bodyText.expectedVersion);
-      if (expected && (!previous || (version && (expected.seqNo !== version.seqNo || expected.primaryTerm !== version.primaryTerm)))) {
+      if (
+        (expectsNone && previous) ||
+        (expected && (!previous || (version && (expected.seqNo !== version.seqNo || expected.primaryTerm !== version.primaryTerm))))
+      ) {
         logger.warn(`ENS config: refused a stale save by ${username}`);
         return failure(response, 409, new ENSConfigurationConflictError().message);
       }
@@ -119,7 +126,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       const trail = Array.isArray(previous2.auditTrail) ? previous2.auditTrail : [];
       const now = new Date().toISOString();
       const initial = !previous;
-      const reason =
+      const requestedReason =
         text(bodyText.changeReason) ||
         text(bodyText.configuration.changeReason) ||
         (initial ? 'Configuración ENS creada.' : 'Configuración ENS actualizada.');
@@ -145,12 +152,12 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { organizationData: previous2.organizationData }
           : {};
 
-      // Every save writes each organisation item into its parameters, whoever sends it (a client, a script via the API).
-      const configurationValue = normalizeOrganizationData({
-        ...bodyText.configuration,
-        ...keepsAgents,
-        ...keptTemplates,
-        ...keptOrganizationData,
+      // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
+      const organization = normalizeOrganizationData({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData });
+      const fills = describeOrganizationFills(organization.filled).filter(line => !requestedReason.includes(line));
+      const reason = fills.length ? `${requestedReason} ${fills.join(' ')}` : requestedReason;
+      const configurationValue = {
+        ...organization.configuration,
         createdAt: initial ? now : text(previous2.createdAt) || now,
         createdBy: initial ? username : text(previous2.createdBy) || username,
         updatedAt: now,
@@ -160,7 +167,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ...trail,
           { action: initial ? 'CREATED' : 'UPDATED', user: username, date: now, summary: reason },
         ],
-      }).configuration;
+      };
 
       // The previous version goes to the history unless it is already its last entry.
       const last = previous ? (await readENSConfigurationHistory(internal(context), logger, 1))[0] : undefined;
@@ -178,8 +185,15 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
         previous ? version : 'absent'
       );
       logger.info(`ENS configuration saved by ${username}`);
+      if (savedValue.historyError) {
+        logger.error(`ENS configuration saved by ${username}, but its history entry was not written: ${savedValue.historyError}`);
+      }
 
-      return correct(response, { configuration: savedValue.configuration, metadata: metadata(savedValue, savedValue.version) });
+      return correct(response, {
+        configuration: savedValue.configuration,
+        metadata: metadata(savedValue, savedValue.version),
+        ...(savedValue.historyError ? { warning: HISTORY_NOT_WRITTEN } : {}),
+      });
     } catch (error: any) {
       if (error instanceof ENSConfigurationConflictError) {
         logger.warn(`ENS config: refused a stale save by ${username} (the document changed while saving)`);

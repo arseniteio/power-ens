@@ -135,7 +135,7 @@ export async function persistENSConfiguration(
   username: string,
   previous?: { configuration: Record<string, unknown>; author?: string },
   expected?: ENSConfigurationDocumentVersion | 'absent'
-): Promise<ENSConfigurationStoredDocument & { version?: ENSConfigurationDocumentVersion }> {
+): Promise<ENSConfigurationStoredDocument & { version?: ENSConfigurationDocumentVersion; historyError?: string }> {
   await ensureENSConfigurationIndex(client, logger);
 
   const now = Date.now();
@@ -191,15 +191,18 @@ export async function persistENSConfiguration(
     '',
   ].join('\n');
 
-  const result = await client.bulk({ body: historyBody, refresh: 'wait_for' });
+  const saved = { ...activeDocument, version: versionOf(item?._seq_no, item?._primary_term) };
 
-  if (result.body?.errors) {
-    const failures = (result.body.items || [])
-      .map((entry: any) => entry.create?.error || entry.index?.error)
-      .filter(Boolean);
-
-    throw new Error(`Could not persist ENS configuration history: ${JSON.stringify(failures)}`);
+  // The active document is already saved: a failed history entry is reported, not turned into a failed save.
+  try {
+    const result = await client.bulk({ body: historyBody, refresh: 'wait_for' });
+    if (result.body?.errors) {
+      const failures = (result.body.items || []).map((entry: any) => entry.create?.error || entry.index?.error).filter(Boolean);
+      return { ...saved, historyError: JSON.stringify(failures) };
+    }
+  } catch (error: any) {
+    return { ...saved, historyError: error?.message || String(error) };
   }
 
-  return { ...activeDocument, version: versionOf(item?._seq_no, item?._primary_term) };
+  return saved;
 }

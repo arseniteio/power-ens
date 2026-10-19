@@ -44,8 +44,22 @@ export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefi
 // The organisation data migration done on load, kept until the next save; unset when there is nothing to tell.
 let pendingOrganizationMigration: ENSOrganizationMigrationReport | undefined;
 
-// Index version of the loaded document: a save made over a newer one is refused (409) instead of undoing it.
-let loadedVersion: ENSConfigurationExpectedVersion | undefined;
+// Index version of the loaded document (null: there was none): a save over a newer one is refused with a 409.
+let loadedVersion: ENSConfigurationExpectedVersion | null | undefined;
+
+// What the last save could not do after saving (the history entry), to tell the user.
+let lastSaveWarning: string | undefined;
+
+export const getLastSaveWarning = (): string | undefined => lastSaveWarning;
+
+// Every save waits for the previous one and builds on the document it left: two saves never carry the same version.
+let saveQueue: Promise<unknown> = Promise.resolve();
+
+const inSaveQueue = <T>(run: () => Promise<T>): Promise<T> => {
+  const next = saveQueue.then(run);
+  saveQueue = next.catch(() => undefined);
+  return next;
+};
 
 const versionFrom = (metadata: ENSConfigurationMetadata | null | undefined): ENSConfigurationExpectedVersion | undefined =>
   metadata && Number.isInteger(metadata.seqNo) && Number.isInteger(metadata.primaryTerm)
@@ -58,6 +72,7 @@ const saveWithVersion = async (
 ): Promise<ENSConfigurationServerState> => {
   const serverState = await saveENSConfiguration(configuration, reason, loadedVersion);
   loadedVersion = versionFrom(serverState.metadata);
+  lastSaveWarning = serverState.warning;
   return serverState;
 };
 
@@ -113,7 +128,7 @@ export const hydrateENSConfiguration = (
       const serverState =
         await getENSConfiguration();
 
-      loadedVersion = versionFrom(serverState.metadata);
+      loadedVersion = serverState.configuration === null ? null : versionFrom(serverState.metadata);
 
       if (serverState.configuration === null) {
         return ensConfigurationRepository.completeHydration(
@@ -182,7 +197,11 @@ export const getActiveControlConfiguration = (
     agentId
   );
 
-export const updateActiveControlConfiguration = async (
+export const updateActiveControlConfiguration = (
+  controlConfiguration: ENSControlConfiguration
+): Promise<ENSConfigurationVersion> => inSaveQueue(() => updateControlConfiguration(controlConfiguration));
+
+const updateControlConfiguration = async (
   controlConfiguration: ENSControlConfiguration
 ): Promise<ENSConfigurationVersion> => {
   const activeENSConfiguration =
@@ -256,7 +275,11 @@ export const getENSConfigurationHistory =
   (): ENSConfigurationVersion[] =>
     ensConfigurationRepository.getHistory();
 
-export const updateActiveGlobalConfiguration = async (
+export const updateActiveGlobalConfiguration = (
+  globalConfiguration: ENSGlobalConfiguration
+): Promise<ENSConfigurationVersion> => inSaveQueue(() => updateGlobalConfiguration(globalConfiguration));
+
+const updateGlobalConfiguration = async (
   globalConfiguration: ENSGlobalConfiguration
 ): Promise<ENSConfigurationVersion> => {
   const activeENSConfiguration =
@@ -331,19 +354,13 @@ export const saveActiveENSConfiguration = async (
   );
 };
 
-// Per-system saves run in a queue against the latest document, so consecutive saves do not overwrite each other.
-let agentSaveQueue: Promise<unknown> = Promise.resolve();
-
 export const saveFromLatestConfiguration = (
   build: (
     latest: ENSConfigurationVersion
   ) => { configuration: ENSConfigurationVersion; reason: string } | undefined
-): Promise<ENSConfigurationVersion | undefined> => {
-  const run = agentSaveQueue.then(async () => {
+): Promise<ENSConfigurationVersion | undefined> =>
+  inSaveQueue(async () => {
     const plan = build(getActiveENSConfiguration());
     if (!plan) return undefined;
     return saveActiveENSConfiguration(plan.configuration, plan.reason);
   });
-  agentSaveQueue = run.catch(() => undefined);
-  return run;
-};

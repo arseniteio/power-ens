@@ -41,6 +41,9 @@ const versionedIndex = () => {
     },
     bulk: async (request: any) => {
       const lines = String(request.body).split('\n').filter(Boolean).map(line => JSON.parse(line));
+      if (index.historyFails && lines.some(line => String((line.create || {})._id || '').startsWith('history-'))) {
+        return { body: { errors: true, items: [{ create: { status: 403, error: { type: 'security_exception' } } }] } };
+      }
       const items: any[] = [];
       for (let i = 0; i < lines.length; i += 2) {
         const kind = lines[i].create ? 'create' : 'index';
@@ -103,6 +106,22 @@ const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.globa
   }
   check('so is a first save when another one already created the document', created instanceof ENSConfigurationConflictError);
 
+  const fresh = versionedIndex();
+  const born: any = await handlers.save(context(fresh), { body: { configuration: clone(defaultENSConfigurationTemplate), expectedVersion: null } }, responses);
+  check('«there was none» (null) creates the first configuration', born.status === 200 && fresh.docs.get('active').source.updatedBy === 'rsis', born.body);
+  const late: any = await handlers.save(context(fresh, 'luis'), { body: { configuration: withLevel(clone(defaultENSConfigurationTemplate), 'ALTO'), expectedVersion: null } }, responses);
+  check('and is refused with 409 when one was created meanwhile', late.status === 409 && late.body.message === CONFLICT && fresh.docs.get('active').source.updatedBy === 'rsis', late);
+
+  index.historyFails = true;
+  const current: any = await handlers.getActive(context(index), {}, responses);
+  const noHistory: any = await handlers.save(context(index, 'ana'), {
+    body: { configuration: withLevel(current.body.data.configuration, 'BAJO'), expectedVersion: { seqNo: current.body.data.metadata.seqNo, primaryTerm: 1 } },
+  }, responses);
+  index.historyFails = false;
+  check('a history entry that cannot be written after saving is a warning, not a failed save',
+    noHistory.status === 200 && noHistory.body.data.warning === 'Guardado; no se pudo registrar el historial' && index.docs.get('active').source.configuration.global.ensLevel === 'BAJO' &&
+    noHistory.body.data.metadata.seqNo > current.body.data.metadata.seqNo, noHistory.body);
+
   console.log('2. Browser');
   let stored = clone(defaultENSConfigurationTemplate);
   let seqNo = 7;
@@ -125,6 +144,14 @@ const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.globa
   await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global, ensLevel: 'MEDIO' });
   check('and, after saving, the version the server returned', JSON.stringify(sent[1].expectedVersion) === '{"seqNo":8,"primaryTerm":1}', sent[1].expectedVersion);
 
+  const [one, two] = [
+    service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global, ensLevel: 'BAJO' }),
+    service.updateActiveControlConfiguration(service.getActiveENSConfiguration().controls.find((candidate: any) => candidate.controlId === 'op.acc.2')),
+  ];
+  await Promise.all([one, two]);
+  check('two saves started together wait for each other and carry consecutive versions (no 409 against itself)',
+    JSON.stringify(sent.slice(-2).map(body => body.expectedVersion.seqNo)) === '[9,10]' && sent[sent.length - 1].configuration.global.ensLevel === 'BAJO', sent.slice(-2).map(body => body.expectedVersion));
+
   refuse = true;
   const control = service.getActiveENSConfiguration().controls.find((candidate: any) => candidate.controlId === 'op.acc.1');
   let screen = await h.render(ConfigurationSession, { control, onConfigurationSaved: () => undefined });
@@ -134,7 +161,7 @@ const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.globa
   screen = await h.click(/Guardar configuración/);
   check('a refused save shows the message on the control form', screen.includes(CONFLICT), screen.slice(0, 300));
   check('and keeps what the user wrote', JSON.stringify(h.findAll('ParameterRendererFactory').find(node => node.props.parameter.id === 'P-04')!.props.value) === '["admin","invitado"]');
-  check('the loaded configuration is not replaced', service.getActiveENSConfiguration().global.ensLevel === 'MEDIO');
+  check('the loaded configuration is not replaced', service.getActiveENSConfiguration().global.ensLevel === 'BAJO');
 
   h.reset();
   screen = await h.render(OrganizationDataPanel, { configuration: service.getActiveENSConfiguration(), onConfigurationSaved: () => undefined });
@@ -146,6 +173,25 @@ const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.globa
   await h.rerender();
   screen = await h.click(/^Guardar$/);
   check('in Datos de la organización too, with the value still being edited', screen.includes(CONFLICT) && JSON.stringify(h.find('ParameterRendererFactory')?.props.value) === '["op.acc.1 | sí | MEDIO"]', screen.slice(0, 300));
+
+  console.log('3. First save and warnings in the browser');
+  h.reset();
+  const firstBodies: any[] = [];
+  client.setENSConfigurationHttp(() => ({
+    get: async () => ({ statusCode: 200, error: 0, data: { configuration: null, metadata: null } }),
+    put: async (_path: string, options: any) => {
+      const body = JSON.parse(options.body);
+      firstBodies.push(body);
+      return { statusCode: 200, error: 0, data: { configuration: body.configuration, metadata: { seqNo: 1, primaryTerm: 1 }, warning: 'Guardado; no se pudo registrar el historial' } };
+    },
+  }));
+  await service.hydrateENSConfiguration(true);
+  await service.updateActiveGlobalConfiguration({ ...service.getActiveENSConfiguration().global, ensLevel: 'ALTO' });
+  check('loaded with no configuration, the first save says it expects none (null)', firstBodies[0].expectedVersion === null && 'expectedVersion' in firstBodies[0]);
+  check('a warning returned with the save is kept for the screen', service.getLastSaveWarning() === 'Guardado; no se pudo registrar el historial');
+  const { SaveWarningNotice } = require('../public/ens/configuration/components/save-warning-notice');
+  screen = await h.render(SaveWarningNotice, {});
+  check('and shown: saved, but without its history entry', screen.includes('Guardado; no se pudo registrar el historial') && screen.includes('La configuración se ha guardado.'), screen);
 
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
