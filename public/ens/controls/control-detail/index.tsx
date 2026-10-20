@@ -51,6 +51,7 @@ import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
 import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
+import { MaturityHeadline, MaturityPanel } from '../../maturity/maturity-panel';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
   ENSRetainedEvaluation,
@@ -752,6 +753,21 @@ export const ControlDetailENS = ({
                 .join(' · ')}
             </EuiText>
           )}
+          <EuiSpacer size='s' />
+          {/* The traffic light (operational) and the maturity (normative) side by side, never mixed. */}
+          <EuiFlexGroup gutterSize='s' responsive={false} wrap alignItems='center'>
+            {data?.result && (
+              <EuiFlexItem grow={false}>
+                <EuiBadge color={getBadgeColor(data.result.status)} iconType={getStatusIcon(data.result.status)}>
+                  {data.result.status}
+                  {typeof data.result.score === 'number' ? ` · ${data.result.score}%` : ''}
+                </EuiBadge>
+              </EuiFlexItem>
+            )}
+            <EuiFlexItem grow={false}>
+              <MaturityHeadline maturity={data?.maturity} error={data?.maturityError} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
           <EuiButton iconType='gear' onClick={configureControl}>
@@ -1239,6 +1255,10 @@ export const ControlDetailENS = ({
             pending={Boolean(data?.meta?.seriesPending)}
           />
         </EuiPanel>
+
+        <EuiSpacer size='l' />
+
+        <MaturityPanel controlId={control.id} maturity={data?.maturity} error={data?.maturityError} onRecorded={evaluation.retry} />
 
         <EuiSpacer size='l' />
 

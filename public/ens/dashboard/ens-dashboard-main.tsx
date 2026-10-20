@@ -1,6 +1,8 @@
 import React from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
+import { MaturityDistributionPanel } from '../maturity/maturity-distribution';
+import type { ENSMaturityListEntry } from '../../../common/ens/evaluation/types';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
@@ -51,7 +53,7 @@ export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
 
   // The panel is computed by the SERVER with all facts of the window; the browser receives the finished model.
-  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
+  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[]; maturity?: ENSMaturityListEntry; maturityError?: string }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
@@ -852,6 +854,11 @@ export const EnsDashboardMain = () => {
           )}
          </div>
         </div>
+
+      <div style={{ marginTop: 16 }}>
+        {/* The organisation's maturity (normative), apart from the compliance index (operational). */}
+        <MaturityDistributionPanel maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} />
+      </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>
         ⓘ El índice de cumplimiento lo calcula el servidor con todos los hechos ENS de la ventana de evaluación. Cada 5 minutos se comprueba si han llegado hechos nuevos y, solo entonces, se vuelve a calcular.
