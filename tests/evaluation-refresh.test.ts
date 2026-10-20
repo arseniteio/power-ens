@@ -308,6 +308,31 @@ const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
       c11.dispose();
     }
 
+    {
+      // Maturity still being read (`meta.maturityPending`): asked again every 2 s, like the series.
+      const loose: { resolve: (v: any) => void }[] = [];
+      let r12 = 14_000_000;
+      const c12 = createEvaluationController<any>({
+        fetch: () => new Promise(resolve => loose.push({ resolve })),
+        probe: () => Promise.resolve({ fingerprint: 'x' }),
+        now: () => r12,
+        visible: () => true,
+        onChange: () => undefined,
+      });
+      c12.setKey('B');
+      loose.pop()!.resolve({ meta: { fingerprint: 'refreshing:m', evaluatedAt: new Date(r12).toISOString(), maturityPending: true } });
+      await wait0();
+      let v = 0;
+      const since = r12;
+      while ((await c12.tick()) !== 'reload' && v++ < 100) r12 += 1000;
+      check('maturity pending: asked again after 2 s', (r12 - since) / 1000 === 2, (r12 - since) / 1000);
+      loose.pop()!.resolve({ meta: { fingerprint: 'm', evaluatedAt: new Date(r12).toISOString() } });
+      await wait0();
+      r12 += 2000;
+      check('...and no longer once it arrived', (await c12.tick()) !== 'reload');
+      c12.dispose();
+    }
+
     check('row: pending control → «Calculando…»', controlRowWaitLabel(false, { controlId: 'op.acc.3', status: 'NO_EVALUABLE', evaluated: false, pending: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 }) === 'Calculando…');
     check('row: first load without summary → «Evaluando…»; with a result → nothing', controlRowWaitLabel(true, undefined) === 'Evaluando…' && controlRowWaitLabel(false, { controlId: 'op.acc.3', status: 'CUMPLE', evaluated: true, requirementsNotMet: 0, requirementsNotEvidenced: 0 }) === undefined);
     const chart = require('fs').readFileSync(require('path').join(__dirname, '../public/ens/controls/control-detail/evolution-chart.tsx'), 'utf8');

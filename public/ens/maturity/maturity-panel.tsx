@@ -1,6 +1,4 @@
-// The maturity of a control in its detail: the headline next to the traffic light, the gates with their reasons,
-// what people recorded (procedure, reviews, indicators, feedback) and the forms to record more. Saving needs the
-// administration role, like the configuration: without it the server refuses and the form says why.
+// A control's maturity in its detail: headline, gates, what was recorded and the forms (the server checks the role).
 import React, { useState } from 'react';
 import {
   EuiBadge,
@@ -12,6 +10,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
+  EuiLink,
   EuiModal,
   EuiModalBody,
   EuiModalFooter,
@@ -24,19 +23,21 @@ import {
   EuiTextArea,
   EuiTitle,
 } from '@elastic/eui';
-import { describeMaturityHeadline } from '../../../common/ens/maturity/maturity-engine';
+import { describeAssessment, describeMaturityHeadline } from '../../../common/ens/maturity/maturity-engine';
 import {
   ENS_MATURITY_FEEDBACK_SOURCES,
   ENS_MATURITY_REVIEW_RESULTS,
   listOrganizationPeople,
+  ownLabel,
   validateMaturityEntry,
 } from '../../../common/ens/maturity/maturity-records';
-import type { ENSControlMaturity, ENSMaturityGate, ENSMaturityRecordKind } from '../../../common/ens/maturity/types';
+import type { ENSControlMaturity, ENSMaturityGate, ENSMaturityRecordKind, ENSMaturityVersion } from '../../../common/ens/maturity/types';
 import { getActiveENSConfiguration, recordMaturityEntry } from '../../../common/ens/configuration/services/configuration-state-service';
 import {
   initialMaturityDraft,
   MATURITY_FORM_FIELDS,
   MATURITY_FORM_TITLES,
+  MATURITY_GUIDE_URL,
   MATURITY_NOTE,
   MATURITY_ORIGIN_LABELS,
   maturityEntryFromDraft,
@@ -53,7 +54,13 @@ export const MaturityHeadline = ({ maturity, error }: { maturity?: ENSControlMat
   <EuiBadge
     color={headlineColor(maturity)}
     iconType='visGauge'
-    title={maturity?.aboveAccredited ? 'Valorado por encima de lo acreditado por la evidencia.' : 'Madurez del proceso (CMM): valoración normativa, aparte del semáforo.'}
+    title={
+      maturity?.accreditedDropped
+        ? 'La evidencia acredita hoy menos que al valorarlo: revisar la valoración.'
+        : maturity?.aboveAccredited
+        ? 'Valorado por encima de lo acreditado al registrarlo.'
+        : 'Madurez del proceso (CMM): valoración normativa, aparte del semáforo.'
+    }
   >
     {maturity ? describeMaturityHeadline(maturity) : error ? 'Madurez: no disponible' : 'Madurez: calculando…'}
   </EuiBadge>
@@ -63,16 +70,21 @@ export const MaturityEntryModal = ({
   controlId,
   kind,
   maturity,
+  version,
   onClose,
   onSaved,
 }: {
   controlId: string;
   kind: ENSMaturityRecordKind;
   maturity?: ENSControlMaturity;
+  // The maturity version this screen shows: a newer one is refused (409) instead of being overwritten.
+  version: ENSMaturityVersion | null;
   onClose: () => void;
   onSaved: () => void;
 }) => {
-  const [draft, setDraft] = useState<Record<string, string>>(initialMaturityDraft(kind, maturity, new Date()));
+  const [draft, setDraft] = useState<Record<string, string>>(
+    initialMaturityDraft(kind, maturity, new Date(), getActiveENSConfiguration()?.global?.timezone)
+  );
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const people = listOrganizationPeople(getActiveENSConfiguration());
@@ -90,7 +102,7 @@ export const MaturityEntryModal = ({
     setSaving(true);
     setErrors([]);
     try {
-      await recordMaturityEntry(controlId, kind, entry);
+      await recordMaturityEntry(controlId, kind, entry, version);
       onSaved();
       onClose();
     } catch (error: any) {
@@ -183,15 +195,18 @@ const gateColumns = [
 export const MaturityPanel = ({
   controlId,
   maturity,
+  version,
   error,
   onRecorded,
 }: {
   controlId: string;
   maturity?: ENSControlMaturity;
+  version?: ENSMaturityVersion | null;
   error?: string;
   onRecorded: () => void;
 }) => {
   const [form, setForm] = useState<ENSMaturityRecordKind | undefined>(undefined);
+  const assessment = maturity ? describeAssessment(maturity) : {};
   const attestation = maturity?.attestation;
   const review = maturity?.lastReview;
   const indicators = maturity?.indicators;
@@ -209,7 +224,12 @@ export const MaturityPanel = ({
         </EuiFlexItem>
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
-        <p>{MATURITY_NOTE}</p>
+        <p>
+          {MATURITY_NOTE}{' '}
+          <EuiLink href={MATURITY_GUIDE_URL} target='_blank' external>
+            Guía 10
+          </EuiLink>
+        </p>
       </EuiText>
       <EuiSpacer size='s' />
 
@@ -236,20 +256,22 @@ export const MaturityPanel = ({
               <EuiSpacer size='s' />
             </>
           )}
-          {maturity.aboveAccredited && maturity.assessed && (
+          {assessment.mark && (
             <>
-              <EuiCallOut color='warning' iconType='alert' size='s' title={`Valorado por encima de lo acreditado (L${maturity.assessed.level} frente a L${maturity.accredited ?? 0})`}>
-                <p>Justificación: {maturity.assessed.justification || 'sin justificación'}</p>
-              </EuiCallOut>
+              <EuiCallOut color='warning' iconType='alert' size='s' title={assessment.mark} />
               <EuiSpacer size='s' />
             </>
           )}
-          {maturity.assessed && (
+          {assessment.dropped && (
+            <>
+              <EuiCallOut color='warning' iconType='clock' size='s' title={assessment.dropped} />
+              <EuiSpacer size='s' />
+            </>
+          )}
+          {assessment.line && (
             <EuiText size='s'>
               <p>
-                <strong>Valoración:</strong> L{maturity.assessed.level} por {maturity.assessed.reviewer} el {maturity.assessed.date}
-                {maturity.assessed.justification && !maturity.aboveAccredited ? `. ${maturity.assessed.justification}` : ''} ({maturity.assessments}{' '}
-                {maturity.assessments === 1 ? 'valoración' : 'valoraciones'} en el historial).
+                <strong>Valoración:</strong> {assessment.line} ({maturity.assessments} {maturity.assessments === 1 ? 'valoración' : 'valoraciones'} en el historial).
               </p>
             </EuiText>
           )}
@@ -270,7 +292,7 @@ export const MaturityPanel = ({
             <p>
               <strong>Última revisión:</strong>{' '}
               {review
-                ? `${review.date} por ${review.reviewer} (${ENS_MATURITY_REVIEW_RESULTS[review.result] || review.result})${review.actions ? `: ${review.actions}` : ''}. ${maturity.reviews} en el historial.`
+                ? `${review.date} por ${review.reviewer} (${ownLabel(ENS_MATURITY_REVIEW_RESULTS, review.result) || review.result})${review.actions ? `: ${review.actions}` : ''}. ${maturity.reviews} en el historial.`
                 : 'ninguna registrada.'}
             </p>
             <p>
@@ -283,7 +305,7 @@ export const MaturityPanel = ({
                 ? maturity.feedback
                     .map(
                       entry =>
-                        `${entry.reference} (${ENS_MATURITY_FEEDBACK_SOURCES[entry.source] || entry.source}) ${
+                        `${entry.reference} (${ownLabel(ENS_MATURITY_FEEDBACK_SOURCES, entry.source) || entry.source}) ${
                           entry.closedAt ? `cerrada el ${entry.closedAt}${entry.procedureVersion ? ` con la versión ${entry.procedureVersion}` : ''}` : 'abierta'
                         }`
                     )
@@ -297,13 +319,13 @@ export const MaturityPanel = ({
       <EuiSpacer size='s' />
       <EuiFlexGroup gutterSize='s' responsive={false} wrap>
         <EuiFlexItem grow={false}>
-          <EuiButton size='s' fill iconType='check' onClick={() => setForm('assessment')} isDisabled={!maturity}>
+          <EuiButton size='s' fill iconType='check' onClick={() => setForm('assessment')} isDisabled={!maturity || version === undefined}>
             Valorar
           </EuiButton>
         </EuiFlexItem>
         {(['attestation', 'review', 'indicators', 'feedback'] as ENSMaturityRecordKind[]).map(kind => (
           <EuiFlexItem grow={false} key={kind}>
-            <EuiButtonEmpty size='s' onClick={() => setForm(kind)} isDisabled={!maturity}>
+            <EuiButtonEmpty size='s' onClick={() => setForm(kind)} isDisabled={!maturity || version === undefined}>
               {MATURITY_FORM_TITLES[kind]}
             </EuiButtonEmpty>
           </EuiFlexItem>
@@ -311,7 +333,7 @@ export const MaturityPanel = ({
       </EuiFlexGroup>
 
       {form && (
-        <MaturityEntryModal key={form} controlId={controlId} kind={form} maturity={maturity} onClose={() => setForm(undefined)} onSaved={onRecorded} />
+        <MaturityEntryModal key={form} controlId={controlId} kind={form} maturity={maturity} version={version ?? null} onClose={() => setForm(undefined)} onSaved={onRecorded} />
       )}
     </EuiPanel>
   );

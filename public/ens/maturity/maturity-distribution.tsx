@@ -1,9 +1,8 @@
-// The organisation's maturity at a glance (overview and panel): how many controls are at each level, accredited
-// by the evidence and assessed by a person, and how many are below their target.
+// The organisation's maturity (overview and panel): controls per level, accredited and assessed, and below target.
 import React from 'react';
-import { EuiBasicTable, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiBasicTable, EuiLink, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 import type { ENSMaturityListEntry } from '../../../common/ens/evaluation/types';
-import { MATURITY_DISTRIBUTION_ROWS, MATURITY_NOTE } from './maturity-view';
+import { MATURITY_DISTRIBUTION_ROWS, MATURITY_GUIDE_URL, MATURITY_NOTE } from './maturity-view';
 
 export const MaturityDistributionPanel = ({ maturity, error }: { maturity?: ENSMaturityListEntry; error?: string }) => {
   const distribution = maturity?.distribution;
@@ -21,7 +20,12 @@ export const MaturityDistributionPanel = ({ maturity, error }: { maturity?: ENSM
         <h3>Madurez de la organización</h3>
       </EuiTitle>
       <EuiText size='xs' color='subdued'>
-        <p>{MATURITY_NOTE}</p>
+        <p>
+          {MATURITY_NOTE}{' '}
+          <EuiLink href={MATURITY_GUIDE_URL} target='_blank' external>
+            Guía 10
+          </EuiLink>
+        </p>
       </EuiText>
       <EuiSpacer size='s' />
       {!distribution ? (
@@ -42,8 +46,8 @@ export const MaturityDistributionPanel = ({ maturity, error }: { maturity?: ENSM
           <EuiSpacer size='s' />
           <EuiText size='s'>
             <p>
-              {distribution.applicable} controles aplicables · sin medición todavía: {distribution.accredited.sinMedicion || 0} · sin valorar:{' '}
-              {distribution.assessed.sinValorar || 0} · <strong>por debajo del objetivo: {distribution.belowTarget}</strong>
+              {distribution.applicable} controles aplicables · sin medición todavía: {distribution.accredited.notMeasured || 0} · sin valorar:{' '}
+              {distribution.assessed.notAssessed || 0} · <strong>por debajo del objetivo: {distribution.belowTarget}</strong>
             </p>
           </EuiText>
         </>

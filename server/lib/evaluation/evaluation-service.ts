@@ -276,8 +276,7 @@ export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceR
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// The active configuration (hundreds of KB) and the maturity document are re-read only when their stamp changes:
-// `_seq_no` and `_primary_term` change on any write.
+// Configuration and maturity documents are re-read only when their stamp (`_seq_no`, `_primary_term`) changes.
 const readConfigurationStamps = async (client: any): Promise<{ configuration?: string; maturity?: string }> => {
   const body = await searchComplete(
     client,

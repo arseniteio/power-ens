@@ -1258,7 +1258,13 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
-        <MaturityPanel controlId={control.id} maturity={data?.maturity} error={data?.maturityError} onRecorded={evaluation.retry} />
+        <MaturityPanel
+          controlId={control.id}
+          maturity={data?.maturity}
+          version={data?.maturityVersion}
+          error={data?.maturityError}
+          onRecorded={evaluation.retry}
+        />
 
         <EuiSpacer size='l' />
 

@@ -1,4 +1,5 @@
 // What the maturity screens show and the forms ask, kept apart from React so it can be tested.
+import { dayIn } from '../../../common/ens/maturity/maturity-engine';
 import {
   ENS_DEFAULT_REVIEW_PERIOD_DAYS,
   ENS_MATURITY_FEEDBACK_SOURCES,
@@ -21,8 +22,9 @@ export const MATURITY_ORIGIN_LABELS: Record<ENSMaturityGateOrigin, string> = {
   'Doc+D': 'Documental y declarado',
 };
 
-export const MATURITY_NOTE =
-  'El semáforo y el porcentaje son indicadores operativos: dicen si hay algo que atender hoy. La madurez es la valoración normativa del proceso (Anexo II, apartado 6): se informa junto a ellos, sin mezclarla. Es de la organización, la misma con cualquier máquina seleccionada.';
+export const MATURITY_NOTE = 'Semáforo y porcentaje: operativos. Madurez: valoración normativa del proceso, de la organización (Anexo II, ap. 6).';
+
+export const MATURITY_GUIDE_URL = 'https://gitlab.com/quersystem/plugin-wazuh-ens/-/blob/main/docs/deployment/10-maturity-assessment.md';
 
 export const MATURITY_FORM_TITLES: Record<ENSMaturityRecordKind, string> = {
   assessment: 'Valorar la madurez',
@@ -76,7 +78,7 @@ export const MATURITY_FORM_FIELDS: Record<ENSMaturityRecordKind, MaturityField[]
       required: true,
       options: Object.entries(ENS_MATURITY_REVIEW_RESULTS).map(([value, text]) => ({ value, text })),
     },
-    { name: 'actions', label: 'Acciones', type: 'textarea', help: 'Obligatorias si la revisión no es conforme.' },
+    { name: 'actions', label: 'Acciones', type: 'textarea', help: 'Obligatorias con desviaciones o no conforme. Tratan una desviación del umbral (L4).' },
   ],
   indicators: [
     { name: 'minScore', label: 'Umbral de cumplimiento (%)', type: 'number', required: true, help: 'Por debajo, el control está en desviación.' },
@@ -98,16 +100,22 @@ export const MATURITY_FORM_FIELDS: Record<ENSMaturityRecordKind, MaturityField[]
   ],
 };
 
-const today = (now: Date) => now.toISOString().slice(0, 10);
+// The local day (the configured zone, Madrid by default): after midnight in Madrid it is already the next day.
+const today = (now: Date, timeZone?: string) => dayIn(now, timeZone || 'Europe/Madrid');
 
 // Initial values of each form: the current entry when there is one (to adjust it), else sensible defaults.
-export const initialMaturityDraft = (kind: ENSMaturityRecordKind, maturity: ENSControlMaturity | undefined, now: Date): Record<string, string> => {
+export const initialMaturityDraft = (
+  kind: ENSMaturityRecordKind,
+  maturity: ENSControlMaturity | undefined,
+  now: Date,
+  timeZone?: string
+): Record<string, string> => {
   if (kind === 'assessment') {
     return {
       level: String(maturity?.assessed?.level ?? maturity?.accredited ?? 0),
       target: maturity?.assessed?.target !== undefined ? String(maturity.assessed.target) : '',
       reviewer: maturity?.assessed?.reviewer || '',
-      date: today(now),
+      date: today(now, timeZone),
       justification: '',
     };
   }
@@ -124,14 +132,14 @@ export const initialMaturityDraft = (kind: ENSMaturityRecordKind, maturity: ENSC
       owner: current?.owner || '',
     };
   }
-  if (kind === 'review') return { date: today(now), reviewer: '', result: 'CONFORME', actions: '' };
+  if (kind === 'review') return { date: today(now, timeZone), reviewer: '', result: 'CONFORME', actions: '' };
   if (kind === 'indicators') {
     return {
       minScore: String(maturity?.indicators?.minScore ?? 80),
       reviewPeriodDays: String(maturity?.indicators?.reviewPeriodDays ?? ENS_DEFAULT_REVIEW_PERIOD_DAYS),
     };
   }
-  return { reference: '', source: 'op.exp.9.3', description: '', openedAt: today(now), closedAt: '', procedureVersion: '' };
+  return { reference: '', source: 'op.exp.9.3', description: '', openedAt: today(now, timeZone), closedAt: '', procedureVersion: '' };
 };
 
 // What the form sends: numbers where the record has numbers, and no empty optional field.
@@ -154,7 +162,10 @@ export const describeMaturityCell = (entry?: ENSControlMaturitySummary): { text:
   const accredited = entry.measured ? `acreditado L${entry.accredited ?? 0}` : 'sin medición todavía';
   const assessed = entry.assessed !== undefined ? `valorado L${entry.assessed}` : 'sin valorar';
   return {
-    text: level === undefined ? `— · obj. L${entry.target}` : `L${level}${entry.assessed === undefined ? ' acr.' : ''} · obj. L${entry.target}`,
+    text:
+      level === undefined
+        ? `sin medición · objetivo L${entry.target}`
+        : `L${level} ${entry.assessed === undefined ? 'acreditado' : 'valorado'} · objetivo L${entry.target}`,
     title: `Madurez: ${assessed}, ${accredited}, objetivo L${entry.target}${entry.aboveAccredited ? '. Valorado por encima de lo acreditado.' : '.'}`,
     belowTarget: level !== undefined && level < entry.target,
   };

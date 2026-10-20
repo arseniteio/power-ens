@@ -33,6 +33,7 @@ const { EnsDashboardMain } = require('../public/ens/dashboard/ens-dashboard-main
 const { GlobalConfigurationPanel } = require('../public/ens/configuration/components/global-configuration-panel');
 const { ReportsENS } = require('../public/ens/reports');
 const { buildMaturityPdfContent } = require('../public/ens/maturity/maturity-report');
+const view = require('../public/ens/maturity/maturity-view');
 const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
 const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration');
 const { hydrateENSScope } = require('../common/ens/core/scope/runtime');
@@ -43,7 +44,7 @@ const { buildComplianceState } = require('../common/ens/core/compliance-state');
 
 const now = new Date();
 const day = (offset: number) => new Date(now.getTime() - offset * 86400e3).toISOString().slice(0, 10);
-const window = { from: new Date(now.getTime() - 30 * 86400e3).toISOString(), to: now.toISOString() };
+const period = { from: new Date(now.getTime() - 30 * 86400e3).toISOString(), to: now.toISOString() };
 const empty = () => ({ attestations: [], reviews: [], assessments: [], indicators: [], feedback: [] });
 const result = (status = 'PARCIAL', score = 75) => ({
   control: { id: 'op.acc.1', name: 'Identificación', family: 'op', category: 'acc', description: '' },
@@ -56,8 +57,8 @@ const maturityOf = (over: any = {}) =>
     control: { id: 'op.acc.1', status: 'ACTIVE', levelDimension: ['T', 'A'] },
     result: result(),
     configured: true,
-    activity: { days: engine.wholeWindowDays(window, now, 'UTC') },
-    window,
+    activity: { days: engine.wholePeriodDays(period, now, 'UTC') },
+    period,
     timeZone: 'UTC',
     record: empty(),
     targets: { BAJO: 2, MEDIO: 3, ALTO: 4 },
@@ -95,17 +96,17 @@ http.setENSConfigurationHttp(() => ({
 
   console.log('1. Control detail: the headline next to the traffic light, and the panel');
   const maturity = maturityOf();
-  evaluations.control = { data: { meta, result: result(), maturity, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  evaluations.control = { data: { meta, result: result(), maturity, maturityVersion: { seqNo: 3, primaryTerm: 1 }, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
   h.setSearch('?tabView=plugins&control=op.acc.1');
   let p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('accredited L2 here (no procedure)', maturity.accredited === 2, maturity.gates.filter((g: any) => !g.passed));
   check('header: the traffic light and «Madurez: sin valorar (acreditado L2, objetivo L3)», side by side', /\[ PARCIAL · 75% \] \[ [^\]]*Madurez: sin valorar \(acreditado L2, objetivo L3\) \]/.test(p), p.slice(0, 900));
-  check('the «Madurez» panel with the methodological note', /Madurez · op\.acc\.1/.test(p) && /indicadores operativos/.test(p));
+  check('the «Madurez» panel with the one-line note and the guide', /Madurez · op\.acc\.1/.test(p) && /Semáforo y porcentaje: operativos/.test(p) && h.findAll('EuiLink').some(link => /10-maturity-assessment/.test(link.props.href)));
   check('the gates with origin, state and reason', /Hechos recurrentes sin huecos/.test(p) && /Documental/.test(p) && /Sin procedimiento registrado/.test(p) && /No se cumple/.test(p) && /Se cumple/.test(p));
   check('what is recorded: none yet', /Procedimiento:\s*sin registrar/.test(p) && /Última revisión:\s*ninguna registrada/.test(p));
 
   console.log('2. «Valorar»');
-  putAnswer = async () => ({ statusCode: 200, error: 0, data: { configuration: { ...doc, maturity: { controls: { 'op.acc.1': { assessments: [{ level: 4 }] } } } }, metadata: { seqNo: 9, primaryTerm: 1 }, record: {} } });
+  putAnswer = async () => ({ statusCode: 200, error: 0, data: { record: {}, version: { seqNo: 4, primaryTerm: 1 }, updatedAt: now.toISOString() } });
   await h.click(/^Valorar$/);
   p = await h.rerender();
   check('the form opens with the accredited level said', /Valorar la madurez · op\.acc\.1/.test(p) && /La evidencia acredita L2/.test(p));
@@ -123,28 +124,35 @@ http.setENSConfigurationHttp(() => ({
   await h.click(/^Guardar$/);
   p = await h.rerender();
   const sent = puts[0]?.body;
-  check('with it: sent to the maturity route with the level as a number', puts[0]?.path === '/api/ensfacil/maturity' && sent.kind === 'assessment' && sent.entry.level === 4 && sent.entry.reviewer === 'Luis Pérez' && /Auditoría/.test(sent.entry.justification), sent);
+  check('with it: sent to the maturity route with the level as a number and the version the screen showed', puts[0]?.path === '/api/ensfacil/maturity' && sent.kind === 'assessment' && sent.entry.level === 4 && sent.entry.reviewer === 'Luis Pérez' && /Auditoría/.test(sent.entry.justification) && JSON.stringify(sent.expectedVersion) === '{"seqNo":3,"primaryTerm":1}', sent);
   check('...and the view refreshed, the form closed', retries === 1 && !/Valorar la madurez · op\.acc\.1/.test(p));
-  check('the browser keeps the stored maturity and the new version', ensConfigurationRepository.getActive().maturity?.controls?.['op.acc.1']?.assessments?.length === 1);
+  check('the configuration in the browser is untouched (its own document)', !('maturity' in ensConfigurationRepository.getActive()));
 
-  putAnswer = async () => Promise.reject({ body: { message: 'Hace falta el rol ensfacil_admin o all_access para registrar o consultar la madurez.' } });
+  putAnswer = async () => Promise.reject({ body: { message: 'Hace falta el rol ensfacil_admin o all_access para registrar la madurez.' } });
   await h.click(/Registrar una revisión/);
   h.findAll('EuiFieldText').find(f => f.props.list)!.props.onChange({ target: { value: 'Ana' } });
   await h.rerender();
   await h.click(/^Guardar$/);
   p = await h.rerender();
   check('without the role the server refuses and the form says why', /Hace falta el rol ensfacil_admin/.test(p) && puts[1]?.body.kind === 'review', { puts: puts.map(x => x.body.kind), p: p.slice(p.indexOf('Registrar una revisión ·'), p.indexOf('Registrar una revisión ·') + 900) });
+  check('the review offers «Desviación en tratamiento»', h.findAll('EuiSelect').some(select => (select.props.options || []).some((o: any) => o.text === 'Desviación en tratamiento')));
+  check('the form\'s day is the local one (Madrid after midnight)', view.initialMaturityDraft('review', undefined, new Date('2026-10-19T23:30:00Z'), 'Europe/Madrid').date === '2026-10-20' && view.initialMaturityDraft('review', undefined, new Date('2026-10-19T23:30:00Z')).date === '2026-10-20');
 
   console.log('3. Above the accredited level, and DRAFT');
   h.reset();
-  const above = maturityOf({ record: { ...empty(), assessments: [{ level: 4, reviewer: 'Luis', date: day(1), justification: 'Auditado en papel', recordedAt: now.toISOString(), recordedBy: 'rsis' }] } });
-  evaluations.control = { data: { meta, result: result(), maturity: above, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  const above = maturityOf({ record: { ...empty(), assessments: [{ level: 4, reviewer: 'Luis', date: day(1), justification: 'Auditado en papel', accredited: 2, recordedAt: now.toISOString(), recordedBy: 'rsis' }] } });
+  evaluations.control = { data: { meta, result: result(), maturity: above, maturityVersion: null, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
   p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('headline with the assessed level', /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(p));
-  check('marked above the accredited level, with the justification', /Valorado por encima de lo acreditado \(L4 frente a L2\)/.test(p) && /Justificación: Auditado en papel/.test(p));
+  check('marked above the level stored when recording, with who, when and the justification', /Valorado por encima de lo acreditado al registrarlo \(L4 frente a L2\)/.test(p) && new RegExp(`Valorado L4 por Luis el ${day(1)}\\. Justificación: Auditado en papel`).test(p), p.slice(p.indexOf('Madurez · op'), p.indexOf('Madurez · op') + 700));
+  h.reset();
+  const dropped = maturityOf({ activity: { days: engine.wholePeriodDays(period, now, 'UTC').slice(0, 3) }, record: { ...empty(), assessments: [{ level: 2, reviewer: 'Ana', date: day(5), accredited: 2, recordedAt: now.toISOString(), recordedBy: 'rsis' }] } });
+  evaluations.control = { data: { meta, result: result(), maturity: dropped, maturityVersion: null, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
+  check('valid when recorded, evidence lower today: «revisar la valoración», not «por encima»', /acreditaba L2 al valorarlo .*; hoy acredita L1: revisar la valoración/.test(p) && !/por encima de lo acreditado/.test(p));
   h.reset();
   const draft = maturityOf({ control: { id: 'op.acc.1', status: 'DRAFT' } });
-  evaluations.control = { data: { meta, result: { ...result('NO_APLICA'), score: undefined }, maturity: draft, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  evaluations.control = { data: { meta, result: { ...result('NO_APLICA'), score: undefined }, maturity: draft, maturityVersion: null, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
   p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('DRAFT: «Sin medición todavía», and «Valorar» still there', /sin medición todavía/.test(p) && /Sin medición todavía/.test(p) && Boolean(h.find('EuiButton', /^Valorar$/)));
 
@@ -157,7 +165,7 @@ http.setENSConfigurationHttp(() => ({
   evaluations.summary = { data: { meta, controls: [], timeline: [] }, isLoading: false };
   h.setSearch('?tabView=overview');
   p = await h.render(OverviewENS);
-  check('each control row says its level and target', /L2 acr\. · obj\. L3/.test(p) && /L4 · obj\. L3/.test(p));
+  check('each control row says its level, whether accredited or assessed, and the target', /L2 acreditado · objetivo L3/.test(p) && /L4 valorado · objetivo L3/.test(p));
   check('the organisation distribution, accredited and assessed', /Madurez de la organización/.test(p) && /L2 · Reproducible 2 0/.test(p) && /L4 · Gestionado y medible 0 1/.test(p) && /por debajo del objetivo:\s*1/.test(p) && h.findAll('EuiBasicTable').some(t => t.props.columns.map((c: any) => c.name).join() === 'Nivel,Acreditado por la evidencia,Valorado'), p.slice(p.indexOf('Madurez de la organización'), p.indexOf('Madurez de la organización') + 700));
   evaluations.overview = { data: { ...overview, maturity: list }, isLoading: false };
   p = await h.rerender();
@@ -193,17 +201,17 @@ http.setENSConfigurationHttp(() => ({
   console.log('6. The report: a generic maturity block, on screen and in the PDF');
   h.reset();
   ensConfigurationRepository.completeHydration(doc);
-  evaluations.control = { data: { meta, result: result(), maturity: above, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  evaluations.control = { data: { meta, result: result(), maturity: above, maturityVersion: null, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
   evaluations.results = { data: { meta, results: [result()] }, isLoading: false };
   h.setSearch('?tabView=reports');
   p = await h.render(ReportsENS);
   h.find('EuiFieldSearch')!.props.onChange({ target: { value: 'op.acc.1' } });
   p = await h.rerender();
   check('the report shows the maturity block with the note', /Madurez del proceso \(CMM\)/.test(p) && /Nota metodológica/.test(p) && /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(p), p.slice(0, 300));
-  check('...marked above the accredited level', /Valorado por encima de lo acreditado \(L4 frente a L2\)\. Justificación: Auditado en papel/.test(p));
+  check('...with who and when, marked above the level stored then', /Valorado L4 por Luis el .*Justificación: Auditado en papel/.test(p) && /Valorado por encima de lo acreditado al registrarlo \(L4 frente a L2\)/.test(p));
   await h.click(/Exportar PDF/);
   const content = JSON.stringify(pdfs[0]?.content || []);
-  check('the PDF carries it after the result: headline, mark, gates and the note', /Madurez del proceso \(CMM\)/.test(content) && /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(content) && /Valorado por encima de lo acreditado/.test(content) && /Hechos recurrentes sin huecos/.test(content) && /Nota metodológica/.test(content) && content.indexOf('Madurez del proceso') < content.indexOf('Campos del informe'), content.slice(0, 300));
+  check('the PDF carries it after the result: headline, who and when, mark, gates and the note', /Madurez del proceso \(CMM\)/.test(content) && /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(content) && /Valorado L4 por Luis/.test(content) && /Valorado por encima de lo acreditado al registrarlo/.test(content) && /Hechos recurrentes sin huecos/.test(content) && /Nota metodológica/.test(content) && content.indexOf('Madurez del proceso') < content.indexOf('Campos del informe'), content.slice(0, 300));
   const generic = ['mp.info.6', 'op.exp.3', 'op.cont.2'].every(id => JSON.stringify(buildMaturityPdfContent({ ...maturity, controlId: id })).includes('Puerta'));
   check('the block does not depend on the control (any catalog control, also a new one)', generic);
   check('DRAFT in the PDF: «Sin medición todavía»', /Sin medición todavía/.test(JSON.stringify(buildMaturityPdfContent(draft))));
