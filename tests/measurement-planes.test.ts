@@ -360,6 +360,12 @@ const rest = (): void => {
     'an agent row\'s summary does not count the manager-only ones nor the 11 without collector (no row of their own)',
     now.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 16 && !a.results.some(r => WITHOUT_COLLECTOR.includes(r.control.id)))
   );
+  // Pinned: the controls without collector change neither the machines' measured count nor the manager's.
+  check(
+    'measured per row: 16 of 16 on each machine, 7 of 9 on the manager',
+    JSON.stringify(now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])) === '[["000",7,9],["001",16,16],["002",16,16]]',
+    now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])
+  );
 
   section('3. op.cont.2, op.cont.3, op.exp.7, op.exp.9, op.mon.1, op.mon.2 and op.nub.1: manager row; in an agent\'s view, its result');
 

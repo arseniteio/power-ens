@@ -116,7 +116,10 @@ const reference = () => {
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
   // Only the controls without collector, which read nothing and so cannot be computed from incomplete data.
   const withoutCollector = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').length;
-  check('and nothing read is stored (only the controls without collector, which read nothing)', service.rows.size === withoutCollector, [service.rows.size, withoutCollector]);
+  const draftIds = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').map((control: any) => control.id);
+  const stored = service.rows.keys();
+  check('and nothing read is stored: only the fallback rows of the controls without collector, which read nothing',
+    stored.length === withoutCollector && stored.every(key => /^f\|/.test(key) && draftIds.includes(key.split('|').pop()!)), stored);
   const viaRuta: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: service }).evaluate(context, { query: { timeZone: 'UTC' } }, response);
   check('the route returns it as 503 with the motive', viaRuta.status === 503 && /reintentar/.test(viaRuta.body.message), viaRuta);
   fail = 0;
