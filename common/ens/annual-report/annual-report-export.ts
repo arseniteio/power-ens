@@ -11,12 +11,17 @@ export const annualReportData = (report: ENSAnnualReport): ENSAnnualDatum[] => [
   ...ENS_ANNUAL_SECTIONS.slice(4).flatMap(section => report[section]),
 ];
 
+// OWASP CSV injection rule: a text cell starting with = + - @ TAB or CR gets a leading ' and is quoted.
+const FORMULA_START = /^[=+\-@\t\r]/;
+
 const cell = (value: ENSAnnualValue | undefined): string => {
-  const text = value === null || value === undefined ? '' : typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  const text = FORMULA_START.test(value) ? `'${value}` : value;
+  return text !== value || /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
-// RFC 4180: comma, double quotes, CRLF; UTF-8 without BOM. Empty value: no datum.
+// RFC 4180: comma, double quotes, CRLF; UTF-8 without BOM; formulas neutralised. Empty value: no datum.
 export const toAnnualReportCsv = (report: ENSAnnualReport): string =>
   [
     ENS_ANNUAL_CSV_COLUMNS.join(','),
@@ -50,10 +55,12 @@ export const describeAnnualReport = (report: ENSAnnualReport): string[] => {
     h('header.frozen')
       ? `Congelado el ${h('header.frozen_at')} por ${h('header.frozen_by')} (revisión ${h('header.revision')}${h('header.freeze_reason') ? `: ${h('header.freeze_reason')}` : ''}).`
       : `Sin congelar: calculado el ${h('header.generated_at')}.`,
-    `Grado de implantación: ${figure(i('implementation.global_pct'), '%')} (motor de ENSFácil sobre ${i('implementation.measures_measured')} de ${i('implementation.measures_applicable')} medidas aplicables; ${i('implementation.measures_declared')} con madurez declarada y ${i('implementation.measures_without_data')} sin dato).`,
+    `Grado de implantación de la organización: ${figure(i('implementation.global_pct'), '%')} (motor de ENSFácil sobre ${i('implementation.measures_measured')} de ${i('implementation.measures_applicable')} medidas aplicables de la DA, P-01, como el campo 2; ${i('implementation.measures_declared')} con madurez declarada, ${i('implementation.measures_without_data')} sin dato y ${i('implementation.measures_applicable_outside_soa')} aplicables fuera de la DA).`,
     `Madurez de las medidas aplicables: ${levels}; ${find(report.maturity, 'maturity.not_assessed')} sin nivel; ${find(report.maturity, 'maturity.below_target')} por debajo del objetivo.`,
-    `Incidentes del periodo: ${figure(n('incidents.total'))}; MTTD ${figure(n('incidents.mttd_hours'), 'h')} (${figure(n('incidents.mttd_from_occurrence'))} con fecha de ocurrencia, ${figure(n('incidents.mttd_from_alert'))} con la primera alerta), MTTC ${figure(n('incidents.mttc_hours'), 'h')}, MTTR ${figure(n('incidents.mttr_hours'), 'h')}; notificados al CCN-CERT ${figure(n('incidents.notified_ccn_cert'))}, a la AEPD ${figure(n('incidents.notified_aepd'))} de ${figure(n('incidents.with_personal_data'))} con datos personales (registro de incidentes de op.exp.7).`,
-    `Alertas relevantes que acaban en incidente: ${figure(n('incidents.alerts_to_incident_pct'), '%')} (conciliación de op.exp.7, últimos 30 días).`,
+    `Incidentes del periodo: ${figure(n('incidents.total'))}; MTTD ${figure(n('incidents.mttd_hours'), 'h')} con fecha de ocurrencia (${figure(n('incidents.mttd_from_occurrence'))} incidentes) y cota inferior ${figure(n('incidents.mttd_lower_bound_hours'), 'h')} con la primera alerta conciliada (${figure(n('incidents.mttd_from_alert'))}); MTTC ${figure(n('incidents.mttc_hours'), 'h')}, MTTR ${figure(n('incidents.mttr_hours'), 'h')}; notificados al CCN-CERT ${figure(n('incidents.notified_ccn_cert'))}, a la AEPD ${figure(n('incidents.notified_aepd'))} de ${figure(n('incidents.with_personal_data'))} con datos personales (registro de incidentes de op.exp.7).`,
+    n('incidents.alerts_to_incident_pct') === null && /fuera del periodo/.test(report.incidents.find(entry => entry.id === 'incidents.alerts_to_incident_pct')?.trace || '')
+      ? 'Alertas relevantes que acaban en incidente: no disponible para este periodo (la conciliación de op.exp.7 cubre los últimos 30 días).'
+      : `Alertas relevantes que acaban en incidente: ${figure(n('incidents.alerts_to_incident_pct'), '%')} (conciliación de op.exp.7, últimos 30 días).`,
     r('resources.cycles') === null
       ? 'Recursos del periodo: sin el registro de ciclos de métricas.'
       : `Recursos del periodo (dato declarado, ${r('resources.cycles')} ciclo(s)): ${figure(r('resources.hours_internal'), 'h')} internas, ${figure(r('resources.hours_external'), 'h')} externas, ${figure(r('resources.budget_executed'), '€')}${
