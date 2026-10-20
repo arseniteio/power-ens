@@ -11,6 +11,8 @@ import { groupActivityControls, MAX_ACTIVITY_BUCKETS } from '../server/lib/matur
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
 declare const process: { exit(code: number): void };
+declare const require: any;
+declare const __dirname: string;
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => {
   console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d).slice(0, 400)}` : ''}`);
@@ -144,15 +146,16 @@ const warnings: string[] = [];
 const logger: any = { info() {}, warn(m: string) { warnings.push(m); }, debug() {}, error() {} };
 const request = (query: Record<string, string>) => ({ query, events: {} });
 
-const seed = (internal: any, evaluationPeriod?: string) => {
+const seed = (internal: any, evaluationPeriod?: string, ensLevel?: string) => {
   const configuration = { ...clone(defaultENSConfigurationTemplate), scope: { mode: 'group', agentIds: [], groupIds: ['ens'] }, updatedAt: '2026-10-14T10:00:00.000Z' };
   if (evaluationPeriod) configuration.global.evaluationPeriod = evaluationPeriod;
+  if (ensLevel) configuration.global.ensLevel = ensLevel;
   internal.store.set('active', { index: 'wazuh-ens-configuration', source: { documentType: 'ACTIVE_CONFIGURATION', configuration, updatedAt: '2026-10-14T10:00:00.000Z' }, seqNo: 1 });
 };
 
-const setup = (options: { evaluationPeriod?: string; refuseSnapshots?: boolean; failPurges?: number } = {}) => {
+const setup = (options: { evaluationPeriod?: string; ensLevel?: string; refuseSnapshots?: boolean; failPurges?: number } = {}) => {
   const internal = createStore(options);
-  seed(internal, options.evaluationPeriod);
+  seed(internal, options.evaluationPeriod, options.ensLevel);
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const maturity = createMaturityService({ logger, evaluation: service });
   const evaluation = createEvaluationHandlers({ logger, securityEnabled: true, service, maturity });
@@ -210,7 +213,7 @@ const Z = { timeZone: 'Europe/Madrid' };
 
   console.log('2. Daily snapshots from administrators\' views');
   const today = snapshotIds(internal);
-  check('an administrator view of the whole scope writes one snapshot per control and day', today.length === list.controls.filter((c: any) => c.measured).length && today.includes('op.exp.3|2026-10-20'), today.length);
+  check('an administrator view of the whole scope writes one snapshot per control and day (DRAFT ones too: their assessed level)', today.length === list.controls.length && today.includes('op.exp.3|2026-10-20'), [today.length, list.controls.length]);
   const snap = internal.store.get('op.exp.3|2026-10-20').source;
   check('the snapshot has status, score, coverage and the levels', snap.date === '2026-10-20' && typeof snap.status === 'string' && 'score' in snap && snap.accredited === m.accredited && snap.target === m.target && snap.recordedBy === 'rsis', snap);
   const writesBefore = internal.calls.bulk.length;
@@ -322,7 +325,51 @@ const Z = { timeZone: 'Europe/Madrid' };
   console.log('7. The days come from the indexer, formatted');
   check('the activity histogram asks the indexer for yyyy-MM-dd days in the configured zone', seen.length > 0 && seen.every(h => h.format === 'yyyy-MM-dd' && h.time_zone === 'Europe/Madrid'), seen[0]);
 
-  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush()]);
+  console.log('8. DRAFT controls (no collector yet): maturity reaches the response and the detail');
+  const drafts = list.controls.filter((c: any) => !c.measured).map((c: any) => c.controlId).sort();
+  check('the 11 DRAFT controls are in the overview maturity, not measured, without accredited level', drafts.length === 11 && list.controls.filter((c: any) => !c.measured).every((c: any) => c.accredited === undefined), drafts);
+  check('...and they count as «sin medición» in the distribution', list.distribution.accredited.notMeasured === 11, list.distribution.accredited);
+  const draftDetail = await ready({ include: 'control', controlId: 'mp.eq.3', ...Z });
+  const dm = draftDetail.body.data.maturity;
+  check('a DRAFT control\'s detail: maturity present (not stuck on pending), not measured, no gates, with the document version', dm && !draftDetail.body.data.meta.maturityPending && dm.measured === false && dm.applicable === true && dm.gates.length === 0 && dm.accredited === undefined && 'maturityVersion' in draftDetail.body.data, draftDetail.body.data.meta);
+  const draftMachine: any = await evaluation.evaluate(context(internal), request({ include: 'control', controlId: 'mp.eq.3', agentId: '024', ...Z }), responses);
+  await maturity.flush();
+  const draftMachineReady = draftMachine.body.data.maturity ? draftMachine : await ready({ include: 'control', controlId: 'mp.eq.3', agentId: '024', ...Z });
+  check('...also with a machine selected', draftMachineReady.body.data.maturity?.measured === false);
+  const draftUnjustified: any = await save({ controlId: 'mp.eq.3', kind: 'assessment', entry: { level: 2, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: draftDetail.body.data.maturityVersion });
+  check('assessing a DRAFT control above L0 needs a justification (accredited L0)', draftUnjustified.status === 400 && /supera al acreditado \(L0\)/.test(draftUnjustified.body.message), draftUnjustified.body);
+  const draftAssessed: any = await save({ controlId: 'mp.eq.3', kind: 'assessment', entry: { level: 2, reviewer: 'Luis', date: '2026-10-20', justification: 'Procedimiento de portátiles aprobado; sin recolector todavía' }, expectedVersion: draftDetail.body.data.maturityVersion });
+  const draftAfter = await ready({ include: 'control', controlId: 'mp.eq.3', ...Z });
+  check('...with it, the assessed level is declared while accredited stays «sin medición»', draftAssessed.status === 200 && draftAfter.body.data.maturity.assessed?.level === 2 && draftAfter.body.data.maturity.accredited === undefined && draftAfter.body.data.maturity.aboveAccredited, draftAssessed.body);
+  const low = setup({ ensLevel: 'BAJO' });
+  const lowOverview = await low.ready({ include: 'overview', ...Z });
+  const lowOf = (id: string) => lowOverview.body.data.maturity.controls.find((c: any) => c.controlId === id);
+  check('at BAJO, a DRAFT control that only applies from MEDIO is not applicable; one for every level is', lowOf('mp.eq.2')?.applicable === false && lowOf('mp.s.4')?.applicable === false && lowOf('mp.eq.3')?.applicable === true, [lowOf('mp.eq.2'), lowOf('mp.eq.3')]);
+
+  // The detail as the browser draws it, from that same server answer.
+  const { installReactHarness } = require('./fixtures/react-harness');
+  let shown: any;
+  const h = installReactHarness({
+    overrides: { [`${__dirname}/../public/evaluation/use-evaluation.ts`]: () => ({ useEnsEvaluation: () => ({ ...shown, retry: () => undefined }) }) },
+  });
+  const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
+  const { hydrateENSScope } = require('../common/ens/core/scope/runtime');
+  const { ENSControls } = require('../public/ens/data');
+  const { ControlDetailENS } = require('../public/ens/controls/control-detail');
+  ensConfigurationRepository.completeHydration(clone(internal.store.get('active').source.configuration));
+  await hydrateENSScope({ mode: 'group', agentIds: [], groupIds: ['ens'] }, async () => [{ id: '024', name: 'wazuh-real', groups: ['ens'], status: 'active' }] as any, true);
+  shown = { data: draftDetail.body.data, isLoading: false, isRefreshing: false };
+  let page = await h.render(ControlDetailENS, { control: ENSControls.find((c: any) => c.id === 'mp.eq.3'), onBack: () => undefined });
+  const valorar = h.find('EuiButton', /^Valorar$/);
+  check('the detail shows «Madurez: sin valorar (sin medición todavía, objetivo …)», never «calculando…»', /Madurez: sin valorar \(sin medición todavía, objetivo L\d\)/.test(page) && !/Madurez: calculando/.test(page), page.slice(0, 900));
+  check('...«Sin medición todavía» in the panel and «Valorar» enabled', /Sin medición todavía/.test(page) && Boolean(valorar) && !valorar!.props.isDisabled, valorar?.props);
+  shown = { data: draftAfter.body.data, isLoading: false, isRefreshing: false };
+  h.reset();
+  page = await h.render(ControlDetailENS, { control: ENSControls.find((c: any) => c.id === 'mp.eq.3'), onBack: () => undefined });
+  check('after assessing: «Madurez: L2 (sin medición todavía, …)» with who and when', /Madurez: L2 \(sin medición todavía, objetivo L\d\)/.test(page) && /Valorado L2 por Luis el 2026-10-20/.test(page), page.slice(0, 900));
+  check('...marked as resting on the justification alone, not «frente a L0»', /Valorado L2 sin medición todavía: se apoya solo en la justificación/.test(page) && !/frente a L0/.test(page));
+
+  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush(), low.maturity.flush()]);
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })().catch(error => {

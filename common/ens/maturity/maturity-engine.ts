@@ -528,7 +528,9 @@ export const describeAssessment = (maturity: ENSControlMaturity): { line?: strin
   const target = assessed.target !== undefined ? `, objetivo L${assessed.target}` : '';
   const line = `Valorado L${assessed.level}${target} por ${assessed.reviewer} el ${assessed.date}${assessed.justification ? `. Justificación: ${assessed.justification}` : ''}.`;
   const mark = maturity.aboveAccredited
-    ? assessed.accredited === undefined
+    ? !maturity.measured
+      ? `Valorado L${assessed.level} sin medición todavía: se apoya solo en la justificación.`
+      : assessed.accredited === undefined
       ? `Valorado sin nivel acreditado calculado al registrarlo (L${assessed.level}).`
       : `Valorado por encima de lo acreditado al registrarlo (L${assessed.level} frente a L${assessed.accredited}).`
     : undefined;
