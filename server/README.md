@@ -144,7 +144,7 @@ El conjunto de datos del informe anual (`common/ens/annual-report/`, servicio en
 
 ### `GET /api/ensfacil/annual-report`
 
-`period` (AAAA, opcional: el periodo en curso) y `revision` (opcional: una revisión congelada anterior). Se lee como el usuario; los congelados también (sin permiso de lectura de `wazuh-ens-snapshots`, el conjunto se calcula en el momento y `freezeError` lo dice). `{ period, currentPeriod, lastClosedPeriod, closing, periodFrom, periodTo, periods[], frozen?, report?, pending?, freezeError?, maturityVersion }`; con la evaluación aún calculándose, `pending: true` sin `report`. 400 con un periodo mal formado o futuro; 404 con una revisión que no existe.
+`period` (AAAA, opcional: el periodo en curso) y `revision` (opcional: una revisión congelada anterior). El cierre sale de op.mon.2 P-02 en la configuración. Un periodo congelado se sirve tal como se guardó sin evaluar nada (lectura de la configuración, de la versión de la madurez y del congelado como el usuario); solo un periodo sin congelar evalúa todos los controles (`include=results`). Sin permiso de lectura de `wazuh-ens-snapshots`, el conjunto se calcula en el momento y `freezeError` lo dice. `{ period, currentPeriod, lastClosedPeriod, closing, periodFrom, periodTo, periods[], frozen?, report?, pending?, freezeError?, maturityVersion }`; con la evaluación aún calculándose, `pending: true` sin `report`. 400 con un periodo mal formado o futuro; 404 con una revisión que no existe.
 
 ### `POST /api/ensfacil/annual-report/freeze`
 
