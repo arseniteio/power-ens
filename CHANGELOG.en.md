@@ -106,9 +106,10 @@ traffic light.
   controls that are not `ACTIVE` do not count (ENS-DASH-002, Francisco
   Caicedo).
 - Panel: «Eventos operativos ENS relevantes» becomes «Alertas operativas
-  SOC»: collector warnings (`collector_warning`), security alerts
-  (`security_alert_observed`, on the machine named by `agente_id` and
-  `sistema`) and multi-role use (`multi_role_usage`), each with its control,
+  SOC»: collector warnings (`collector_warning`, one per parameter and
+  motive), security alerts (`security_alert_observed`, on the machine named by
+  `agente_id` and `sistema`, labelled with their rule's description and counted
+  in hours with alerts) and multi-role use (`multi_role_usage`), each with its control,
   machine, last observation and how many times it was observed. The same
   problem observed many times is one alert. Only machines in the scope and
   controls applicable to that machine by the computed result are shown, and a

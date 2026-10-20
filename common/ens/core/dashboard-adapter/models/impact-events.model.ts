@@ -11,6 +11,8 @@ export interface ImpactEventRowModel {
   severity: ImpactEventSeverity;
   // How many facts observed it in the window.
   count: number;
+  // That count in words (facts, or hours with alerts for a security alert); only from two on.
+  countLabel?: string;
   controlId: string;
   agentId: string;
   agentName?: string;

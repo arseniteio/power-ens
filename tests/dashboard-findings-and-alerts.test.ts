@@ -104,7 +104,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   ];
   const applicable = (controlId: string, requirements: any[], ncs: any[] = []) => result(controlId, requirements, ncs, 'CUMPLE');
   const of024 = [
-    applicable('op.acc.1', [requirement('op.acc.1.2', 'NO_CUMPLE')], [nc('op.acc.1.2', 'MEDIDA', 'EV-06')]),
+    applicable('op.acc.1', [requirement('op.acc.1.2', 'NO_CUMPLE'), requirement('op.acc.1.r2.1', 'NO_APLICA')], [nc('op.acc.1.2', 'MEDIDA', 'EV-06')]),
     applicable('op.exp.3', [requirement('op.exp.3.1', 'CUMPLE')]),
     applicable('mp.info.6', [requirement('mp.info.6.1', 'NO_APLICA')]),
   ];
@@ -130,7 +130,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
     hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'multi_role_usage', requisito: 'op.acc.1.2', estado: 'CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 3),
     hit('028', 'zimbraHldap', { ensfacil: 'op.acc.1', event: 'multi_role_usage', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'zadmin', roles: 'usuario,administrador' }, 3),
     // Security alerts written by the manager: about 024 (one rule, three hours = one problem), about a machine outside the scope, about no machine.
-    ...[8, 7, 6].map(h => hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '024', sistema: 'wazuh-real', regla: '5710', nivel: '10', alertas: '4', primera: at(h + 1), ultima: at(h) }, h)),
+    ...[8, 7, 6].map(h => hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '024', sistema: 'wazuh-real', regla: '5710', nivel: '10', alertas: '4', primera: at(h + 1), ultima: at(h), descripcion: 'sshd: intento de acceso con un usuario inexistente' }, h)),
     hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '029', sistema: 'fuera', regla: '5710', primera: at(9), ultima: at(8) }, 8),
     hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', regla: '31151', primera: at(4), ultima: at(4) }, 4),
   ];
@@ -148,6 +148,8 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const security = model.rows.filter((row: any) => row.eventType === 'security_alert_observed');
   const on024 = security.find((row: any) => row.agentId === '024');
   check('a security alert is attributed to the machine it names: one row for three hours of the same rule', on024?.count === 3 && on024?.agentName === 'wazuh-real' && on024?.controlId === 'op.exp.7' && /Regla 5710/.test(on024?.description), security);
+  check('…labelled with the rule\'s description, and its count says it counts hours', on024?.label === 'sshd: intento de acceso con un usuario inexistente' && on024?.countLabel === 'alertas en 3 horas', on024);
+  check('…and the fixed text when the fact has no description', security.find((row: any) => row.agentId === '000')?.label === 'Alerta de seguridad observada por Wazuh.', security);
   check('…and to the manager when it names none; not shown for a machine outside the scope', security.length === 2 && security.some((row: any) => row.agentId === '000') && !security.some((row: any) => row.agentId === '029'), security.map((r: any) => r.agentId));
   check('applicability: no row for NO_APLICA, DRAFT, a control without a row on that machine, or a machine outside the scope',
     !model.rows.some((row: any) => ['mp.info.6', 'mp.eq.2'].includes(row.controlId) || row.agentId === '028' || row.agentId === '099'), model.rows.map((r: any) => r.id));
@@ -156,6 +158,24 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const only028 = alerts.buildImpactEventsModel(events, { ...view028, results: [...of028, opExp7] }, { scope, agentId: '028' });
   check('machine view: the manager\'s alerts yes, another machine\'s security alert no', only028.rows.length === 1 && only028.rows[0].agentId === '000', only028.rows.map((r: any) => r.id));
   check('without results nothing is shown', alerts.buildImpactEventsModel(events, undefined, { scope }).rows.length === 0);
+
+  // Real-shaped warnings (op.acc.1's collector): `parametro` + `motivo`, the same motive for two parameters.
+  const sameMotive = 'no es un entero no negativo; se usa el valor por defecto de la libreria';
+  const realShaped = alerts.buildImpactEventsModel(normalizeWazuhAlerts([
+    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'abc', motivo: sameMotive }, 2),
+    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_RETENCION_DIAS', valor: '-1', motivo: sameMotive }, 2),
+    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'xyz', motivo: sameMotive }, 1),
+  ]), whole, { scope });
+  const tips = realShaped.rows.map((row: any) => row.description).sort();
+  check('same motive, different parameter: two rows, each naming its parameter (a new value of the same one is the same problem)',
+    realShaped.rows.length === 2 && tips[0] === 'Parámetro OPACC1_RETENCION_DIAS' && tips[1] === 'Parámetro OPACC1_UID_MIN' && realShaped.rows.every((row: any) => row.label === sameMotive), realShaped.rows);
+  const bare = alerts.buildImpactEventsModel(normalizeWazuhAlerts([hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning' }, 2)]), whole, { scope });
+  check('a warning with nothing to tell: Spanish texts, never the type id', bare.rows.length === 1 && bare.rows[0].description === 'Sin más detalle del agente.' && bare.rows[0].label === 'Advertencia del recolector ENS.', bare.rows);
+  const named = alerts.buildImpactEventsModel(normalizeWazuhAlerts([
+    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.r2.1', parametro: 'P', motivo: 'm' }, 2),
+    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.2', parametro: 'P', motivo: 'm' }, 2),
+  ]), whole, { scope });
+  check('a warning that names its requirement shows only if that requirement applies', named.rows.length === 1 && named.rows[0].description === 'Parámetro P · requisito op.acc.1.2', named.rows);
 
   console.log('4. The server builds them from a bounded aggregation, as the engine would in memory');
   const clock = now;

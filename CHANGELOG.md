@@ -108,10 +108,11 @@ cada control junto al semáforo.
   clasificar. Las cuatro cifras son excluyentes y suman el total; los controles
   que no están en `ACTIVE` no cuentan (ENS-DASH-002, Francisco Caicedo).
 - Panel: «Eventos operativos ENS relevantes» pasa a «Alertas operativas SOC»:
-  avisos del recolector (`collector_warning`), alertas de seguridad
-  (`security_alert_observed`, en la máquina que nombran `agente_id` y
-  `sistema`) y usos multirrol (`multi_role_usage`), cada una con su control, su
-  máquina, su última observación y cuántas veces se ha observado. El mismo
+  avisos del recolector (`collector_warning`, uno por parámetro y motivo),
+  alertas de seguridad (`security_alert_observed`, en la máquina que nombran
+  `agente_id` y `sistema`, con la descripción de su regla y contadas en horas
+  con alertas) y usos multirrol (`multi_role_usage`), cada una con su control,
+  su máquina, su última observación y cuántas veces se ha observado. El mismo
   problema observado muchas veces es una sola alerta. Solo salen las de
   máquinas del alcance y controles aplicables a esa máquina según el resultado
   calculado, y un uso multirrol es «Incidencia» solo si el motor tiene una no

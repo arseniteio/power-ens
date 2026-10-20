@@ -16,10 +16,10 @@ import {
   ImpactEventsModel,
 } from '../models/impact-events.model';
 
-// Alert types and the `data.*` fields of their incident key besides `agent.id`; `primera` is left out because op.exp.7 emits one fact per rule, system and hour.
+// Alert types and the `data.*` fields of their incident key besides `agent.id`: most warnings name a `parametro`, only mp.info.6's an `origen`/`objeto`; op.exp.7 emits one fact per rule, system and hour, so `primera` stays out and `descripcion` (fixed by the rule) only labels it.
 export const OPERATIONAL_ALERT_KEY_FIELDS: Record<string, string[]> = {
-  collector_warning: ['ensfacil', 'origen', 'objeto', 'motivo'],
-  security_alert_observed: ['ensfacil', 'agente_id', 'sistema', 'regla'],
+  collector_warning: ['ensfacil', 'requisito', 'parametro', 'origen', 'objeto', 'motivo'],
+  security_alert_observed: ['ensfacil', 'agente_id', 'sistema', 'regla', 'descripcion'],
   multi_role_usage: ['ensfacil', 'requisito', 'usuario', 'motivo'],
 };
 
@@ -56,9 +56,9 @@ export interface OperationalAlertsOptions {
 const text = (value: unknown): string =>
   value === undefined || value === null ? '' : String(Array.isArray(value) ? value[0] ?? '' : value);
 
-// The agent's own motive, cut to 140 characters, or the type's fixed text.
+// The agent's own motive (the rule's description for a security alert), cut to 140 characters, or the type's fixed text.
 const labelOf = (incident: OperationalIncident): string => {
-  const reason = (incident.fields.motivo || '').trim();
+  const reason = (incident.fields[incident.eventType === 'security_alert_observed' ? 'descripcion' : 'motivo'] || '').trim();
   if (!reason) return FIXED_LABEL[incident.eventType] || 'Acontecimiento operativo ENS.';
   return reason.length > MAX_LABEL ? `${reason.slice(0, MAX_LABEL - 3)}...` : reason;
 };
@@ -70,9 +70,13 @@ const detailOf = (incident: OperationalIncident): string => {
       ? [f('usuario') && `Cuenta ${f('usuario')}`, f('requisito') && `requisito ${f('requisito')}`]
       : incident.eventType === 'security_alert_observed'
       ? [f('regla') && `Regla ${f('regla')}`, f('sistema') && `en ${f('sistema')}`]
-      : [f('origen'), f('objeto')];
-  return parts.filter(Boolean).join(' · ') || incident.eventType;
+      : [f('parametro') && `Parámetro ${f('parametro')}`, f('origen'), f('objeto'), f('requisito') && `requisito ${f('requisito')}`];
+  return parts.filter(Boolean).join(' · ') || 'Sin más detalle del agente.';
 };
+
+// What the count counts: op.exp.7 emits one fact per rule, system and hour, so for a security alert it is hours with alerts.
+const countLabelOf = (eventType: string, count: number): string | undefined =>
+  count < 2 ? undefined : eventType === 'security_alert_observed' ? `alertas en ${count} horas` : `${count} observaciones`;
 
 // The engine's result that judges that control for that machine: its own row or, for a control measured on the manager, the view's result.
 const controlResultFor = (
@@ -128,7 +132,7 @@ const toRow = (
     if (!requirementId || !judged) return undefined;
     severity = 'error';
   } else {
-    // Only where the control has an applicable requirement (that one, if the fact names it).
+    // Only where the control has an applicable requirement: the one the fact names (a warning may carry `requisito`), otherwise any.
     const applicable = requirementId
       ? result.requirements.some(requirement => requirement.id === requirementId && requirement.status !== 'NO_APLICA')
       : result.requirements.some(requirement => requirement.status !== 'NO_APLICA');
@@ -185,7 +189,10 @@ export const buildOperationalAlertsModel = (
 
   return {
     title: 'ALERTAS OPERATIVAS SOC',
-    rows: sorted.slice(0, OPERATIONAL_ALERT_ROWS),
+    rows: sorted.slice(0, OPERATIONAL_ALERT_ROWS).map(row => {
+      const countLabel = countLabelOf(row.eventType, row.count);
+      return countLabel ? { ...row, countLabel } : row;
+    }),
     total: sorted.length,
   };
 };

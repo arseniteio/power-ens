@@ -904,7 +904,7 @@ export const EnsDashboardMain = () => {
                   <div title={row.description}>{row.label}</div>
                   <div style={{ marginTop: 5, fontSize: 11, color: '#69707D' }}>
                     Última observación: {formatTimestamp(row.lastObserved)}
-                    {row.count > 1 ? ` · ${row.count} observaciones` : ''}
+                    {row.countLabel ? ` · ${row.countLabel}` : ''}
                   </div>
                 </div>
               );
