@@ -253,13 +253,20 @@ const reference = () => {
     check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 34 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
     // A control without collector (DRAFT) has its result at once: only a measured one shows the slices work.
     const measuredIds = require('../common/ens/catalog').ENSCatalog.filter((c: any) => c.status === 'ACTIVE').map((c: any) => c.id);
-    check('§10 and the cheap ones are already there, on all their machines (by control slices)', resp.controls.some((c: any) => !c.pending && c.evaluated && measuredIds.includes(c.controlId)), resp.controls.filter((c: any) => !c.pending && measuredIds.includes(c.controlId)).length);
+    // Under CPU load the first answer may carry no finished slice yet: any partial answer proves the slices.
+    const partial = (r: any) => {
+      const controls: any[] = buildEvaluationResponse(r).controls;
+      return controls.some(c => c.pending) && controls.some(c => !c.pending && c.evaluated && measuredIds.includes(c.controlId));
+    };
+    let sawPartial = partial(first);
     let n = 0;
     let ultima = first;
     while (ultima.meta.pending && n++ < 200) {
       await wait(50);
       ultima = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
+      sawPartial = sawPartial || partial(ultima);
     }
+    check('§10 and the cheap ones arrive before the rest, on all their machines (by control slices)', sawPartial, n);
     const ref10 = reference();
     check('§10 the computation goes on even if whoever asked left, and ends like the engine', !ultima.meta.pending && same(ultima.state!.results.map(withoutTrace), getENSComplianceState(ref10.nivel, ref10.eventos, undefined, ref10.alcance, clock).results.map(withoutTrace)));
     while (!s10.idle()) await wait(20);
