@@ -32,6 +32,8 @@ export const MATURITY_FORM_TITLES: Record<ENSMaturityRecordKind, string> = {
   review: 'Registrar una revisión',
   indicators: 'Umbral y periodicidad de revisión',
   feedback: 'Registrar realimentación',
+  declaration: 'Declarar la medida',
+  resources: 'Recursos TIC totales',
 };
 
 export interface MaturityField {
@@ -98,6 +100,33 @@ export const MATURITY_FORM_FIELDS: Record<ENSMaturityRecordKind, MaturityField[]
     { name: 'closedAt', label: 'Fecha de cierre', type: 'date' },
     { name: 'procedureVersion', label: 'Versión del procedimiento que la cierra', type: 'text' },
   ],
+  declaration: [
+    {
+      name: 'applies',
+      label: 'Aplica',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'si', text: 'Sí' },
+        { value: 'no', text: 'No' },
+      ],
+    },
+    { name: 'level', label: 'Nivel valorado', type: 'select', options: levelOptions('Sin valorar'), help: 'Obligatorio si aplica.' },
+    { name: 'target', label: 'Nivel objetivo', type: 'select', options: levelOptions('El de la categoría') },
+    { name: 'reference', label: 'Referencia documental', type: 'text', required: true, help: 'Código y título del documento que la acredita.' },
+    { name: 'link', label: 'Enlace', type: 'text', help: 'http(s)://, file:// o ruta de red.' },
+    { name: 'owner', label: 'Responsable', type: 'text', required: true, people: true },
+    { name: 'date', label: 'Fecha', type: 'date', required: true },
+    { name: 'justification', label: 'Justificación', type: 'textarea', help: 'Obligatoria si no aplica.' },
+  ],
+  resources: [
+    { name: 'period', label: 'Periodo (año del cierre)', type: 'text', required: true },
+    { name: 'ictBudget', label: 'Presupuesto TIC total (€)', type: 'number' },
+    { name: 'ictStaff', label: 'Plantilla TIC total (personas, ETC)', type: 'number' },
+    { name: 'securityStaff', label: 'Plantilla de seguridad (personas, ETC)', type: 'number' },
+    { name: 'reference', label: 'Referencia documental', type: 'text', required: true, help: 'Presupuesto aprobado, RPT o documento equivalente.' },
+    { name: 'owner', label: 'Responsable', type: 'text', required: true, people: true },
+  ],
 };
 
 // The local day (the configured zone, Madrid by default): after midnight in Madrid it is already the next day.
@@ -108,8 +137,32 @@ export const initialMaturityDraft = (
   kind: ENSMaturityRecordKind,
   maturity: ENSControlMaturity | undefined,
   now: Date,
-  timeZone?: string
+  timeZone?: string,
+  // Declared entries and resources: the current values shown on screen.
+  current: Record<string, string> = {}
 ): Record<string, string> => {
+  if (kind === 'declaration') {
+    return {
+      applies: current.applies || 'si',
+      level: current.level || '',
+      target: current.target || '',
+      reference: current.reference || '',
+      link: current.link || '',
+      owner: current.owner || '',
+      date: today(now, timeZone),
+      justification: '',
+    };
+  }
+  if (kind === 'resources') {
+    return {
+      period: current.period || '',
+      ictBudget: current.ictBudget || '',
+      ictStaff: current.ictStaff || '',
+      securityStaff: current.securityStaff || '',
+      reference: current.reference || '',
+      owner: current.owner || '',
+    };
+  }
   if (kind === 'assessment') {
     return {
       level: String(maturity?.assessed?.level ?? maturity?.accredited ?? 0),

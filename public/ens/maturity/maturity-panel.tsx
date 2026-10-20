@@ -73,6 +73,7 @@ export const MaturityEntryModal = ({
   version,
   onClose,
   onSaved,
+  initial,
 }: {
   controlId: string;
   kind: ENSMaturityRecordKind;
@@ -81,9 +82,11 @@ export const MaturityEntryModal = ({
   version: ENSMaturityVersion | null;
   onClose: () => void;
   onSaved: () => void;
+  // Declared entries and resources: the values shown on screen, to adjust them.
+  initial?: Record<string, string>;
 }) => {
   const [draft, setDraft] = useState<Record<string, string>>(
-    initialMaturityDraft(kind, maturity, new Date(), getActiveENSConfiguration()?.global?.timezone)
+    initialMaturityDraft(kind, maturity, new Date(), getActiveENSConfiguration()?.global?.timezone, initial)
   );
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -130,6 +133,14 @@ export const MaturityEntryModal = ({
                   ? `La evidencia acredita L${maturity.accredited ?? 0}. Confirma ese nivel o ajústalo; por encima, justifícalo.`
                   : 'Sin medición todavía: el control está en borrador. Se puede declarar el nivel valorado con su justificación.'}
               </p>
+            </EuiText>
+            <EuiSpacer size='s' />
+          </>
+        )}
+        {kind === 'declaration' && (
+          <>
+            <EuiText size='s'>
+              <p>Medida sin motor: esta entrada es el dato del informe anual. Se añade al historial; no sustituye a las anteriores.</p>
             </EuiText>
             <EuiSpacer size='s' />
           </>

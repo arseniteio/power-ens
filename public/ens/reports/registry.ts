@@ -1,6 +1,7 @@
 /** Report model registry by control. There is no default model: a control without one has no report (`undefined`), never another control's. */
 import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
+import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
 import { buildMpCom1ReportModel } from './mp-com-1-report-model';
 import { buildMpCom3ReportModel } from './mp-com-3-report-model';
@@ -72,10 +73,14 @@ export interface ENSReportModelDefinition {
 
   build: (
     result: ENSComplianceResult | undefined,
-    panorama?: ENSComplianceResult[]
+    panorama?: ENSComplianceResult[],
+    extra?: { annualReport?: ENSAnnualReport }
   ) => ENSReportModel;
 
   usesAllControls?: boolean;
+
+  // op.mon.2: the report shows «Informe anual (art. 32)» and draws field 8 from its data set.
+  usesAnnualReport?: boolean;
 }
 
 const reportModelDefinitions: ENSReportModelDefinition[] = [
@@ -239,6 +244,7 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
     name: 'op.mon.2 - Sistema de métricas',
     build: buildOpMon2ReportModel,
     usesAllControls: true,
+    usesAnnualReport: true,
   },
   {
     controlId: 'op.mon.3',

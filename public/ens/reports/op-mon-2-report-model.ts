@@ -11,6 +11,8 @@ import {
 } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
+import { describeAnnualReport } from '../../../common/ens/annual-report/annual-report-export';
+import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -220,6 +222,7 @@ const greys = (panorama: ENSComplianceResult[]): string[] =>
 export const buildOpMon2ReportModel = (
   result: ENSComplianceResult | undefined,
   panorama?: ENSComplianceResult[],
+  extra: { annualReport?: ENSAnnualReport } = {},
 ): OpMon2ReportModel => {
   const evidences = new Map(
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
@@ -353,7 +356,18 @@ export const buildOpMon2ReportModel = (
     [...(r2?.observations || []), ...evidenceObservations('EV-06')],
   );
 
-  const field8 = field(
+  // With the art. 32 data set, field 8 is its summary (the same figures as the JSON and CSV exports).
+  const annual = extra.annualReport;
+  const field8 = annual
+    ? field(
+        'op.mon.2.campo8',
+        'Datos para el informe anual del artículo 32',
+        'NO_APLICA',
+        `Conjunto de datos del periodo ${annual.period} por medida del Anexo II, con el origen de cada cifra (formato ${annual.schema}). Dato del informe, sin veredicto.`,
+        ['EV-07'],
+        describeAnnualReport(annual),
+      )
+    : field(
     'op.mon.2.campo8',
     'Datos para el informe anual del artículo 32',
     panorama ? 'NO_APLICA' : 'SIN_DATOS',

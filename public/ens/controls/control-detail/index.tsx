@@ -52,6 +52,8 @@ import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSour
 import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
 import { MaturityHeadline, MaturityPanel } from '../../maturity/maturity-panel';
+import { AnnualReportPanel } from '../../annual-report/annual-report-panel';
+import { ENS_ANNUAL_REPORT_CONTROL } from '../../../../common/ens/annual-report/declared-measures';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
   ENS_PENDING_MEASUREMENT_LABEL,
@@ -1290,6 +1292,13 @@ export const ControlDetailENS = ({
           onRecorded={evaluation.retry}
           onRetry={evaluation.retry}
         />
+
+        {control.id === ENS_ANNUAL_REPORT_CONTROL && (
+          <>
+            <EuiSpacer size='l' />
+            <AnnualReportPanel showMeasures />
+          </>
+        )}
 
         <EuiSpacer size='l' />
 
