@@ -164,6 +164,7 @@ export const ENS_ANNUAL_FIELD_IDS: string[] = [
     'notified_ccn_cert',
     'with_personal_data',
     'notified_aepd',
+    'alerts_window',
     'alerts_relevant',
     'alerts_in_incident',
     'alerts_to_incident_pct',

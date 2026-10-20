@@ -563,8 +563,27 @@ const incidentsOf = (
   // Share of the relevant alerts that ended in an incident: op.exp.7's reconciliation, only if its window touches the period.
   const reconciledFrom = ms(reconciliation?.desde);
   const reconciledTo = ms(reconciliation?.hasta);
+  // Where op.exp.7's window falls against the period, as a datum of its own (field 8 reads it, not a trace).
+  const coverage =
+    reconciledFrom === undefined || reconciledTo === undefined
+      ? null
+      : reconciledTo <= window.fromMs || reconciledFrom >= window.toMs
+      ? 'FUERA'
+      : reconciledFrom >= window.fromMs && reconciledTo <= window.toMs
+      ? 'DENTRO'
+      : 'PARCIAL';
+  data.push(
+    datum(
+      'incidents.alerts_window',
+      coverage,
+      coverage ? 'ALERT_RECONCILIATION' : 'NONE',
+      coverage
+        ? `ventana de la conciliación de op.exp.7 (${reconciliation.desde} a ${reconciliation.hasta}) frente al periodo: DENTRO, PARCIAL o FUERA`
+        : reconciliation?.motivo || 'sin la conciliación de alertas de op.exp.7'
+    )
+  );
   const outside =
-    reconciledFrom !== undefined && reconciledTo !== undefined && (reconciledTo <= window.fromMs || reconciledFrom >= window.toMs)
+    coverage === 'FUERA'
       ? `no disponible para este periodo: la ventana de conciliación de op.exp.7 (${reconciliation.desde} a ${reconciliation.hasta}) queda fuera del periodo`
       : undefined;
   if (!reconciliation || reconciliation.motivo || typeof reconciliation.relevantes !== 'number' || outside) {
@@ -577,7 +596,7 @@ const incidentsOf = (
   } else {
     const r = reconciliation;
     const decided = r.enIncidente + r.sinIncidente;
-    const partial = (reconciledFrom ?? 0) < window.fromMs || (reconciledTo ?? Infinity) > window.toMs ? '; la ventana solo cubre en parte el periodo' : '';
+    const partial = coverage === 'PARCIAL' ? '; la ventana solo cubre en parte el periodo' : '';
     const trace = `conciliación de op.exp.7 de los ${r.ventanaDias} días de ${r.desde} a ${r.hasta} (no del periodo entero${partial}): alertas Alta y Crítica; ${r.pendientes} dentro de su plazo de escalado, ${r.sinPlazo} sin plazo en P-02 y ${r.excluidas} excluidas por P-12 no cuentan`;
     data.push(
       datum('incidents.alerts_relevant', r.relevantes, 'ALERT_RECONCILIATION', trace, { unit: 'n' }),

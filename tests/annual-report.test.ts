@@ -180,6 +180,7 @@ const onlyOccurrence = build({ managerRows: { 'op.mon.2': opMon2Row(), 'op.exp.7
 check('without op.exp.7 only fecha_ocurrencia counts', get(onlyOccurrence.incidents, 'incidents.mttd_hours')!.value === 4 && get(onlyOccurrence.incidents, 'incidents.mttd_lower_bound_hours')!.value === null && get(onlyOccurrence.incidents, 'incidents.mttd_without_data')!.value === 2);
 check('MTTC and MTTR', inc('incidents.mttc_hours')!.value === 1.5 && inc('incidents.mttr_hours')!.value === 26);
 check('CCN-CERT and AEPD', inc('incidents.notified_ccn_cert')!.value === 1 && inc('incidents.with_personal_data')!.value === 1 && inc('incidents.notified_aepd')!.value === 1);
+check('the reconciliation window inside the open period: DENTRO', inc('incidents.alerts_window')!.value === 'DENTRO');
 check('alerts that ended in an incident: 6 of 8 decided = 75 %, window of op.exp.7 in the trace', inc('incidents.alerts_to_incident_pct')!.value === 75 && inc('incidents.alerts_relevant')!.value === 10 && /no del periodo entero/.test(inc('incidents.alerts_to_incident_pct')!.trace));
 const noneDecided = build({
   managerRows: {
@@ -198,7 +199,10 @@ const closed = build({ period: '2026' });
 check('a closed period counts its own incidents and is not open', get(closed.incidents, 'incidents.total')!.value === 1 && h(closed, 'header.period_open') === false && h(closed, 'header.period_start') === '2025-04-01');
 check(
   'the alert share is not published for a period its 30-day window does not touch',
-  get(closed.incidents, 'incidents.alerts_to_incident_pct')!.value === null && /no disponible para este periodo: la ventana de conciliación/.test(get(closed.incidents, 'incidents.alerts_to_incident_pct')!.trace) && describeAnnualReport(closed).some(line => /no disponible para este periodo/.test(line))
+  get(closed.incidents, 'incidents.alerts_to_incident_pct')!.value === null &&
+    get(closed.incidents, 'incidents.alerts_window')!.value === 'FUERA' &&
+    /no disponible para este periodo: la ventana de conciliación/.test(get(closed.incidents, 'incidents.alerts_to_incident_pct')!.trace) &&
+    describeAnnualReport(closed).some(line => /no disponible para este periodo/.test(line))
 );
 const covered = (period: string) =>
   build({ period, managerRows: { 'op.mon.2': opMon2Row('03-31', { incidents: { ...INCIDENTS, desde: '2025-03-31T00:00:00Z' } }), 'op.exp.7': opExp7Row() } });
@@ -276,7 +280,7 @@ const frozen = markAnnualReportFrozen(report, { revision: 1, frozenAt: '2027-04-
 check('marking it frozen changes only the header', h(frozen, 'header.frozen') === true && h(frozen, 'header.revision') === 1 && JSON.stringify({ ...frozen, header: [] }) === JSON.stringify({ ...report, header: [] }));
 check(
   'field 8 summary: implementation on the DA as field 2, MTTD exact and lower bound apart',
-  describeAnnualReport(report).some(line => /Grado de implantación de la organización: 80 % .*de la DA, P-01, como el campo 2/.test(line)) &&
+  describeAnnualReport(report).some(line => /Grado de implantación de la organización: 80 % .*de la DA, P-01, con el mismo cálculo que el campo 2/.test(line)) &&
     describeAnnualReport(report).some(line => /MTTD 4 h con fecha de ocurrencia \(1 incidentes\) y cota inferior 2 h con la primera alerta conciliada \(1\)/.test(line)),
   describeAnnualReport(report)
 );
