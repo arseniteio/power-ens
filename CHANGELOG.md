@@ -115,9 +115,9 @@ cada control junto al semáforo.
 - Las copias de seguridad de la configuración incluyen también el documento
   `maturity` (guías 01, 02, 04, 06 y 07).
 - Volver a ejecutar `config/create-admin-role.sh` para que `ensfacil_admin`
-  lea `wazuh-ens-snapshots` (guía 02).
-- La madurez necesita una retención de `wazuh-alerts-*` de 31 días o más
-  para acreditar L2 y L3 (guía 10).
+  lea `wazuh-ens-snapshots` (guías 02 y 07).
+- La madurez pide una retención de `wazuh-alerts-*` de 31 días o más: con
+  menos, L2 y L3 pueden no acreditarse (guía 10).
 - Un plugin 1.3.0 ignora la madurez registrada y no la toca.
 - Sin ninguna dimensión declarada, los resultados no cambian.
 - Un documento que declara T o D puede cambiar de veredicto: D gobierna

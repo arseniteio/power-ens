@@ -346,10 +346,23 @@ En Docker, las mismas tres consultas se hacen con la función `ix` de
    `/var/backups/ensfacil/`.
 5. Comprobar como en el apartado 10. La lista de plugins debe indicar la
    versión nueva.
-6. Si la versión trae controles o parámetros nuevos, sembrar su configuración
+6. Volver a ejecutar el `create-admin-role.sh` de la carpeta de la versión
+   nueva, sin `--mapear` (las asignaciones existentes se conservan), para que el
+   rol `ensfacil_admin` reciba los permisos que pida la versión; desde la 1.4.0,
+   la lectura de `wazuh-ens-snapshots` que usa la madurez
+   ([Valoración de la madurez, apartado 10.2](10-maturity-assessment.md#102-quién-la-lee)):
+
+   ```bash
+   sudo bash create-admin-role.sh
+   ```
+
+   Resultado esperado: el script termina sin error y
+   `GET _plugins/_security/api/roles/ensfacil_admin` muestra
+   `wazuh-ens-snapshots` en `index_permissions` con `read`.
+7. Si la versión trae controles o parámetros nuevos, sembrar su configuración
    **después** de desplegar
    ([guía de actualización, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
-7. Revisar en la pantalla de Configuración los niveles de las dimensiones (C, I,
+8. Revisar en la pantalla de Configuración los niveles de las dimensiones (C, I,
    T, A y D) y, en General, «Datos de la organización»: los datos pendientes de
    elegir y los que no tienen valor común
    ([guía de instalación, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política)).

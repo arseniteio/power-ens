@@ -112,9 +112,9 @@ traffic light.
 - Configuration backups also include the `maturity` document (guides 01, 02,
   04, 06 and 07).
 - Run `config/create-admin-role.sh` again so `ensfacil_admin` reads
-  `wazuh-ens-snapshots` (guide 02).
-- Maturity needs a `wazuh-alerts-*` retention of 31 days or more to accredit
-  L2 and L3 (guide 10).
+  `wazuh-ens-snapshots` (guides 02 and 07).
+- Maturity asks for a `wazuh-alerts-*` retention of 31 days or more: with
+  less, L2 and L3 may not be accredited (guide 10).
 - A 1.3.0 plugin ignores the recorded maturity and does not touch it.
 - With no dimension declared, the results do not change.
 - A document that declares T or D may change verdicts: D also governs
