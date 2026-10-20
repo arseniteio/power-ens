@@ -10,6 +10,7 @@ import { IncoherentLevelsNotice } from '../configuration/components/incoherent-l
 import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
 import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
+import { formatTimestamp } from '../../../common/ens/evaluation/motive-parser';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {
@@ -21,6 +22,19 @@ const findingSeverityColor = (severity: string): string => {
   }
 
   return '#BD271E';
+};
+
+// Severity of an operational alert: red when the engine judged it, amber for a warning.
+const alertSeverityPresentation = (severity: string): { color: string; label: string } => {
+  if (severity === 'error') {
+    return { color: '#BD271E', label: 'INCIDENCIA' };
+  }
+
+  if (severity === 'warning') {
+    return { color: '#F5A700', label: 'ADVERTENCIA' };
+  }
+
+  return { color: '#69707D', label: 'INFORMACIÓN' };
 };
 
 const requirementStatusPresentation = (
@@ -345,23 +359,37 @@ export const EnsDashboardMain = () => {
         </div>
 
         <div style={card}>
-          <div style={title}>HALLAZGOS RELEVANTES</div>
-        <div
-          style={{
-          fontSize: 58,
-          lineHeight: '60px',
-          fontWeight: 700,
-          color:
-            findingSeverityColor(dashboardModel.findings.severity),
-        }}
-       >
-        {dashboardModel.findings.total}
-       </div>
-       <div>{dashboardModel.findings.description}</div>
-       <div style={{ marginTop: 20 }}>
-         Última evaluación:<br />
-         <b>{dashboardModel.findings.lastEvaluation}</b>
-       </div>
+          <div style={title}>{dashboardModel.findings.title}</div>
+          <div
+            style={{
+              fontSize: 58,
+              lineHeight: '60px',
+              fontWeight: 700,
+              color: findingSeverityColor(dashboardModel.findings.severity),
+            }}
+          >
+            {dashboardModel.findings.total}
+          </div>
+          <div style={{ fontSize: 12 }}>{dashboardModel.findings.description}</div>
+          {/* The four origins are exclusive: they add up to the total. */}
+          <div style={{ fontSize: 13, lineHeight: '22px', marginTop: 10 }}>
+            <div title='Todas sus no conformidades son de medida: hay que corregir el sistema.'>
+              Medidos: <b>{dashboardModel.findings.measuredFindings}</b>
+            </div>
+            <div title='Todas sus no conformidades son por falta de prueba: hay que habilitar la evidencia.'>
+              No evidenciados: <b>{dashboardModel.findings.unevidencedFindings}</b>
+            </div>
+            <div title='Fallan por motivos distintos en distintas máquinas: en unas medido, en otras sin prueba. En la vista de una máquina siempre es 0.'>
+              Mixtos: <b>{dashboardModel.findings.mixedFindings}</b>
+            </div>
+            <div title='Parciales o no evaluables: por diseño no generan no conformidad.'>
+              Sin clasificar: <b>{dashboardModel.findings.unclassifiedFindings}</b>
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            Última evaluación:<br />
+            <b>{dashboardModel.findings.lastEvaluation}</b>
+          </div>
         </div>
       </div>
 
@@ -852,32 +880,47 @@ export const EnsDashboardMain = () => {
             {dashboardModel.impactEvents.title}
           </div>
           
-           {dashboardModel.impactEvents.rows.length ? (
-             dashboardModel.impactEvents.rows.map(row => (
-               <div
-                 key={row.id}
-                 style={{
-                 display: 'grid',
-                 gridTemplateColumns: '210px 1fr 45px',
-                 alignItems: 'center',
-                 marginBottom: 12,
-                 fontSize: 13,
-               }}
-             >
-               <span title={row.description}>{row.label}</span>
-               <div style={{ background: '#D3DAE6', height: 12, borderRadius: 6, overflow: 'hidden' }}>
-                 <div style={{ width: `${row.percent}%`, height: 12, background: '#006BB4' }} />
-               </div>
-               <b style={{ textAlign: 'right' }}>{row.count}</b>
-             </div>
-            ))
+          {/* One row per incident: the same problem observed many times is one alert (ENS-DASH-004). */}
+          {dashboardModel.impactEvents.error ? (
+            <div style={{ color: '#BD271E', fontSize: 13, marginTop: 12 }}>{dashboardModel.impactEvents.error}</div>
+          ) : dashboardModel.impactEvents.rows.length ? (
+            dashboardModel.impactEvents.rows.map(row => {
+              const severity = alertSeverityPresentation(row.severity);
+              return (
+                <div
+                  key={row.id}
+                  style={{
+                    borderLeft: `4px solid ${severity.color}`,
+                    padding: '8px 10px',
+                    marginBottom: 8,
+                    background: '#F7F9FC',
+                    borderRadius: 4,
+                    fontSize: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 4, fontSize: 11 }}>
+                    <span style={{ color: severity.color, fontWeight: 700 }}>{severity.label}</span>
+                    <span style={{ color: '#69707D' }}>{row.controlId}</span>
+                  </div>
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>{row.agentName || row.agentId}</div>
+                  <div title={row.description}>{row.label}</div>
+                  <div style={{ marginTop: 5, fontSize: 11, color: '#69707D' }}>
+                    Última observación: {formatTimestamp(row.lastObserved)}
+                    {row.countLabel ? ` · ${row.countLabel}` : ''}
+                  </div>
+                </div>
+              );
+            })
           ) : (
             <div style={{ color: '#69707D', fontSize: 13, marginTop: 12 }}>
-              No hay eventos ENS normalizados con impacto en el cumplimiento.
+              Sin alertas operativas en la ventana y el alcance de esta vista.
             </div>
           )}
-         </div>
+          {dashboardModel.impactEvents.summary && (
+            <div style={{ color: '#69707D', fontSize: 11 }}>{dashboardModel.impactEvents.summary}</div>
+          )}
         </div>
+      </div>
 
       <div style={{ marginTop: 16 }}>
         {/* The organisation's maturity (normative), apart from the compliance index (operational). */}

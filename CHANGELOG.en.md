@@ -99,6 +99,28 @@ traffic light.
   with auditd (Linux and LDAP) or with a read SACL (Windows); FIM only detects
   integrity changes.
 - op.exp.3 EV-11 is declared ENSFácil's own evidence.
+- Panel: the «Hallazgos relevantes» card becomes «Requisitos que requieren
+  atención» and splits the unfavourable requirements by the origin of their
+  non-conformities: measured, unevidenced, mixed (both origins) and
+  unclassified. The four figures are exclusive and add up to the total;
+  controls that are not `ACTIVE` do not count (ENS-DASH-002, Francisco
+  Caicedo).
+- Panel: «Eventos operativos ENS relevantes» becomes «Alertas operativas
+  SOC»: collector warnings (`collector_warning`, one per parameter and
+  motive), security alerts (`security_alert_observed`, on the machine named by
+  `agente_id` and `sistema`, labelled with their rule's description and counted
+  in hours with alerts) and multi-role use (`multi_role_usage`), each with its control,
+  machine, last observation and how many times it was observed. The same
+  problem observed many times is one alert. Only machines in the scope and
+  controls applicable to that machine by the computed result are shown, and a
+  multi-role use is an «Incidencia» only if the engine holds a measured
+  non-conformity of that requirement on that machine raised by the evidence
+  that listens to the fact (EV-06 of op.acc.1): the agent's `estado` field does
+  not count. The server groups them with a bounded aggregation (the 100 most
+  recent incidents per type, only of the three types and of `ACTIVE` controls;
+  when the bound is hit the total is given as «al menos»); no events travel to
+  the browser, and if that read fails only the alerts box says so, the rest of
+  the panel is shown (ENS-DASH-004, Francisco Caicedo).
 
 ### Fixed
 

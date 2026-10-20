@@ -130,7 +130,7 @@ export const buildEvaluationResponse = (run: RunOutput, maturity?: ENSMaturityOf
   }
 
   if (query.include === 'dashboard') {
-    const model = buildENSDashboardModel(state, [], (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
+    const model = buildENSDashboardModel(state, (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
     return {
       meta,
       ...withMaturity(true),

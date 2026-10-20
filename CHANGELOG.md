@@ -102,6 +102,27 @@ cada control junto al semáforo.
   auditadas con auditd (Linux y LDAP) o con SACL de lectura (Windows); FIM solo
   detecta cambios de integridad.
 - op.exp.3 EV-11 se declara evidencia propia de ENSFácil.
+- Panel: la tarjeta «Hallazgos relevantes» pasa a «Requisitos que requieren
+  atención» y reparte los requisitos desfavorables por el origen de sus no
+  conformidades: medidos, no evidenciados, mixtos (los dos orígenes) y sin
+  clasificar. Las cuatro cifras son excluyentes y suman el total; los controles
+  que no están en `ACTIVE` no cuentan (ENS-DASH-002, Francisco Caicedo).
+- Panel: «Eventos operativos ENS relevantes» pasa a «Alertas operativas SOC»:
+  avisos del recolector (`collector_warning`, uno por parámetro y motivo),
+  alertas de seguridad (`security_alert_observed`, en la máquina que nombran
+  `agente_id` y `sistema`, con la descripción de su regla y contadas en horas
+  con alertas) y usos multirrol (`multi_role_usage`), cada una con su control,
+  su máquina, su última observación y cuántas veces se ha observado. El mismo
+  problema observado muchas veces es una sola alerta. Solo salen las de
+  máquinas del alcance y controles aplicables a esa máquina según el resultado
+  calculado, y un uso multirrol es «Incidencia» solo si el motor tiene una no
+  conformidad medida de ese requisito en esa máquina levantada por la evidencia
+  que escucha el hecho (EV-06 de op.acc.1): el campo `estado` del agente no
+  cuenta. El servidor las agrupa con una agregación acotada (los 100
+  incidentes más recientes por tipo, solo de los tres tipos y de controles en
+  `ACTIVE`; si se alcanza el límite, el total se da como «al menos»); no viajan
+  eventos al navegador, y si esa lectura falla solo el recuadro de alertas lo
+  dice, el resto del panel se muestra (ENS-DASH-004, Francisco Caicedo).
 
 ### Corregido
 
