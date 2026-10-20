@@ -420,6 +420,18 @@ const Z = { timeZone: 'Europe/Madrid' };
   stoppingJob.stop();
   await inFlight;
   check('stop() during a failing run: no retry, and the log says «not retried: stopping»', stoppingTimers.length === 0 && /nothing written for 2026-10-20, not retried: stopping/.test(warnings.slice(stoppingBefore).join(' ')), warnings.slice(stoppingBefore));
+  // stop() with a retry pending, then start() in the same process: a failure schedules a retry again.
+  const relaunched = setup({ failActivity: true });
+  const relaunchedTimers: { run: () => void; ms: number }[] = [];
+  const relaunchedJob = jobWith(relaunched, relaunchedTimers);
+  await relaunchedJob.runOnce();
+  relaunchedJob.stop();
+  await relaunchedJob.start();
+  const relaunchedBefore = warnings.length;
+  const timersBefore = relaunchedTimers.length;
+  await relaunchedJob.runOnce();
+  relaunchedJob.stop();
+  check('stop() cancels the pending retry: after start(), a failure schedules a new one', relaunchedTimers.length === timersBefore + 1 && relaunchedTimers[relaunchedTimers.length - 1].ms === 3600e3 && /retried in 1 hour/.test(warnings.slice(relaunchedBefore).join(' ')), { timers: relaunchedTimers.map(t => t.ms / 60e3), log: warnings.slice(relaunchedBefore) });
 
   console.log('3b. The daily job runs at 02:30 local time, and catches up after start only if today is missing');
   check('next run: today at 02:30 Madrid when it is still before, else tomorrow', nextDailyRun(new Date('2026-10-20T00:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-20T00:30:00.000Z' && nextDailyRun(new Date('2026-10-20T10:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-21T00:30:00.000Z');
@@ -569,6 +581,22 @@ const Z = { timeZone: 'Europe/Madrid' };
   maturityClock = 0;
   check('organisation rows still being computed for 2 minutes: the machine view stays pending, never «No se ha podido calcular»', slowPolls.every(d => d.meta.maturityPending === true && !d.maturityError), slowPolls.map(d => d.maturityError || d.meta.maturityPending));
   check('...and carries the maturity once the rows are there', !slowDone.meta.maturityPending && !slowDone.maturityError && slowDone.maturity?.controlId === 'op.exp.3', slowDone.meta);
+  // Missing rows whose number never goes down: pending for 10 minutes, then failed attempts, the error and «Reintentar».
+  const stuckOrg = setup({ missingOrganisation: true });
+  const stuckView = async (extra: Record<string, string> = {}) => ((await stuckOrg.evaluation.evaluate(context(stuckOrg.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z, ...extra }), responses)) as any).body.data;
+  const stuckBefore = warnings.length;
+  const stuckPolls: { t: number; data: any }[] = [];
+  for (let t = 0; t <= 720; t += 30) {
+    stuckPolls.push({ t, data: await stuckView() });
+    await stuckOrg.maturity.flush();
+    maturityClock += 30e3;
+  }
+  const stuckRetried = await stuckView({ retryRefresh: '1' });
+  await stuckOrg.maturity.flush();
+  maturityClock = 0;
+  const stuckState = (d: any) => (d.maturityError ? 'ERR' : d.meta.maturityPending ? 'pend' : 'ok');
+  check('missing rows that make no progress: pending for 10 minutes, then the error (3 failed attempts)', stuckPolls.filter(p => p.t < 600).every(p => stuckState(p.data) === 'pend') && stuckState(stuckPolls[stuckPolls.length - 1].data) === 'ERR' && warnings.slice(stuckBefore).some(w => /organisation rows made no progress for 10 minutes/.test(w)), stuckPolls.map(p => `${p.t}:${stuckState(p.data)}`));
+  check('...«Reintentar» clears the stall and the view is pending again', stuckState(stuckRetried) === 'pend', stuckRetried.meta);
   // A current cached view while every refresh behind fails and new facts keep coming: served, never the error.
   const flakyOrg = setup();
   await flakyOrg.ready({ include: 'control', controlId: 'op.exp.3', ...Z });

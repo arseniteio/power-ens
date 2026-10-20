@@ -56,10 +56,13 @@ const DAY_MS = 86400e3;
 // The justification rule judges with inputs read at most this long ago.
 export const ENS_JUSTIFICATION_INPUTS_MAX_AGE_MS = 15 * 60e3;
 // Machine view's organisation pass: 3 failed passes (5 s, 30 s apart), then an error unless a current view is cached,
-// retried behind every 5 min until it clears. Only a pass that throws fails; rows still missing are pending.
+// retried behind every 5 min until it clears. Only a pass that throws fails; rows still missing are pending while
+// their number goes down.
 export const ENS_ORGANISATION_ATTEMPTS = 3;
 const RETRY_WAITS_MS = [5e3, 30e3];
 const RETRY_AFTER_ERROR_MS = 5 * 60e3;
+// Missing organisation rows whose number has not gone down for this long make the pass a failed attempt.
+export const ENS_ORGANISATION_STALL_MS = 10 * 60e3;
 export const ENS_MATURITY_FAILED = 'No se ha podido calcular la madurez.';
 // Waits after consecutive failures (daily job runs, first-fact lookups): 30 min, 1 h, 2 h, 4 h, then 8 h.
 export const ENS_RETRY_BACKOFF_MS = [30 * 60e3, 60 * 60e3, 2 * 3600e3, 4 * 3600e3, 8 * 3600e3];
@@ -97,6 +100,8 @@ export const createMaturityService = ({
   const firstFactFailures = new Map<string, { day: string; count: number; until: number }>();
   const organisation = new Map<string, { state: string; fingerprint: string; complete: boolean; inputsAt: number; view: ENSMaturityOfView }>();
   const refreshing = new Map<string, Promise<void>>();
+  // Per key: the fewest organisation rows missing so far, with their state and when that number was reached.
+  const stalled = new Map<string, { state: string; rows: number; at: number }>();
   const failures = new Map<string, { count: number; nextAt: number }>();
   const accrediting = new Map<string, Promise<ENSMaturityInputs>>();
   const background = new Set<Promise<unknown>>();
@@ -344,7 +349,7 @@ export const createMaturityService = ({
   };
 
   // A machine view's organisation maturity, computed behind; only a throw is a failed attempt (bounded), missing rows
-  // keep the view pending and the next poll runs the pass again.
+  // keep the view pending and the next poll runs the pass again, unless they made no progress for 10 min.
   const refreshOrganisation = (clients: ENSEvaluationClients, key: string, query: ENSEvaluationQuery): void => {
     if (refreshing.has(key)) return;
     const failure = failures.get(key);
@@ -355,6 +360,18 @@ export const createMaturityService = ({
         const data = peekInputs(clients, run.ctx) || (await loading.get(inputsKey(run.ctx)));
         if (!data) throw new Error('the maturity inputs could not be read');
         storeOrganisation(key, run, data, compute(run, data), query);
+        if (!run.meta.pending) {
+          stalled.delete(key);
+          return;
+        }
+        const state = stateOf(run.ctx);
+        const last = stalled.get(key);
+        if (!last || last.state !== state || run.meta.pending.rows < last.rows) {
+          if (stalled.size > 500) stalled.clear();
+          stalled.set(key, { state, rows: run.meta.pending.rows, at: clock() });
+        } else if (clock() - last.at >= ENS_ORGANISATION_STALL_MS) {
+          throw new Error('organisation rows made no progress for 10 minutes');
+        }
       })()
         .catch((error: any) => {
           if (stopped.aborted) return;
@@ -377,6 +394,7 @@ export const createMaturityService = ({
     const key = `${ctx.userKey}|${run.query.controlId || '*'}`;
     if (options.retry) {
       failures.delete(key);
+      stalled.delete(key);
       firstFactFailures.delete(ctx.userKey);
     }
     // «Reintentar» reads again inputs whose first-fact lookup failed, behind.
