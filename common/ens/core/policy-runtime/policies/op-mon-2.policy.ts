@@ -11,6 +11,7 @@ import type { ENSNormalizedEvent } from '../../data-source/types';
 import { toParameterListItems } from '../../../configuration/services/parameter-value-validator';
 import { ENS_SCOPE_GROUP } from '../../scope/engine';
 import { STALE_COLLECTOR_MAX_AGE_HOURS } from '../../evidence/stale-collector';
+import { annualPeriodBounds, annualPeriodOfDay, ENS_DEFAULT_ANNUAL_CLOSING } from '../../../annual-report/annual-period';
 import {
   HOUR_MS,
   DAY_MS,
@@ -203,8 +204,23 @@ interface Cycle {
   linea: string;
 }
 
+// One read of each register per evaluation and evidence: the judgement, the report lines and the art. 32 data share it.
+const registerReads = new WeakMap<ENSPolicyContext, Map<string, LogRow | Measurement>>();
+
+const readOnce = (context: ENSPolicyContext, key: string, read: () => LogRow | Measurement): LogRow | Measurement => {
+  let reads = registerReads.get(context);
+  if (!reads) {
+    reads = new Map();
+    registerReads.set(context, reads);
+  }
+  if (!reads.has(key)) reads.set(key, read());
+  return reads.get(key) as LogRow | Measurement;
+};
+
 const READS_CYCLES = (context: ENSPolicyContext, now: number, evidence: string): LogRow | Measurement =>
-  record(context, now, 'metrics_register_read', 'metrics_cycle_recorded', evidence, 'registro de ciclos de métricas', CYCLE_RECORD);
+  readOnce(context, `cycles|${now}|${evidence}`, () =>
+    record(context, now, 'metrics_register_read', 'metrics_cycle_recorded', evidence, 'registro de ciclos de métricas', CYCLE_RECORD)
+  );
 
 // Cycles that count, oldest to newest, and what was left out (template examples, future-dated,
 // unreadable).
@@ -899,11 +915,20 @@ interface Incident {
 }
 
 const READS_INCIDENTS = (context: ENSPolicyContext, now: number): LogRow | Measurement =>
-  record(context, now, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', INCIDENT_RECORD);
+  readOnce(context, `incidents|${now}`, () =>
+    record(context, now, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', INCIDENT_RECORD)
+  );
 
 // Record phases grouped by incident with op.exp.7's rules: severity is the highest of its phases;
 // containment, the first intermediate phase; closing, the last final one.
+const groupedIncidents = new WeakMap<LogRow, Incident[]>();
+
 const incidentsOf = (reg: LogRow): Incident[] => {
+  if (!groupedIncidents.has(reg)) groupedIncidents.set(reg, groupIncidents(reg));
+  return groupedIncidents.get(reg) as Incident[];
+};
+
+const groupIncidents = (reg: LogRow): Incident[] => {
   const byId = new Map<string, Incident>();
 
   reg.filas.forEach(e => {
@@ -1333,7 +1358,10 @@ const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: nu
 };
 
 
-// Art. 32 report: the incidents of the register as JSON (the report window is applied by the report), or why not.
+// The art. 32 data carry the incidents opened since the previous report period started, at most this many.
+export const ART32_MAX_INCIDENTS = 1000;
+
+// Art. 32 report: the incidents of the current and the previous report period as JSON (bounded), or why not.
 const art32Incidents = (context: ENSPolicyContext, now: number): string => {
   const reg = READS_INCIDENTS(context, now);
 
@@ -1341,23 +1369,32 @@ const art32Incidents = (context: ENSPolicyContext, now: number): string => {
     return JSON.stringify({ motivo: reg.motivo, incidentes: [] });
   }
 
+  const per = periodicity(context);
+  const closing = !isMeasurement(per) && per.cierre ? per.cierre : ENS_DEFAULT_ANNUAL_CLOSING;
+  const previous = String(Number(annualPeriodOfDay(date(now), closing)) - 1);
+  // One day of margin: the report cuts the period at local midnight.
+  const since = Date.parse(`${annualPeriodBounds(previous, closing).from}T00:00:00Z`) - DAY_MS;
+  const opened = incidentsOf(reg).filter(i => (i.apertura ?? i.primera) >= since);
+  const kept = opened.slice(-ART32_MAX_INCIDENTS);
   const at = (t?: number): string | undefined => (t === undefined ? undefined : iso(t));
 
   return JSON.stringify({
     leido: iso(reg.t),
+    desde: iso(since),
     descartadas: reg.descartadas,
-    incidentes: incidentsOf(reg).map(i => ({
+    ...(kept.length < opened.length ? { recortados: opened.length - kept.length } : {}),
+    incidentes: kept.map(i => ({
       id: i.id,
       severidad: i.severidad || undefined,
       clasificacion: i.clasificacion,
       apertura: at(i.apertura),
-      primera: iso(i.primera),
+      ...(i.apertura === undefined ? { primera: iso(i.primera) } : {}),
       contencion: at(i.contencion),
       cierre: at(i.cierre),
       ocurrencia: at(i.ocurrencia),
-      ccnCert: at(i.ccnCert),
-      aepd: i.aepd,
-      datosPersonales: i.datosPersonales,
+      ...(i.ccnCert !== undefined ? { ccn: true } : {}),
+      ...(i.aepd ? { aepd: true } : {}),
+      ...(i.datosPersonales !== 'no' ? { datosPersonales: i.datosPersonales } : {}),
     })),
   });
 };
