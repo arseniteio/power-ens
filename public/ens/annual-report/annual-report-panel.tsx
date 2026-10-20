@@ -1,6 +1,6 @@
 // «Informe anual (art. 32)»: the period's data set, its export (JSON, CSV), its freeze and, in op.mon.2, the measures
 // without engine. The server checks the role of every record and freeze.
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   EuiBasicTable,
   EuiButton,
@@ -58,22 +58,22 @@ export const useAnnualReport = (period?: string) => {
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
-  const alive = useRef(true);
   useEffect(() => {
-    alive.current = true;
+    // Only the latest request writes: an older answer (another period) arriving late is dropped.
+    let current = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     fetchAnnualReport(period ? { period } : {})
       .then(data => {
-        if (!alive.current) return;
+        if (!current) return;
         setResponse(data);
         setError(undefined);
         if (data.pending) timer = setTimeout(() => setTick(value => value + 1), PENDING_RETRY_MS);
       })
-      .catch(failure => alive.current && setError(failure))
-      .finally(() => alive.current && setLoading(false));
+      .catch(failure => current && setError(failure))
+      .finally(() => current && setLoading(false));
     return () => {
-      alive.current = false;
+      current = false;
       if (timer) clearTimeout(timer);
     };
   }, [period, tick]);
