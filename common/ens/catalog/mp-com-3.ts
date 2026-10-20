@@ -87,7 +87,7 @@ export const mpCom3CatalogDefinition: ENSControlDefinition = {
         'Se recomienda emplear dispositivos hardware en el establecimiento y utilización de la red privada virtual.',
       kind: 'REFUERZO',
       interpretation:
-        'el requisito está redactado como recomendación, pero la tabla de aplicabilidad del Anexo II lo incluye como refuerzo exigible en nivel ALTO.',
+        'El requisito está redactado como recomendación, pero la tabla de aplicabilidad del Anexo II lo incluye como refuerzo exigible en nivel ALTO.',
       applicability: {
         levels: ['ALTO'],
         reason:

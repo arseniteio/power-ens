@@ -23,8 +23,8 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-06'],
-      parameterIds: ['P-03', 'P-04'],
+      evidenceIds: ['EV-06', 'EV-09'],
+      parameterIds: ['P-01', 'P-03', 'P-04'],
     },
     {
       id: 'mp.s.1.2',
@@ -35,8 +35,8 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-06', 'EV-07', 'EV-08'],
-      parameterIds: ['P-02', 'P-03'],
+      evidenceIds: ['EV-06', 'EV-07', 'EV-08', 'EV-09'],
+      parameterIds: ['P-01', 'P-02', 'P-03'],
     },
     {
       id: 'mp.s.1.3',
@@ -47,8 +47,8 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01', 'EV-02', 'EV-08'],
-      parameterIds: ['P-05'],
+      evidenceIds: ['EV-01', 'EV-02', 'EV-08', 'EV-09'],
+      parameterIds: ['P-01', 'P-05'],
     },
     {
       id: 'mp.s.1.4',
@@ -59,8 +59,8 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01', 'EV-03', 'EV-04'],
-      parameterIds: ['P-06'],
+      evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-09'],
+      parameterIds: ['P-01', 'P-06'],
     },
     {
       id: 'mp.s.1.5',
@@ -71,8 +71,8 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
-      evidenceIds: ['EV-01', 'EV-05'],
-      parameterIds: ['P-07'],
+      evidenceIds: ['EV-01', 'EV-05', 'EV-09'],
+      parameterIds: ['P-01', 'P-07'],
     },
     {
       id: 'mp.s.1.6',
@@ -84,7 +84,7 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: [],
-      parameterIds: ['P-08'],
+      parameterIds: ['P-01', 'P-08'],
     },
     {
       id: 'mp.s.1.7',
@@ -96,7 +96,7 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-10'],
-      parameterIds: ['P-09'],
+      parameterIds: ['P-01', 'P-09'],
     },
   ],
 };

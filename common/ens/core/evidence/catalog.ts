@@ -5100,6 +5100,8 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   },
   // mp.sw.2. Born DRAFT without a collector (wave A, owner decision 19/10/2026): every evidence listens only to `evidence_state`
   // and accredits no rule. The source each one needs is in `catalog/support/measurement-plan.ts`. Rules band 112400-112499.
+  // EV-01 covers no requirement on purpose: the template ties it to the control's statement. It detects each commissioning,
+  // the trigger that EV-02 to EV-09 judge against mp.sw.2.1 and R1.
   {
     id: 'EV-01',
     controlId: 'mp.sw.2',
@@ -5396,7 +5398,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     title: 'Integridad de la configuración del servicio de correo',
     description:
       'Vigilancia de los cambios en la configuración del MTA, de las reglas de la pasarela y de los registros DNS del dominio, para detectar degradaciones: desactivación de un filtro, relajación de TLS, alteración de SPF, incorporación de remitentes a lista de confianza.',
-    requirements: [],
+    requirements: ['mp.s.1.1', 'mp.s.1.2', 'mp.s.1.3', 'mp.s.1.4', 'mp.s.1.5'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'INTEGRITY',
     criticality: 'HIGH',

@@ -39,7 +39,7 @@ export const mpS1Control: ENSControl = {
       title: 'Protección del cuerpo de los mensajes y de los anexos',
       description:
         'La información distribuida por medio de correo electrónico se protegerá, tanto en el cuerpo de los mensajes como en los anexos.',
-      evidences: ['EV-06'],
+      evidences: ['EV-06', 'EV-09'],
     },
     {
       id: 'mp.s.1.2',
@@ -47,7 +47,7 @@ export const mpS1Control: ENSControl = {
       title: 'Protección del encaminamiento y del establecimiento de conexiones',
       description:
         'Se protegerá la información de encaminamiento de mensajes y establecimiento de conexiones.',
-      evidences: ['EV-06', 'EV-07', 'EV-08'],
+      evidences: ['EV-06', 'EV-07', 'EV-08', 'EV-09'],
     },
     {
       id: 'mp.s.1.3',
@@ -55,7 +55,7 @@ export const mpS1Control: ENSControl = {
       title: 'Protección frente al correo no solicitado',
       description:
         'Correo no solicitado, en su expresión inglesa «spam».',
-      evidences: ['EV-01', 'EV-02', 'EV-08'],
+      evidences: ['EV-01', 'EV-02', 'EV-08', 'EV-09'],
     },
     {
       id: 'mp.s.1.4',
@@ -63,7 +63,7 @@ export const mpS1Control: ENSControl = {
       title: 'Protección frente al código dañino',
       description:
         'Código dañino, constituidos por virus, gusanos, troyanos, espías, u otros de naturaleza análoga.',
-      evidences: ['EV-01', 'EV-03', 'EV-04'],
+      evidences: ['EV-01', 'EV-03', 'EV-04', 'EV-09'],
     },
     {
       id: 'mp.s.1.5',
@@ -71,7 +71,7 @@ export const mpS1Control: ENSControl = {
       title: 'Protección frente al código móvil',
       description:
         'Código móvil de tipo micro-aplicación, en su expresión inglesa «applet».',
-      evidences: ['EV-01', 'EV-05'],
+      evidences: ['EV-01', 'EV-05', 'EV-09'],
     },
     {
       id: 'mp.s.1.6',
@@ -189,7 +189,7 @@ export const mpS1Control: ENSControl = {
     },
     {
       id: 'EV-09',
-      requirement: [],
+      requirement: ['mp.s.1.1', 'mp.s.1.2', 'mp.s.1.3', 'mp.s.1.4', 'mp.s.1.5'],
       level: ['BAJO', 'MEDIO', 'ALTO'],
       expectedStatus: 'CUMPLE',
       title: 'Integridad de la configuración del servicio de correo',
@@ -219,7 +219,7 @@ export const mpS1Control: ENSControl = {
       description:
         'Solución de correo electrónico empleada, su pasarela de seguridad y la forma en que ambas envían registros a Wazuh. Sin ingesta no hay evidencia del funcionamiento de ninguno de los filtros.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.s.1'],
+      requirements: ['mp.s.1.1', 'mp.s.1.2', 'mp.s.1.3', 'mp.s.1.4', 'mp.s.1.5', 'mp.s.1.6', 'mp.s.1.7'],
       type: 'select',
       usage:
         'Define los decodificadores y el módulo de integración. Para correo en la nube se emplea el conector correspondiente; para infraestructura propia, log collection del MTA y del filtro. Es el parámetro que habilita todo lo demás.',

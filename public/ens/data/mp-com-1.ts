@@ -220,7 +220,7 @@ export const mpCom1Control: ENSControl = {
       description:
         'Referencia a la Instrucción Técnica de Seguridad de Interconexión de Sistemas de Información aplicable y a los requisitos que de ella se derivan para la categoría del sistema. El propio texto de mp.com.1 remite a ella de forma expresa.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.com.1'],
+      requirements: ['mp.com.1.1', 'mp.com.1.2'],
       type: 'string',
       usage:
         'ENSFácil recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',

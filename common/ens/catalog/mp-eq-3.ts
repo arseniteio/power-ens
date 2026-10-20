@@ -69,7 +69,7 @@ export const mpEq3CatalogDefinition: ENSControlDefinition = {
         'Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.',
       kind: 'REFUERZO',
       interpretation:
-        'se lee como MEDIO O SUPERIOR. Véase la nota de la tabla de aplicabilidad.',
+        'Se lee como «MEDIO o superior»: el cifrado se exige cuando la información del portátil es de nivel MEDIO o ALTO. Véase la nota de la tabla de aplicabilidad.',
       applicability: {
         levels: ['ALTO'],
         reason:

@@ -21,7 +21,7 @@ export interface ENSPlannedMeasurement {
   wave: ENSMeasurementWave;
   // What the control needs as a whole, in one line.
   needs: string;
-  // Rules band reserved for its runbook (agent/rules/README.md). No rule is deployed yet.
+  // Rules band reserved for its runbook (README, «Desarrollo», rule ID table). No rule is deployed yet.
   rulesBand: { from: number; to: number };
   // Evidence id -> the data source it needs, shown after «Fuente necesaria:».
   sources: Record<string, string>;
