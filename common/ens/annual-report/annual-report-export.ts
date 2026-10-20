@@ -46,7 +46,7 @@ export const describeAnnualReport = (report: ENSAnnualReport): string[] => {
   const m = (id: string) => find(report.measurement, id);
   const levels = [0, 1, 2, 3, 4, 5].map(level => `L${level} ${find(report.maturity, 'maturity.measures_at_level', `L${level}`) ?? 0}`).join(', ');
   return [
-    `Periodo ${report.period}: del ${h('header.period_from')} al ${h('header.period_to')}${h('header.period_open') ? ' (en curso)' : ''}; categoría ${h('header.category')}.`,
+    `Periodo ${report.period}: del ${h('header.period_start')} al ${h('header.period_end')}${h('header.period_open') ? ' (en curso)' : ''}; categoría ${h('header.category')}.`,
     h('header.frozen')
       ? `Congelado el ${h('header.frozen_at')} por ${h('header.frozen_by')} (revisión ${h('header.revision')}${h('header.freeze_reason') ? `: ${h('header.freeze_reason')}` : ''}).`
       : `Sin congelar: calculado el ${h('header.generated_at')}.`,

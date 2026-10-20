@@ -86,7 +86,7 @@ Rules:
 - the reason is mandatory (up to 1000 characters): it stays in the data set (`header.freeze_reason`) and in the history;
 - the server checks the role (`ensfacil_admin` or `all_access`) and writes with the internal user;
 - the request carries the revision read (`expectedRevision`, null when there was none); if someone else changed it, it returns 409;
-- the figures are those of the moment of the request, not those of the closing: a late freeze shows it with `header.frozen_at` after `header.period_to`;
+- the figures are those of the moment of the request, not those of the closing: a late freeze shows it with `header.frozen_at` after `header.period_end`;
 - the previous revision is kept whole in `annual_freeze|<period>|r<N>` and remains available to read and export.
 
 ### 6.3 Reproducibility
@@ -147,8 +147,8 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 | `header.unit` | Configuration > General, «Organización» |
 | `header.system` | Configuration > General, «Alcance» (one ENSFácil is one system) |
 | `header.period` | Year of the closing of the period |
-| `header.period_from` | First day of the period (YYYY-MM-DD) |
-| `header.period_to` | Last day of the period: the closing |
+| `header.period_start` | First day of the period (YYYY-MM-DD) |
+| `header.period_end` | Last day of the period: the closing |
 | `header.period_open` | `true` while the period has not closed |
 | `header.category` | System category: BÁSICA, MEDIA or ALTA |
 | `header.generated_at` | Instant of the evaluation it was generated with |
@@ -215,8 +215,8 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 
 | Field | Content |
 |---|---|
-| `incidents.window_from` | Start of the window: that of the period |
-| `incidents.window_to` | End of the window: that of the period or, when open, the generation |
+| `incidents.window_start` | Start of the window: that of the period |
+| `incidents.window_end` | End of the window: that of the period or, when open, the generation |
 | `incidents.total` | Incidents opened in the period (first `inicial` phase, or the first phase) |
 | `incidents.by_type` | By `clasificacion` (`key`: the type; `sin clasificar` when missing) |
 | `incidents.by_severity` | By severity, the highest of its phases (`key`: `baja`, `media`, `alta`, `critica`) |

@@ -118,7 +118,7 @@ export interface ENSAnnualFreezeRequest {
 // Every field id the data set can carry (the guide documents each one). A new figure is a new id: ids never change
 // meaning, so a mapping to the INES questionnaire made once keeps working.
 export const ENS_ANNUAL_FIELD_IDS: string[] = [
-  ...['schema', 'organisation', 'unit', 'system', 'period', 'period_from', 'period_to', 'period_open', 'category', 'generated_at', 'plugin_version', 'frozen', 'frozen_at', 'frozen_by', 'revision', 'freeze_reason'].map(id => `header.${id}`),
+  ...['schema', 'organisation', 'unit', 'system', 'period', 'period_start', 'period_end', 'period_open', 'category', 'generated_at', 'plugin_version', 'frozen', 'frozen_at', 'frozen_by', 'revision', 'freeze_reason'].map(id => `header.${id}`),
   ...['level_c', 'level_i', 'level_t', 'level_a', 'level_d', 'ens_level', 'category'].map(id => `category.${id}`),
   ...['global_pct', 'framework_pct', 'measures_applicable', 'measures_measured', 'measures_declared', 'measures_without_data'].map(id => `implementation.${id}`),
   ...['measures_at_level', 'not_assessed', 'below_target'].map(id => `maturity.${id}`),
@@ -141,8 +141,8 @@ export const ENS_ANNUAL_FIELD_IDS: string[] = [
     'assessed_at',
   ].map(id => `measure.${id}`),
   ...[
-    'window_from',
-    'window_to',
+    'window_start',
+    'window_end',
     'total',
     'by_type',
     'by_severity',

@@ -86,7 +86,7 @@ Reglas:
 - motivo obligatorio (hasta 1000 caracteres): queda en el conjunto (`header.freeze_reason`) y en el historial;
 - el servidor comprueba el rol (`ensfacil_admin` o `all_access`) y escribe con el usuario interno;
 - la petición lleva la revisión leída (`expectedRevision`, nulo si no había ninguna); si otro la ha cambiado, devuelve 409;
-- las cifras son las del momento de la petición, no las del cierre: un congelado tardío lo indica con `header.frozen_at` posterior a `header.period_to`;
+- las cifras son las del momento de la petición, no las del cierre: un congelado tardío lo indica con `header.frozen_at` posterior a `header.period_end`;
 - la revisión anterior se conserva entera en `annual_freeze|<periodo>|r<N>` y sigue disponible para leer y exportar.
 
 ### 6.3 Reproducibilidad
@@ -147,8 +147,8 @@ Cada dato es un objeto `{ id, key, value, unit, source, trace }`. `value` es tex
 | `header.unit` | Configuración > General, «Organización» |
 | `header.system` | Configuración > General, «Alcance» (un ENSFácil es un sistema) |
 | `header.period` | Año del cierre del periodo |
-| `header.period_from` | Primer día del periodo (AAAA-MM-DD) |
-| `header.period_to` | Último día del periodo: el cierre |
+| `header.period_start` | Primer día del periodo (AAAA-MM-DD) |
+| `header.period_end` | Último día del periodo: el cierre |
 | `header.period_open` | `true` mientras el periodo no ha cerrado |
 | `header.category` | Categoría del sistema: BÁSICA, MEDIA o ALTA |
 | `header.generated_at` | Instante de la evaluación con la que se generó |
@@ -215,8 +215,8 @@ Cada dato es un objeto `{ id, key, value, unit, source, trace }`. `value` es tex
 
 | Campo | Contenido |
 |---|---|
-| `incidents.window_from` | Inicio de la ventana: el del periodo |
-| `incidents.window_to` | Fin de la ventana: el del periodo o, en curso, la generación |
+| `incidents.window_start` | Inicio de la ventana: el del periodo |
+| `incidents.window_end` | Fin de la ventana: el del periodo o, en curso, la generación |
 | `incidents.total` | Incidentes abiertos en el periodo (primera fase `inicial`, o la primera fase) |
 | `incidents.by_type` | Por `clasificacion` (`key`: el tipo; `sin clasificar` si falta) |
 | `incidents.by_severity` | Por severidad, la mayor de sus fases (`key`: `baja`, `media`, `alta`, `critica`) |

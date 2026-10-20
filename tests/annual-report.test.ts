@@ -114,10 +114,10 @@ check('category MEDIA', cat('category.category').value === 'MEDIA' && cat('categ
 
 section('Period');
 const h = (r: ENSAnnualReport, id: string) => get(r.header, id)?.value;
-check('closing 03-31 (P-02): the current period is 2027, from 2026-04-01 to 2027-03-31, open', report.period === '2027' && h(report, 'header.period_from') === '2026-04-01' && h(report, 'header.period_to') === '2027-03-31' && h(report, 'header.period_open') === true);
+check('closing 03-31 (P-02): the current period is 2027, from 2026-04-01 to 2027-03-31, open', report.period === '2027' && h(report, 'header.period_start') === '2026-04-01' && h(report, 'header.period_end') === '2027-03-31' && h(report, 'header.period_open') === true);
 check('header: organisation, unit, system, category, version', h(report, 'header.organisation') === 'Ayuntamiento de Ejemplo' && h(report, 'header.unit') === 'Servicio de Informática' && h(report, 'header.system') === 'Sede electrónica y gestión de expedientes' && h(report, 'header.category') === 'MEDIA' && h(report, 'header.plugin_version') === '1.4.0');
 const noClosing = build({ managerRows: { 'op.mon.2': opMon2Row(''), 'op.exp.7': opExp7Row() } });
-check('without cierre_anual the year closes on 12-31', noClosing.period === '2026' && h(noClosing, 'header.period_from') === '2026-01-01' && /sin cierre_anual/.test(get(noClosing.header, 'header.period_to')!.trace));
+check('without cierre_anual the year closes on 12-31', noClosing.period === '2026' && h(noClosing, 'header.period_start') === '2026-01-01' && /sin cierre_anual/.test(get(noClosing.header, 'header.period_end')!.trace));
 check('02-29 closes on 02-28 in a common year', annualPeriodBounds('2027', '02-29').to === '2027-02-28' && annualPeriodBounds('2028', '02-29').to === '2028-02-29' && annualPeriodBounds('2028', '02-29').from === '2027-03-01');
 check('period of a day and last closed period', annualPeriodOfDay('2026-03-31', '03-31') === '2026' && annualPeriodOfDay('2026-04-01', '03-31') === '2027' && lastClosedAnnualPeriod('2026-04-01', '03-31') === '2026');
 
@@ -150,7 +150,7 @@ check('without the register: no figures, with the reason', get(noRegister.incide
 const fromConsolidated = build({ managerRows: undefined });
 check('the consolidated organisation result gives the same incidents as the manager row', JSON.stringify(fromConsolidated.incidents) === JSON.stringify(report.incidents));
 const closed = build({ period: '2026' });
-check('a closed period counts its own incidents and is not open', get(closed.incidents, 'incidents.total')!.value === 1 && h(closed, 'header.period_open') === false && h(closed, 'header.period_from') === '2025-04-01');
+check('a closed period counts its own incidents and is not open', get(closed.incidents, 'incidents.total')!.value === 1 && h(closed, 'header.period_open') === false && h(closed, 'header.period_start') === '2025-04-01');
 
 section('Resources');
 const res = (id: string) => get(report.resources, id)!;

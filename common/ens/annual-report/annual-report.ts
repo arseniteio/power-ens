@@ -399,8 +399,8 @@ const incidentsOf = (
   const reconciliation = readJsonVariable(opExp7, 'informe_art32_conciliacion');
   const detection = readJsonVariable(opExp7, 'informe_art32_deteccion');
   const data: ENSAnnualDatum[] = [
-    datum('incidents.window_from', iso(window.fromMs), 'CONFIGURATION', 'inicio del periodo del informe'),
-    datum('incidents.window_to', iso(window.toMs), 'CONFIGURATION', window.label),
+    datum('incidents.window_start', iso(window.fromMs), 'CONFIGURATION', 'inicio del periodo del informe'),
+    datum('incidents.window_end', iso(window.toMs), 'CONFIGURATION', window.label),
   ];
   const source = 'INCIDENT_REGISTER';
   const where = (n: number) =>
@@ -651,8 +651,8 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
       { ...text(global.organization, 'unit'), trace: global.organization ? 'Configuración > General: Organización' : 'sin declarar en Configuración > General (Organización)' },
       { ...text(global.scope, 'system'), trace: global.scope ? 'Configuración > General: Alcance' : 'sin declarar en Configuración > General (Alcance)' },
       datum('header.period', period, 'CONFIGURATION', `año del cierre del periodo`),
-      datum('header.period_from', bounds.from, 'CONFIGURATION', `día siguiente al cierre anterior (${timeZone})`),
-      datum('header.period_to', bounds.to, 'CONFIGURATION', declared ? `op.mon.2 P-02 cierre_anual ${closing}` : `op.mon.2 P-02 sin cierre_anual: ${closing}`),
+      datum('header.period_start', bounds.from, 'CONFIGURATION', `día siguiente al cierre anterior (${timeZone})`),
+      datum('header.period_end', bounds.to, 'CONFIGURATION', declared ? `op.mon.2 P-02 cierre_anual ${closing}` : `op.mon.2 P-02 sin cierre_anual: ${closing}`),
       datum('header.period_open', open, 'NONE', open ? 'el periodo no ha cerrado: las cifras son las de hoy' : 'periodo cerrado'),
       datum('header.category', ENS_CATEGORY_NAMES[global.ensLevel], 'CONFIGURATION', 'Configuración > General: nivel ENS'),
       datum('header.generated_at', iso(now.getTime()), 'NONE', 'instante de la evaluación con la que se generó'),
