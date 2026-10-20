@@ -1403,7 +1403,14 @@ export const ControlDetailENS = ({
 
             <EuiSpacer size='s' />
 
-            {openNonConformitiesCount === 0 ? (
+            {pendingMeasurement ? (
+              // Not a green «all clear»: nothing has been measured.
+              <EuiCallOut
+                title={`${ENS_PENDING_MEASUREMENT_LABEL}: nada que remediar hasta que exista el recolector`}
+                color='primary'
+                iconType='clock'
+              />
+            ) : openNonConformitiesCount === 0 ? (
               <EuiCallOut
                 title='Sin no conformidades abiertas'
                 color='success'
@@ -1541,7 +1548,9 @@ export const ControlDetailENS = ({
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
             <p>
-              {complianceResult.status === 'NO_APLICA'
+              {pendingMeasurement
+                ? `${control.id} no tiene medición todavía: no hay no conformidades que medir.`
+                : complianceResult.status === 'NO_APLICA'
                 ? `${control.id} no aplica en el nivel ${levelsText}: no hay no conformidades que medir.`
                 : 'Todo lo aplicable en este control se ha demostrado conforme.'}
             </p>

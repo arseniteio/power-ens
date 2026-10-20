@@ -1,6 +1,11 @@
 // Provenance, Annex II section and template correspondence in the control report (screen and PDF). Pure: the PDF blocks are plain pdfmake objects.
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import {
+  ENS_PENDING_MEASUREMENT_LABEL,
+  describePendingMeasurement,
+  isPendingMeasurement,
+} from '../../../common/ens/catalog/support/measurement-plan';
+import {
   ENSProvenancedText,
   ENSTextProvenance,
   ENS_PROPOSAL_TEXT_PROVENANCE,
@@ -25,6 +30,15 @@ export const describeReportControlLine = (controlId: string): string => {
 
   return control
     ? [describeAnnexSection(control), describeControlAxis(control), describeControlSource(control)].filter(Boolean).join(' · ')
+    : '';
+};
+
+// A control without collector, in the report header (screen and PDF): why it has no verdict. Empty otherwise.
+export const describeReportPendingMeasurement = (controlId: string): string => {
+  const control = getENSCatalogControl(controlId);
+
+  return control && isPendingMeasurement(control)
+    ? `${ENS_PENDING_MEASUREMENT_LABEL}. ${describePendingMeasurement(control)}`
     : '';
 };
 

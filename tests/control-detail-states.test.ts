@@ -181,6 +181,20 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
     p = await h.render(ControlDetailENS, { control: ctl('mp.com.1'), agentId: '101', onBack: () => undefined });
     check('a control without collector: «Sin medición todavía», the wave and what it needs, never a failure', /Sin medición todavía: mp\.com\.1 es documental de momento/.test(p) && /oleada C/.test(p) && /no se juzga como incumplimiento/.test(p), p.slice(0, 900));
     check('...each evidence with «Fuente necesaria» and no verdict badge', /Fuente necesaria: registro del cortafuegos perimetral \(pfSense/.test(p) && /Fuente necesaria: Syscollector: interfaces de red/.test(p) && !/\[ NO_EVALUABLE \]/.test(p), p.slice(p.indexOf('Evidencias ENS'), p.indexOf('Evidencias ENS') + 900));
+    // The real engine output for a DRAFT control whose required parameters are empty (the state after seeding).
+    h.reset();
+    const engine = require('../common/ens/core/ens-engine');
+    const seeded = { ...JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)), controls: ['op.acc.1', 'mp.info.6', 'mp.eq.2'].map(id => JSON.parse(JSON.stringify(blocks[id]))) };
+    ensConfigurationRepository.completeHydration(seeded);
+    const real = engine.getENSComplianceResultByControl('mp.eq.2', 'MEDIO', [], undefined, agents, new Date('2026-10-17T12:00:00Z'));
+    evaluation = { data: { meta, result: real, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    p = await h.render(ControlDetailENS, { control: ctl('mp.eq.2'), agentId: undefined, onBack: () => undefined });
+    check('engine output of a DRAFT control with empty required parameters: no open non-conformity, no «incumplimiento»',
+      real.nonConformities.length === 0 && !/\d+ no conformidades abiertas/.test(p) && !/Sin no conformidades abiertas/.test(p) && !/Habilitar prueba/.test(p) && !/incumplimiento del control/.test(p) &&
+        /nada que remediar hasta que exista el recolector/.test(p) && /mp\.eq\.2 no tiene medición todavía: no hay no conformidades que medir/.test(p),
+      [real.nonConformities.map((nc: any) => nc.id), /\d+ no conformidades abiertas/.test(p), /Habilitar prueba/.test(p), /incumplimiento del control/.test(p)]);
+    ensConfigurationRepository.completeHydration(doc);
+
     h.reset();
     evaluation = { data: { meta, result: result('PARCIAL'), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '101', onBack: () => undefined });
