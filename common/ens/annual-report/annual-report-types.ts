@@ -114,3 +114,53 @@ export interface ENSAnnualFreezeRequest {
   reason: string;
   expectedRevision: number | null;
 }
+
+// Every field id the data set can carry (the guide documents each one). A new figure is a new id: ids never change
+// meaning, so a mapping to the INES questionnaire made once keeps working.
+export const ENS_ANNUAL_FIELD_IDS: string[] = [
+  ...['schema', 'organisation', 'unit', 'system', 'period', 'period_from', 'period_to', 'period_open', 'category', 'generated_at', 'plugin_version', 'frozen', 'frozen_at', 'frozen_by', 'revision', 'freeze_reason'].map(id => `header.${id}`),
+  ...['level_c', 'level_i', 'level_t', 'level_a', 'level_d', 'ens_level', 'category'].map(id => `category.${id}`),
+  ...['global_pct', 'framework_pct', 'measures_applicable', 'measures_measured', 'measures_declared', 'measures_without_data'].map(id => `implementation.${id}`),
+  ...['measures_at_level', 'not_assessed', 'below_target'].map(id => `maturity.${id}`),
+  ...[
+    'name',
+    'engine',
+    'axis',
+    'level',
+    'annex_requirement',
+    'soa',
+    'applies',
+    'status',
+    'implementation_pct',
+    'coverage_pct',
+    'maturity_accredited',
+    'maturity_assessed',
+    'maturity_target',
+    'documentary_reference',
+    'owner',
+    'assessed_at',
+  ].map(id => `measure.${id}`),
+  ...[
+    'window_from',
+    'window_to',
+    'total',
+    'by_type',
+    'by_severity',
+    'mttd_hours',
+    'mttd_from_occurrence',
+    'mttd_from_alert',
+    'mttd_without_data',
+    'mttc_hours',
+    'mttr_hours',
+    'notified_ccn_cert',
+    'with_personal_data',
+    'notified_aepd',
+    'alerts_relevant',
+    'alerts_in_incident',
+    'alerts_to_incident_pct',
+  ].map(id => `incidents.${id}`),
+  ...['cycles', 'hours_internal', 'hours_external', 'budget_executed', 'ict_budget_total', 'ict_staff_total', 'security_staff', 'budget_pct_of_ict', 'security_staff_pct_of_ict'].map(
+    id => `resources.${id}`
+  ),
+  ...['coverage_pct', 'controls_not_evaluable', 'last_cycle', 'last_cycle_implementation_pct'].map(id => `measurement.${id}`),
+];
