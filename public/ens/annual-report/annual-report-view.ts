@@ -110,9 +110,21 @@ export const describeFreezeStatus = (response: ENSAnnualReportResponse): string 
   return `Periodo ${response.period} (${range}), cerrado y sin congelar: cifras de hoy, no las del cierre.`;
 };
 
-// Periods offered: the current one, the last closed one and every frozen one, newest first.
-export const periodOptions = (response: ENSAnnualReportResponse): string[] =>
-  Array.from(new Set([response.currentPeriod, response.lastClosedPeriod, response.period, ...response.periods.map(entry => entry.period)])).sort((a, b) => b.localeCompare(a));
+// Periods offered, newest first, each with its state; a frozen one with the dates of its own header.
+export const periodOptions = (response: ENSAnnualReportResponse): { value: string; text: string }[] =>
+  Array.from(new Set([response.currentPeriod, response.lastClosedPeriod, response.period, ...response.periods.map(entry => entry.period)]))
+    .sort((a, b) => b.localeCompare(a))
+    .map(period => {
+      const frozen = response.periods.find(entry => entry.period === period);
+      const span = frozen?.periodStart && frozen.periodEnd ? ` · del ${frozen.periodStart} al ${frozen.periodEnd}` : '';
+      const text =
+        period > response.lastClosedPeriod
+          ? `${period} · en curso${frozen ? ' (hay un congelado de otro cierre)' : ''}`
+          : frozen
+          ? `${period} · congelado${span}`
+          : `${period} · cerrado, sin congelar`;
+      return { value: period, text };
+    });
 
 // The frozen revisions of the period shown, newest first; the last of the list is the current one.
 export const revisionOptions = (revisions: ENSAnnualFreezeEntry[]): { value: string; text: string }[] =>

@@ -67,6 +67,9 @@ export interface ENSAnnualFreezeEntry {
 export interface ENSAnnualFreeze extends ENSAnnualFreezeEntry {
   documentType: 'annual_freeze';
   period: string;
+  // First and last day it covers (its header's), kept beside it for the list of frozen periods.
+  periodStart?: string;
+  periodEnd?: string;
   report: ENSAnnualReport;
   // Earlier revisions, oldest first; each one's data set is kept in its own document.
   history: ENSAnnualFreezeEntry[];
@@ -85,6 +88,8 @@ export const ENS_ANNUAL_SECTIONS: (keyof Pick<ENSAnnualReport, 'header' | 'categ
 
 export interface ENSAnnualFrozenPeriod extends ENSAnnualFreezeEntry {
   period: string;
+  periodStart?: string;
+  periodEnd?: string;
   history: ENSAnnualFreezeEntry[];
 }
 
@@ -104,6 +109,8 @@ export interface ENSAnnualReportResponse {
   pending?: boolean;
   // Why the frozen reports could not be read (the data set shown is then computed now).
   freezeError?: string;
+  // A closing moved since a freeze: what the period would cover now, or the freeze of another closing left aside.
+  notice?: string;
   // Version of the maturity document: «Medidas sin motor» records with it.
   maturityVersion: { seqNo: number; primaryTerm: number } | null;
 }

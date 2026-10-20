@@ -21,21 +21,31 @@ export interface ENSStoredAnnualFreeze {
   version: { seqNo: number; primaryTerm: number };
 }
 
+// The dates a freeze covers: kept beside it, or (older documents) read from its header.
+const frozenSpanOf = (source: any): { periodStart?: string; periodEnd?: string } => {
+  const header = (id: string) => (Array.isArray(source?.report?.header) ? source.report.header.find((datum: any) => datum.id === id)?.value : undefined);
+  const periodStart = source.periodStart || header('header.period_start');
+  const periodEnd = source.periodEnd || header('header.period_end');
+  return { ...(periodStart ? { periodStart } : {}), ...(periodEnd ? { periodEnd } : {}) };
+};
+
 const isFreeze = (source: any): source is ENSAnnualFreeze =>
   Boolean(source) && source.documentType === ENS_ANNUAL_FREEZE_TYPE && typeof source.period === 'string' && Number.isInteger(source.revision) && Boolean(source.report);
 
-// The current freeze of a period (or of one earlier revision), read with `client`; undefined if there is none.
+// The current freeze of a period, or a given revision (the current one or an archived one), read with `client`.
 export async function readAnnualFreeze(client: any, period: string, revision?: number): Promise<ENSStoredAnnualFreeze | undefined> {
-  const id = revision === undefined ? annualFreezeId(period) : annualFreezeRevisionId(period, revision);
+  const ids = revision === undefined ? [annualFreezeId(period)] : [annualFreezeId(period), annualFreezeRevisionId(period, revision)];
   const result = await client.search({
     index: ENS_SNAPSHOTS_INDEX,
     ignore_unavailable: true,
     allow_partial_search_results: false,
-    body: { size: 1, seq_no_primary_term: true, query: { ids: { values: [id] } } },
+    body: { size: ids.length, seq_no_primary_term: true, query: { ids: { values: ids } } },
   });
   assertCompleteResponse(result.body, 'el informe anual congelado');
-  const hit = result.body?.hits?.hits?.[0];
-  if (!hit || !isFreeze(hit._source)) return undefined;
+  const hit = (result.body?.hits?.hits || []).find(
+    (entry: any) => isFreeze(entry._source) && (revision === undefined || entry._source.revision === revision)
+  );
+  if (!hit) return undefined;
   return { freeze: hit._source, version: { seqNo: hit._seq_no, primaryTerm: hit._primary_term } };
 }
 
@@ -48,7 +58,7 @@ export async function listAnnualFreezes(client: any, periods: string[]): Promise
     body: {
       size: periods.length,
       query: { ids: { values: periods.map(annualFreezeId) } },
-      _source: ['documentType', 'period', 'revision', 'frozenAt', 'frozenBy', 'reason', 'history'],
+      _source: ['documentType', 'period', 'periodStart', 'periodEnd', 'revision', 'frozenAt', 'frozenBy', 'reason', 'history', 'report.header'],
     },
   });
   assertCompleteResponse(result.body, 'los informes anuales congelados');
@@ -57,6 +67,7 @@ export async function listAnnualFreezes(client: any, periods: string[]): Promise
     .filter((source: any) => source?.documentType === ENS_ANNUAL_FREEZE_TYPE && typeof source.period === 'string')
     .map((source: any) => ({
       period: source.period,
+      ...frozenSpanOf(source),
       revision: source.revision,
       frozenAt: source.frozenAt,
       frozenBy: source.frozenBy,

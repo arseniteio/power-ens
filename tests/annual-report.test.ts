@@ -11,7 +11,7 @@ import { ENS_MEASURES_WITHOUT_ENGINE, maturityRecordTargetError } from '../commo
 import { ENSCatalog } from '../common/ens/catalog';
 import { listControlDimensions } from '../common/ens/core/control-level';
 import { readControlMaturityRecord, validateMaturityEntry } from '../common/ens/maturity/maturity-records';
-import { withoutEngineRows, declarationInitial, freezeActionOf, describeFreezeStatus } from '../public/ens/annual-report/annual-report-view';
+import { withoutEngineRows, declarationInitial, freezeActionOf, describeFreezeStatus, periodOptions } from '../public/ens/annual-report/annual-report-view';
 import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
 import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 import { opMon2Configuration } from '../common/ens/configuration/data/op-mon-2-parameters';
@@ -308,6 +308,15 @@ check('the declaration form starts from the declared figures', JSON.stringify(de
 const response = (extra: any) => ({ period: '2026', currentPeriod: '2027', lastClosedPeriod: '2026', closing: '03-31', periodFrom: '2025-04-01', periodTo: '2026-03-31', periods: [], maturityVersion: null, ...extra });
 check('a closed period without freeze offers «Congelar»; a frozen one «Regenerar»; the current one nothing', freezeActionOf(response({}))?.label === 'Congelar' && freezeActionOf(response({ frozen: { revision: 1, frozenAt: 'a', frozenBy: 'b', history: [] } }))?.expectedRevision === 1 && freezeActionOf(response({ period: '2027' })) === undefined);
 check('the status line says when the figures are not those of the closing', /cifras de hoy, no las del cierre/.test(describeFreezeStatus(response({}))));
+const listed = periodOptions(
+  response({ periods: [{ period: '2025', periodStart: '2024-04-01', periodEnd: '2025-03-31', revision: 1, frozenAt: 'a', frozenBy: 'b', history: [] }, { period: '2027', periodStart: '2026-01-01', periodEnd: '2026-12-31', revision: 1, frozenAt: 'a', frozenBy: 'b', history: [] }] })
+);
+check(
+  'the period list: state of each, a frozen one with its own dates, an open one never «congelado»',
+  JSON.stringify(listed.map(option => option.text)) ===
+    JSON.stringify(['2027 · en curso (hay un congelado de otro cierre)', '2026 · cerrado, sin congelar', '2025 · congelado · del 2024-04-01 al 2025-03-31']),
+  listed
+);
 
 console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
 process.exit(failures.length ? 1 : 0);

@@ -64,6 +64,12 @@ const calendarOf = (run: RunOutput) => {
 const calendarOfConfiguration = (configuration: ENSConfigurationVersion, now: Date) =>
   calendarFor(configuredTimeZone(configuration.global.timezone), annualClosingOfConfiguration(configuration).closing, now);
 
+// First and last day of a frozen period, from its own header (or the copy kept beside it for the list).
+export const frozenSpan = (freeze: { report?: ENSAnnualReport; periodStart?: string; periodEnd?: string }): { from: string; to: string } => {
+  const header = (id: string) => String(freeze.report?.header?.find(datum => datum.id === id)?.value ?? '');
+  return { from: freeze.periodStart || header('header.period_start'), to: freeze.periodEnd || header('header.period_end') };
+};
+
 export const createAnnualReportService = ({
   logger,
   evaluation,
@@ -149,20 +155,36 @@ export const createAnnualReportService = ({
       if (freezeError) throw new ENSAnnualReportUnavailableError(freezeError);
       throw new ENSAnnualReportNotFoundError(`El periodo ${period} no tiene la revisión ${query.revision} congelada.`);
     }
+    // With the current closing this period is still open: a freeze under its key is of another closing, never served by default.
+    const open = period > calendar.lastClosed;
+    let notice: string | undefined;
+    if (stored && open && query.revision === undefined) {
+      const span = frozenSpan(stored.freeze);
+      notice = `Hay un congelado «${period}» de otro cierre (del ${span.from} al ${span.to}): con el cierre actual (${calendar.closing}) el periodo ${period} está en curso. Se lee por la API con ?period=${period}&revision=${stored.freeze.revision}.`;
+      stored = undefined;
+    }
     if (stored) {
       const { freeze } = stored;
+      // The stored header is the truth of a frozen period: its dates, even if the closing moved since.
+      const span = frozenSpan(freeze);
+      const moved = span.from !== bounds.from || span.to !== bounds.to;
       return {
         ...base,
+        periodFrom: span.from,
+        periodTo: span.to,
+        closing: span.to.slice(5),
         periods,
         frozen: { revision: freeze.revision, frozenAt: freeze.frozenAt, frozenBy: freeze.frozenBy, ...(freeze.reason ? { reason: freeze.reason } : {}), history: freeze.history || [] },
         report: freeze.report,
+        ...(moved ? { notice: `Congelado con otro cierre (${span.to.slice(5)}): con el cierre actual (${calendar.closing}) el periodo ${period} iría del ${bounds.from} al ${bounds.to}.` } : {}),
       };
     }
+    const extra = { ...(freezeError ? { freezeError } : {}), ...(notice ? { notice } : {}) };
     const run = await organisationRun(clients);
-    if (run.meta.pending) return { ...base, periods, pending: true, ...(freezeError ? { freezeError } : {}) };
+    if (run.meta.pending) return { ...base, periods, pending: true, ...extra };
     const controls = await maturity.forReport(clients, run);
     const incidents = await periodIncidentsFor(clients.asCurrentUser, run, period);
-    return { ...base, maturityVersion: run.ctx.maturityVersion || null, periods, report: build(run, controls, period, undefined, incidents), ...(freezeError ? { freezeError } : {}) };
+    return { ...base, maturityVersion: run.ctx.maturityVersion || null, periods, report: build(run, controls, period, undefined, incidents), ...extra };
   };
 
   const entryFor = (by: string, revision: number, reason?: string): ENSAnnualFreezeEntry => ({
@@ -175,6 +197,8 @@ export const createAnnualReportService = ({
   const documentOf = (period: string, entry: ENSAnnualFreezeEntry, report: ENSAnnualReport, history: ENSAnnualFreezeEntry[]): ENSAnnualFreeze => ({
     documentType: ENS_ANNUAL_FREEZE_TYPE,
     period,
+    periodStart: frozenSpan({ report }).from,
+    periodEnd: frozenSpan({ report }).to,
     ...entry,
     report,
     history,

@@ -245,7 +245,7 @@ export const AnnualReportPanel = ({
             <EuiSelect
               compressed
               prepend='Periodo'
-              options={periodOptions(response).map(value => ({ value, text: value }))}
+              options={periodOptions(response)}
               value={response.period}
               onChange={(event: any) => {
                 setRevision(undefined);
@@ -291,6 +291,12 @@ export const AnnualReportPanel = ({
       {response?.freezeError && (
         <>
           <EuiCallOut color='warning' iconType='alert' size='s' title={response.freezeError} />
+          <EuiSpacer size='s' />
+        </>
+      )}
+      {response?.notice && (
+        <>
+          <EuiCallOut color='primary' iconType='iInCircle' size='s' title={response.notice} />
           <EuiSpacer size='s' />
         </>
       )}

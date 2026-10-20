@@ -90,14 +90,14 @@ const runFor = () => {
   };
 };
 const maturityMap = () => new Map([['op.acc.1', { ...opAcc1Maturity }], ['mp.eq.2', mpEq2Maturity]]);
-const evaluations = { runs: 0, fail: false };
+const evaluations = { runs: 0, fail: false, closing: '03-31' };
 const evaluation: any = {
   run: async () => {
     evaluations.runs += 1;
     if (evaluations.fail) throw Object.assign(new Error('indexer timeout'), { statusCode: 504 });
     return runFor();
   },
-  settings: async () => ({ configuration: configuration(), maturityVersion: { seqNo: 7, primaryTerm: 1 } }),
+  settings: async () => ({ configuration: configuration({}, evaluations.closing), maturityVersion: { seqNo: 7, primaryTerm: 1 } }),
 };
 const maturity: any = { forReport: async () => maturityMap() };
 const warnings: string[] = [];
@@ -214,6 +214,26 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
   check('revision 1 can still be read and exported', old.status === 200 && JSON.stringify(old.body.data.report) === JSON.stringify(first.report));
   check('an unknown revision is 404', (await get(READER, { period: '2026', revision: '9' })).status === 404);
   check('the new revision says it was regenerated', second.report.header.find((d: any) => d.id === 'header.freeze_reason').value === 'Corrección de la DA' && second.report.header.find((d: any) => d.id === 'header.revision').value === 2);
+
+  section('A closing moved after a freeze: the freeze keeps its own dates, the open period never shows it');
+  evaluations.closing = '06-30';
+  const moved = await get(READER, { period: '2026' });
+  check(
+    'closing 03-31 → 06-30: period 2026 is served frozen with the dates of its header and a notice',
+    moved.body.data.frozen?.revision === 2 && moved.body.data.periodFrom === '2025-04-01' && moved.body.data.periodTo === '2026-03-31' && moved.body.data.closing === '03-31' && /Congelado con otro cierre \(03-31\): con el cierre actual \(06-30\) el periodo 2026 iría del 2025-07-01 al 2026-06-30/.test(moved.body.data.notice),
+    moved.body.data
+  );
+  check('the list of frozen periods carries the dates of each freeze', JSON.stringify(moved.body.data.periods.map((p: any) => [p.period, p.periodStart, p.periodEnd])) === '[["2026","2025-04-01","2026-03-31"]]', moved.body.data.periods);
+  evaluations.closing = '12-31';
+  const collision = await get(READER);
+  check(
+    'closing 03-31 → 12-31: the open period 2026 is computed now, the old freeze 2026 is set aside with a notice',
+    collision.body.data.period === '2026' && !collision.body.data.frozen && Boolean(collision.body.data.report) && /Hay un congelado «2026» de otro cierre \(del 2025-04-01 al 2026-03-31\)/.test(collision.body.data.notice),
+    collision.body.data.notice
+  );
+  const current = await get(READER, { period: '2026', revision: '2' });
+  check('...and the old freeze is still readable by its revision', current.status === 200 && current.body.data.frozen?.revision === 2);
+  evaluations.closing = '03-31';
 
   section('The freezes live beside the daily snapshots without mixing');
   await writeSnapshots(internal, logger, [{ date: '2026-10-19', controlId: 'op.acc.1', status: 'PARCIAL', recordedAt: 'x' }]);
