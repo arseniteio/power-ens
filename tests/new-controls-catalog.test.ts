@@ -9,6 +9,7 @@ import { getENSControlConfiguration } from '../common/ens/configuration/registry
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
 import { ENSControlsInAnnexOrder } from '../public/ens/controls-in-order';
+import { ENS_ORGANIZATION_DATA_ITEMS, findOrganizationDataLink } from '../common/ens/configuration/organization/organization-data-items';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -322,6 +323,40 @@ section('6. Annex II order: the mp.* land in their place');
   check(
     'and the op.* (section 4) before the mp.* (section 5)',
     ENSControlsInAnnexOrder.findIndex(c => c.id.startsWith('mp.')) === ENSControlsInAnnexOrder.filter(c => c.id.startsWith('op.')).length
+  );
+}
+
+section('7. Organisation data: the auditor\'s shared map, read where it fits and explained where it does not');
+
+{
+  const mapped: Record<string, string> = {
+    'mp.sw.2 P-03': 'entorno_preproduccion',
+    'mp.com.3 P-02': 'algoritmos_autorizados',
+    'mp.com.3 P-08': 'productos_certificados',
+    'mp.s.3 P-07': 'formacion_personal',
+  };
+  const links = Object.entries(mapped).map(([key, item]) => {
+    const [controlId, parameterId] = key.split(' ');
+
+    return { key, item, found: findOrganizationDataLink(controlId, parameterId)?.item.id };
+  });
+
+  check('the four parameters read their item', links.every(link => link.found === link.item), links);
+
+  // The rest of the auditor's map (analysis §3) for these controls stays in its control, with the reason.
+  const explained = ['mp.com.3 P-04', 'mp.eq.4 P-01', 'mp.s.2 P-01', 'mp.s.1 P-03', 'mp.com.4 P-01', 'mp.com.4 P-02', 'mp.eq.4 P-06',
+    'mp.eq.3 P-04', 'mp.eq.4 P-07', 'mp.s.2 P-08', 'mp.s.1 P-08', 'mp.s.1 P-09', 'mp.s.3 P-01', 'mp.s.3 P-06'];
+  const unmapped = ENS_ORGANIZATION_DATA_ITEMS.flatMap(item => item.unmapped.map(entry => `${entry.controlId} ${entry.parameterId}`));
+
+  check('the others of the map stay in their control with a reason', explained.every(key => unmapped.includes(key)), explained.filter(key => !unmapped.includes(key)));
+
+  const preproduction = ENS_ORGANIZATION_DATA_ITEMS.find(item => item.id === 'entorno_preproduccion')!;
+
+  check(
+    'pre-production keeps its pairs as the row: op.exp.4 and op.exp.5 read the consistency, mp.sw.2 the isolation',
+    JSON.stringify(preproduction.key) === '["sistema_prod","sistema_preprod"]' &&
+      preproduction.views.find(view => view.controlId === 'mp.sw.2')?.columns?.join() === 'sistema_prod,sistema_preprod,aislamiento' &&
+      preproduction.views.filter(view => view.controlId !== 'mp.sw.2').every(view => view.columns?.join() === 'sistema_prod,sistema_preprod,consistencia')
   );
 }
 

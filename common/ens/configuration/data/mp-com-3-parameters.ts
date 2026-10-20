@@ -64,24 +64,27 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.3.r2.1'],
       type: 'table',
-      example: 'TLS ≥1.2 con AEAD; / firma RSA 3072 / ECDSA P-384; / hash SHA-256 o superior',
+      example: 'cifrado | AES-GCM | 128',
+      // The organisation's list of algorithms authorised by the CCN (Configuración > General), shared with op.exp.10 P-03:
+      // same columns and uses.
       columns: [
         {
           name: 'uso',
           label: 'Uso',
-          type: 'string',
+          type: 'select',
+          options: ['protocolo', 'cifrado', 'mac', 'intercambio', 'firma', 'hash', 'hash_contrasenas'],
           required: true,
         },
         {
           name: 'algoritmo',
-          label: 'Algoritmo',
+          label: 'Algoritmo (familia)',
           type: 'string',
-          required: false,
+          required: true,
         },
         {
-          name: 'parametros',
-          label: 'Parámetros',
-          type: 'string',
+          name: 'longitud_min',
+          label: 'Longitud mínima (bits)',
+          type: 'number',
           required: false,
         },
       ],
@@ -296,7 +299,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.com.3.r4.1'],
       type: 'table',
-      example: 'producto | certificación | / referencia | vigencia',
+      example: 'Cifrador IP de la sede | Common Criteria EAL4+ | CCN-CC-2026-014 | 2028-06-30',
       columns: [
         {
           name: 'producto',
@@ -319,7 +322,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
         {
           name: 'vigencia',
           label: 'Vigencia',
-          type: 'string',
+          type: 'date',
           required: false,
         },
       ],

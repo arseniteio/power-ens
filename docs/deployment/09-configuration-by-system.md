@@ -342,16 +342,16 @@ Desde la 1.4.0, los datos que piden varios controles se declaran una sola vez en
 | Dato | Parámetros que lo leen |
 |---|---|
 | Personal autorizado | op.exp.3 P-03 (configuracion), op.exp.4 P-02 (mantenimiento), op.exp.8 P-08 (registros), op.exp.10 P-08 (claves), mp.info.6 P-07 (copias), op.acc.4 P-02 (autorizaciones), op.nub.1 P-11 (cloud) |
-| Entorno de preproducción | op.exp.4 P-06, op.exp.5 P-05 |
+| Entorno de preproducción | op.exp.4 P-06 y op.exp.5 P-05 (sistemas y consistencia), mp.sw.2 P-03 (sistemas y aislamiento) |
 | Mecanismo de reversión | op.exp.4 P-07, op.exp.5 P-08 |
 | Herramientas de gestión de cambios e incidentes | op.exp.5 P-01 (cambios), op.exp.7 P-03 (incidentes) |
-| Algoritmos y parámetros autorizados por el CCN | op.exp.10 P-03 |
+| Algoritmos y parámetros autorizados por el CCN | op.exp.10 P-03, mp.com.3 P-02 |
 | Plazos de retención | op.exp.8 P-07 (registros), op.exp.9 P-06 (evidencias), op.acc.1 P-06 (cuentas), op.acc.5 P-08 (accesos), mp.info.6 P-03 (copias) |
 | Zonas controladas y segmentos de red | op.acc.6 P-02 |
 | Canales de acceso remoto autorizados | op.acc.6 P-07 (canal, cifrado, autoriza y uso constante) y op.acc.4 P-04 (canal, puerto y origen) |
-| Productos y servicios certificados | op.nub.1 P-04 |
+| Productos y servicios certificados | op.nub.1 P-04, mp.com.3 P-08 |
 | Registro de pruebas periódicas | op.cont.3 P-04 |
-| Formación y concienciación del personal | op.cont.2 P-05 |
+| Formación y concienciación del personal | op.cont.2 P-05, mp.s.3 P-07 |
 | Grupos con privilegio administrativo | op.acc.1 P-11, op.acc.2 P-12, op.acc.4 P-06 |
 | Declaración de aplicabilidad | op.mon.2 P-01 (medida, aplicable, nivel y refuerzos) y op.acc.5 P-DA (motivo, referencia, enlace, fecha y responsable de la fila de op.acc.5 cuando no aplica) |
 
@@ -361,6 +361,8 @@ Reglas:
 
 - Un dato con la columna «Uso» es un registro: cada control lee solo las filas de su uso, con sus columnas y en su orden. Una fila admite varios usos separados por comas (`root | configuracion, copias`).
 - En «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 y mp.info.6 P-03 leen un solo valor: cada uno admite una sola fila de su uso (`cuentas`, `accesos` y `copias`). Con dos filas del mismo uso, el guardado se rechaza con «<control> <parámetro>: lee un solo valor: dejar una sola fila con uso «<uso>» en «Plazos de retención»».
+- En «Entorno de preproducción» hay una fila por pareja de sistemas: op.exp.4 P-06 y op.exp.5 P-05 leen la consistencia y mp.sw.2 P-03 el aislamiento. Las filas de los tres parámetros que nombran la misma pareja se unen en una.
+- Los parámetros de los controles documentales de la 1.4.0 (mp.sw.2, mp.com.3 y mp.s.3) toman el dato igual que los demás; mientras su control no tenga recolector, el valor solo se muestra y va al informe.
 - En «Canales de acceso remoto autorizados» hay una fila por canal: op.acc.6 P-07 lee canal, cifrado, autoriza y uso constante, y op.acc.4 P-04 lee canal, puerto y origen. Las filas de los dos parámetros que nombran el mismo canal se unen en una.
 - Una fila con varios usos comparte «Ámbito» y «Detalle» (o «Categoría»), que significan cosas distintas en cada uso: el dato avisa con «La fila de «<cuenta>» tiene varios usos…». Si difieren, se escribe una fila por uso.
 - op.exp.9 P-01 sigue en su control. Si dice que el registro es el de ENSFácil y la fila de incidentes de «Herramientas de gestión de cambios e incidentes» no lo nombra, o al revés, el dato lo avisa.

@@ -55,6 +55,10 @@ del Anexo II. Datos de la organización pedidos una sola vez.
   general muestran «Sin medición todavía» y el detalle, por evidencia, la
   «Fuente necesaria». Bandas de rule ID 111800–112899 reservadas, sin reglas.
   Se siembran con `config/inject-control.py <control>` como cualquier otro.
+  Leen «Datos de la organización»: mp.sw.2 P-03 (entorno de preproducción,
+  que gana la columna «Aislamiento de producción» y une las filas por pareja
+  de sistemas), mp.com.3 P-02 (algoritmos autorizados por el CCN), mp.com.3
+  P-08 (productos certificados) y mp.s.3 P-07 (formación del personal).
 
 ### Cambiado
 

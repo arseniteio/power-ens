@@ -55,6 +55,10 @@ Organisation data asked once.
   «Sin medición todavía» and the detail gives the «Fuente necesaria» per
   evidence. Rule ID bands 111800–112899 reserved, with no rules. They are
   seeded with `config/inject-control.py <control>` like any other.
+  They read «Datos de la organización»: mp.sw.2 P-03 (pre-production
+  environment, which gains the «Aislamiento de producción» column and joins
+  rows by pair of systems), mp.com.3 P-02 (CCN-authorised algorithms),
+  mp.com.3 P-08 (certified products) and mp.s.3 P-07 (staff training).
 
 ### Changed
 

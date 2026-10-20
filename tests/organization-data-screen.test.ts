@@ -28,6 +28,8 @@ const stored = clone(defaultENSConfigurationTemplate);
 delete stored.organizationData;
 param(stored, 'op.exp.4', 'P-06').value = ['srv-app01 | pre-app01'];
 param(stored, 'op.exp.5', 'P-05').value = ['srv-app01 | pre-app01'];
+// mp.sw.2 (1.4.0) reads the same pairs: with its value equal, no control changes when moving.
+param(stored, 'mp.sw.2', 'P-03').value = ['srv-app01 | pre-app01'];
 param(stored, 'op.acc.1', 'P-11').value = ['sudo', 'wheel'];
 param(stored, 'op.acc.2', 'P-12').value = ['sudo', 'wheel'];
 param(stored, 'op.acc.4', 'P-06').value = ['root'];

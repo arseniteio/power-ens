@@ -85,7 +85,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.r1.1'],
       type: 'table',
-      example: 'srv-web01 → pre-web01 | / VLAN separada sin ruta a prod',
+      example: 'srv-web01 | pre-web01 | VLAN separada sin ruta a producción',
       columns: [
         {
           name: 'sistema_prod',

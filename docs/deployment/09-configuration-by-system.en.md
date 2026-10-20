@@ -342,16 +342,16 @@ From 1.4.0, the data several controls ask for is declared only once in Configura
 | Item | Parameters that read it |
 |---|---|
 | Personal autorizado (authorised personnel) | op.exp.3 P-03 (configuracion), op.exp.4 P-02 (mantenimiento), op.exp.8 P-08 (registros), op.exp.10 P-08 (claves), mp.info.6 P-07 (copias), op.acc.4 P-02 (autorizaciones), op.nub.1 P-11 (cloud) |
-| Entorno de preproducción (pre-production environment) | op.exp.4 P-06, op.exp.5 P-05 |
+| Entorno de preproducción (pre-production environment) | op.exp.4 P-06 and op.exp.5 P-05 (systems and consistency), mp.sw.2 P-03 (systems and isolation) |
 | Mecanismo de reversión (rollback mechanism) | op.exp.4 P-07, op.exp.5 P-08 |
 | Herramientas de gestión de cambios e incidentes (change and incident tools) | op.exp.5 P-01 (cambios), op.exp.7 P-03 (incidentes) |
-| Algoritmos y parámetros autorizados por el CCN (CCN-authorised algorithms) | op.exp.10 P-03 |
+| Algoritmos y parámetros autorizados por el CCN (CCN-authorised algorithms) | op.exp.10 P-03, mp.com.3 P-02 |
 | Plazos de retención (retention periods) | op.exp.8 P-07 (registros), op.exp.9 P-06 (evidencias), op.acc.1 P-06 (cuentas), op.acc.5 P-08 (accesos), mp.info.6 P-03 (copias) |
 | Zonas controladas y segmentos de red (controlled zones) | op.acc.6 P-02 |
 | Canales de acceso remoto autorizados (remote access channels) | op.acc.6 P-07 (channel, encryption, authoriser and constant use) and op.acc.4 P-04 (channel, port and origin) |
-| Productos y servicios certificados (certified products and services) | op.nub.1 P-04 |
+| Productos y servicios certificados (certified products and services) | op.nub.1 P-04, mp.com.3 P-08 |
 | Registro de pruebas periódicas (periodic test register) | op.cont.3 P-04 |
-| Formación y concienciación del personal (staff training) | op.cont.2 P-05 |
+| Formación y concienciación del personal (staff training) | op.cont.2 P-05, mp.s.3 P-07 |
 | Grupos con privilegio administrativo (privileged groups) | op.acc.1 P-11, op.acc.2 P-12, op.acc.4 P-06 |
 | Declaración de aplicabilidad (Statement of Applicability) | op.mon.2 P-01 (measure, applicable, level and reinforcements) and op.acc.5 P-DA (reason, reference, link, date and owner of the op.acc.5 row when it does not apply) |
 
@@ -361,6 +361,8 @@ Rules:
 
 - An item with the «Uso» column is a register: each control reads only the rows of its use, with its columns and in its order. A row accepts several uses separated by commas (`root | configuracion, copias`).
 - In «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 and mp.info.6 P-03 read one value: each accepts a single row of its use (`cuentas`, `accesos` and `copias`). With two rows of the same use, the save is refused with «<control> <parameter>: lee un solo valor: dejar una sola fila con uso «<use>» en «Plazos de retención»».
+- In «Entorno de preproducción» there is one row per pair of systems: op.exp.4 P-06 and op.exp.5 P-05 read the consistency and mp.sw.2 P-03 the isolation. Rows of the three parameters that name the same pair become one.
+- The parameters of the 1.4.0 documentary controls (mp.sw.2, mp.com.3 and mp.s.3) take the item like the rest; while their control has no collector, the value is only shown and goes to the report.
 - In «Canales de acceso remoto autorizados» there is one row per channel: op.acc.6 P-07 reads channel, encryption, authoriser and constant use, and op.acc.4 P-04 reads channel, port and origin. Rows of the two parameters that name the same channel become one.
 - A row with several uses shares «Ámbito» and «Detalle» (or «Categoría»), which mean different things in each use: the item warns with «La fila de «<account>» tiene varios usos…». If they differ, write one row per use.
 - op.exp.9 P-01 stays in its control. If it says the register is ENSFácil's and the incident row of «Herramientas de gestión de cambios e incidentes» does not name it, or the other way round, the item warns about it.

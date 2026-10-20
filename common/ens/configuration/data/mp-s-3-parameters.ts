@@ -177,7 +177,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.3'],
       type: 'table',
-      example: 'administradores del proxy | / monitorización y respuesta | 02/2026',
+      example: 'A. Martínez | monitorización del proxy y respuesta a incidentes | 2026-02-10 | 2027-02-10',
       columns: [
         {
           name: 'persona',
@@ -194,8 +194,14 @@ export const mpS3Configuration: ENSControlConfiguration = {
         {
           name: 'fecha',
           label: 'Fecha',
-          type: 'string',
+          type: 'date',
           required: false,
+        },
+        {
+          name: 'vigencia',
+          label: 'Vigente hasta',
+          type: 'date',
+          required: true,
         },
       ],
       required: true,

@@ -227,6 +227,8 @@ console.log('4. Migration');
   const equal = base();
   set(equal, 'op.exp.4', 'P-06', ['srv-app01 | pre-app01 | informe 2026-05']);
   set(equal, 'op.exp.5', 'P-05', ['srv-app01 | pre-app01 | informe 2026-05']);
+  // mp.sw.2 reads the same pairs with their isolation (another column): the pair is the row.
+  set(equal, 'mp.sw.2', 'P-03', ['srv-app01 | pre-app01']);
   const before = controlsJson(equal);
   const moved = normalizeOrganizationData(equal);
   check('equal values move to the item', JSON.stringify(moved.configuration.organizationData?.values.entorno_preproduccion) === '["srv-app01 | pre-app01 | informe 2026-05"]' && moved.moved.includes('entorno_preproduccion'));
@@ -434,7 +436,8 @@ console.log('6. Verdict parity');
     const migrated = normalizeOrganizationData(clone(source));
     const filledControls = new Set(migrated.filled.map(fill => fill.parameter.split(' ')[0]));
     check(`${name}: only the completed parameters change (${migrated.written.join(', ') || 'none'})`,
-      JSON.stringify(changedParameters(source, migrated.configuration)) === JSON.stringify(migrated.written), changedParameters(source, migrated.configuration));
+      // In any order: the document lists controls in Annex II order and `written` follows the items.
+      JSON.stringify([...changedParameters(source, migrated.configuration)].sort()) === JSON.stringify([...migrated.written].sort()), changedParameters(source, migrated.configuration));
     const differing = changedControls(original, verdicts(clone(migrated.configuration)));
     check(`${name}: same verdicts in every control without a completed parameter`, differing.every(controlId => filledControls.has(controlId)), differing);
     return migrated;
@@ -483,8 +486,9 @@ console.log('6. Verdict parity');
     ['op.exp.9', 'P-06', ['disciplinaria | 1095', 'contractual | 1825']],
   ].forEach(([controlId, parameterId, value]) => set(labShaped, controlId as string, parameterId as string, value));
   const shaped = parity('lab-shaped document', labShaped);
-  check('lab-shaped document: conflicts only where values differ, the empty pre-production parameter completed',
-    JSON.stringify(shaped.conflicts) === '["canales_acceso_remoto","grupos_privilegiados"]' && JSON.stringify(shaped.written) === '["op.exp.5 P-05"]', [shaped.conflicts, shaped.written]);
+  // The documentary mp.sw.2 P-03 and mp.com.3 P-02 (1.4.0) read pre-production and the CCN algorithms too: empty, they are completed.
+  check('lab-shaped document: conflicts only where values differ, the empty pre-production and algorithm parameters completed',
+    JSON.stringify(shaped.conflicts) === '["canales_acceso_remoto","grupos_privilegiados"]' && JSON.stringify(shaped.written) === '["op.exp.5 P-05","mp.sw.2 P-03","mp.com.3 P-02"]', [shaped.conflicts, shaped.written]);
   channelChoice('lab-shaped document', shaped);
 
   const path = process.env.ENSFACIL_LAB_DOC;
