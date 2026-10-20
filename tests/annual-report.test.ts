@@ -13,6 +13,8 @@ import { listControlDimensions } from '../common/ens/core/control-level';
 import { readControlMaturityRecord, validateMaturityEntry } from '../common/ens/maturity/maturity-records';
 import { withoutEngineRows, declarationInitial, freezeActionOf, describeFreezeStatus } from '../public/ens/annual-report/annual-report-view';
 import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
+import { validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
+import { opMon2Configuration } from '../common/ens/configuration/data/op-mon-2-parameters';
 import { configuration, consolidated, INCIDENTS, mpEq2Maturity, opAcc1Maturity, opExp7Row, opMon2Row, records, result, results } from './fixtures/annual-report-fixture';
 
 declare const process: { exit(code: number): void };
@@ -114,6 +116,28 @@ check('measures that apply outside the DA are counted apart, not in the figure',
   const partial = build({ managerRows: { 'op.mon.2': partialRow, 'op.exp.7': opExp7Row() } });
   const field2 = buildOpMon2ReportModel(partialRow, results()).fields.find((f: any) => f.id === 'op.mon.2.campo2')!;
   check('a partial DA: the same implementation figure in field 2 and in the data set', get(partial.implementation, 'implementation.global_pct')!.value === 60 && /^60 % global sobre 2 de 3 medidas aplicables/.test(field2.value), [get(partial.implementation, 'implementation.global_pct')!.value, field2.value]);
+  // A repeated measure counts once, with its last row, in field 2, the global figure and `measure.applies` alike.
+  const twice = opMon2Row('03-31', { p01: ['op.acc.1 | sí', 'op.acc.1 | sí', 'op.exp.3 | sí'] });
+  const dup = build({ managerRows: { 'op.mon.2': twice, 'op.exp.7': opExp7Row() } });
+  const dupField2 = buildOpMon2ReportModel(twice, results()).fields.find((f: any) => f.id === 'op.mon.2.campo2')!;
+  check(
+    'a repeated row counts once (60 %, not 66.7 %), in field 2 and in the data set, and both say so',
+    get(dup.implementation, 'implementation.global_pct')!.value === 60 &&
+      get(dup.implementation, 'implementation.measures_applicable')!.value === 2 &&
+      /P-01 repite op\.acc\.1/.test(get(dup.implementation, 'implementation.measures_applicable')!.trace) &&
+      /^60 % global sobre 2 de 2/.test(dupField2.value) &&
+      dupField2.details.some((d: string) => /P-01 repite op\.acc\.1/.test(d)),
+    [get(dup.implementation, 'implementation.global_pct')!.value, dupField2.value]
+  );
+  const lastNo = build({ managerRows: { 'op.mon.2': opMon2Row('03-31', { p01: ['op.exp.3 | sí', 'op.acc.1 | sí', 'op.acc.1 | no'] }), 'op.exp.7': opExp7Row() } });
+  check(
+    'the last row decides: op.acc.1 «no» does not apply and does not count (40 %)',
+    get(lastNo.implementation, 'implementation.global_pct')!.value === 40 && m(lastNo, 'op.acc.1', 'applies').value === false && /repite en 2 filas/.test(m(lastNo, 'op.acc.1', 'applies').trace)
+  );
+  const p01 = opMon2Configuration.parameters.find(parameter => parameter.id === 'P-01')!;
+  const verdict = validateParameterValue(p01, ['op.acc.1 | sí', 'OP.ACC.1 | no', 'op.exp.3 | sí']);
+  check('P-01 with a repeated measure is invalid, naming it and its rows', !verdict.valid && /«op\.acc\.1» está en las filas 1, 2/.test(verdict.reason || ''), verdict);
+  check('P-01 with one row per measure stays valid', validateParameterValue(p01, ['op.acc.1 | sí', 'op.exp.3 | no']).valid);
   const noDa = build({ managerRows: { 'op.mon.2': opMon2Row('03-31', { p01: [] }), 'op.exp.7': opExp7Row() } });
   check('without a DA: no figure, and the reason', get(noDa.implementation, 'implementation.global_pct')!.value === null && /no tiene base/.test(get(noDa.implementation, 'implementation.global_pct')!.trace));
 }

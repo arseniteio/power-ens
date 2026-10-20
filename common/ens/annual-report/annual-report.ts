@@ -13,7 +13,6 @@ import {
   resolveDimensionLevel,
 } from '../core/control-level';
 import type { ENSComplianceResult } from '../core/evaluation/types';
-import { parseStatementOfApplicability } from '../core/policy-runtime/policies/op-mon-2.policy';
 import { stripAccents } from '../core/policy-runtime/policies/policy-kit';
 import { dayIn } from '../maturity/maturity-engine';
 import { ENS_CATEGORY_NAMES, readControlMaturityRecord, resolveMaturityTargets } from '../maturity/maturity-records';
@@ -24,7 +23,7 @@ import { annualPeriodBounds, annualPeriodInstants, annualPeriodOfDay, ENS_DEFAUL
 import { ENS_ANNUAL_REPORT_SCHEMA } from './annual-report-types';
 import type { ENSAnnualDatum, ENSAnnualFreezeEntry, ENSAnnualMeasure, ENSAnnualReport, ENSAnnualSource, ENSAnnualValue } from './annual-report-types';
 import { ENS_ANNUAL_REPORT_CONTROL, measureEngine } from './declared-measures';
-import { implementationDegree } from './implementation-degree';
+import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from './implementation-degree';
 
 const INCIDENTS_CONTROL = 'op.exp.7';
 const HOUR_MS = 3600e3;
@@ -122,8 +121,8 @@ export const annualClosingOfConfiguration = (configuration: ENSConfigurationVers
   closingOfRows(rowsOf(resolveControlConfigurationForAgent(configuration, ENS_ANNUAL_REPORT_CONTROL, '000')?.parameters, 'P-02', P02_COLUMNS));
 
 // Rows of the Statement of Applicability (op.mon.2 P-01) by measure; the last row of a measure wins.
-const statementOfApplicability = (opMon2?: ENSComplianceResult): Map<string, { applies?: boolean; raw: string; level: string }> => {
-  const rows = new Map<string, { applies?: boolean; raw: string; level: string }>();
+const statementOfApplicability = (opMon2?: ENSComplianceResult): Map<string, { applies?: boolean; raw: string; level: string; rows: number }> => {
+  const rows = new Map<string, { applies?: boolean; raw: string; level: string; rows: number }>();
   parameterRows(opMon2, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']).forEach(row => {
     const id = fold(row.medida);
     const applies = fold(row.aplicable);
@@ -131,6 +130,7 @@ const statementOfApplicability = (opMon2?: ENSComplianceResult): Map<string, { a
       applies: applies === 'si' ? true : applies === 'no' ? false : undefined,
       raw: [row.medida, row.aplicable, row.nivel, row.refuerzos_exigibles].filter(Boolean).join(' | '),
       level: row.nivel,
+      rows: (rows.get(id)?.rows || 0) + 1,
     });
   });
   return rows;
@@ -197,12 +197,13 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
 
   // Applies: the Statement of Applicability, else the declared entry, else the Annex at its level.
   if (soa && soa.applies !== undefined) {
-    push('soa', soa.applies ? 'sí' : 'no', 'SOA', `op.mon.2 P-01, fila «${soa.raw}»`);
+    const repeated = soa.rows > 1 ? `; P-01 la repite en ${soa.rows} filas: cuenta la última` : '';
+    push('soa', soa.applies ? 'sí' : 'no', 'SOA', `op.mon.2 P-01, fila «${soa.raw}»${repeated}`);
     push(
       'applies',
       soa.applies,
       'SOA',
-      `op.mon.2 P-01, fila «${soa.raw}»${soa.applies && !byAnnex ? `; el Anexo II no la exige en nivel ${level}` : !soa.applies && byAnnex ? `; el Anexo II la exige en nivel ${level} (${requirement})` : ''}`
+      `op.mon.2 P-01, fila «${soa.raw}»${repeated}${soa.applies && !byAnnex ? `; el Anexo II no la exige en nivel ${level}` : !soa.applies && byAnnex ? `; el Anexo II la exige en nivel ${level} (${requirement})` : ''}`
     );
   } else {
     push('soa', null, 'SOA', soa ? `op.mon.2 P-01, fila «${soa.raw}»: no dice sí o no` : ctx.soaRead ? 'sin fila en op.mon.2 P-01' : 'op.mon.2 P-01 sin configurar');
@@ -296,7 +297,7 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
 // --- aggregates -----------------------------------------------------------------------------------------------
 
 // The same figure as op.mon.2 field 2: the engine score of P-01's applicable measures (implementation-degree.ts).
-const implementationOf = (measures: ENSAnnualMeasure[], applicable: string[], results: ENSComplianceResult[]): ENSAnnualDatum[] => {
+const implementationOf = (measures: ENSAnnualMeasure[], applicable: string[], results: ENSComplianceResult[], repeated: string[]): ENSAnnualDatum[] => {
   const degree = implementationDegree(applicable, results);
   const base = applicable.map(id => measures.find(measure => measure.id === id)).filter((measure): measure is ENSAnnualMeasure => Boolean(measure));
   const pending = base.filter(measure => !degree.scored.includes(measure.id));
@@ -326,7 +327,13 @@ const implementationOf = (measures: ENSAnnualMeasure[], applicable: string[], re
         { key: framework, unit: '%' }
       );
     }),
-    datum('implementation.measures_applicable', applicable.length, 'SOA', applicable.length ? 'medidas aplicables según la DA (op.mon.2 P-01)' : noBase, { unit: 'n' }),
+    datum(
+      'implementation.measures_applicable',
+      applicable.length,
+      'SOA',
+      [applicable.length ? 'medidas aplicables según la DA (op.mon.2 P-01)' : noBase, describeRepeatedMeasures(repeated)].filter(Boolean).join('; '),
+      { unit: 'n' }
+    ),
     datum('implementation.measures_measured', degree.evaluadas, 'ENGINE', 'de ellas, con porcentaje del motor (cuentan en el grado de implantación)', { unit: 'n' }),
     datum('implementation.measures_declared', declared.length, 'DECLARED', `de ellas, sin porcentaje y con madurez valorada o declarada: ${declared.map(measure => measure.id).join(', ') || 'ninguna'}`, { unit: 'n' }),
     datum('implementation.measures_without_data', without.length, 'NONE', `de ellas, sin porcentaje ni madurez: ${without.map(measure => measure.id).join(', ') || 'ninguna'}`, { unit: 'n' }),
@@ -685,8 +692,8 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
     label: open ? `periodo en curso: hasta la generación (${iso(now.getTime())})` : `fin del periodo (cierre ${closing})`,
   };
   const soa = statementOfApplicability(opMon2);
-  // The same parse of P-01 as op.mon.2's policy and field 2.
-  const statement = parseStatementOfApplicability(parameterRows(opMon2, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']));
+  // P-01 once per measure, the last row winning: the same list as field 2 and as `measure.applies`.
+  const statement = applicableMeasures(parameterRows(opMon2, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']));
   const measures = ENS_ANNEX_II_MEASURES.map(measure =>
     buildMeasure(measure, {
       global,
@@ -724,7 +731,7 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
       datum('header.freeze_reason', freeze?.reason ?? null, freeze?.reason ? 'FREEZE' : 'NONE', freeze?.reason ? 'motivo de la regeneración' : 'sin motivo: congelado al cierre o sin congelar'),
     ],
     categorisation: categorisationOf(global),
-    implementation: implementationOf(measures, statement.aplicables, input.results),
+    implementation: implementationOf(measures, statement.applicable, input.results, statement.repeated),
     maturity: maturityOf(measures),
     measures,
     incidents: incidentsOf(opMon2, opExp7, window),

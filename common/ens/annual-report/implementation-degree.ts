@@ -1,6 +1,7 @@
 // Implementation degree over the Statement of Applicability: the one figure of op.mon.2 field 2 and the art. 32 data.
 import { getENSCatalogControl, isPendingMeasurement } from '../catalog';
 import type { ENSComplianceResult } from '../core/evaluation/types';
+import { parseStatementOfApplicability } from '../core/policy-runtime/policies/op-mon-2.policy';
 
 const CONTROL = 'op.mon.2';
 
@@ -22,6 +23,35 @@ export interface ENSImplementationDegree {
   scored: string[];
   lineas: string[];
 }
+
+// P-01 read once per measure (the last row wins), with the measures it repeats: field 2 and the data set use it.
+export const applicableMeasures = (rows: Record<string, string>[]): { applicable: string[]; repeated: string[]; problems: string[] } => {
+  const decided = new Map<string, boolean>();
+  const seen = new Map<string, number>();
+  const problems: string[] = [];
+
+  rows.forEach(row => {
+    const parsed = parseStatementOfApplicability([row]);
+    const measure = parsed.aplicables[0] || parsed.noAplicables[0];
+
+    problems.push(...parsed.problemas);
+
+    if (measure) {
+      seen.set(measure, (seen.get(measure) || 0) + 1);
+      decided.set(measure, parsed.aplicables.length > 0);
+    }
+  });
+
+  return {
+    applicable: Array.from(decided.entries()).filter(([, applies]) => applies).map(([measure]) => measure),
+    repeated: Array.from(seen.entries()).filter(([, n]) => n > 1).map(([measure]) => measure),
+    problems,
+  };
+};
+
+// Line that states a repeated measure, for field 2 and the trace of the data set.
+export const describeRepeatedMeasures = (repeated: string[]): string =>
+  repeated.length ? `P-01 repite ${repeated.join(', ')}: cuenta una vez, con su última fila (corregir P-01: una fila por medida)` : '';
 
 // P-01's applicable measures against the organisation results; op.mon.2, DRAFT and NO_APLICA controls do not count.
 export const implementationDegree = (applicable: string[], results: ENSComplianceResult[]): ENSImplementationDegree => {

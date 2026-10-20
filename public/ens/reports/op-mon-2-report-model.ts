@@ -4,15 +4,12 @@ import {
   toParameterTableRows,
   toTableRowCells,
 } from '../../../common/ens/configuration/services/parameter-value-validator';
-// Same grammars as the policy: P-01 and P-06 read the same in the judgement and in the report.
-import {
-  parseStatementOfApplicability,
-  parseMetricTargets,
-} from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+// Same grammar as the policy for P-06; P-01 through `applicableMeasures` (the policy's parser, once per measure).
+import { parseMetricTargets } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
 import { describeAnnualReport } from '../../../common/ens/annual-report/annual-report-export';
-import { implementationDegree } from '../../../common/ens/annual-report/implementation-degree';
+import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from '../../../common/ens/annual-report/implementation-degree';
 import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
 export type OpMon2ReportFieldStatus =
@@ -189,15 +186,16 @@ export const buildOpMon2ReportModel = (
   const level = (result?.level || '').toUpperCase();
   const reinforcements = level === 'MEDIO' || level === 'ALTO';
 
-  const declaration = parseStatementOfApplicability(
+  // One entry per measure (the last row wins), as in the art. 32 data set.
+  const declaration = applicableMeasures(
     table(result, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']),
   );
   const { objetivos: targets } = parseMetricTargets(
     table(result, 'P-06', ['metrica', 'objetivo', 'tolerancia']),
   );
 
-  const degree = panorama && declaration.aplicables.length
-    ? implementationDegree(declaration.aplicables, panorama)
+  const degree = panorama && declaration.applicable.length
+    ? implementationDegree(declaration.applicable, panorama)
     : undefined;
   const pendingItems = panorama ? greys(panorama) : undefined;
   const series = list('serie_ciclos_metricas');
@@ -223,13 +221,13 @@ export const buildOpMon2ReportModel = (
     degree ? 'NO_APLICA' : 'SIN_DATOS',
     !panorama
       ? 'Sin el resultado de todos los controles: se calcula en la pantalla de Informes, con los hechos de todos.'
-      : !declaration.aplicables.length
+      : !declaration.applicable.length
       ? 'Sin Declaración de Aplicabilidad (P-01): el grado de implantación no tiene base.'
       : degree && degree.global !== undefined
       ? `${figure(degree.global)} % global sobre ${degree.evaluadas} de ${degree.medidas} medidas aplicables de P-01 evaluadas por ENSFácil (${deviation(degree.global, targets.get('implantacion_global'))}). Dato del informe, sin veredicto.`
-      : `Ninguna de las ${declaration.aplicables.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
+      : `Ninguna de las ${declaration.applicable.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
     ['EV-01'],
-    [...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
+    [describeRepeatedMeasures(declaration.repeated), ...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
   );
 
   const field3 = field(
