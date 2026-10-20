@@ -8,6 +8,7 @@ import { getPolicyDefinition } from '../common/ens/core/policy-runtime/policies'
 import { getENSControlConfiguration } from '../common/ens/configuration/registry';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
+import { getParameterOptionsAtLevel, parameterAtLevel, toTableRowCells, validateParameterValue } from '../common/ens/configuration/services/parameter-value-validator';
 import { ENSControlsInAnnexOrder } from '../public/ens/controls-in-order';
 import { ENS_ORGANIZATION_DATA_ITEMS, findOrganizationDataLink } from '../common/ens/configuration/organization/organization-data-items';
 
@@ -358,6 +359,78 @@ section('7. Organisation data: the auditor\'s shared map, read where it fits and
       preproduction.views.find(view => view.controlId === 'mp.sw.2')?.columns?.join() === 'sistema_prod,sistema_preprod,aislamiento' &&
       preproduction.views.filter(view => view.controlId !== 'mp.sw.2').every(view => view.columns?.join() === 'sistema_prod,sistema_preprod,consistencia')
   );
+}
+
+section('8. Fix round 1: texts, examples, choices by level and links');
+
+{
+  const parameters = IDS.flatMap(id => getENSControlConfiguration(id)!.parameters);
+  const artefacts = parameters.filter(p => / \/ /.test(p.example || '') || /\becutables\b/.test(p.example || ''));
+
+  check('no example keeps the template\'s wrapped lines (« / ») nor «ecutables»', artefacts.length === 0, artefacts.map(p => `${p.controlId} ${p.id}`));
+
+  const badCells = parameters.filter(p => p.type === 'table' && p.columns?.length && toTableRowCells(p.example || '').length !== p.columns.length);
+
+  check('every table example is one row with a cell per column (the form uses them as placeholders)', badCells.length === 0, badCells.map(p => `${p.controlId} ${p.id}`));
+
+  const asValue = (p: any) =>
+    p.type === 'list' ? (p.example as string).split('\n') : p.type === 'table' ? [p.example] : ['number', 'duration_days', 'duration_hours'].includes(p.type) ? Number(p.example) : p.example;
+  const invalid = parameters.filter(p => p.example !== undefined && !validateParameterValue(p, asValue(p)).valid);
+
+  check('every example, taken as the value, is valid for its parameter', invalid.length === 0, invalid.map(p => `${p.controlId} ${p.id}: ${validateParameterValue(p, asValue(p)).reason}`));
+  check('lists give one value per line', parameters.filter(p => p.type === 'list' && /\n/.test(p.example || '')).length >= 5);
+
+  const interpretations = IDS.flatMap(id => catalogOf(id).requirements.filter(r => r.interpretation).map(r => r.interpretation as string));
+
+  check('interpretations start with a capital letter', interpretations.length === 2 && interpretations.every(text => /^[A-ZÁÉÍÓÚÑ«]/.test(text)), interpretations);
+
+  const p03 = getENSControlConfiguration('mp.com.4')!.parameters.find(p => p.id === 'P-03')!;
+  const p07 = getENSControlConfiguration('mp.s.2')!.parameters.find(p => p.id === 'P-07')!;
+
+  check('mp.com.4 P-03: R1, R2 or R3 in MEDIA; R2 or R3 in ALTA', getParameterOptionsAtLevel(p03, 'MEDIO').join() === 'R1,R2,R3' && getParameterOptionsAtLevel(p03, 'ALTO').join() === 'R2,R3');
+  check('mp.s.2 P-07: R1 or R2 in BÁSICA and MEDIA; only R2 in ALTA (no choice)', getParameterOptionsAtLevel(p07, 'BAJO').join() === 'R1,R2' && getParameterOptionsAtLevel(p07, 'ALTO').join() === 'R2');
+  check('the form offers only those, and a value the level does not admit is invalid there', parameterAtLevel(p07, 'ALTO').options?.join() === 'R2' && !validateParameterValue(parameterAtLevel(p07, 'ALTO'), 'R1').valid && validateParameterValue(p07, 'R1').valid);
+  check('R2 of mp.s.2 applies in ALTA whatever P-07 says', catalogOf('mp.s.2').requirements.filter(r => r.id.startsWith('mp.s.2.r2.')).every(r => r.applicability.levels.includes('ALTO')));
+
+  const badChoices = validateENSConfigurationStructure({
+    ...defaultENSConfigurationTemplate,
+    controls: defaultENSConfigurationTemplate.controls.map(control =>
+      control.controlId === 'mp.s.2'
+        ? { ...control, parameters: control.parameters.map(p => (p.id === 'P-07' ? { ...p, optionsByLevel: { ALTO: ['R9'] } } : p)) }
+        : control
+    ),
+  });
+
+  check('a level offering an option outside `options` does not load', !badChoices.valid && badChoices.errors.some(e => /optionsByLevel\.ALTO/.test(e)), badChoices.errors);
+
+  // Required as the organisation item requires them: a row valid for the parameter is valid for the item.
+  const mismatched: string[] = [];
+  ENS_ORGANIZATION_DATA_ITEMS.forEach(item => item.views.filter(view => IDS.includes(view.controlId)).forEach(view => {
+    const parameter = getENSControlConfiguration(view.controlId)!.parameters.find(p => p.id === view.parameterId)!;
+    const names = view.columns || (item.columns || []).map(column => column.name);
+    names.forEach((name, index) => {
+      const itemColumn = (item.columns || []).find(column => column.name === name);
+      if (itemColumn?.required && !parameter.columns?.[index]?.required) mismatched.push(`${view.controlId} ${view.parameterId} ${parameter.columns?.[index]?.name}`);
+    });
+  }));
+  check('mapped columns are required where the organisation item requires them', mismatched.length === 0, mismatched);
+
+  const ev09 = ENSEvidenceCatalog.find(e => e.controlId === 'mp.s.1' && e.id === 'EV-09')!;
+  const s1p01 = getENSControlConfiguration('mp.s.1')!.parameters.find(p => p.id === 'P-01')!;
+  const c1p06 = getENSControlConfiguration('mp.com.1')!.parameters.find(p => p.id === 'P-06')!;
+
+  check('mp.s.1 EV-09 covers the technical requirements, and they list it', ev09.requirements.join() === 'mp.s.1.1,mp.s.1.2,mp.s.1.3,mp.s.1.4,mp.s.1.5' &&
+    catalogOf('mp.s.1').requirements.filter(r => ev09.requirements.includes(r.id)).every(r => r.evidenceIds.includes('EV-09')));
+  check('mp.s.1 P-01 and mp.com.1 P-06 name requirements, not the control', s1p01.requirements.length === 7 && c1p06.requirements.join() === 'mp.com.1.1,mp.com.1.2' &&
+    catalogOf('mp.com.1').requirements.every(r => r.parameterIds.includes('P-06')) && catalogOf('mp.s.1').requirements.every(r => r.parameterIds.includes('P-01')));
+
+  const loose = ENSEvidenceCatalog.filter(e => IDS.includes(e.controlId) && !e.requirements.length).map(e => `${e.controlId} ${e.id}`);
+
+  check('only mp.sw.2 EV-01 (the trigger of the control) covers no requirement', loose.join() === 'mp.sw.2 EV-01', loose);
+  check('the policies say the same links as the catalog', IDS.every(id => getPolicyDefinition(id)!.requirements.every(r => {
+    const requirement = catalogOf(id).requirements.find(x => x.id === r.requirementId)!;
+    return r.evidenceIds.join() === [...requirement.evidenceIds].sort().join() && r.parameterIds.join() === [...requirement.parameterIds].sort().join();
+  })));
 }
 
 console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
