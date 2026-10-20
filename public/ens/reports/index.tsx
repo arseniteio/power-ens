@@ -21,6 +21,8 @@ import type {
   ENSRequirementResult,
 } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
+import { buildMaturityPdfContent, MaturityReportSection } from '../maturity/maturity-report';
+import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
   getENSReportModelDefinition,
@@ -109,7 +111,7 @@ const ControlReport = ({
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
+  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta; maturity?: ENSControlMaturity; maturityError?: string }>({
     include: 'control',
     controlId,
     agentId,
@@ -593,6 +595,9 @@ const ControlReport = ({
           margin: [0, 0, 0, 16],
         },
 
+        // The maturity (normative) after the result (operational), never inside it.
+        ...buildMaturityPdfContent(evaluation.data?.maturity, evaluation.data?.maturityError),
+
         { text: 'Campos del informe', style: 'h3' },
         { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
@@ -860,6 +865,10 @@ const ControlReport = ({
           />
         </EuiFlexItem>
       </EuiFlexGroup>
+
+      <EuiSpacer size='l' />
+
+      <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} />
 
       <EuiSpacer size='l' />
 

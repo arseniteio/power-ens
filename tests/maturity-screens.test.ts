@@ -13,8 +13,12 @@ const check = (n: string, c: boolean, d: unknown = '') => {
 
 let evaluations: Record<string, any> = {};
 let retries = 0;
+const pdfs: any[] = [];
+const pdfStub = { createPdf: (definition: any) => { pdfs.push(definition); return { download: () => undefined }; } };
 const h = installReactHarness({
   overrides: {
+    [require.resolve('pdfmake/build/pdfmake')]: () => pdfStub,
+    [require.resolve('pdfmake/build/vfs_fonts')]: () => ({ vfs: {} }),
     [`${__dirname}/../public/evaluation/use-evaluation.ts`]: () => ({
       useEnsEvaluation: (params: any) => ({ ...(evaluations[params.include] || { isLoading: true }), retry: () => { retries += 1; } }),
     }),
@@ -27,6 +31,8 @@ const { ControlDetailENS } = require('../public/ens/controls/control-detail');
 const { OverviewENS } = require('../public/ens/overview');
 const { EnsDashboardMain } = require('../public/ens/dashboard/ens-dashboard-main');
 const { GlobalConfigurationPanel } = require('../public/ens/configuration/components/global-configuration-panel');
+const { ReportsENS } = require('../public/ens/reports');
+const { buildMaturityPdfContent } = require('../public/ens/maturity/maturity-report');
 const { ensConfigurationRepository } = require('../common/ens/configuration/repository');
 const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration');
 const { hydrateENSScope } = require('../common/ens/core/scope/runtime');
@@ -183,6 +189,25 @@ http.setENSConfigurationHttp(() => ({
   await h.rerender();
   await h.click(/Guardar configuración global/);
   check('back to the default: the key leaves the document (absent, never null)', puts[1] && !('maturityTargets' in puts[1].body.configuration.global), puts[1]?.body.configuration.global);
+
+  console.log('6. The report: a generic maturity block, on screen and in the PDF');
+  h.reset();
+  ensConfigurationRepository.completeHydration(doc);
+  evaluations.control = { data: { meta, result: result(), maturity: above, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  evaluations.results = { data: { meta, results: [result()] }, isLoading: false };
+  h.setSearch('?tabView=reports');
+  p = await h.render(ReportsENS);
+  h.find('EuiFieldSearch')!.props.onChange({ target: { value: 'op.acc.1' } });
+  p = await h.rerender();
+  check('the report shows the maturity block with the note', /Madurez del proceso \(CMM\)/.test(p) && /Nota metodológica/.test(p) && /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(p), p.slice(0, 300));
+  check('...marked above the accredited level', /Valorado por encima de lo acreditado \(L4 frente a L2\)\. Justificación: Auditado en papel/.test(p));
+  await h.click(/Exportar PDF/);
+  const content = JSON.stringify(pdfs[0]?.content || []);
+  check('the PDF carries it after the result: headline, mark, gates and the note', /Madurez del proceso \(CMM\)/.test(content) && /Madurez: L4 \(acreditado L2, objetivo L3\)/.test(content) && /Valorado por encima de lo acreditado/.test(content) && /Hechos recurrentes sin huecos/.test(content) && /Nota metodológica/.test(content) && content.indexOf('Madurez del proceso') < content.indexOf('Campos del informe'), content.slice(0, 300));
+  const generic = ['mp.info.6', 'op.exp.3', 'op.cont.2'].every(id => JSON.stringify(buildMaturityPdfContent({ ...maturity, controlId: id })).includes('Puerta'));
+  check('the block does not depend on the control (any catalog control, also a new one)', generic);
+  check('DRAFT in the PDF: «Sin medición todavía»', /Sin medición todavía/.test(JSON.stringify(buildMaturityPdfContent(draft))));
+  check('without maturity the PDF says why instead of a level', /No se pudo calcular/.test(JSON.stringify(buildMaturityPdfContent(undefined, 'No se pudo calcular la madurez.'))));
 
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
