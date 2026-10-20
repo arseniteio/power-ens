@@ -12,6 +12,7 @@ import {
 import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
 import { describeAnnualReport } from '../../../common/ens/annual-report/annual-report-export';
+import { implementationDegree } from '../../../common/ens/annual-report/implementation-degree';
 import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
 export type OpMon2ReportFieldStatus =
@@ -93,12 +94,6 @@ const CONTROL = 'op.mon.2';
 
 const figure = (n: number): string => String(Math.round(n * 10) / 10);
 
-const FRAMEWORKS: Record<string, string> = {
-  org: 'Marco organizativo',
-  op: 'Marco operacional',
-  mp: 'Medidas de protección',
-};
-
 const table = (
   result: ENSComplianceResult | undefined,
   id: string,
@@ -138,63 +133,6 @@ const deviation = (value: number, o: MetricTarget | undefined): string => {
     : belowTarget
     ? `${target}: dentro de la tolerancia`
     : `${target}: alcanzado`;
-};
-
-interface Rollout {
-  global?: number;
-  medidas: number;
-  evaluadas: number;
-  lineas: string[];
-}
-
-const rollout = (
-  applicable: string[],
-  panorama: ENSComplianceResult[],
-): Rollout => {
-  const byControl = new Map(
-    panorama
-      .filter(r => r.control.id !== CONTROL)
-      .map(r => [r.control.id, r]),
-  );
-  const scored: { medida: string; score: number }[] = [];
-  const lines: string[] = [];
-
-  applicable.forEach(measure => {
-    const r = byControl.get(measure);
-
-    if (!r) {
-      lines.push(`${measure}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
-    } else if (isPendingMeasurement(getENSCatalogControl(measure))) {
-      // In the catalog without collector yet: its NO_APLICA is not a level decision, so P-01 is not to be reviewed.
-      lines.push(`${measure}: sin medición todavía, documental hasta que su recolector emita (no cuenta en la cifra)`);
-    } else if (r.status === 'NO_APLICA') {
-      lines.push(`${measure}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
-    } else if (typeof r.score !== 'number') {
-      lines.push(`${measure}: ${r.status}, sin puntuación`);
-    } else {
-      scored.push({ medida: measure, score: r.score });
-      lines.push(`${measure}: ${figure(r.score)} % (${r.status})`);
-    }
-  });
-
-  const byFramework = Object.entries(FRAMEWORKS)
-    .map(([prefix, name]) => {
-      const own = scored.filter(p => p.medida.split('.')[0] === prefix);
-
-      return own.length
-        ? `${name}: ${figure(own.reduce((a, p) => a + p.score, 0) / own.length)} % (${own.length} medidas)`
-        : '';
-    })
-    .filter(Boolean);
-
-  return {
-    global: scored.length
-      ? scored.reduce((a, p) => a + p.score, 0) / scored.length
-      : undefined,
-    medidas: applicable.length,
-    evaluadas: scored.length,
-    lineas: [...byFramework, ...lines],
-  };
 };
 
 // A control without collector is out of every op.mon.2 figure: it cannot be configured «for evaluation» yet.
@@ -259,7 +197,7 @@ export const buildOpMon2ReportModel = (
   );
 
   const degree = panorama && declaration.aplicables.length
-    ? rollout(declaration.aplicables, panorama)
+    ? implementationDegree(declaration.aplicables, panorama)
     : undefined;
   const pendingItems = panorama ? greys(panorama) : undefined;
   const series = list('serie_ciclos_metricas');

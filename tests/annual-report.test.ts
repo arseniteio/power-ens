@@ -12,7 +12,8 @@ import { ENSCatalog } from '../common/ens/catalog';
 import { listControlDimensions } from '../common/ens/core/control-level';
 import { readControlMaturityRecord, validateMaturityEntry } from '../common/ens/maturity/maturity-records';
 import { withoutEngineRows, declarationInitial, freezeActionOf, describeFreezeStatus } from '../public/ens/annual-report/annual-report-view';
-import { configuration, consolidated, mpEq2Maturity, opAcc1Maturity, opExp7Row, opMon2Row, records, result, results } from './fixtures/annual-report-fixture';
+import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
+import { configuration, consolidated, INCIDENTS, mpEq2Maturity, opAcc1Maturity, opExp7Row, opMon2Row, records, result, results } from './fixtures/annual-report-fixture';
 
 declare const process: { exit(code: number): void };
 declare const __dirname: string;
@@ -97,13 +98,25 @@ check('mp.eq.4 (C at BAJO, DRAFT, no declaration): applies by the Annex, target 
 
 section('Aggregates');
 const imp = (id: string, key?: string) => get(report.implementation, id, key)?.value;
-check('global implementation: mean of the applicable measured ones (80, 40, 100, 100)', imp('implementation.global_pct') === 80 && imp('implementation.framework_pct', 'op') === 80 && imp('implementation.framework_pct', 'org') === null);
+check('global implementation: over the DA (P-01) only, op.acc.1 80 %', imp('implementation.global_pct') === 80 && imp('implementation.framework_pct', 'op') === 80 && imp('implementation.framework_pct', 'org') === null);
 check(
-  'applicable = measured + declared + without data',
-  imp('implementation.measures_applicable') === (imp('implementation.measures_measured') as number) + (imp('implementation.measures_declared') as number) + (imp('implementation.measures_without_data') as number) &&
-    imp('implementation.measures_measured') === 4 &&
-    imp('implementation.measures_declared') === 2
+  'P-01 applicable = measured + declared + without data (op.acc.1; org.1 and mp.eq.2; mp.if.6)',
+  imp('implementation.measures_applicable') === 4 &&
+    imp('implementation.measures_measured') === 1 &&
+    imp('implementation.measures_declared') === 2 &&
+    imp('implementation.measures_without_data') === 1 &&
+    /mp\.if\.6/.test(get(report.implementation, 'implementation.measures_without_data')!.trace)
 );
+check('measures that apply outside the DA are counted apart, not in the figure', (imp('implementation.measures_applicable_outside_soa') as number) > 0 && /op\.exp\.3/.test(get(report.implementation, 'implementation.measures_applicable_outside_soa')!.trace));
+{
+  // A partial DA: field 2 of op.mon.2 and the data set give the same figure (60 % = op.acc.1 80 and op.exp.3 40).
+  const partialRow = opMon2Row('03-31', { p01: ['op.acc.1 | sí', 'op.exp.3 | sí', 'org.1 | sí'] });
+  const partial = build({ managerRows: { 'op.mon.2': partialRow, 'op.exp.7': opExp7Row() } });
+  const field2 = buildOpMon2ReportModel(partialRow, results()).fields.find((f: any) => f.id === 'op.mon.2.campo2')!;
+  check('a partial DA: the same implementation figure in field 2 and in the data set', get(partial.implementation, 'implementation.global_pct')!.value === 60 && /^60 % global sobre 2 de 3 medidas aplicables/.test(field2.value), [get(partial.implementation, 'implementation.global_pct')!.value, field2.value]);
+  const noDa = build({ managerRows: { 'op.mon.2': opMon2Row('03-31', { p01: [] }), 'op.exp.7': opExp7Row() } });
+  check('without a DA: no figure, and the reason', get(noDa.implementation, 'implementation.global_pct')!.value === null && /no tiene base/.test(get(noDa.implementation, 'implementation.global_pct')!.trace));
+}
 const mat = (id: string, key?: string) => get(report.maturity, id, key)?.value;
 check('maturity distribution: L3 2, L2 1, one below its target (mp.eq.2)', mat('maturity.measures_at_level', 'L3') === 2 && mat('maturity.measures_at_level', 'L2') === 1 && mat('maturity.below_target') === 1);
 
@@ -111,6 +124,8 @@ section('Categorisation');
 const cat = (id: string) => get(report.categorisation, id)!;
 check('C and D declared BAJO; I, T, A absent = ENS level', cat('category.level_c').value === 'BAJO' && cat('category.level_d').value === 'BAJO' && cat('category.level_i').value === 'MEDIO' && /clave ausente/.test(cat('category.level_i').trace));
 check('category MEDIA', cat('category.category').value === 'MEDIA' && cat('category.ens_level').value === 'MEDIO');
+const incoherent = build({ configuration: configuration({ availabilityLevel: 'ALTO' }) });
+check('a dimension above the ENS level: the header category is the categorisation one', get(incoherent.header, 'header.category')!.value === 'ALTA' && get(incoherent.categorisation, 'category.category')!.value === 'ALTA' && /Subir el nivel ENS/.test(get(incoherent.categorisation, 'category.category')!.trace));
 
 section('Period');
 const h = (r: ENSAnnualReport, id: string) => get(r.header, id)?.value;
@@ -126,13 +141,19 @@ const inc = (id: string, key?: string) => get(report.incidents, id, key);
 check('only incidents opened in the period count (INC-0 is of the previous one)', inc('incidents.total')!.value === 3);
 check('by severity and type', inc('incidents.by_severity', 'alta')!.value === 1 && inc('incidents.by_severity', 'critica')!.value === 0 && inc('incidents.by_type', 'sin clasificar')!.value === 1 && inc('incidents.by_type', 'código dañino')!.value === 1);
 check(
-  'MTTD: INC-1 with fecha_ocurrencia (4 h), INC-2 with the first reconciled alert (2 h), INC-3 without data',
-  inc('incidents.mttd_hours')!.value === 3 && inc('incidents.mttd_from_occurrence')!.value === 1 && inc('incidents.mttd_from_alert')!.value === 1 && inc('incidents.mttd_without_data')!.value === 1 && /INC-3/.test(inc('incidents.mttd_without_data')!.trace),
+  'MTTD: INC-1 with fecha_ocurrencia (4 h) exact; INC-2 with the first reconciled alert (2 h) as a separate lower bound; INC-3 without data',
+  inc('incidents.mttd_hours')!.value === 4 &&
+    inc('incidents.mttd_lower_bound_hours')!.value === 2 &&
+    inc('incidents.mttd_from_occurrence')!.value === 1 &&
+    inc('incidents.mttd_from_alert')!.value === 1 &&
+    inc('incidents.mttd_without_data')!.value === 1 &&
+    /INC-3/.test(inc('incidents.mttd_without_data')!.trace),
   report.incidents
 );
-check('the alert method is marked as a lower bound with its window', /cota inferior/.test(inc('incidents.mttd_from_alert')!.trace) && inc('incidents.mttd_from_alert')!.source === 'ALERT_RECONCILIATION');
+check('the headline says how many lower bounds are left out of it', /1 más solo con cota inferior/.test(inc('incidents.mttd_hours')!.trace));
+check('the lower bound is marked as such, with its window', /^cota inferior/.test(inc('incidents.mttd_lower_bound_hours')!.trace) && inc('incidents.mttd_lower_bound_hours')!.source === 'ALERT_RECONCILIATION' && /cota inferior/.test(inc('incidents.mttd_from_alert')!.trace));
 const onlyOccurrence = build({ managerRows: { 'op.mon.2': opMon2Row(), 'op.exp.7': result('op.exp.7', 'CUMPLE', 100) } });
-check('without op.exp.7 only fecha_ocurrencia counts', get(onlyOccurrence.incidents, 'incidents.mttd_hours')!.value === 4 && get(onlyOccurrence.incidents, 'incidents.mttd_without_data')!.value === 2);
+check('without op.exp.7 only fecha_ocurrencia counts', get(onlyOccurrence.incidents, 'incidents.mttd_hours')!.value === 4 && get(onlyOccurrence.incidents, 'incidents.mttd_lower_bound_hours')!.value === null && get(onlyOccurrence.incidents, 'incidents.mttd_without_data')!.value === 2);
 check('MTTC and MTTR', inc('incidents.mttc_hours')!.value === 1.5 && inc('incidents.mttr_hours')!.value === 26);
 check('CCN-CERT and AEPD', inc('incidents.notified_ccn_cert')!.value === 1 && inc('incidents.with_personal_data')!.value === 1 && inc('incidents.notified_aepd')!.value === 1);
 check('alerts that ended in an incident: 6 of 8 decided = 75 %, window of op.exp.7 in the trace', inc('incidents.alerts_to_incident_pct')!.value === 75 && inc('incidents.alerts_relevant')!.value === 10 && /no del periodo entero/.test(inc('incidents.alerts_to_incident_pct')!.trace));
@@ -151,6 +172,13 @@ const fromConsolidated = build({ managerRows: undefined });
 check('the consolidated organisation result gives the same incidents as the manager row', JSON.stringify(fromConsolidated.incidents) === JSON.stringify(report.incidents));
 const closed = build({ period: '2026' });
 check('a closed period counts its own incidents and is not open', get(closed.incidents, 'incidents.total')!.value === 1 && h(closed, 'header.period_open') === false && h(closed, 'header.period_start') === '2025-04-01');
+check(
+  'the alert share is not published for a period its 30-day window does not touch',
+  get(closed.incidents, 'incidents.alerts_to_incident_pct')!.value === null && /no disponible para este periodo: la ventana de conciliación/.test(get(closed.incidents, 'incidents.alerts_to_incident_pct')!.trace) && describeAnnualReport(closed).some(line => /no disponible para este periodo/.test(line))
+);
+const covered = (period: string) =>
+  build({ period, managerRows: { 'op.mon.2': opMon2Row('03-31', { incidents: { ...INCIDENTS, desde: '2025-03-31T00:00:00Z' } }), 'op.exp.7': opExp7Row() } });
+check('op.mon.2 publishes from the previous period: that one is complete, an older one is not', get(covered('2026').incidents, 'incidents.total')!.value === 1 && get(covered('2025').incidents, 'incidents.total')!.value === null && /solo está completo en su congelado/.test(get(covered('2025').incidents, 'incidents.total')!.trace));
 
 section('Resources');
 const res = (id: string) => get(report.resources, id)!;
@@ -198,14 +226,36 @@ const parseCsv = (text: string): string[][] => {
 };
 const rows = parseCsv(csv);
 check('CSV: header row with the six columns', rows[0].join() === ENS_ANNUAL_CSV_COLUMNS.join() && ENS_ANNUAL_CSV_COLUMNS.join() === 'field_id,key,value,unit,source,trace');
-check('CSV: one row per datum, in order, with its value', rows.length === data.length + 1 && rows.slice(1).every((row, i) => row[0] === data[i].id && row.length === 6 && row[1] === (data[i].key ?? '') && row[2] === (data[i].value === null ? '' : String(data[i].value))));
+check('CSV: one row per datum, in order, with its value', rows.length === data.length + 1 && rows.slice(1).every((row, i) => {
+  const value = data[i].value;
+  const expected = value === null ? '' : typeof value === 'string' && /^[=+\-@\t\r]/.test(value) ? `'${value}` : String(value);
+  return row[0] === data[i].id && row.length === 6 && row[1] === (data[i].key ?? '') && row[2] === expected;
+}));
 check('CSV: CRLF and quoted cells (commas in traces)', csv.endsWith('\r\n') && /"[^"]*,[^"]*"/.test(csv));
+const cellOf = (r: string[][], id: string, key: string) => r.find(row => row[0] === id && row[1] === key)!;
+check('CSV: «+R1» is neutralised with a leading quote (no formula), the JSON keeps it', cellOf(rows, 'measure.annex_requirement', 'op.acc.1')[2] === "'+R1" && /"'\+R1"/.test(csv) && m(report, 'op.acc.1', 'annex_requirement').value === '+R1');
+check('CSV: no value cell starts with = + - @', rows.slice(1).every(row => !/^[=+\-@\t\r]/.test(row[2]) && !/^[=+\-@\t\r]/.test(row[5])));
+{
+  const injected = records();
+  (injected.controls['org.1'] as any).declarations.push({ applies: true, level: 1, reference: '=HYPERLINK("http://x.invalid","clic")', owner: '@SUM(1+1)', date: '2026-07-01', recordedAt: '2026-07-01T09:00:00Z', recordedBy: '-rsis' });
+  const evil = parseCsv(toAnnualReportCsv(build({ records: injected })));
+  check(
+    'CSV: text typed by an administrator that looks like a formula is neutralised too',
+    cellOf(evil, 'measure.documentary_reference', 'org.1')[2].startsWith("'=HYPERLINK") && cellOf(evil, 'measure.owner', 'org.1')[2] === "'@SUM(1+1)" && evil.slice(1).every(row => row.every(cell => !/^[=+\-@\t\r]/.test(cell))),
+    [cellOf(evil, 'measure.documentary_reference', 'org.1'), cellOf(evil, 'measure.owner', 'org.1')]
+  );
+}
 check('JSON: the data set as is', JSON.stringify(JSON.parse(toAnnualReportJson(report))) === JSON.stringify(report));
 check('file names', annualReportFileName(report, 'csv') === 'ensfacil-informe-art32-2027.csv' && annualReportFileName(markAnnualReportFrozen(report, { revision: 2, frozenAt: 'x', frozenBy: 'y' }), 'json') === 'ensfacil-informe-art32-2027-r2.json');
 check('same inputs, same data set (reproducible)', JSON.stringify(build()) === JSON.stringify(report));
 const frozen = markAnnualReportFrozen(report, { revision: 1, frozenAt: '2027-04-01T00:30:00.000Z', frozenBy: 'ENSFácil (tarea diaria)' });
 check('marking it frozen changes only the header', h(frozen, 'header.frozen') === true && h(frozen, 'header.revision') === 1 && JSON.stringify({ ...frozen, header: [] }) === JSON.stringify({ ...report, header: [] }));
-check('field 8 summary names the period, implementation, incidents and resources', describeAnnualReport(report).some(line => /Grado de implantación: 80 %/.test(line)) && describeAnnualReport(report).some(line => /MTTD 3 h/.test(line)));
+check(
+  'field 8 summary: implementation on the DA as field 2, MTTD exact and lower bound apart',
+  describeAnnualReport(report).some(line => /Grado de implantación de la organización: 80 % .*de la DA, P-01, como el campo 2/.test(line)) &&
+    describeAnnualReport(report).some(line => /MTTD 4 h con fecha de ocurrencia \(1 incidentes\) y cota inferior 2 h con la primera alerta conciliada \(1\)/.test(line)),
+  describeAnnualReport(report)
+);
 ['11-annual-report-art-32.md', '11-annual-report-art-32.en.md'].forEach(file => {
   const guide = fs.existsSync(path.join(__dirname, '..', 'docs', 'deployment', file)) ? fs.readFileSync(path.join(__dirname, '..', 'docs', 'deployment', file), 'utf8') : '';
   const missing = ENS_ANNUAL_FIELD_IDS.filter(id => !guide.includes(`\`${id}\``));

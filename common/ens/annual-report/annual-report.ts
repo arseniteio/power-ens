@@ -12,6 +12,7 @@ import {
   resolveDimensionLevel,
 } from '../core/control-level';
 import type { ENSComplianceResult } from '../core/evaluation/types';
+import { parseStatementOfApplicability } from '../core/policy-runtime/policies/op-mon-2.policy';
 import { stripAccents } from '../core/policy-runtime/policies/policy-kit';
 import { dayIn } from '../maturity/maturity-engine';
 import { ENS_CATEGORY_NAMES, readControlMaturityRecord, resolveMaturityTargets } from '../maturity/maturity-records';
@@ -22,6 +23,7 @@ import { annualPeriodBounds, annualPeriodInstants, annualPeriodOfDay, ENS_DEFAUL
 import { ENS_ANNUAL_REPORT_SCHEMA } from './annual-report-types';
 import type { ENSAnnualDatum, ENSAnnualFreezeEntry, ENSAnnualMeasure, ENSAnnualReport, ENSAnnualSource, ENSAnnualValue } from './annual-report-types';
 import { ENS_ANNUAL_REPORT_CONTROL, measureEngine } from './declared-measures';
+import { implementationDegree } from './implementation-degree';
 
 const INCIDENTS_CONTROL = 'op.exp.7';
 const HOUR_MS = 3600e3;
@@ -122,7 +124,8 @@ const statementOfApplicability = (opMon2?: ENSComplianceResult): Map<string, { a
   return rows;
 };
 
-const valueOf = (data: ENSAnnualDatum[], id: string): ENSAnnualValue => data.find(entry => entry.id === id)?.value ?? null;
+const get = (data: ENSAnnualDatum[], id: string): ENSAnnualDatum | undefined => data.find(entry => entry.id === id);
+const valueOf = (data: ENSAnnualDatum[], id: string): ENSAnnualValue => get(data, id)?.value ?? null;
 
 // --- measures -------------------------------------------------------------------------------------------------
 
@@ -280,34 +283,46 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
 
 // --- aggregates -----------------------------------------------------------------------------------------------
 
-const implementationOf = (measures: ENSAnnualMeasure[]): ENSAnnualDatum[] => {
-  const applying = measures.filter(measure => valueOf(measure.data, 'measure.applies') === true);
-  const scored = applying.filter(measure => typeof valueOf(measure.data, 'measure.implementation_pct') === 'number');
-  const declared = applying.filter(measure => !scored.includes(measure) && valueOf(measure.data, 'measure.maturity_assessed') !== null);
-  const pct = (list: ENSAnnualMeasure[]) => mean(list.map(measure => valueOf(measure.data, 'measure.implementation_pct') as number));
-  const global = pct(scored);
-  const trace = `media del porcentaje del motor de las ${scored.length} medidas aplicables medidas, de ${applying.length} aplicables`;
+// The same figure as op.mon.2 field 2: the engine score of P-01's applicable measures (implementation-degree.ts).
+const implementationOf = (measures: ENSAnnualMeasure[], applicable: string[], results: ENSComplianceResult[]): ENSAnnualDatum[] => {
+  const degree = implementationDegree(applicable, results);
+  const base = applicable.map(id => measures.find(measure => measure.id === id)).filter((measure): measure is ENSAnnualMeasure => Boolean(measure));
+  const pending = base.filter(measure => !degree.scored.includes(measure.id));
+  const declared = pending.filter(measure => valueOf(measure.data, 'measure.maturity_assessed') !== null);
+  const without = pending.filter(measure => !declared.includes(measure));
+  const outside = measures.filter(measure => valueOf(measure.data, 'measure.applies') === true && get(measure.data, 'measure.applies')?.source !== 'SOA');
+  const noBase = 'sin medidas aplicables en la Declaración de Aplicabilidad (op.mon.2 P-01): el grado de implantación no tiene base';
   return [
-    datum('implementation.global_pct', global === undefined ? null : round(global), global === undefined ? 'NONE' : 'ENGINE', global === undefined ? 'ninguna medida aplicable con porcentaje del motor' : trace, { unit: '%' }),
+    datum(
+      'implementation.global_pct',
+      degree.global === undefined ? null : round(degree.global),
+      degree.global === undefined ? 'NONE' : 'ENGINE',
+      !applicable.length
+        ? noBase
+        : degree.global === undefined
+        ? `ninguna de las ${applicable.length} medidas aplicables de P-01 tiene porcentaje del motor`
+        : `media del porcentaje del motor de ${degree.evaluadas} de las ${degree.medidas} medidas aplicables de la DA (P-01); no cuentan op.mon.2, las medidas sin medición todavía ni las que no aplican en su nivel (el mismo cálculo que el campo 2 de op.mon.2)`,
+      { unit: '%' }
+    ),
     ...(['org', 'op', 'mp'] as const).map(framework => {
-      const own = scored.filter(measure => measure.framework === framework);
-      const value = pct(own);
+      const own = degree.byFramework[framework];
       return datum(
         'implementation.framework_pct',
-        value === undefined ? null : round(value),
-        value === undefined ? 'NONE' : 'ENGINE',
-        value === undefined ? 'ninguna medida aplicable de este marco con porcentaje del motor' : `media de ${own.length} medidas aplicables medidas`,
+        own.score === undefined ? null : round(own.score),
+        own.score === undefined ? 'NONE' : 'ENGINE',
+        own.score === undefined ? 'ninguna medida aplicable de P-01 de este marco con porcentaje del motor' : `media de ${own.measures} medidas aplicables de P-01 medidas por ENSFácil`,
         { key: framework, unit: '%' }
       );
     }),
-    datum('implementation.measures_applicable', applying.length, 'SOA', 'medidas que aplican: la DA (P-01), la entrada declarada o el Anexo II, por ese orden', { unit: 'n' }),
-    datum('implementation.measures_measured', scored.length, 'ENGINE', 'aplicables con porcentaje del motor', { unit: 'n' }),
-    datum('implementation.measures_declared', declared.length, 'DECLARED', 'aplicables sin porcentaje del motor y con madurez valorada o declarada', { unit: 'n' }),
+    datum('implementation.measures_applicable', applicable.length, 'SOA', applicable.length ? 'medidas aplicables según la DA (op.mon.2 P-01)' : noBase, { unit: 'n' }),
+    datum('implementation.measures_measured', degree.evaluadas, 'ENGINE', 'de ellas, con porcentaje del motor (cuentan en el grado de implantación)', { unit: 'n' }),
+    datum('implementation.measures_declared', declared.length, 'DECLARED', `de ellas, sin porcentaje y con madurez valorada o declarada: ${declared.map(measure => measure.id).join(', ') || 'ninguna'}`, { unit: 'n' }),
+    datum('implementation.measures_without_data', without.length, 'NONE', `de ellas, sin porcentaje ni madurez: ${without.map(measure => measure.id).join(', ') || 'ninguna'}`, { unit: 'n' }),
     datum(
-      'implementation.measures_without_data',
-      applying.length - scored.length - declared.length,
-      'NONE',
-      `aplicables sin porcentaje ni madurez: ${applying.filter(measure => !scored.includes(measure) && !declared.includes(measure)).map(measure => measure.id).join(', ') || 'ninguna'}`,
+      'implementation.measures_applicable_outside_soa',
+      outside.length,
+      outside.length ? 'ANNEX_II' : 'SOA',
+      `aplican sin fila en la DA (entrada declarada o Anexo II) y no cuentan en el grado de implantación: ${outside.map(measure => measure.id).join(', ') || 'ninguna'}`,
       { unit: 'n' }
     ),
   ];
@@ -340,9 +355,16 @@ const maturityOf = (measures: ENSAnnualMeasure[]): ENSAnnualDatum[] => {
   ];
 };
 
+// The system category: the highest of the ENS level and the dimension levels (Annex I); header and categorisation use it.
+const systemCategory = (global: ENSConfigurationVersion['global']): ENSLevel =>
+  ENS_DIMENSIONS.map(dimension => resolveDimensionLevel(dimension, global.ensLevel, global)).reduce<ENSLevel>(
+    (max, level) => (compareENSLevels(level, max) > 0 ? level : max),
+    global.ensLevel
+  );
+
 const categorisationOf = (global: ENSConfigurationVersion['global']): ENSAnnualDatum[] => {
   const levels = ENS_DIMENSIONS.map(dimension => ({ dimension, level: resolveDimensionLevel(dimension, global.ensLevel, global) }));
-  const highest = levels.reduce<ENSLevel>((max, entry) => (compareENSLevels(entry.level, max) > 0 ? entry.level : max), global.ensLevel);
+  const highest = systemCategory(global);
   const incoherent = describeDimensionsAboveENSLevel(global);
   return [
     ...levels.map(({ dimension, level }) =>
@@ -370,6 +392,7 @@ interface RegisterIncident {
   cierre?: string;
   ocurrencia?: string;
   ccnCert?: string;
+  ccn?: boolean;
   aepd?: boolean;
   datosPersonales?: string;
 }
@@ -406,10 +429,17 @@ const incidentsOf = (
   const where = (n: number) =>
     `registro de incidentes de op.exp.7 reemitido por op.mon.2 (leído el ${register?.leido || '—'}), ${n} incidente(s) abiertos en el periodo`;
 
-  if (!register || !Array.isArray(register.incidentes) || register.motivo) {
-    const why = register?.motivo || 'op.mon.2 no ha leído el registro de incidentes';
-    ['total', 'mttd_hours', 'mttc_hours', 'mttr_hours', 'notified_ccn_cert', 'with_personal_data', 'notified_aepd'].forEach(id =>
-      data.push(datum(`incidents.${id}`, null, 'NONE', why, { unit: id.endsWith('hours') ? 'h' : 'n' }))
+  // op.mon.2 publishes the incidents since the previous period started: an older period is complete only frozen.
+  const coveredFrom = ms(register?.desde);
+  const unavailable =
+    !register || !Array.isArray(register.incidentes) || register.motivo
+      ? register?.motivo || 'op.mon.2 no ha leído el registro de incidentes'
+      : coveredFrom !== undefined && window.fromMs < coveredFrom
+      ? `no disponible para este periodo: op.mon.2 publica los incidentes abiertos desde el ${String(register.desde).slice(0, 10)}; un periodo anterior solo está completo en su congelado`
+      : undefined;
+  if (unavailable) {
+    ['total', 'mttd_hours', 'mttd_lower_bound_hours', 'mttc_hours', 'mttr_hours', 'notified_ccn_cert', 'with_personal_data', 'notified_aepd'].forEach(id =>
+      data.push(datum(`incidents.${id}`, null, 'NONE', unavailable, { unit: id.endsWith('hours') ? 'h' : 'n' }))
     );
   } else {
     const all = register.incidentes as RegisterIncident[];
@@ -418,7 +448,7 @@ const incidentsOf = (
       const t = opened(i);
       return t !== undefined && t >= window.fromMs && t < window.toMs;
     });
-    const trace = where(ofPeriod.length);
+    const trace = `${where(ofPeriod.length)}${register.recortados ? `; solo los ${register.incidentes.length} más recientes (${register.recortados} sin publicar)` : ''}`;
     data.push(datum('incidents.total', ofPeriod.length, source, trace, { unit: 'n' }));
     countBy(ofPeriod.map(i => i.clasificacion || 'sin clasificar')).forEach(([type, n]) =>
       data.push(datum('incidents.by_type', n, source, `${trace}; columna clasificacion`, { key: type, unit: 'n' }))
@@ -445,15 +475,24 @@ const incidentsOf = (
       else if (alert !== undefined && alert <= base) fromAlert.push(base - alert);
       else without.push(i.id);
     });
-    const detected = [...fromOccurrence, ...fromAlert];
+    // Exact times and lower bounds are never averaged together.
     data.push(
       datum(
         'incidents.mttd_hours',
-        hours(detected),
-        detected.length ? source : 'NONE',
-        detected.length
-          ? `de la ocurrencia (o de la primera alerta conciliada) a la fase inicial: ${fromOccurrence.length} con fecha_ocurrencia, ${fromAlert.length} con la primera alerta conciliada por op.exp.7, ${without.length} sin dato`
-          : 'ningún incidente del periodo con fecha_ocurrencia ni alerta conciliada',
+        hours(fromOccurrence),
+        fromOccurrence.length ? source : 'NONE',
+        fromOccurrence.length
+          ? `de fecha_ocurrencia a la fase inicial, ${fromOccurrence.length} incidente(s); ${fromAlert.length} más solo con cota inferior (incidents.mttd_lower_bound_hours) y ${without.length} sin dato`
+          : `ningún incidente del periodo con fecha_ocurrencia; ${fromAlert.length} con cota inferior (incidents.mttd_lower_bound_hours)`,
+        { unit: 'h' }
+      ),
+      datum(
+        'incidents.mttd_lower_bound_hours',
+        hours(fromAlert),
+        fromAlert.length ? 'ALERT_RECONCILIATION' : 'NONE',
+        fromAlert.length
+          ? `cota inferior: de la primera alerta conciliada por op.exp.7 a la fase inicial, ${fromAlert.length} incidente(s) sin fecha_ocurrencia (ventana de op.exp.7 de ${detection?.desde || '—'} a ${detection?.hasta || '—'})`
+          : 'ningún incidente sin fecha_ocurrencia con alerta conciliada',
         { unit: 'h' }
       ),
       datum('incidents.mttd_from_occurrence', fromOccurrence.length, source, 'incidentes medidos con la columna fecha_ocurrencia del registro', { unit: 'n' }),
@@ -471,7 +510,7 @@ const incidentsOf = (
     data.push(
       datum('incidents.mttc_hours', hours(contained.map(i => (ms(i.contencion) as number) - (ms(i.apertura) as number))), source, `${trace}; de la fase inicial a la primera intermedia, ${contained.length} contenidos`, { unit: 'h' }),
       datum('incidents.mttr_hours', hours(closed.map(i => (ms(i.cierre) as number) - (ms(i.apertura) as number))), source, `${trace}; de la fase inicial a la última final, ${closed.length} cerrados`, { unit: 'h' }),
-      datum('incidents.notified_ccn_cert', ofPeriod.filter(i => ms(i.ccnCert) !== undefined).length, source, `${trace}; columna notificacion_ccn_cert`, { unit: 'n' })
+      datum('incidents.notified_ccn_cert', ofPeriod.filter(i => i.ccn || ms(i.ccnCert) !== undefined).length, source, `${trace}; columna notificacion_ccn_cert`, { unit: 'n' })
     );
     const personal = ofPeriod.filter(i => i.datosPersonales === 'si');
     data.push(
@@ -480,9 +519,15 @@ const incidentsOf = (
     );
   }
 
-  // Share of the relevant alerts that ended in an incident: op.exp.7's reconciliation of its own window.
-  if (!reconciliation || reconciliation.motivo || typeof reconciliation.relevantes !== 'number') {
-    const why = reconciliation?.motivo || 'sin la conciliación de alertas de op.exp.7';
+  // Share of the relevant alerts that ended in an incident: op.exp.7's reconciliation, only if its window touches the period.
+  const reconciledFrom = ms(reconciliation?.desde);
+  const reconciledTo = ms(reconciliation?.hasta);
+  const outside =
+    reconciledFrom !== undefined && reconciledTo !== undefined && (reconciledTo <= window.fromMs || reconciledFrom >= window.toMs)
+      ? `no disponible para este periodo: la ventana de conciliación de op.exp.7 (${reconciliation.desde} a ${reconciliation.hasta}) queda fuera del periodo`
+      : undefined;
+  if (!reconciliation || reconciliation.motivo || typeof reconciliation.relevantes !== 'number' || outside) {
+    const why = outside || reconciliation?.motivo || 'sin la conciliación de alertas de op.exp.7';
     data.push(
       datum('incidents.alerts_relevant', null, 'NONE', why, { unit: 'n' }),
       datum('incidents.alerts_in_incident', null, 'NONE', why, { unit: 'n' }),
@@ -491,7 +536,8 @@ const incidentsOf = (
   } else {
     const r = reconciliation;
     const decided = r.enIncidente + r.sinIncidente;
-    const trace = `conciliación de op.exp.7 de los ${r.ventanaDias} días de ${r.desde} a ${r.hasta} (no del periodo entero): alertas Alta y Crítica; ${r.pendientes} dentro de su plazo de escalado, ${r.sinPlazo} sin plazo en P-02 y ${r.excluidas} excluidas por P-12 no cuentan`;
+    const partial = (reconciledFrom ?? 0) < window.fromMs || (reconciledTo ?? Infinity) > window.toMs ? '; la ventana solo cubre en parte el periodo' : '';
+    const trace = `conciliación de op.exp.7 de los ${r.ventanaDias} días de ${r.desde} a ${r.hasta} (no del periodo entero${partial}): alertas Alta y Crítica; ${r.pendientes} dentro de su plazo de escalado, ${r.sinPlazo} sin plazo en P-02 y ${r.excluidas} excluidas por P-12 no cuentan`;
     data.push(
       datum('incidents.alerts_relevant', r.relevantes, 'ALERT_RECONCILIATION', trace, { unit: 'n' }),
       datum('incidents.alerts_in_incident', r.enIncidente, 'ALERT_RECONCILIATION', trace, { unit: 'n' }),
@@ -627,6 +673,8 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
     label: open ? `periodo en curso: hasta la generación (${iso(now.getTime())})` : `fin del periodo (cierre ${closing})`,
   };
   const soa = statementOfApplicability(opMon2);
+  // The same parse of P-01 as op.mon.2's policy and field 2.
+  const statement = parseStatementOfApplicability(parameterRows(opMon2, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']));
   const measures = ENS_ANNEX_II_MEASURES.map(measure =>
     buildMeasure(measure, {
       global,
@@ -654,7 +702,7 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
       datum('header.period_start', bounds.from, 'CONFIGURATION', `día siguiente al cierre anterior (${timeZone})`),
       datum('header.period_end', bounds.to, 'CONFIGURATION', declared ? `op.mon.2 P-02 cierre_anual ${closing}` : `op.mon.2 P-02 sin cierre_anual: ${closing}`),
       datum('header.period_open', open, 'NONE', open ? 'el periodo no ha cerrado: las cifras son las de hoy' : 'periodo cerrado'),
-      datum('header.category', ENS_CATEGORY_NAMES[global.ensLevel], 'CONFIGURATION', 'Configuración > General: nivel ENS'),
+      datum('header.category', ENS_CATEGORY_NAMES[systemCategory(global)], 'CONFIGURATION', 'la de category.category: el mayor nivel de las dimensiones (Anexo I)'),
       datum('header.generated_at', iso(now.getTime()), 'NONE', 'instante de la evaluación con la que se generó'),
       datum('header.plugin_version', input.pluginVersion, 'NONE', 'versión de ENSFácil que lo generó'),
       datum('header.frozen', Boolean(freeze), 'FREEZE', freeze ? 'conjunto congelado en wazuh-ens-snapshots' : 'conjunto calculado ahora, sin congelar'),
@@ -664,7 +712,7 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
       datum('header.freeze_reason', freeze?.reason ?? null, freeze?.reason ? 'FREEZE' : 'NONE', freeze?.reason ? 'motivo de la regeneración' : 'sin motivo: congelado al cierre o sin congelar'),
     ],
     categorisation: categorisationOf(global),
-    implementation: implementationOf(measures),
+    implementation: implementationOf(measures, statement.aplicables, input.results),
     maturity: maturityOf(measures),
     measures,
     incidents: incidentsOf(opMon2, opExp7, window),

@@ -70,7 +70,7 @@ const P01 = ['org.1 | sí', 'op.acc.1 | sí | MEDIO', 'mp.if.6 | sí', 'op.ext.3
 export const opMon2Row = (closing = '03-31', overrides: Record<string, unknown> = {}) =>
   result('op.mon.2', 'CUMPLE', 100, {
     parameters: [
-      { id: 'P-01', value: P01 },
+      { id: 'P-01', value: overrides.p01 ?? P01 },
       { id: 'P-02', value: [`trimestral | 15 | ${closing}`] },
     ] as any,
     policyRuntime: {
