@@ -1,7 +1,8 @@
-import { withRequestTimeout } from '../../../platform/request-timeout';
+import { ENSRequestTimeoutError, ENS_REQUEST_TIMEOUT_MS, withRequestTimeout } from '../../../platform/request-timeout';
 import { ENSFACIL_CONFIGURATION_PATH } from '../../../constants';
 
 import { ENSConfigurationVersion } from '../types';
+import { normalizeOrganizationData } from '../organization/organization-data-migration';
 
 const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 
@@ -9,7 +10,7 @@ const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 // `public/`: the browser registers it at startup (`public/services.ts`).
 export interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal }): Promise<T>;
-  put<T>(path: string, options?: { body?: string }): Promise<T>;
+  put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
 }
 
 let httpProvider: (() => ENSConfigurationHttp) | undefined;
@@ -31,11 +32,21 @@ export interface ENSConfigurationMetadata {
   createdBy?: string;
   updatedAt?: string;
   updatedBy?: string;
+  // Index version of the document; sent back on save so a newer one is not overwritten.
+  seqNo?: number;
+  primaryTerm?: number;
+}
+
+export interface ENSConfigurationExpectedVersion {
+  seqNo: number;
+  primaryTerm: number;
 }
 
 export interface ENSConfigurationServerState {
   configuration: ENSConfigurationVersion | null;
   metadata: ENSConfigurationMetadata | null;
+  // Saved, but something after it failed (the history entry).
+  warning?: string;
 }
 
 interface ENSConfigurationApiResponse {
@@ -44,9 +55,12 @@ interface ENSConfigurationApiResponse {
   data: ENSConfigurationServerState;
 }
 
-interface ENSConfigurationSaveRequest {
+// Keys checked by the route schema (server/routes/configuration.ts); tests/configuration-route-schema.test.ts.
+export interface ENSConfigurationSaveRequest {
   configuration: ENSConfigurationVersion;
   changeReason?: string;
+  // null: there was no configuration when it was loaded, so it must still not exist.
+  expectedVersion?: ENSConfigurationExpectedVersion | null;
 }
 
 const withoutDerivedParameterStatuses = (
@@ -106,26 +120,49 @@ export async function getENSConfiguration(): Promise<
   return getResponseData(response);
 }
 
+export const SAVE_TIMED_OUT =
+  'El guardado no ha respondido a tiempo y puede haberse aplicado o no. Recarga la página para ver la configuración actual.';
+
+let saveTimeoutMs = ENS_REQUEST_TIMEOUT_MS;
+
+// Tests only: a save that hangs is cut after this many milliseconds.
+export const setENSConfigurationSaveTimeout = (milliseconds: number): void => {
+  saveTimeoutMs = milliseconds;
+};
+
 export async function saveENSConfiguration(
   configuration: ENSConfigurationVersion,
   changeReason?: string,
+  expectedVersion?: ENSConfigurationExpectedVersion | null,
 ): Promise<ENSConfigurationServerState> {
   const normalizedChangeReason = changeReason?.trim();
 
+  // Every save writes each organisation item into its mapped parameters (items in conflict stay as they are).
   const requestBody: ENSConfigurationSaveRequest = {
-    configuration: withoutDerivedParameterStatuses(configuration),
+    configuration: withoutDerivedParameterStatuses(normalizeOrganizationData(configuration).configuration),
     ...(normalizedChangeReason
       ? { changeReason: normalizedChangeReason }
       : {}),
+    ...(expectedVersion !== undefined ? { expectedVersion } : {}),
   };
 
   const response =
-    await getHttp().put<ENSConfigurationApiResponse>(
-      ENS_CONFIGURATION_API_PATH,
-      {
-        body: JSON.stringify(requestBody),
-      },
+    await withRequestTimeout(
+      signal => getHttp().put<ENSConfigurationApiResponse>(
+        ENS_CONFIGURATION_API_PATH,
+        {
+          body: JSON.stringify(requestBody),
+          signal,
+        },
+      ),
+      'guardado de la configuración ENS',
+      undefined,
+      saveTimeoutMs,
     ).catch(error => {
+      // A save that does not answer must not hold every later save of the queue.
+      if (error instanceof ENSRequestTimeoutError) {
+        throw new Error(SAVE_TIMED_OUT);
+      }
       throw withServerReason(error);
     });
 

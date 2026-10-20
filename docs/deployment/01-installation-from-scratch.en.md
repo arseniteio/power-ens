@@ -606,6 +606,8 @@ sudo env $CERT python3 set-parameters.py /path/policy.json --apply    # write
 
 An agent's template and own settings are declared with the `agents` section of the same file: [Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy).
 
+The data several controls ask for (authorised personnel, pre-production environment, CCN-authorised algorithms, privileged groups, Statement of Applicability…) is declared only once in Configuración > General > «Datos de la organización», and from the server with the `organization` section of the same file: [Configuration by controls and templates, section 7.1](09-configuration-by-system.en.md#71-organisation-data) and [section 11.4](09-configuration-by-system.en.md#114-declare-organisation-data-with-set-parameterspy). In each control's «Ajustes comunes», those parameters are read-only.
+
 After declaring values, repeat the validation of section 14.4.
 
 ### 14.6 Check the dashboard

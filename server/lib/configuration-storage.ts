@@ -60,16 +60,35 @@ export async function ensureENSConfigurationIndex(client: any, logger: Logger): 
   }
 }
 
-export async function readActiveENSConfiguration(
+// Version of the active document in the index, for a save that must not overwrite a newer one.
+export interface ENSConfigurationDocumentVersion {
+  seqNo: number;
+  primaryTerm: number;
+}
+
+export class ENSConfigurationConflictError extends Error {
+  constructor() {
+    super('La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.');
+  }
+}
+
+const versionOf = (seqNo: unknown, primaryTerm: unknown): ENSConfigurationDocumentVersion | undefined =>
+  Number.isInteger(seqNo) && Number.isInteger(primaryTerm) ? { seqNo: seqNo as number, primaryTerm: primaryTerm as number } : undefined;
+
+export const parseConfigurationVersion = (value: any): ENSConfigurationDocumentVersion | undefined =>
+  value && typeof value === 'object' ? versionOf(value.seqNo, value.primaryTerm) : undefined;
+
+export async function readActiveENSConfigurationWithVersion(
   client: any,
   logger: Logger
-): Promise<ENSConfigurationStoredDocument | undefined> {
+): Promise<{ document?: ENSConfigurationStoredDocument; version?: ENSConfigurationDocumentVersion }> {
   await ensureENSConfigurationIndex(client, logger);
 
   const result = await client.search({
     index: ENS_CONFIGURATION_INDEX,
     body: {
       size: 1,
+      seq_no_primary_term: true,
       query: { ids: { values: [ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID] } },
     },
   });
@@ -78,7 +97,14 @@ export async function readActiveENSConfiguration(
   assertCompleteResponse(result.body, 'la configuración ENS');
   const hit = result.body?.hits?.hits?.[0];
 
-  return hit?._source as ENSConfigurationStoredDocument | undefined;
+  return { document: hit?._source as ENSConfigurationStoredDocument | undefined, version: hit ? versionOf(hit._seq_no, hit._primary_term) : undefined };
+}
+
+export async function readActiveENSConfiguration(
+  client: any,
+  logger: Logger
+): Promise<ENSConfigurationStoredDocument | undefined> {
+  return (await readActiveENSConfigurationWithVersion(client, logger)).document;
 }
 
 export async function readENSConfigurationHistory(
@@ -101,16 +127,15 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
-// `previous`: the document being replaced, when it is not already the last history version (written by a
-// `config/` tool bypassing the plugin, or older than the history). Stored in the same bulk, one millisecond
-// earlier, so the version before ANY save (including the systems migration) is always in the history.
+// Writes the active document only over `expected` ('absent': none yet), then the history (`previous` 1 ms earlier).
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,
   configuration: Record<string, unknown>,
   username: string,
-  previous?: { configuration: Record<string, unknown>; author?: string }
-): Promise<ENSConfigurationStoredDocument> {
+  previous?: { configuration: Record<string, unknown>; author?: string },
+  expected?: ENSConfigurationDocumentVersion | 'absent'
+): Promise<ENSConfigurationStoredDocument & { version?: ENSConfigurationDocumentVersion; historyError?: string }> {
   await ensureENSConfigurationIndex(client, logger);
 
   const now = Date.now();
@@ -142,24 +167,42 @@ export async function persistENSConfiguration(
     createdBy: username,
   };
 
-  const bulkBody = [
+  const target = { _index: ENS_CONFIGURATION_INDEX, _id: ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID };
+  const action =
+    expected === 'absent'
+      ? { create: target }
+      : expected
+        ? { index: { ...target, if_seq_no: expected.seqNo, if_primary_term: expected.primaryTerm } }
+        : { index: target };
+  const written = await client.bulk({ body: `${JSON.stringify(action)}\n${JSON.stringify(activeDocument)}\n`, refresh: 'wait_for' });
+  const item = written.body?.items?.[0]?.create || written.body?.items?.[0]?.index;
+
+  if (written.body?.errors) {
+    if (item?.status === 409 || item?.error?.type === 'version_conflict_engine_exception') {
+      throw new ENSConfigurationConflictError();
+    }
+    throw new Error(`Could not persist ENS configuration: ${JSON.stringify(item?.error || written.body.items)}`);
+  }
+
+  const historyBody = [
     ...previousLines,
     JSON.stringify({ create: { _index: ENS_CONFIGURATION_INDEX, _id: historyId } }),
     JSON.stringify(historyDocument),
-    JSON.stringify({ index: { _index: ENS_CONFIGURATION_INDEX, _id: ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID } }),
-    JSON.stringify(activeDocument),
     '',
   ].join('\n');
 
-  const result = await client.bulk({ body: bulkBody, refresh: 'wait_for' });
+  const saved = { ...activeDocument, version: versionOf(item?._seq_no, item?._primary_term) };
 
-  if (result.body?.errors) {
-    const failures = (result.body.items || [])
-      .map((item: any) => item.create?.error || item.index?.error)
-      .filter(Boolean);
-
-    throw new Error(`Could not persist ENS configuration: ${JSON.stringify(failures)}`);
+  // The active document is already saved: a failed history entry is reported, not turned into a failed save.
+  try {
+    const result = await client.bulk({ body: historyBody, refresh: 'wait_for' });
+    if (result.body?.errors) {
+      const failures = (result.body.items || []).map((entry: any) => entry.create?.error || entry.index?.error).filter(Boolean);
+      return { ...saved, historyError: JSON.stringify(failures) };
+    }
+  } catch (error: any) {
+    return { ...saved, historyError: error?.message || String(error) };
   }
 
-  return activeDocument;
+  return saved;
 }

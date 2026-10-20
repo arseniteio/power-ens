@@ -21,6 +21,7 @@ import {
   ENSMatchMode,
 } from '../../../../common/ens/configuration/types';
 import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
+import { isOrganizationDataParameter } from '../../../../common/ens/configuration/organization/organization-data-items';
 
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
@@ -150,10 +151,11 @@ export const ConfigurationSession = ({
     }
 
     // An invalid value is rejected here, with the reason: absence is fixed by filling, this by correcting.
+    // Organisation data is checked and fixed in General, not here.
     const issues = validateControlParameterValues(
       draftControl,
       values
-    );
+    ).filter(issue => !isOrganizationDataParameter(control.controlId, issue.parameterId));
 
     if (issues.length > 0) {
       setValueIssues(

@@ -11,9 +11,20 @@ La entrada de cada versión son las notas de su release en GitLab.
 
 Correcciones del catálogo según las plantillas del auditor v2.0: aplicabilidad
 por las cinco dimensiones, textos literales del BOE con su procedencia y orden
-del Anexo II.
+del Anexo II. Datos de la organización pedidos una sola vez.
 
 ### Añadido
+
+- Configuración > General > «Datos de la organización»: los datos que piden
+  varios controles (personal autorizado, preproducción, reversión, algoritmos
+  del CCN, retención, grupos privilegiados, canales de acceso remoto y otros)
+  se declaran una vez y cada parámetro que los lee conserva su `P-xx`. Al
+  cargar, los valores iguales se unifican solos, un parámetro vacío toma el
+  valor si lo admite y los valores distintos quedan pendientes de elegir.
+- Guardado con control de versión: si la configuración cambia mientras está
+  abierta, el guardado se rechaza (409) con «La configuración ha cambiado desde
+  que la abriste» y se conservan los cambios en pantalla. `set-parameters.py` e
+  `inject-control.py` escriben solo sobre la versión que leyeron.
 
 - Niveles de Confidencialidad (C), Integridad (I) y Autenticidad (A) en
   Configuración > General, junto a los de Trazabilidad (T) y Disponibilidad
@@ -59,8 +70,8 @@ del Anexo II.
 - Un control gobernado por una dimensión muestra «Nivel aplicable» con su
   dimensión, por ejemplo «Nivel aplicable: ALTO (Disponibilidad)».
 - op.exp.10 EV-01 «Accesos auditados al material criptográfico»: lecturas
-  auditadas con auditd; FIM solo detecta cambios de integridad. Windows queda
-  pendiente.
+  auditadas con auditd (Linux y LDAP) o con SACL de lectura (Windows); FIM solo
+  detecta cambios de integridad.
 - op.exp.3 EV-11 se declara evidencia propia de ENSFácil.
 
 ### Actualizar desde la 1.3.0

@@ -345,7 +345,8 @@ In Docker, the same three queries are made with the `ix` function of
    **after** the deployment
    ([update guide, section 8](02-updating-an-existing-environment.en.md#8-seed-and-validate-the-configuration)).
 7. Review the dimension levels (C, I, T, A and D) on the
-   Configuración screen
+   Configuración screen and, in General, «Datos de la organización»: the items
+   pending a choice and those without a common value
    ([installation guide, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy)).
 
 > [!important]

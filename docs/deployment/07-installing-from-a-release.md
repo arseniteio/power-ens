@@ -346,7 +346,8 @@ En Docker, las mismas tres consultas se hacen con la función `ix` de
    **después** de desplegar
    ([guía de actualización, apartado 8](02-updating-an-existing-environment.md#8-sembrar-y-validar-la-configuración)).
 7. Revisar en la pantalla de Configuración los niveles de las dimensiones (C, I,
-   T, A y D)
+   T, A y D) y, en General, «Datos de la organización»: los datos pendientes de
+   elegir y los que no tienen valor común
    ([guía de instalación, apartado 14.5](01-installation-from-scratch.md#145-declarar-la-política)).
 
 > [!important]

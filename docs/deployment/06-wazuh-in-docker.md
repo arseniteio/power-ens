@@ -421,6 +421,13 @@ herramienta lee la clasificación de los parámetros de `public/`
 Después de declarar valores, repetir la copia (apartado 7) antes y la
 validación (apartado 9) después.
 
+Los datos de la organización (sección `organization` y parámetros como op.acc.1
+P-11 u op.exp.4 P-06) también necesitan el repositorio completo montado: la
+herramienta lee los datos de `common/`. Sin él, escribe solo el parámetro, avisa
+con `WARNING: cannot read the organisation data items` y el plugin muestra el
+conflicto en General
+([Configuración por controles y plantillas, apartado 11.4](09-configuration-by-system.md#114-declarar-datos-de-la-organización-con-set-parameterspy)).
+
 ## 11. Comprobación final en el navegador
 
 Entrar en Wazuh Dashboard y comprobar que:

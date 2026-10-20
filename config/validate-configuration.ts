@@ -15,7 +15,9 @@
  * (the category is the highest dimension): it is reported and exits 1. `inject-control.py` and
  * `set-parameters.py` write what they are given; this check says whether the plugin will accept it.
  *
- * A 1.2.0 document is checked as the plugin loads it: converted first.
+ * A 1.2.0 document is checked as the plugin loads it: converted first. The organisation data
+ * (`organizationData`, 1.4.0) too: what the plugin moves on load, the items with a value, and the items
+ * whose controls hold different values (a choice pending in Configuración > General, not an error).
  *
  * Exits 0 if the document is valid and 1 if not, listing each error.
  */
@@ -38,6 +40,14 @@ import {
   ENS_DIMENSIONS,
   findDimensionsAboveENSLevel,
 } from '../common/ens/core/control-level';
+import {
+  checkOrganizationDataKeys,
+  describeOrganizationData,
+  describeOrganizationFills,
+  normalizeOrganizationData,
+  organizationSingleValueIssues,
+  summarizeOrganizationMigration,
+} from '../common/ens/configuration/organization';
 
 declare const process: {
   argv: string[];
@@ -90,10 +100,44 @@ if (dimensionErrors.length) {
 }
 
 const conversion = planTemplateMigration(configuration);
-const model = conversion.configuration;
 
 if (conversion.changed) {
   console.log(`1.2.0 document: ${summarizeTemplateMigration(conversion)} The plugin converts it on load and writes it with the next save; each agent's values do not change.`);
+}
+
+const organization = normalizeOrganizationData(conversion.configuration);
+const model = organization.configuration;
+const organizationStates = describeOrganizationData(model);
+const withValue = organizationStates.filter(state => state.status === 'value').map(state => state.item.id);
+
+if (organization.moved.length || organization.written.length) {
+  console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [], incomplete: [] })} The plugin does it on load and writes it with the next save.`);
+  describeOrganizationFills(organization.filled).forEach(line => console.log(`  ${line}`));
+}
+console.log(`organisation data: ${withValue.length ? withValue.join(', ') : 'no item with value'}`);
+organizationStates
+  .filter(state => state.status === 'conflict')
+  .forEach(state =>
+    console.log(
+      `  PENDING CHOICE «${state.item.label}» (${state.item.id}): ${state.candidates
+        .map(candidate => `${candidate.from} keeps ${candidate.keeps.join(', ') || 'none'}`)
+        .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.${state.reasons.length ? ` ${state.reasons.join('; ')}` : ''}`
+    )
+  );
+// Not a choice: the item stays empty (or a parameter without value) because the value does not fit; the reason says why.
+organizationStates
+  .filter(state => state.notice)
+  .forEach(state =>
+    console.log(`  ${state.status === 'incomplete' ? 'NO COMMON VALUE' : 'NOT COMPLETED'} «${state.item.label}» (${state.item.id}): ${state.notice}`)
+  );
+checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
+// A parameter that reads one value and finds several rows: which one applies would depend on their order.
+const organizationErrors: string[] = organizationStates
+  .filter(state => state.value !== undefined)
+  .flatMap(state => organizationSingleValueIssues(model, state.item, state.value).map(issue => `«${state.item.label}» ${issue.source}: ${issue.reason}`));
+if (organizationErrors.length) {
+  console.log(`INVALID ORGANISATION DATA (${organizationErrors.length}): fix the item in Configuración > General or with set-parameters.py.`);
+  organizationErrors.forEach(message => console.log(`  - ${message}`));
 }
 
 const templates = getCustomTemplates(model);
@@ -140,7 +184,7 @@ if (commonErrors.length) {
 
 if (!errors.length) {
   console.log('VALID AGENT AND TEMPLATE SETTINGS.');
-  process.exit(commonErrors.length || dimensionErrors.length ? 1 : 0);
+  process.exit(commonErrors.length || dimensionErrors.length || organizationErrors.length ? 1 : 0);
 }
 
 console.log(`INVALID AGENT OR TEMPLATE SETTINGS (${errors.length}): the plugin loads the environment; what «does not apply» is ignored and removed on the agent page or with set-parameters.py, and an agent with an invalid value is evaluated with an invalid configuration.`);
