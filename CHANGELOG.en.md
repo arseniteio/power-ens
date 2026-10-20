@@ -12,8 +12,20 @@ GitLab release.
 
 Catalog corrections from the auditor's v2.0 templates: applicability by the
 five dimensions, BOE literal texts with their provenance and Annex II order.
+Organisation data asked once.
 
 ### Added
+
+- Configuration > General > «Datos de la organización»: the data several
+  controls ask (authorised staff, pre-production, rollback, CCN algorithms,
+  retention, privileged groups, remote access channels and others) is declared
+  once and each parameter that reads it keeps its `P-xx`. On load, equal values
+  are unified, an empty parameter takes the value if it accepts it, and
+  different values wait for a choice.
+- Versioned saves: if the configuration changes while it is open, the save is
+  refused (409) with «La configuración ha cambiado desde que la abriste» and the
+  on-screen edits are kept. `set-parameters.py` and `inject-control.py` write
+  only over the version they read.
 
 - Confidentiality (C), Integrity (I) and Authenticity (A) levels in
   Configuration > General, next to Traceability (T) and Availability (D), each
@@ -48,7 +60,8 @@ five dimensions, BOE literal texts with their provenance and Annex II order.
 - A control governed by a dimension shows «Nivel aplicable» with its
   dimension, for example «Nivel aplicable: ALTO (Disponibilidad)».
 - op.exp.10 EV-01 «Accesos auditados al material criptográfico»: reads audited
-  with auditd; FIM only detects integrity changes. Windows is pending.
+  with auditd (Linux and LDAP) or with a read SACL (Windows); FIM only detects
+  integrity changes.
 - op.exp.3 EV-11 is declared ENSFácil's own evidence.
 
 ### Updating from 1.3.0

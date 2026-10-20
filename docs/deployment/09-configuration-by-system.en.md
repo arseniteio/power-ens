@@ -24,7 +24,7 @@ Declare each control once: the organisation's common settings, the templates tha
 |---|---|
 | Controles | The 23 catalog controls with their state. In each control: «Ajustes comunes», «Plantillas» and «Asignación» |
 | Agentes | The agents in scope with their detected type and completeness. In each agent, control by control: the template it uses and its own settings |
-| General | ENS level, dimension levels (C, I, T, A and D), the rest of the global configuration and the ENS scope, read-only |
+| General | ENS level, dimension levels (C, I, T, A and D), organisation data (section 7.1), the rest of the global configuration and the ENS scope, read-only |
 
 Each parameter of each control belongs to one of three classes (`common/ens/configuration/agents/parameter-classes.ts`), the same for the screen, the evaluation, the validators and `set-parameters.py`.
 

@@ -24,7 +24,7 @@ Declarar cada control una sola vez: los ajustes comunes de la organización, las
 |---|---|
 | Controles | Los 23 controles del catálogo con su estado. En cada control: «Ajustes comunes», «Plantillas» y «Asignación» |
 | Agentes | Los agentes del alcance con su tipo detectado y su completitud. En cada agente, control por control: la plantilla que usa y sus ajustes propios |
-| General | Nivel ENS, niveles de las dimensiones (C, I, T, A y D), el resto de la configuración global y el alcance ENS en solo lectura |
+| General | Nivel ENS, niveles de las dimensiones (C, I, T, A y D), datos de la organización (apartado 7.1), el resto de la configuración global y el alcance ENS en solo lectura |
 
 Cada parámetro de cada control pertenece a una de tres clases (`common/ens/configuration/agents/parameter-classes.ts`), las mismas para la pantalla, la evaluación, los validadores y `set-parameters.py`.
 
