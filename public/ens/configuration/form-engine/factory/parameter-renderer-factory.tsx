@@ -39,8 +39,9 @@ export const ParameterRendererFactory = ({
   value,
   onChange,
   onMatchModeChange,
+  level,
 }: ENSFormFieldProps) => {
-  const parameter = declared.optionsByLevel ? parameterAtLevel(declared, applicableLevelOf(declared.controlId)) : declared;
+  const parameter = declared.optionsByLevel ? parameterAtLevel(declared, level || applicableLevelOf(declared.controlId)) : declared;
 
   if (supportsParameterPattern(parameter) && (onMatchModeChange || parameter.matchMode === 'regex')) {
     return (
