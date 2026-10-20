@@ -1,5 +1,4 @@
 /** FROZEN COPY of the 1.3.0 structure validator (e5c4cf0), only the import paths changed. */
-
 import {
   ENSConfigurationLifecycleStatus,
   ENSConfigurationScopeMode,
@@ -9,7 +8,7 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../../common/ens/configuration/types';
-import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../common/agent-configuration';
+import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from './agent-configuration-1.3.0';
 
 type UnknownRecord = Record<string, unknown>;
 

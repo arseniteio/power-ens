@@ -14,6 +14,11 @@ destructive behaviour must be requested (--sustituir).
 
 Dry-run by default; --apply to write.
 
+ORGANISATION DATA (`configuration.organizationData`, plugin 1.4.0) IS KEPT AS IT IS. A parameter of the
+control that reads an organisation item and has no value (a new control, or after --sustituir) takes the
+item's value, or, if the item has none yet, the value the other controls agree on, as the plugin does on
+load; a parameter with a different value is left for the plugin to show as a conflict.
+
 THE PER-AGENT LAYER AND THE CUSTOM TEMPLATES (`configuration.agents` and `configuration.templates`,
 plugin 1.3.0) ARE NOT TOUCHED: the whole `_source` is written and only `controls` changes. If a
 parameter is withdrawn from the block and an agent or custom template had a value for it, a warning is
@@ -49,6 +54,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ensfacil_history import save_previous_version  # noqa: E402
+import ensfacil_organization as organization  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"
@@ -237,6 +243,30 @@ controls = [c for c in controls if c["controlId"] != control_id]
 controls.append(block)
 cfg["controls"] = controls
 
+# --- organisation data: kept; the control's empty parameters that read an item take its value
+shape_errors = organization.validate_shape(cfg)
+if shape_errors:
+    print("WARNING: configuration.organizationData is not valid and the plugin will not load the environment: {}".format(
+        " ".join(shape_errors)))
+items = organization.load_items()
+if cfg.get("organizationData") and items:
+    print("Organisation data (configuration.organizationData): kept, {} item(s) with value.".format(
+        len((cfg["organizationData"].get("values") or {}) if isinstance(cfg["organizationData"], dict) else {})))
+for item in items or []:
+    if not any(view["controlId"] == control_id for view in item.get("views", [])) or shape_errors:
+        continue
+    value = organization.stored_value(cfg, item["id"])
+    sources = ["Datos de la organización"]
+    if value is None:
+        value, sources = organization.adopted_value(cfg, item)
+    if value is None:
+        continue
+    single = {"controls": [block]}
+    for problem in organization.fill_problems(single, item, value):
+        print("  {} stays without value, it does not accept «{}» as it is (the plugin shows it in General)".format(problem, item["label"]))
+    for _, pid, _, written in organization.write_through(single, item, value, only_empty=True):
+        print("  {} takes «{}» from {}: {}".format(pid, item["label"], " and ".join(sources), json.dumps(written, ensure_ascii=False)[:70]))
+
 now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 cfg["updatedAt"] = now
 # Stored in the document (shown in the history): Spanish, like the rest of the user-facing text.
@@ -260,7 +290,13 @@ if not args.apply:
     sys.exit(0)
 
 print("\nPrevious version saved in: {}".format(save_previous_version(req, INDEX, previous_source, "inject-control.py")))
-result = req("PUT", "/{}/_doc/{}".format(INDEX, DOC), source)
+# Only over the version read: a save from the screen meanwhile is not overwritten.
+try:
+    result = req("PUT", organization.guarded_path("/{}/_doc/{}".format(INDEX, DOC), doc), source)
+except urllib.error.HTTPError as e:
+    if e.code == 409:
+        sys.exit("ERROR: " + organization.CHANGED_WHILE_APPLYING)
+    raise
 print("\n== APPLIED ==  result: {} | version: {}".format(result.get("result"), result.get("_version")))
 print("The control will appear in the plugin's Configuración screen.")
 print("Required parameters without a value will keep degrading their evidence to NO_EVALUABLE,")

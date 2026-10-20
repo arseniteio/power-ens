@@ -36,6 +36,8 @@ Cada parámetro de cada control pertenece a una de tres clases (`common/ens/conf
 
 Los controles op.cont.2, op.exp.9, op.mon.2 y op.nub.1 solo tienen ajustes comunes: no tienen plantillas ni asignación.
 
+Desde la 1.4.0, los parámetros que piden el mismo dato en varios controles son además **datos de la organización**: se declaran una vez en General (apartado 7.1) y su control los muestra en solo lectura.
+
 ## 4. Valor que se aplica a un agente
 
 Cada parámetro por sistema o por plataforma toma en un agente su ajuste propio; si no lo tiene, el valor de la plantilla asignada en el control o, sin plantilla asignada, el de la plantilla de serie de su tipo; si la plantilla no lo fija, el valor común del control.
@@ -333,6 +335,76 @@ El reparto por agentes (apartado 9) reconoce a una máquina por su id, su nombre
 
 El alcance se cambia con la [configuración inicial](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
 
+### 7.1 Datos de la organización
+
+Desde la 1.4.0, los datos que piden varios controles se declaran una sola vez en Configuración > General > «Datos de la organización». Cada parámetro que lee un dato conserva su id (`P-xx`) y su nombre para el motor, los scripts y los runbooks, y toma su valor del dato. En los parámetros por sistema y por plataforma, el ajuste propio de un agente y la plantilla se siguen aplicando encima (apartado 4).
+
+| Dato | Parámetros que lo leen |
+|---|---|
+| Personal autorizado | op.exp.3 P-03 (configuracion), op.exp.4 P-02 (mantenimiento), op.exp.8 P-08 (registros), op.exp.10 P-08 (claves), mp.info.6 P-07 (copias), op.acc.4 P-02 (autorizaciones), op.nub.1 P-11 (cloud) |
+| Entorno de preproducción | op.exp.4 P-06, op.exp.5 P-05 |
+| Mecanismo de reversión | op.exp.4 P-07, op.exp.5 P-08 |
+| Herramientas de gestión de cambios e incidentes | op.exp.5 P-01 (cambios), op.exp.7 P-03 (incidentes) |
+| Algoritmos y parámetros autorizados por el CCN | op.exp.10 P-03 |
+| Plazos de retención | op.exp.8 P-07 (registros), op.exp.9 P-06 (evidencias), op.acc.1 P-06 (cuentas), op.acc.5 P-08 (accesos), mp.info.6 P-03 (copias) |
+| Zonas controladas y segmentos de red | op.acc.6 P-02 |
+| Canales de acceso remoto autorizados | op.acc.6 P-07 (canal, cifrado, autoriza y uso constante) y op.acc.4 P-04 (canal, puerto y origen) |
+| Productos y servicios certificados | op.nub.1 P-04 |
+| Registro de pruebas periódicas | op.cont.3 P-04 |
+| Formación y concienciación del personal | op.cont.2 P-05 |
+| Grupos con privilegio administrativo | op.acc.1 P-11, op.acc.2 P-12, op.acc.4 P-06 |
+| Declaración de aplicabilidad | op.mon.2 P-01 (medida, aplicable, nivel y refuerzos) y op.acc.5 P-DA (motivo, referencia, enlace, fecha y responsable de la fila de op.acc.5 cuando no aplica) |
+
+«Sistemas y activos en alcance» figura sin valor: el alcance lo fija la configuración inicial y cada control lo acota con su parámetro de alcance.
+
+Reglas:
+
+- Un dato con la columna «Uso» es un registro: cada control lee solo las filas de su uso, con sus columnas y en su orden. Una fila admite varios usos separados por comas (`root | configuracion, copias`).
+- En «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 y mp.info.6 P-03 leen un solo valor: cada uno admite una sola fila de su uso (`cuentas`, `accesos` y `copias`). Con dos filas del mismo uso, el guardado se rechaza con «<control> <parámetro>: lee un solo valor: dejar una sola fila con uso «<uso>» en «Plazos de retención»».
+- En «Canales de acceso remoto autorizados» hay una fila por canal: op.acc.6 P-07 lee canal, cifrado, autoriza y uso constante, y op.acc.4 P-04 lee canal, puerto y origen. Las filas de los dos parámetros que nombran el mismo canal se unen en una.
+- Una fila con varios usos comparte «Ámbito» y «Detalle» (o «Categoría»), que significan cosas distintas en cada uso: el dato avisa con «La fila de «<cuenta>» tiene varios usos…». Si difieren, se escribe una fila por uso.
+- op.exp.9 P-01 sigue en su control. Si dice que el registro es el de ENSFácil y la fila de incidentes de «Herramientas de gestión de cambios e incidentes» no lo nombra, o al revés, el dato lo avisa.
+- En «Declaración de aplicabilidad», op.acc.5 P-DA es la fila `op.acc.5` cuando su «Aplicable» es `no`: con motivo, referencia y enlace, op.acc.5 queda excluido. Si la fila dice `sí`, P-DA queda sin valor.
+- Cada dato lista en «Parámetros relacionados que siguen en su control» los parámetros que el mapa del auditor relaciona con él y que no lo leen, con el motivo.
+- Borrar la configuración de un control (apartado 5.2) no borra los datos de la organización que lee.
+
+Migración desde la 1.3.0. Al cargar el documento, cada dato se compone con los valores de los parámetros que lo leen:
+
+- Si todos los parámetros con valor lo conservan (los que tienen el mismo y, en los registros, cada control con sus filas), el dato pasa a «Datos de la organización». El paso se guarda con el próximo cambio o con «Guardar ahora».
+- Un parámetro sin valor no tiene un valor distinto: toma el del dato, y su control puede cambiar de veredicto. El aviso lo indica con «Se ha completado <control> <parámetro> con el valor de <control> <parámetro>.», y la entrada del historial también. Sin parámetros completados, el aviso dice «Ningún control cambia de valor.».
+- Un parámetro solo se completa con un valor que admite, con las mismas reglas que la pantalla. Si los controles con valor coinciden pero ese valor no vale para el dato o para un parámetro que lo lee, no hay nada que elegir: el dato se queda sin valor común, cada control conserva el suyo y General lo indica en «Datos sin valor común» con «Solo <control> tiene valor y no vale para «<dato>»: <motivo>.». El dato muestra «Sin valor común» y se resuelve escribiendo en «Editar» un valor que valga para todos. Por ejemplo, op.acc.4 P-04 con valor y op.acc.6 P-07 vacío: op.acc.6 P-07 exige cifrado y autorizante, que op.acc.4 no declara.
+- Con un dato ya guardado, un parámetro vacío que no admite su valor se queda sin valor y el dato lo indica («<control> <parámetro> no admite el valor común: …»); los demás lo toman.
+- Si los valores difieren, el dato aparece en «Valores distintos entre controles», al principio del apartado, con cada valor, los parámetros que lo mantienen y el botón «Elegir este valor». Hasta elegir, cada control sigue con su valor. Un valor que algún control no admite no se puede elegir: indica «No se puede elegir tal cual: …» y se escribe con «Editar».
+- La migración es idempotente y la evaluación del servidor la aplica igual al leer el documento.
+- Después de la migración se aplica la misma regla: un parámetro sin valor que lee un dato con valor toma ese valor, por ejemplo en un control sembrado después. Un parámetro con un valor distinto escrito fuera de la 1.4.0 abre un conflicto, en el que se ofrece también el valor guardado.
+- El servidor aplica la misma regla en cada guardado, también en los que llegan por la API.
+
+Fuera de General, Configuración muestra el aviso «Datos de la organización» con lo pendiente y el botón «Ver Datos de la organización». En la página de un agente, un parámetro por sistema o por plataforma que es dato de la organización indica «El valor común es «<dato>», de Datos de la organización.» con el enlace al dato; en los datos que leen varios controles con el mismo valor, el ajuste propio del agente se declara en cada uno.
+
+1. Copiar el documento `active` según la [instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo).
+
+   Resultado esperado: `COPIA_OK`.
+
+2. Abrir ENSFácil > Configuración > General > «Datos de la organización».
+
+   Resultado esperado: un bloque por dato con su descripción, «Lo usan: …» y su estado («Con valor», «Sin valor» o «Valores distintos»). Con valores de los controles todavía sin guardar, el aviso «Valores de los controles pasados a Datos de la organización»; con conflictos, «Valores distintos entre controles» al principio.
+
+3. En cada dato de «Valores distintos entre controles», revisar los valores, pulsar «Elegir este valor» en el que corresponde, revisar en la ventana lo que pierde cada parámetro («<control> <parámetro>: se quita «…»; queda «…».») y confirmar con «Elegir este valor».
+
+   Resultado esperado: el dato pasa a «Con valor» y cada parámetro que lo lee toma ese valor. La versión anterior queda en el historial con la entrada «Datos de la organización: «<dato>» con el valor de <control> <parámetro>.».
+
+4. Para cambiar un dato, pulsar «Editar», escribir el valor y pulsar «Guardar».
+
+   Resultado esperado: el valor guardado. Si un control no admite el valor, «Hay valores que no se pueden guardar» con el control, el parámetro y el motivo, y no se guarda nada. Si otro administrador guardó la configuración después de abrirla, «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.», el valor escrito se mantiene en pantalla y no se guarda nada (apartado 12).
+
+5. Abrir un control que lee el dato (Controles > control) y, en «Ajustes comunes», abrir su formulario.
+
+   Resultado esperado: el parámetro en solo lectura con su valor, «Se edita en Datos de la organización.» y el enlace «Ir a «<dato>»», que abre el dato en General.
+
+6. Validar el documento entero (apartado 11.2).
+
+   Resultado esperado: `VALID STRUCTURE`, la línea `organisation data: …` y, si queda alguno, `PENDING CHOICE «…»` (valores distintos), `NO COMMON VALUE «…»` (un valor que no vale para el dato, con el motivo) o `NOT COMPLETED «…»` (un parámetro que no admite el valor guardado). Sin `INVALID ORGANISATION DATA`.
+
 ## 8. Conversión de una configuración de la 1.2.0
 
 En la 1.2.0 las plantillas eran de plataforma y se aplicaban a cada agente para todos los controles. La 1.3.0 convierte el documento al cargarlo, sin cambiar ningún valor:
@@ -367,6 +439,7 @@ Tablas con una columna que nombra el sistema (`sistema`, `activo`, `equipo`, `se
 - Las filas que no nombran a ningún agente, o que nombran a varios, se quedan en el valor común y se listan como aviso.
 - Dos filas son la misma solo si son idénticas: las mayúsculas cuentan (`Ana` y `ana` son dos cuentas).
 - No se tocan las listas de alcance (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), las tablas por sistema sin columna de sistema (rutas, ACL, matrices de privilegios) ni las listas que mezclan plataformas.
+- Tampoco se reparten los parámetros que son datos de la organización (apartado 7.1): su valor común se edita en General y el ajuste propio de un agente sigue disponible.
 - Nada se borra: un parámetro común que se queda sin filas pierde la clave `value` (nunca se escribe `null`). Es idempotente.
 
 La pestaña «Agentes» calcula el reparto al cargarse, sin escribir: si hay filas que copiar, muestra «Hay filas del valor común que son de un agente concreto», el resumen, el detalle en «Ver qué se mueve y qué se copia» y el botón «Repartir por agentes». Si el alcance ENS no tiene ningún agente, el botón aparece desactivado con el aviso ««Repartir por agentes» no está disponible: el alcance ENS no tiene ningún agente».
@@ -477,11 +550,13 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Resultado esperado: `Done` tras la instalación de las dependencias; después, `VALID STRUCTURE: the plugin will load this configuration.`, la línea `custom templates: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `VALID AGENT AND TEMPLATE SETTINGS.` Sin ajustes de agentes, la línea es `agents with settings: none (everything is evaluated with each control's common value)`. Con un documento de la 1.2.0, la línea `1.2.0 document: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
+Resultado esperado: `Done` tras la instalación de las dependencias; después, `VALID STRUCTURE: the plugin will load this configuration.`, la línea `organisation data: …` con los datos de la organización con valor, una línea `PENDING CHOICE «…»` por dato con valores distintos entre controles (se elige en General, apartado 7.1; no es un error), la línea `custom templates: …`, una línea por agente con su tipo, sus plantillas asignadas y sus ajustes propios, y `VALID AGENT AND TEMPLATE SETTINGS.` Sin ajustes de agentes, la línea es `agents with settings: none (everything is evaluated with each control's common value)`. Con un documento de la 1.2.0, la línea `1.2.0 document: Conversión de la configuración 1.2.0: …` resume la conversión y el resto se valida sobre el documento convertido.
 
 | Mensaje | Significado | Actuación |
 |---|---|---|
 | `INVALID STRUCTURE` con `configuration.agents…` o `configuration.templates…` | Un valor `null` o un objeto en un agente o en una plantilla, un modo que no es `exact` ni `regex` en `matchModes`, o un campo conocido con un tipo que no es el suyo: el plugin no carga el entorno | Restaurar la copia y corregir el dato indicado |
+| `INVALID STRUCTURE` con `configuration.organizationData…` | Un dato de la organización con valor `null` o con un objeto: el plugin no carga el entorno | Restaurar la copia y quitar la clave del dato o corregir su valor |
+| `INVALID ORGANISATION DATA` | Un dato con dos filas del mismo uso para un parámetro que lee un solo valor | Dejar una fila de ese uso en Configuración > General o con `set-parameters.py` |
 | `INVALID COMMON VALUES` | Un valor común que no es válido para su parámetro, por ejemplo una expresión regular escrita con `set-parameters.py` que no compila: el control queda «Inválido» | Corregir el valor en «Ajustes comunes» o con `set-parameters.py` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` con «no se aplica» | Un perfil guardado con un nombre en lugar de un id, un control o un parámetro que no existen, un parámetro común o un modo de comparación sin ajuste propio: el ajuste se ignora | Quitarlo con «Quitar» (apartado 6.3) o con `set-parameters.py` y `null` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` con «se evalúa con una configuración inválida» | Un valor que no es válido para su parámetro | Corregir el valor en la página del agente o con `set-parameters.py` |
@@ -494,10 +569,50 @@ Resultado esperado: `Done` tras la instalación de las dependencias; después, `
 
 `inject-control.py` conserva `configuration.agents` y `configuration.templates` en cada siembra, también con `--sustituir`, y en la fusión conserva el `matchMode` de cada valor común. Si el bloque ya no declara un parámetro y un agente o una plantilla propia tenía valor para él, el plan muestra `AVISO: valores de parámetros retirados, quedan huérfanos: …`; esos valores no se aplican y se quitan como en el apartado 6.3 o editando la plantilla. Al sembrar un control nuevo no se crean plantillas, asignaciones ni ajustes de agentes.
 
+`inject-control.py` conserva también `configuration.organizationData`. Un parámetro del control sin valor que lee un dato de la organización toma el valor del dato o, si el dato aún no tiene valor, el que comparten los demás parámetros que lo leen, también tras `--sustituir`, siempre que lo admita; si no, se queda sin valor y el plan lo indica con `<control> <P-xx>: <motivo> stays without value…`. El plan lo indica con `<P-xx> takes «<dato>» from <origen>`, donde el origen es `Datos de la organización` o los parámetros de los que sale. Un parámetro con un valor distinto se deja como está: el plugin lo muestra como conflicto (apartado 7.1). Un `organizationData` con valor `null` se avisa: el plugin no carga ese documento.
+
+### 11.4 Declarar datos de la organización con set-parameters.py
+
+La sección `organization` declara un dato de la organización por su id (los de la tabla del apartado 7.1: `personal_autorizado`, `entorno_preproduccion`, `mecanismo_reversion`, `herramientas_gestion`, `algoritmos_autorizados`, `retencion`, `zonas_controladas`, `canales_acceso_remoto`, `productos_certificados`, `registro_pruebas`, `formacion_personal`, `grupos_privilegiados` y `declaracion_aplicabilidad`):
+
+```json
+{
+  "organization": {
+    "grupos_privilegiados": ["sudo", "wheel"],
+    "entorno_preproduccion": ["srv-app01 | pre-app01 | informe 2026-05"],
+    "retencion": ["cuentas, accesos |  | 365", "copias |  | 30", "registros | autenticación | 365"]
+  }
+}
+```
+
+Reglas:
+
+- El dato se guarda en `configuration.organizationData.values` y se escribe en cada parámetro que lo lee. El plan lista cada parámetro que cambia.
+- `null`, `""` o `[]` quitan el dato y el valor de cada parámetro que lo lee. En el documento nunca se escribe `null`.
+- La forma `P-xx` sigue valiendo: `{"op.acc.4": {"P-06": ["wheel"]}}` escribe en «Grupos con privilegio administrativo» y, con él, en op.acc.1 P-11 y op.acc.2 P-12.
+- Un parámetro que lee una parte de un registro cambia solo esa parte: `{"op.exp.3": {"P-03": ["bob"]}}` sustituye las filas de uso `configuracion` de «Personal autorizado» y deja las demás.
+- Si el dato todavía no tiene valor y el parámetro lee solo una parte, se escribe solo el parámetro: el plugin lo pasa al dato al cargar o muestra el conflicto.
+- Se rechaza, sin escribir nada, un id que no existe, un dato con `matchMode`, el mismo dato declarado dos veces (por su id y por un `P-xx`, o por dos `P-xx`), un valor que el dato no puede guardar (un `|` dentro de una entrada o más celdas que columnas), dos filas del mismo uso para un parámetro que lee un solo valor (`lee un solo valor: dejar una sola fila con uso «…»`), un valor que no admite alguno de los parámetros que leen el dato (`<control> <P-xx> does not accept the value of «<dato>»: …`) y un documento con `organizationData` no válido o `null`.
+- La herramienta lee los datos de `common/ens/configuration/organization/organization-data-items.ts`: se ejecuta desde `config/` dentro del repositorio completo del plugin.
+
+```bash
+cd /opt/ensfacil/repo/config
+sudo env $CERT python3 set-parameters.py /ruta/organizacion.json            # plan
+sudo env $CERT python3 set-parameters.py /ruta/organizacion.json --apply    # escribe
+```
+
+Resultado esperado: sin `--apply`, un bloque `── organisation data «<dato>» (<id>), from <origen>` por dato con el valor anterior y el nuevo, una línea por parámetro que cambia con el valor anterior y el nuevo (`op.acc.4 P-06   ["root"]  ->  ["sudo", "wheel"]`) y `DRY-RUN: nothing written`; con `--apply`, `Previous version saved in: …` y `<n> change(s) written to wazuh-ens-configuration/active`. Después, validar el documento (apartado 11.2).
+
 ## 12. Compatibilidad y vuelta atrás
 
 - Las plantillas propias van en la clave de primer nivel `configuration.templates`, y la asignación de cada agente en `configuration.agents.<id>.controls.<control>.templateId`, junto a sus ajustes propios en `parameters`. `controls[].parameters[].value` sigue siendo el valor común, que es lo que leen un plugin 1.1.0, el chatbot y los scripts.
 - Un plugin 1.2.0 carga un documento de la 1.3.0: su validador no comprueba claves desconocidas, ignora `templates` y avisa de `templateId` como clave que no conoce. Evalúa con los ajustes propios y con el valor común, sin las plantillas asignadas.
+- Los datos de la organización (1.4.0) van en la clave de primer nivel `configuration.organizationData.values`, un valor por dato (clave ausente: sin valor, nunca `null`), y se escriben también en el `value` de cada parámetro que los lee. Un plugin 1.3.0 carga el documento: su validador no comprueba claves desconocidas y evalúa con el `value` de cada parámetro, que es el mismo valor. Si un plugin 1.3.0 cambia uno de esos parámetros, la 1.4.0 lo muestra como conflicto al cargar.
+- El servidor de la 1.4.0 rechaza con el error 400 un guardado con un dato de la organización `null` o con un objeto, conserva `organizationData` cuando el cuerpo no trae la clave y escribe cada dato en sus parámetros antes de guardar.
+- Desde la 1.4.0, un guardado desde la pantalla lleva la versión del documento que se cargó. Si otro administrador, `set-parameters.py` o `inject-control.py` lo cambiaron después, el servidor lo rechaza con el error 409 y «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.»; lo escrito se mantiene en pantalla para copiarlo antes de recargar. Un guardado por la API sin versión se acepta, y el servidor evita igualmente pisar un documento que cambie entre su lectura y su escritura. Una pantalla abierta sin configuración guardada solo crea la primera: si otro administrador la creó entretanto, también se rechaza con el error 409.
+- Si el documento se guarda pero su entrada del historial no se puede escribir, el guardado se da por bueno y Configuración avisa con «Guardado; no se pudo registrar el historial» hasta el siguiente guardado o la siguiente carga; el detalle queda en el log del dashboard.
+- Un guardado que no responde en 60 segundos se corta con «El guardado no ha respondido a tiempo y puede haberse aplicado o no. Recarga la página para ver la configuración actual.», y los guardados siguientes no se quedan esperando.
+- `set-parameters.py` e `inject-control.py` escriben solo sobre la versión que leyeron. Si un guardado desde la pantalla llegó entre su lectura y su escritura, se detienen sin escribir con `ERROR: La configuración ha cambiado mientras se aplicaba; volver a ejecutar.`, y basta con volver a ejecutarlos.
 - El servidor de la 1.3.0 rechaza con el error 400 un guardado cuyo `agents` o `templates` no tiene la forma correcta o con un `matchMode` que no es `exact` ni `regex` en un valor común, y conserva los existentes cuando el cuerpo no trae la clave.
 - Un plugin 1.2.0 ignora `matchMode` y `matchModes` y compara un patrón como un nombre literal. Antes de volver a la 1.2.0 se pasan esos valores a «Texto exacto» o se restaura una versión del documento sin ellos.
 - Un modo de comparación que la versión instalada no conoce impide cargar el entorno ENS. Antes de volver de una versión posterior que añada modos, se pasan esos valores a «Texto exacto» o «Expresión regular», o se restaura una versión del documento sin ellos.

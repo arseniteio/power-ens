@@ -421,6 +421,13 @@ the tool reads the parameter classification from `public/`
 After declaring values, repeat the backup (section 7) before and the
 validation (section 9) after.
 
+Organisation data (the `organization` section and parameters such as op.acc.1
+P-11 or op.exp.4 P-06) also needs the full repository mounted: the tool reads the
+items from `common/`. Without it, it writes only the parameter, warns with
+`WARNING: cannot read the organisation data items` and the plugin shows the
+conflict in General
+([Configuration by controls and templates, section 11.4](09-configuration-by-system.en.md#114-declare-organisation-data-with-set-parameterspy)).
+
 ## 11. Final check in the browser
 
 Log in to Wazuh Dashboard and check that:

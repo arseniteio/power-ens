@@ -10,6 +10,7 @@ import { ensConfigurationRepository } from '../../../common/ens/configuration/re
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
+import { normalizeOrganizationData } from '../../../common/ens/configuration/organization/organization-data-migration';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
@@ -417,9 +418,10 @@ export const createEvaluationService = ({
     const cached = configurations.get('active', stamp);
     if (cached) return cached;
     const stored = await readActiveENSConfiguration(clients.asInternalUser, logger);
-    // A 1.2.0 document is converted once per load, exactly as the browser does on hydration.
+    // A 1.2.0 document is converted once per load, and the organisation data applied, exactly as the browser does
+    // on hydration. Neither changes a parameter the engine reads unless the organisation value says so.
     const configuration = stored?.configuration
-      ? toTemplateModel(assertENSConfigurationVersion(stored.configuration))
+      ? normalizeOrganizationData(toTemplateModel(assertENSConfigurationVersion(stored.configuration))).configuration
       : (defaultENSConfigurationTemplate as ENSConfigurationVersion);
     const entry = {
       configuration,

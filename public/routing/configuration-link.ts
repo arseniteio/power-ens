@@ -11,6 +11,8 @@ export interface ENSConfigurationTarget {
   controlId?: string;
   agentId?: string;
   parameterId?: string;
+  // An organisation data item (General view).
+  itemId?: string;
 }
 
 const clean = (value?: string): string | undefined => {
@@ -30,6 +32,7 @@ export const parseConfigurationTarget = (params: Record<string, string | undefin
     controlId: clean(params.configControl),
     agentId,
     parameterId: clean(params.configParam),
+    itemId: clean(params.configItem),
   };
 };
 
@@ -41,6 +44,7 @@ export const configurationSearchChanges = (
   configAgent: clean(target.agentId),
   configControl: clean(target.controlId),
   configParam: clean(target.parameterId),
+  configItem: target.view === 'general' ? clean(target.itemId) : undefined,
 });
 
 // Keeps whatever else is in `search` (the chosen machine).
@@ -94,5 +98,6 @@ export const configurationBackChanges = (back: { tabView: string }): Record<stri
   configAgent: undefined,
   configControl: undefined,
   configParam: undefined,
+  configItem: undefined,
   [CONFIGURATION_BACK_PARAM]: undefined,
 });

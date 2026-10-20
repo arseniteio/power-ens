@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { ENS_DIMENSION_LEVEL_KEYS } from '../../core/control-level';
 import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
+import { validateOrganizationDataShape } from '../organization/organization-data-shape';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -516,6 +517,8 @@ export const validateENSConfigurationStructure = (
   // that machine's row, not the whole environment.
   errors.push(...validateAgentsConfigurationShape(value.agents));
   errors.push(...validateCustomTemplatesShape(value.templates));
+  // Organisation data (1.4.0): optional; a `null` item value would reach every mapped parameter.
+  errors.push(...validateOrganizationDataShape(value.organizationData));
 
   if (!Array.isArray(value.auditTrail)) {
     errors.push('configuration.auditTrail must be an array.');

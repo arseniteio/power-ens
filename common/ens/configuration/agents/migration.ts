@@ -17,6 +17,7 @@ import {
   getControlMeasurementPlanes,
 } from '../../core/scope/measurement-planes';
 import { ENS_SYSTEM_KEY_COLUMNS } from './parameter-classes';
+import { isOrganizationDataParameter } from '../organization/organization-data-items';
 import { resolveControlConfigurationWithOrigins, rowKey } from './configuration-resolver';
 import { ENSDetectableAgent, agentAliases } from './system-detection';
 import { cloneDocument, profileIdentity } from './profile-identity';
@@ -150,7 +151,8 @@ export const planMigrationToSystems = (
     control.parameters.forEach((parameter: ENSControlParameter) => {
       const keyColumn = keyColumns[parameter.id];
 
-      if (!keyColumn || parameter.type !== 'table' || parameter.value === undefined) {
+      // Organisation data is edited once in General; distributing its rows would split it per control.
+      if (!keyColumn || parameter.type !== 'table' || parameter.value === undefined || isOrganizationDataParameter(control.controlId, parameter.id)) {
         return;
       }
 
