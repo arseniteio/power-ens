@@ -38,7 +38,7 @@ export const buildActivityRequest = (filters: unknown[], controlIds: string[], t
 // How far back the first fact of each machine is looked up: bounded, and longer than any usual retention.
 export const FIRST_FACT_LOOKBACK_DAYS = 400;
 
-// Each machine's first ENS fact (when it entered the scope) and the oldest ENS fact kept: one bounded aggregation.
+// Each machine's first ENS fact (when it entered the scope; the oldest kept is the earliest of them): one bounded aggregation.
 export const buildMachinesRequest = (scopeFilters: unknown[], now: Date, machines: number) => ({
   index: ENS_ALERTS_INDEX,
   ignore_unavailable: true,
@@ -46,22 +46,30 @@ export const buildMachinesRequest = (scopeFilters: unknown[], now: Date, machine
     size: 0,
     query: { bool: { filter: [{ range: { '@timestamp': { gte: new Date(now.getTime() - FIRST_FACT_LOOKBACK_DAYS * 86400e3).toISOString(), lte: now.toISOString() } } }, ...scopeFilters] } },
     aggs: {
-      oldest: { min: { field: '@timestamp' } },
       agents: { terms: { field: 'agent.id', size: Math.max(1, machines) }, aggs: { first: { min: { field: '@timestamp' } } } },
     },
   },
 });
 
-export const readMachinesResponse = (body: any, timeZone: string): { oldest?: string; since: Map<string, string> } => {
-  const oldest = body?.aggregations?.oldest?.value;
-  return {
-    oldest: typeof oldest === 'number' ? new Date(oldest).toISOString() : undefined,
-    since: new Map(
-      (body?.aggregations?.agents?.buckets || [])
-        .filter((agent: any) => typeof agent?.first?.value === 'number')
-        .map((agent: any) => [String(agent.key), dayIn(new Date(agent.first.value), timeZone)])
-    ),
-  };
+// Each machine's first fact (epoch ms), by `agent.id` as the indexer stores it.
+export const readMachinesResponse = (body: any): Map<string, number> =>
+  new Map(
+    (body?.aggregations?.agents?.buckets || [])
+      .filter((agent: any) => typeof agent?.first?.value === 'number')
+      .map((agent: any) => [String(agent.key), agent.first.value as number])
+  );
+
+// The current scope's view of the first facts: each machine's first day in the zone and the earliest fact among them.
+export const firstFactsOfScope = (firsts: Map<string, number>, agentIds: string[], timeZone: string): { oldest?: string; since: Map<string, string> } => {
+  const inScope = new Set(agentIds.map(id => id.trim()));
+  const since = new Map<string, string>();
+  let oldest: number | undefined;
+  firsts.forEach((first, agentId) => {
+    if (!inScope.has(agentId)) return;
+    since.set(agentId, dayIn(new Date(first), timeZone));
+    if (oldest === undefined || first < oldest) oldest = first;
+  });
+  return { oldest: oldest === undefined ? undefined : new Date(oldest).toISOString(), since };
 };
 
 // Groups of controls whose buckets (controls x machines x days) fit in one search.

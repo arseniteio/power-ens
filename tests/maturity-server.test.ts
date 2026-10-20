@@ -42,6 +42,8 @@ const monitor = (id: string, name: string) => ({
 });
 const alerts = createFakeIndexer([...docs, monitor('024', 'wazuh-real')], { clock: () => clock.getTime() });
 
+// The first-fact lookup: its only aggregation is one bucket per machine with its earliest fact.
+const isFirstFactLookup = (request: any) => Object.keys(request.body?.aggs || {}).join() === 'agents' && Boolean(request.body.aggs.agents.aggs?.first);
 // The plugin's own indices (configuration and snapshots), with `_seq_no`, `if_seq_no`, `create` and delete by query.
 const OWN = ['wazuh-ens-configuration', 'wazuh-ens-snapshots'];
 const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number; failActivity?: boolean; failFirstFacts?: boolean; slow?: number } = {}) => {
@@ -57,7 +59,7 @@ const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number; 
     search: async (request: any) => {
       if (options.slow) await new Promise(resolve => setTimeout(resolve, options.slow));
       if (options.failActivity && request.body?.aggs?.controls?.aggs?.agents?.aggs?.days) throw Object.assign(new Error('activity read timed out'), { statusCode: 504 });
-      if (options.failFirstFacts && Object.keys(request.body?.aggs || {}).sort().join() === 'agents,oldest') throw Object.assign(new Error('first facts timed out'), { statusCode: 504 });
+      if (options.failFirstFacts && isFirstFactLookup(request)) throw Object.assign(new Error('first facts timed out'), { statusCode: 504 });
       if (!OWN.includes(request.index)) return alerts.search(request);
       const sort = (request.body?.sort || []).map((s: any) => {
         const [field, order]: [string, any] = Object.entries(s)[0] as any;
@@ -158,7 +160,7 @@ const seed = (internal: any, evaluationPeriod?: string, ensLevel?: string) => {
 
 let maturityClock = 0;
 const setup = (
-  options: { evaluationPeriod?: string; ensLevel?: string; refuseSnapshots?: boolean; failPurges?: number; inputsTtlMs?: number; failOrganisation?: boolean; refreshingOrganisation?: boolean; failActivity?: boolean; failFirstFacts?: boolean; slow?: number; justificationTimeoutMs?: number } = {}
+  options: { evaluationPeriod?: string; ensLevel?: string; refuseSnapshots?: boolean; failPurges?: number; inputsTtlMs?: number; failOrganisation?: boolean; refreshingOrganisation?: boolean; missingOrganisation?: boolean; failActivity?: boolean; failFirstFacts?: boolean; slow?: number; justificationTimeoutMs?: number } = {}
 ) => {
   const internal = createStore(options);
   seed(internal, options.evaluationPeriod, options.ensLevel);
@@ -171,6 +173,8 @@ const setup = (
       const organisationPass = q.include === 'summary' && !q.agentId;
       if (organisationPass && options.failOrganisation) throw new Error('indexer down');
       const run = await service.run(c, q, o);
+      // `missingOrganisation`: the organisation rows are still being computed (none fails).
+      if (organisationPass && options.missingOrganisation) return { ...run, meta: { ...run.meta, pending: { rows: 40, controls: ['op.exp.3'], total: 100 } } };
       return organisationPass && options.refreshingOrganisation ? { ...run, meta: { ...run.meta, refreshing: true } } : run;
     },
   };
@@ -225,7 +229,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const firstFactQueries: any[] = [];
   hooked.internal.search = async (req: any) => {
     if (req.body?.aggs?.controls?.aggs?.agents?.aggs?.days) seen.push(req.body.aggs.controls.aggs.agents.aggs.days.date_histogram);
-    if (Object.keys(req.body?.aggs || {}).sort().join() === 'agents,oldest') firstFactQueries.push(req.body);
+    if (isFirstFactLookup(req)) firstFactQueries.push(req.body);
     return plainSearch(req);
   };
   await hooked.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
@@ -335,11 +339,11 @@ const Z = { timeZone: 'Europe/Madrid' };
   });
   const brokenBefore = warnings.length;
   await brokenJob.runOnce();
-  check('a failed read writes nothing (no L0 for every control), warns and retries in 30 minutes', snapshotIds(broken.internal).length === 0 && /the daily maturity snapshot failed \(could not read la actividad diaria\); nothing written/.test(warnings.slice(brokenBefore).join(' ')) && brokenTimers.length === 1, warnings.slice(brokenBefore));
+  check('a failed read writes nothing (no L0 for every control), warns and retries in 30 minutes', snapshotIds(broken.internal).length === 0 && /the daily maturity snapshot failed \(could not read the daily activity\); nothing written for 2026-10-20, retried in 30 minutes/.test(warnings.slice(brokenBefore).join(' ')) && brokenTimers.length === 1 && brokenTimers[0].ms === 30 * 60e3, warnings.slice(brokenBefore));
   brokenTimers[0].run();
   await new Promise(resolve => setTimeout(resolve, 0));
   await brokenJob.runOnce();
-  check('...a failure again warns again (every time) and retries again', warnings.slice(brokenBefore).filter(w => /daily maturity snapshot failed/.test(w)).length === 2 && brokenTimers.length === 2);
+  check('...a failure again warns again (every time) and retries again, later (1 hour)', warnings.slice(brokenBefore).filter(w => /daily maturity snapshot failed/.test(w)).length === 2 && brokenTimers.length === 2 && brokenTimers[1].ms === 3600e3 && /retried in 1 hour/.test(warnings.slice(brokenBefore).join(' ')), brokenTimers.map(t => t.ms));
   broken.options.failActivity = false;
   brokenTimers[1].run();
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -354,6 +358,59 @@ const Z = { timeZone: 'Europe/Madrid' };
   await lateJob.runOnce();
   check('after 23:00 local time (23:10 Madrid) no more retries that day: tomorrow at 02:30', lateTimers.length === 0 && /retried tomorrow at 02:30/.test(warnings.slice(lateBefore).join(' ')), warnings.slice(lateBefore));
   clock = lateClock;
+  // A persistent failure backs off (30 min, 1 h, 2 h, 4 h, 8 h) and stops at 23:00; the next day starts at 30 min again.
+  const jobWith = (s: any, timers: { run: () => void; ms: number }[]) =>
+    createDailySnapshotJob({ logger, client: { ...s.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: s.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => timers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
+  clock = new Date('2026-10-20T00:30:00Z');
+  const steady = setup({ failActivity: true });
+  const steadyTimers: { run: () => void; ms: number }[] = [];
+  const steadyJob = jobWith(steady, steadyTimers);
+  const steadyBefore = warnings.length;
+  await steadyJob.runOnce();
+  let steadyRuns = 1;
+  while (steadyTimers.length === steadyRuns && steadyRuns < 10) {
+    clock = new Date(clock.getTime() + steadyTimers[steadyRuns - 1].ms);
+    steadyTimers[steadyRuns - 1].run();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await steadyJob.runOnce();
+    steadyRuns += 1;
+  }
+  const steadyLog = warnings.slice(steadyBefore).filter(w => /daily maturity snapshot failed/.test(w));
+  check('a persistent failure from 02:30 backs off: retries after 30 min, 1 h, 2 h, 4 h and 8 h, 6 runs, then tomorrow', steadyRuns === 6 && JSON.stringify(steadyTimers.map(t => t.ms / 60e3)) === '[30,60,120,240,480]' && ['30 minutes', '1 hour', '2 hours', '4 hours', '8 hours'].every((w, i) => steadyLog[i]?.includes(`retried in ${w}`)) && /retried tomorrow at 02:30/.test(steadyLog[5] || ''), { runs: steadyRuns, timers: steadyTimers.map(t => t.ms / 60e3), log: steadyLog });
+  clock = new Date('2026-10-21T00:30:00Z');
+  await steadyJob.runOnce();
+  check('...a new day starts again at 30 minutes', steadyTimers.length === 6 && steadyTimers[5].ms === 30 * 60e3, steadyTimers.map(t => t.ms / 60e3));
+  clock = lateClock;
+  // A failed first-fact lookup is not repeated before its backoff, also across job runs.
+  const noLookup = setup({ failFirstFacts: true });
+  let lookups = 0;
+  const lookupSearch = noLookup.internal.search;
+  noLookup.internal.search = async (req: any) => {
+    if (isFirstFactLookup(req)) lookups += 1;
+    return lookupSearch(req);
+  };
+  const noLookupJob = jobWith(noLookup, []);
+  const noLookupBefore = warnings.length;
+  await noLookupJob.runOnce();
+  await noLookupJob.runOnce();
+  const lookupsBefore = lookups;
+  maturityClock += 30 * 60e3;
+  await noLookupJob.runOnce();
+  const lookupsAfter = lookups;
+  maturityClock += 30 * 60e3;
+  await noLookupJob.runOnce();
+  maturityClock = 0;
+  check('a failed first-fact lookup: the run fails, and a run right after does not repeat the lookup (cached for 30 min)', lookupsBefore === 1 && /could not read each machine's first fact\); nothing written/.test(warnings.slice(noLookupBefore).join(' ')), { lookupsBefore, log: warnings.slice(noLookupBefore) });
+  check('...after 30 min it is tried again; failing again, it waits 1 h', lookupsAfter === 2 && lookups === 2, { lookupsAfter, lookups });
+  // stop() during a failing run: no retry, and the log does not promise one.
+  const stopping = setup({ failActivity: true });
+  const stoppingTimers: { run: () => void; ms: number }[] = [];
+  const stoppingJob = jobWith(stopping, stoppingTimers);
+  const stoppingBefore = warnings.length;
+  const inFlight = stoppingJob.runOnce();
+  stoppingJob.stop();
+  await inFlight;
+  check('stop() during a failing run: no retry, and the log says «not retried: stopping»', stoppingTimers.length === 0 && /nothing written for 2026-10-20, not retried: stopping/.test(warnings.slice(stoppingBefore).join(' ')), warnings.slice(stoppingBefore));
 
   console.log('3b. The daily job runs at 02:30 local time, and catches up after start only if today is missing');
   check('next run: today at 02:30 Madrid when it is still before, else tomorrow', nextDailyRun(new Date('2026-10-20T00:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-20T00:30:00.000Z' && nextDailyRun(new Date('2026-10-20T10:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-21T00:30:00.000Z');
@@ -487,6 +544,41 @@ const Z = { timeZone: 'Europe/Madrid' };
     await staleOrg.maturity.flush();
   }
   check('an organisation row that keeps refreshing does not either: the first answer waits once, then it is served', stalePolls.slice(1).every(d => !d.meta.maturityPending && d.maturity?.controlId === 'op.exp.3'), stalePolls.map(d => d.meta.maturityPending));
+  // Organisation rows still being computed for 2 minutes (none fails): pending all along, never the error.
+  const slowOrg = setup({ missingOrganisation: true });
+  const slowView = async () => ((await slowOrg.evaluation.evaluate(context(slowOrg.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)) as any).body.data;
+  const slowPolls: any[] = [];
+  for (let t = 0; t <= 120; t += 10) {
+    slowPolls.push(await slowView());
+    await slowOrg.maturity.flush();
+    maturityClock += 10e3;
+  }
+  slowOrg.options.missingOrganisation = false;
+  await slowView();
+  await slowOrg.maturity.flush();
+  const slowDone = await slowView();
+  maturityClock = 0;
+  check('organisation rows still being computed for 2 minutes: the machine view stays pending, never «No se ha podido calcular»', slowPolls.every(d => d.meta.maturityPending === true && !d.maturityError), slowPolls.map(d => d.maturityError || d.meta.maturityPending));
+  check('...and carries the maturity once the rows are there', !slowDone.meta.maturityPending && !slowDone.maturityError && slowDone.maturity?.controlId === 'op.exp.3', slowDone.meta);
+  // A current cached view while every refresh behind fails and new facts keep coming: served, never the error.
+  const flakyOrg = setup();
+  await flakyOrg.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  await flakyOrg.ready({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z });
+  flakyOrg.options.failOrganisation = true;
+  const flakyBefore = warnings.length;
+  const flakyPolls: any[] = [];
+  const flakyFacts: FakeDoc[] = [];
+  for (let t = 0; t <= 120; t += 10) {
+    const doc = fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run' }, 0.0001 * (t / 10 + 1));
+    flakyFacts.push(doc);
+    alerts.docs.push(doc);
+    flakyPolls.push(((await flakyOrg.evaluation.evaluate(context(flakyOrg.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)) as any).body.data);
+    await flakyOrg.maturity.flush();
+    maturityClock += 10e3;
+  }
+  alerts.docs.splice(alerts.docs.length - flakyFacts.length, flakyFacts.length);
+  maturityClock = 0;
+  check('a current cached view whose refreshes behind fail 3 times and more: served with its version, never the error', warnings.slice(flakyBefore).some(w => /organisation maturity \(attempt 3\)/.test(w)) && flakyPolls.every(d => !d.meta.maturityPending && !d.maturityError && d.maturity?.controlId === 'op.exp.3' && d.maturityVersion !== undefined), { polls: flakyPolls.map(d => d.maturityError || d.meta.maturityPending), log: warnings.slice(flakyBefore) });
 
   console.log('6. Reading snapshots: as the user');
   const read = (query: any, user: any = ADMIN, noSnapshots = false) => routes.snapshots(context(internal, user, noSnapshots), { query }, responses) as Promise<any>;
@@ -539,6 +631,36 @@ const Z = { timeZone: 'Europe/Madrid' };
   const noFirstDetail = await noFirst.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
   const noFirstGates = noFirstDetail.body.data.maturity?.gates || [];
   check('first facts unreadable: the activity is still read (L1 and L2 pass) and the reason says machines count from the period start', noFirstGates.find((g: any) => g.id === 'L1.facts')?.passed && noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.passed && /no se pudo leer el primer hecho de cada máquina/.test(noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.reason || ''), noFirstGates.slice(0, 2));
+  // Any other failure of the accredited level: its own message, not the timeout one.
+  const assessmentBody = { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null };
+  const failingRoutes = (error: Error) => createMaturityHandlers({ logger, securityEnabled: true, maturity: { ...judging.maturity, accreditedFor: async () => Promise.reject(error) } as any, clock: () => clock });
+  const refusedAssessment: any = await failingRoutes(Object.assign(new Error('security_exception: no permissions for [indices:data/read/search]'), { statusCode: 403 })).save(context(judging.internal), { body: assessmentBody }, responses);
+  const brokenAssessment: any = await failingRoutes(new Error('unexpected')).save(context(judging.internal), { body: assessmentBody }, responses);
+  check('an accredited level that fails for another reason: its own message (403 refused read, 500 otherwise), never «a tiempo»', refusedAssessment.status === 403 && /^No se ha podido calcular el nivel acreditado del control: sin permiso/.test(refusedAssessment.body.message) && brokenAssessment.status === 500 && /el detalle está en el log del dashboard/.test(brokenAssessment.body.message) && !/a tiempo/.test(refusedAssessment.body.message + brokenAssessment.body.message), [refusedAssessment, brokenAssessment]);
+  // The scope shrinks to a machine with 10 days of facts: the removed machine's 31 days must not count for L2.
+  const newcomer: FakeDoc[] = [];
+  for (let h = 10 * 24; h >= 1; h -= 1) {
+    newcomer.push(fact('025', 'nuevo', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+    newcomer.push(fact('025', 'nuevo', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'sshd', estado: 'CUMPLE' }, h - 0.01));
+  }
+  newcomer.push({ _id: 'm025', _index: 'wazuh-monitoring-2026.10.20', _source: { id: '025', name: 'nuevo', group: ['ens', 'new'], status: 'active', timestamp: new Date(clock.getTime() - 360e3).toISOString(), manager: 'manager' } } as any);
+  alerts.docs.push(...newcomer);
+  const shrink = setup();
+  const shrinkLookups: any[] = [];
+  const shrinkSearch = shrink.internal.search;
+  shrink.internal.search = async (req: any) => {
+    if (isFirstFactLookup(req)) shrinkLookups.push(req);
+    return shrinkSearch(req);
+  };
+  const l2Of = (answer: any) => answer.body.data.maturity?.gates.find((g: any) => g.id === 'L2.recurrence');
+  const wide = await shrink.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  const shrinkActive = shrink.internal.store.get('active');
+  const narrowed = { ...shrinkActive.source.configuration, scope: { mode: 'group', agentIds: [], groupIds: ['new'] }, updatedAt: '2026-10-20T11:00:00.000Z' };
+  shrink.internal.store.set('active', { ...shrinkActive, source: { ...shrinkActive.source, configuration: narrowed, updatedAt: '2026-10-20T11:00:00.000Z' }, seqNo: shrinkActive.seqNo + 100 });
+  const narrow = await shrink.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  alerts.docs.splice(alerts.docs.length - newcomer.length, newcomer.length);
+  check('scope {024, 025}: L2 passes on 024\'s 31 days', l2Of(wide)?.passed === true, l2Of(wide));
+  check('...shrunk to {025} (10 days): L2 fails for the history, from the same first-fact read (no second lookup)', l2Of(narrow)?.passed === false && /Faltan 19 días de historial/.test(l2Of(narrow)?.reason || '') && shrinkLookups.length === 1, { gate: l2Of(narrow), lookups: shrinkLookups.length });
 
   console.log('8. DRAFT controls (no collector yet): maturity reaches the response and the detail');
   const drafts = list.controls.filter((c: any) => !c.measured).map((c: any) => c.controlId).sort();

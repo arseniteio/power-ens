@@ -17,7 +17,7 @@ import { ENSBadRequestError, normalizeQuery } from '../evaluation/evaluation-ser
 import { CancelSignal } from '../evaluation/cache';
 import { searchComplete, throwIfCancelled, yieldToEventLoop } from '../evaluation/facts-reader';
 import { buildViewFilters, catalogControlIds } from '../evaluation/queries';
-import { buildActivityRequest, buildMachinesRequest, groupActivityControls, readActivityResponse, readMachinesResponse } from './activity';
+import { buildActivityRequest, buildMachinesRequest, firstFactsOfScope, groupActivityControls, readActivityResponse, readMachinesResponse } from './activity';
 import { ENS_SNAPSHOT_RETENTION_DAYS, purgeSnapshots, readSnapshots, snapshotId, writeSnapshots } from './snapshot-storage';
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
@@ -55,11 +55,15 @@ export interface ENSMaturityServiceOptions {
 const DAY_MS = 86400e3;
 // The justification rule judges with inputs read at most this long ago.
 export const ENS_JUSTIFICATION_INPUTS_MAX_AGE_MS = 15 * 60e3;
-// Machine view's organisation pass: 3 attempts (5 s, 30 s), then an error, retried behind every 5 min until it clears.
+// Machine view's organisation pass: 3 failed passes (5 s, 30 s apart), then an error unless a current view is cached,
+// retried behind every 5 min until it clears. Only a pass that throws fails; rows still missing are pending.
 export const ENS_ORGANISATION_ATTEMPTS = 3;
 const RETRY_WAITS_MS = [5e3, 30e3];
 const RETRY_AFTER_ERROR_MS = 5 * 60e3;
 export const ENS_MATURITY_FAILED = 'No se ha podido calcular la madurez.';
+// Waits after consecutive failures (daily job runs, first-fact lookups): 30 min, 1 h, 2 h, 4 h, then 8 h.
+export const ENS_RETRY_BACKOFF_MS = [30 * 60e3, 60 * 60e3, 2 * 3600e3, 4 * 3600e3, 8 * 3600e3];
+export const retryBackoffMs = (failures: number): number => ENS_RETRY_BACKOFF_MS[Math.min(Math.max(1, failures), ENS_RETRY_BACKOFF_MS.length) - 1];
 export const ENS_ACCREDITED_TIMEOUT = 'No se ha podido calcular a tiempo el nivel acreditado del control; vuelve a intentarlo en unos minutos.';
 
 export class ENSMaturityUnavailableError extends Error {
@@ -88,7 +92,9 @@ export const createMaturityService = ({
   const inputs = new Map<string, ENSMaturityInputs>();
   const loading = new Map<string, Promise<ENSMaturityInputs | undefined>>();
   // Each machine's first fact: read once a day per user, and again when a machine joins the scope.
-  const firstFacts = new Map<string, { at: number; agents: string[]; value: { oldest?: string; since: Map<string, string> } }>();
+  const firstFacts = new Map<string, { at: number; agents: string[]; firsts: Map<string, number> }>();
+  // A failed first-fact lookup is not repeated before its backoff (per user).
+  const firstFactFailures = new Map<string, { count: number; until: number }>();
   const organisation = new Map<string, { state: string; fingerprint: string; complete: boolean; inputsAt: number; view: ENSMaturityOfView }>();
   const refreshing = new Map<string, Promise<void>>();
   const failures = new Map<string, { count: number; nextAt: number }>();
@@ -122,22 +128,28 @@ export const createMaturityService = ({
     }, { background: true });
 
   // Undefined when it could not be read: the activity is still read and every machine counts from the period start.
+  // The oldest fact is the earliest first fact of the current scope's machines, so a smaller scope reuses the read.
   const firstFactsOf = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, zone: string) => {
     const key = ctx.userKey;
     const agents = ctx.scope.map(agent => agent.id);
     const cached = firstFacts.get(key);
-    if (cached && clock() - cached.at < DAY_MS && agents.every(id => cached.agents.includes(id))) return cached.value;
+    if (cached && clock() - cached.at < DAY_MS && agents.every(id => cached.agents.includes(id))) return firstFactsOfScope(cached.firsts, agents, zone);
+    const failure = firstFactFailures.get(key);
+    if (failure && clock() < failure.until) return undefined;
     try {
       const scopeFilters = buildViewFilters({ from: ctx.now.toISOString(), to: ctx.now.toISOString() }, ctx.scope).slice(1);
-      const value = readMachinesResponse(
-        await read(() => searchComplete(clients.asCurrentUser, buildMachinesRequest(scopeFilters, ctx.now, agents.length + 1), 'el primer hecho de cada máquina')),
-        zone
+      const firsts = readMachinesResponse(
+        await read(() => searchComplete(clients.asCurrentUser, buildMachinesRequest(scopeFilters, ctx.now, agents.length + 1), 'el primer hecho de cada máquina'))
       );
       if (firstFacts.size > 200) firstFacts.clear();
-      firstFacts.set(key, { at: clock(), agents, value });
-      return value;
+      firstFacts.set(key, { at: clock(), agents, firsts });
+      firstFactFailures.delete(key);
+      return firstFactsOfScope(firsts, agents, zone);
     } catch (error: any) {
       if (stopped.aborted) throw error;
+      const count = (failure?.count || 0) + 1;
+      if (firstFactFailures.size > 200) firstFactFailures.clear();
+      firstFactFailures.set(key, { count, until: clock() + retryBackoffMs(count) });
       warnOnce(`first:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read each machine's first fact for maturity: ${error?.message || error}`);
       return undefined;
     }
@@ -155,7 +167,7 @@ export const createMaturityService = ({
     const filters = buildViewFilters({ from, to }, ctx.scope);
     const failed: string[] = [];
     const machines = await firstFactsOf(clients, ctx, zone);
-    if (!machines) failed.push('el primer hecho de cada máquina');
+    if (!machines) failed.push("each machine's first fact");
     let activity: Map<string, ENSMaturityActivity> | undefined = new Map();
     try {
       for (const group of groupActivityControls(options.controlIds || catalogControlIds(), ctx.scope.length + 1, ENS_MATURITY_PERIOD_DAYS)) {
@@ -167,7 +179,7 @@ export const createMaturityService = ({
       if (stopped.aborted) throw error;
       warnOnce(`activity:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read the daily activity for maturity: ${error?.message || error}`);
       activity = undefined;
-      failed.push('la actividad diaria');
+      failed.push('the daily activity');
     }
     // The history is short only if some whole day of the period predates the oldest fact kept.
     const firstWholeDay = addDays(dayIn(new Date(from), zone), 1);
@@ -182,7 +194,7 @@ export const createMaturityService = ({
     } catch (error: any) {
       if (stopped.aborted) throw error;
       snapshotsError = statusOf(error) === 403 ? 'sin permiso de lectura de wazuh-ens-snapshots' : 'error del indexador';
-      failed.push('las instantáneas');
+      failed.push('the snapshots');
       warnOnce(`snapshots:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read the maturity snapshots for ${ctx.userKey.split('|')[0] || 'a user'}: ${error?.message || error}`);
     }
     return {
@@ -317,6 +329,9 @@ export const createMaturityService = ({
   const storeOrganisation = (key: string, run: RunOutput, data: ENSMaturityInputs, controls: Map<string, ENSControlMaturity>, query: ENSEvaluationQuery) => {
     if (organisation.size > 500) organisation.clear();
     const complete = !run.meta.pending;
+    // A complete view of the same state stays served until a complete pass replaces it.
+    const previous = organisation.get(key);
+    if (!complete && previous?.complete && previous.state === stateOf(run.ctx)) return;
     organisation.set(key, {
       state: stateOf(run.ctx),
       fingerprint: evaluation.viewFingerprint(run.ctx, query),
@@ -327,7 +342,8 @@ export const createMaturityService = ({
     if (complete) failures.delete(key);
   };
 
-  // A machine view's organisation maturity, computed behind; a throw or missing rows is a failed attempt (bounded).
+  // A machine view's organisation maturity, computed behind; only a throw is a failed attempt (bounded), missing rows
+  // keep the view pending and the next poll runs the pass again.
   const refreshOrganisation = (clients: ENSEvaluationClients, key: string, query: ENSEvaluationQuery): void => {
     if (refreshing.has(key)) return;
     const failure = failures.get(key);
@@ -338,7 +354,6 @@ export const createMaturityService = ({
         const data = peekInputs(clients, run.ctx) || (await loading.get(inputsKey(run.ctx)));
         if (!data) throw new Error('the maturity inputs could not be read');
         storeOrganisation(key, run, data, compute(run, data), query);
-        if (run.meta.pending) throw new Error(`organisation rows still missing (${run.meta.pending.rows})`);
       })()
         .catch((error: any) => {
           if (stopped.aborted) return;
@@ -369,19 +384,19 @@ export const createMaturityService = ({
     }
     // A machine view: pending only if records, configuration or scope changed, or rows are missing; else from memory.
     const cached = organisation.get(key);
+    if (cached && cached.state === stateOf(ctx) && cached.complete) {
+      // Still right for its records, configuration and scope: served while refreshes behind run (or fail).
+      if (cached.fingerprint !== evaluation.viewFingerprint(ctx, query) || (data && data.at > cached.inputsAt)) refreshOrganisation(clients, key, query);
+      return { ...cached.view, pending: false, version };
+    }
     const failure = failures.get(key);
     if (failure && failure.count >= ENS_ORGANISATION_ATTEMPTS) {
       if (clock() >= failure.nextAt) refreshOrganisation(clients, key, query);
       return noView(null, { pending: false, error: ENS_MATURITY_FAILED });
     }
-    const current = cached && cached.state === stateOf(ctx) && cached.complete;
-    if (!current) {
-      // Its own rows still coming: they are the organisation's too; the pass runs once they are there.
-      if (!run.meta.pending) refreshOrganisation(clients, key, query);
-      return noView(null, { controls: cached?.view.controls || new Map(), complete: Boolean(cached?.complete) });
-    }
-    if (cached!.fingerprint !== evaluation.viewFingerprint(ctx, query) || (data && data.at > cached!.inputsAt)) refreshOrganisation(clients, key, query);
-    return { ...cached!.view, pending: false, version };
+    // Its own rows still coming: they are the organisation's too; the pass runs once they are there.
+    if (!run.meta.pending) refreshOrganisation(clients, key, query);
+    return noView(null, { controls: cached?.view.controls || new Map(), complete: Boolean(cached?.complete) });
   };
 
   // Assessment rule inputs: the screen's if ≤ 15 min old, else this control's; snapshots always as the internal user.

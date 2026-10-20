@@ -7,11 +7,12 @@ import { readActiveENSConfiguration } from '../configuration-storage';
 import type { ENSEvaluationService } from '../evaluation/evaluation-service';
 import { normalizeQuery } from '../evaluation/evaluation-service';
 import type { ENSMaturityService } from './maturity-service';
+import { retryBackoffMs } from './maturity-service';
 
 export const ENS_SNAPSHOT_JOB_USER = 'ENSFácil (tarea diaria)';
 const PURGE_RETRY_MS = 60 * 60e3;
-// A failed run writes nothing and is tried again every 30 minutes until 23:00 local time; then tomorrow at 02:30.
-export const ENS_SNAPSHOT_RETRY_MS = 30 * 60e3;
+// A failed run writes nothing and is tried again after 30 min, 1 h, 2 h, 4 h, then every 8 h (consecutive failures of
+// the day), as long as the retry falls by 23:00 local time; otherwise tomorrow at 02:30.
 export const ENS_SNAPSHOT_LAST_RETRY_MINUTES = 23 * 60;
 // Local time of the daily run, in the zone of Configuration > General (Europe/Madrid by default).
 export const ENS_SNAPSHOT_JOB_MINUTES = 2 * 60 + 30;
@@ -22,6 +23,9 @@ export const nextDailyRun = (now: Date, timeZone: string): Date => {
   const today = calendar.startOfDay(now).getTime() + ENS_SNAPSHOT_JOB_MINUTES * 60e3;
   return new Date(today > now.getTime() ? today : calendar.addDays(now, 1).getTime() + ENS_SNAPSHOT_JOB_MINUTES * 60e3);
 };
+
+// «30 minutes», «1 hour», «2 hours».
+const spell = (ms: number): string => (ms < 3600e3 ? `${Math.round(ms / 60e3)} minutes` : ms === 3600e3 ? '1 hour' : `${Math.round(ms / 3600e3)} hours`);
 
 // Minutes since local midnight in the zone.
 const localMinutes = (now: Date, timeZone: string): number => Math.floor((now.getTime() - zonedCalendar(timeZone).startOfDay(now).getTime()) / 60e3);
@@ -64,6 +68,8 @@ export const createDailySnapshotJob = ({
   let stopped = false;
   let running: Promise<void> | undefined;
   let retryScheduled = false;
+  // Consecutive failed runs of the local day: they set the backoff of the next retry.
+  let failed: { day: string; count: number } | undefined;
   const handles = new Set<unknown>();
   const clients = { asCurrentUser: client, asInternalUser: client };
 
@@ -104,22 +110,25 @@ export const createDailySnapshotJob = ({
         zone = configuredTimeZone(run.ctx.configuration.global.timezone);
         const result = await maturity.snapshotDay(clients, run, ENS_SNAPSHOT_JOB_USER);
         doneOn = { day: result.date, zone };
+        failed = undefined;
         logger.info(`ENSFácil: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
         // A failed purge is retried within the hour, not with tomorrow's run.
         if (!result.purged) later(() => maturity.purgeOld(client, result.date).then(() => undefined), PURGE_RETRY_MS);
       } catch (error: any) {
         const now = clock();
-        const retry = localMinutes(now, zone) + ENS_SNAPSHOT_RETRY_MS / 60e3 <= ENS_SNAPSHOT_LAST_RETRY_MINUTES;
+        const day = dayIn(now, zone);
+        failed = { day, count: failed?.day === day ? failed.count + 1 : 1 };
+        const wait = retryBackoffMs(failed.count);
+        const retry = localMinutes(now, zone) + wait / 60e3 <= ENS_SNAPSHOT_LAST_RETRY_MINUTES;
         const what = refused(error) ? 'the indexer refused the daily maturity snapshot' : 'the daily maturity snapshot failed';
-        logger.warn(
-          `ENSFácil: ${what} (${error?.message || error}); nothing written for ${dayIn(now, zone)}, ${retry ? 'retried in 30 minutes' : 'retried tomorrow at 02:30'}`
-        );
-        if (retry && !retryScheduled) {
+        const next = stopped ? 'not retried: stopping' : retryScheduled ? 'a retry is already scheduled' : retry ? `retried in ${spell(wait)}` : 'retried tomorrow at 02:30';
+        logger.warn(`ENSFácil: ${what} (${error?.message || error}); nothing written for ${day}, ${next}`);
+        if (retry && !retryScheduled && !stopped) {
           retryScheduled = true;
           later(async () => {
             retryScheduled = false;
             await runOnce();
-          }, ENS_SNAPSHOT_RETRY_MS);
+          }, wait);
         }
       } finally {
         running = undefined;

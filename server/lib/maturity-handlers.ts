@@ -17,7 +17,8 @@ import {
   readMaturityDocument,
 } from './maturity/maturity-storage';
 import type { ENSMaturityService } from './maturity/maturity-service';
-import { ENS_ACCREDITED_TIMEOUT, ENSMaturityUnavailableError } from './maturity/maturity-service';
+import { ENSMaturityUnavailableError } from './maturity/maturity-service';
+import { ENSIncompleteDataError } from './evaluation/facts-reader';
 
 interface Options {
   logger: Logger;
@@ -34,6 +35,16 @@ const statusOf = (error: any): number => Number(error?.statusCode || error?.meta
 const NO_ROLE = 'Hace falta el rol ensfacil_admin o all_access para registrar la madurez.';
 const NO_VERSION = 'Falta expectedVersion: la versión de la madurez que se ha leído (null si no había ninguna).';
 const HISTORY_NOT_WRITTEN = 'Guardado; no se pudo registrar el historial';
+const NOT_COMPUTED = 'No se ha podido calcular el nivel acreditado del control';
+
+// Why the accredited level could not be computed: the timeout, incomplete data, a refused read, or anything else.
+const accreditedFailure = (response: any, error: any) => {
+  if (error instanceof ENSMaturityUnavailableError) return failure(response, 503, error.message);
+  if (error instanceof ENSIncompleteDataError) return failure(response, 503, `${NOT_COMPUTED}. ${error.message}`);
+  const status = statusOf(error);
+  if (status === 401 || status === 403) return failure(response, status, `${NOT_COMPUTED}: sin permiso para leer sus datos.`);
+  return failure(response, 500, `${NOT_COMPUTED}; el detalle está en el log del dashboard.`);
+};
 
 export const createMaturityHandlers = ({ logger, securityEnabled, maturity, clock = () => new Date() }: Options) => {
   const internal = (context: any) => context.core.opensearch.client.asInternalUser;
@@ -85,7 +96,7 @@ export const createMaturityHandlers = ({ logger, securityEnabled, maturity, cloc
         accredited = await maturity.accreditedFor(clients(context), controlId);
       } catch (error: any) {
         logger.warn(`ENS maturity: the accredited level of ${controlId} could not be computed: ${error?.message || error}`);
-        return failure(response, 503, error instanceof ENSMaturityUnavailableError ? error.message : ENS_ACCREDITED_TIMEOUT);
+        return accreditedFailure(response, error);
       }
     }
     const checked = validateMaturityEntry(kind, body.entry, now, accredited?.level);
