@@ -46,6 +46,8 @@ import { planENSTimelineCuts, startOfDayIn } from '../../../common/ens/core/time
 import type { ENSTimelineCutPlan } from '../../../common/ens/core/timeline/timeline-cuts';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { readActiveENSConfiguration } from '../configuration-storage';
+import { ENS_MATURITY_DOCUMENT_ID, readMaturityDocument } from '../maturity/maturity-storage';
+import type { ENSMaturityRecords, ENSMaturityVersion } from '../../../common/ens/maturity/types';
 import { resolveCurrentUser } from '../current-user';
 import { Cancellable, CancelSignal, EVALUATION_TTL_MS, EvaluationCache, Semaphore } from './cache';
 import { ENSTooManyFactsError, MAX_FACTS_PER_READ, newReadStats, readAllFacts, searchComplete, throwIfCancelled, yieldToEventLoop } from './facts-reader';
@@ -165,14 +167,16 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
 export interface ENSEvaluationContext {
   now: Date;
   userKey: string;
-  // Whoever asks, and whether they administer ENSFácil (only an administrator's evaluation writes the maturity
-  // snapshots).
+  // Whoever asks, and whether they administer ENSFácil (an administrator's views also write the maturity snapshots).
   username: string;
   administrator: boolean;
   configuration: ENSConfigurationVersion;
   configurationKey: string;
-  // What people recorded about maturity and the targets: it changes what the view shows, never a row's result.
+  // The maturity document and the targets: they change what the view shows, never a row's result.
   maturityKey: string;
+  maturityRecords?: ENSMaturityRecords;
+  // Version of the maturity document (undefined: there is none yet), sent back with each record.
+  maturityVersion?: ENSMaturityVersion;
   configurationUpdatedAt?: string;
   scope: ENSAgentScope[];
   scopeKey: string;
@@ -272,25 +276,28 @@ export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceR
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// The active configuration is re-read only when its stamp changes: the document carries the history and weighs
-// hundreds of KB. The stamp includes `_seq_no` and `_primary_term`, which change on any write.
-const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
+// The active configuration (hundreds of KB) and the maturity document are re-read only when their stamp changes:
+// `_seq_no` and `_primary_term` change on any write.
+const readConfigurationStamps = async (client: any): Promise<{ configuration?: string; maturity?: string }> => {
   const body = await searchComplete(
     client,
     {
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        size: 1,
+        size: 2,
         seq_no_primary_term: true,
-        query: { ids: { values: ['active'] } },
+        query: { ids: { values: ['active', ENS_MATURITY_DOCUMENT_ID] } },
         _source: ['updatedAt', 'configuration.updatedAt'],
       },
     },
     'la configuración ENS'
   );
-  const hit = body?.hits?.hits?.[0];
-  const doc = hit?._source;
-  return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
+  const stampOf = (id: string) => {
+    const hit = (body?.hits?.hits || []).find((entry: any) => entry._id === id);
+    const doc = hit?._source;
+    return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
+  };
+  return { configuration: stampOf('active'), maturity: stampOf(ENS_MATURITY_DOCUMENT_ID) };
 };
 
 // A machine's view comes from the overview rows: its row if the control is measured there; the manager's row for
@@ -400,7 +407,8 @@ export const createEvaluationService = ({
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
   const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
-  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string; maturityKey: string }>(4, 24 * 3600 * 1000, clockValue);
+  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
+  const maturities = new EvaluationCache<{ records?: ENSMaturityRecords; version?: ENSMaturityVersion }>(4, 24 * 3600 * 1000, clockValue);
   // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What
   // someone waits for goes ahead of background work (refreshes and series).
   const reads = new Semaphore(maxConcurrentReads);
@@ -419,17 +427,7 @@ export const createEvaluationService = ({
 
   // --- 1. context ---
 
-  // What the engine reads of the document: maturity records, targets and save metadata are left out, so recording
-  // a review does not recompute every row.
-  const evaluativePart = (configuration: any) => {
-    if (!configuration || typeof configuration !== 'object') return configuration;
-    const { maturity, auditTrail, updatedAt, updatedBy, changeReason, ...rest } = configuration;
-    const { maturityTargets, ...global } = rest.global || {};
-    return { ...rest, global };
-  };
-
-  const loadConfiguration = async (clients: ENSEvaluationClients) => {
-    const stamp = (await readConfigurationStamp(clients.asInternalUser)) || 'default';
+  const loadConfiguration = async (clients: ENSEvaluationClients, stamp: string) => {
     const cached = configurations.get('active', stamp);
     if (cached) return cached;
     const stored = await readActiveENSConfiguration(clients.asInternalUser, logger);
@@ -441,10 +439,20 @@ export const createEvaluationService = ({
     const entry = {
       configuration,
       updatedAt: stored?.updatedAt || (configuration as any).updatedAt,
-      key: sha(evaluativePart(stored?.configuration) || 'default'),
-      maturityKey: sha((stored?.configuration as any)?.maturity || null, (stored?.configuration as any)?.global?.maturityTargets || null),
+      key: sha(stamp, stored?.configuration || 'default'),
     };
     configurations.set('active', stamp, entry);
+    return entry;
+  };
+
+  // The maturity records (their own document): changing them changes the view, never a row.
+  const loadMaturityRecords = async (clients: ENSEvaluationClients, stamp?: string) => {
+    if (!stamp) return { records: undefined, version: undefined };
+    const cached = maturities.get('maturity', stamp);
+    if (cached) return cached;
+    const stored = await readMaturityDocument(clients.asInternalUser, logger);
+    const entry = { records: stored.records, version: stored.version };
+    maturities.set('maturity', stamp, entry);
     return entry;
   };
 
@@ -453,7 +461,10 @@ export const createEvaluationService = ({
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
     // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
-    const { configuration, updatedAt, key: configurationKey, maturityKey } = await loadConfiguration(clients);
+    const stamps = await readConfigurationStamps(clients.asInternalUser);
+    const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients, stamps.configuration || 'default');
+    const maturity = await loadMaturityRecords(clients, stamps.maturity);
+    const maturityKey = sha(stamps.maturity || null, configuration.global?.maturityTargets || null);
 
     let inventory = inventories.get(userKey, 'inventory');
     if (!inventory) {
@@ -491,6 +502,8 @@ export const createEvaluationService = ({
       configuration,
       configurationKey,
       maturityKey,
+      maturityRecords: maturity.records,
+      maturityVersion: maturity.version,
       configurationUpdatedAt: updatedAt,
       scope,
       scopeKey,

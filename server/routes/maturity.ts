@@ -19,9 +19,8 @@ export const registerMaturityRoutes = (
           controlId: schema.string(),
           kind: schema.string(),
           entry: schema.any(),
-          expectedVersion: schema.maybe(
-            schema.nullable(schema.object({ seqNo: schema.number(), primaryTerm: schema.number() }))
-          ),
+          // Required: the version read (null when there was none). OSD turns a missing nullable key into null.
+          expectedVersion: schema.nullable(schema.object({ seqNo: schema.number(), primaryTerm: schema.number() })),
         }),
       },
     },

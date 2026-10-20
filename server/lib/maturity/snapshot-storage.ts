@@ -1,6 +1,4 @@
-// Daily snapshots of each control in their own index: the series the L5 trend reads and the annual report uses.
-// One document per control and day (`<controlId>|<YYYY-MM-DD>`): writing again the same day replaces it, so the
-// day keeps its last evaluation and never two documents. Older than the retention, they are deleted.
+// Daily snapshots per control (`<controlId>|<YYYY-MM-DD>`, replaced within the day), kept 1095 days.
 import type { Logger } from '../../../../../src/core/server';
 import { ENS_SNAPSHOTS_INDEX } from '../../../common/constants';
 import type { ENSControlSnapshot } from '../../../common/ens/maturity/types';
@@ -15,9 +13,16 @@ const alreadyExists = (error: any): boolean =>
   (error?.body?.error?.type || error?.meta?.body?.error?.type) === 'resource_already_exists_exception' ||
   String(error?.message || error).includes('resource_already_exists_exception');
 
+// Checked once per process, not on every write.
+let indexReady = false;
+
 export async function ensureSnapshotsIndex(client: any, logger: Logger): Promise<void> {
+  if (indexReady) return;
   const exists = await client.indices.exists({ index: ENS_SNAPSHOTS_INDEX });
-  if (exists.body) return;
+  if (exists.body) {
+    indexReady = true;
+    return;
+  }
   try {
     await client.indices.create({
       index: ENS_SNAPSHOTS_INDEX,
@@ -47,6 +52,7 @@ export async function ensureSnapshotsIndex(client: any, logger: Logger): Promise
   } catch (error) {
     if (!alreadyExists(error)) throw error;
   }
+  indexReady = true;
 }
 
 // Writes (or replaces) each snapshot of its day.
@@ -67,8 +73,7 @@ export async function writeSnapshots(client: any, logger: Logger, snapshots: ENS
   }
 }
 
-// Snapshots between two days (inclusive), oldest first, in pages (a year of every control exceeds one search).
-// Without the index there are none.
+// Snapshots between two days (inclusive), oldest first, in pages; without the index there are none.
 export async function readSnapshots(
   client: any,
   range: { from: string; to: string; controlIds?: string[] },

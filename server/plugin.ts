@@ -1,9 +1,10 @@
-import type { CoreSetup, Logger, Plugin, PluginInitializerContext } from '../../../src/core/server';
+import type { CoreSetup, CoreStart, Logger, Plugin, PluginInitializerContext } from '../../../src/core/server';
 import { registerConfigurationRoutes } from './routes/configuration';
 import { registerEvaluationRoutes } from './routes/evaluation';
 import { registerMaturityRoutes } from './routes/maturity';
 import { createEvaluationService } from './lib/evaluation/evaluation-service';
-import { createMaturityService } from './lib/maturity/maturity-service';
+import { createMaturityService, ENSMaturityService } from './lib/maturity/maturity-service';
+import { createDailySnapshotJob } from './lib/maturity/daily-snapshot-job';
 
 export interface EnsfacilServerSetupDeps {
   securityDashboards?: unknown;
@@ -11,6 +12,9 @@ export interface EnsfacilServerSetupDeps {
 
 export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupDeps> {
   private readonly logger: Logger;
+  private securityEnabled = false;
+  private maturity?: ENSMaturityService;
+  private job?: ReturnType<typeof createDailySnapshotJob>;
 
   constructor(initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
@@ -18,25 +22,36 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
 
   public setup(core: CoreSetup, deps: EnsfacilServerSetupDeps): {} {
     const router = core.http.createRouter();
-    registerConfigurationRoutes(router, {
-      logger: this.logger,
-      securityEnabled: Boolean(deps.securityDashboards),
-    });
-    const securityEnabled = Boolean(deps.securityDashboards);
+    this.securityEnabled = Boolean(deps.securityDashboards);
+    const securityEnabled = this.securityEnabled;
+    registerConfigurationRoutes(router, { logger: this.logger, securityEnabled });
     // One evaluation service for the evaluation and the maturity routes: the maturity reuses its rows.
     const service = createEvaluationService({ logger: this.logger, securityEnabled });
-    const maturity = createMaturityService({ logger: this.logger, evaluation: service });
-    registerEvaluationRoutes(router, { logger: this.logger, securityEnabled, service, maturity });
-    registerMaturityRoutes(router, { logger: this.logger, securityEnabled, maturity });
+    this.maturity = createMaturityService({ logger: this.logger, evaluation: service });
+    registerEvaluationRoutes(router, { logger: this.logger, securityEnabled, service, maturity: this.maturity });
+    registerMaturityRoutes(router, { logger: this.logger, securityEnabled, maturity: this.maturity });
 
     this.logger.debug('ENSFácil: server ready');
 
     return {};
   }
 
-  public start(): {} {
+  public start(core: CoreStart): {} {
+    // The day's maturity snapshot as the internal user, with an evaluation of its own (see `daily-snapshot-job.ts`).
+    if (this.maturity) {
+      this.job = createDailySnapshotJob({
+        logger: this.logger,
+        client: core.opensearch.client.asInternalUser,
+        maturity: this.maturity,
+        createEvaluation: () => createEvaluationService({ logger: this.logger, securityEnabled: this.securityEnabled, maxConcurrentReads: 2 }),
+      });
+      this.job.start();
+    }
     return {};
   }
 
-  public stop(): void {}
+  public stop(): void {
+    this.job?.stop();
+    this.maturity?.dispose();
+  }
 }

@@ -1,24 +1,21 @@
-// Browser client of the maturity routes (`server/routes/maturity.ts`). The keys it sends are the ones the route
-// schema declares: `tests/maturity-route-schema.test.ts` runs these bodies through it.
+// Browser client of the maturity routes; `tests/maturity-route-schema.test.ts` runs its bodies through the route schema.
 import { ENSFACIL_MATURITY_PATH } from '../../constants';
 import { withRequestTimeout } from '../../platform/request-timeout';
-import type { ENSConfigurationExpectedVersion, ENSConfigurationMetadata } from '../configuration/services/configuration-http-client';
 import { getENSConfigurationHttp, withServerReason } from '../configuration/services/configuration-http-client';
-import type { ENSConfigurationVersion } from '../configuration/types';
-import type { ENSControlMaturityRecord, ENSControlSnapshot, ENSMaturityRecordKind } from './types';
+import type { ENSControlMaturityRecord, ENSControlSnapshot, ENSMaturityRecordKind, ENSMaturityVersion } from './types';
 
 export interface ENSMaturitySaveRequest {
   controlId: string;
   kind: ENSMaturityRecordKind;
   entry: Record<string, unknown>;
-  // The version of the configuration the person saw; null when there was none.
-  expectedVersion?: ENSConfigurationExpectedVersion | null;
+  // Required: the version of the maturity document the person saw; null when there was none.
+  expectedVersion: ENSMaturityVersion | null;
 }
 
 export interface ENSMaturitySaveResponse {
-  configuration: ENSConfigurationVersion;
-  metadata: ENSConfigurationMetadata;
   record: ENSControlMaturityRecord;
+  version: ENSMaturityVersion | null;
+  updatedAt: string;
   warning?: string;
 }
 
@@ -34,7 +31,7 @@ export async function saveMaturityEntry(request: ENSMaturitySaveRequest): Promis
     controlId: request.controlId,
     kind: request.kind,
     entry: request.entry,
-    ...(request.expectedVersion !== undefined ? { expectedVersion: request.expectedVersion } : {}),
+    expectedVersion: request.expectedVersion,
   };
   const response = await withRequestTimeout(
     signal => getENSConfigurationHttp().put(ENSFACIL_MATURITY_PATH, { body: JSON.stringify(body), signal }),

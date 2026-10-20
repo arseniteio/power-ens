@@ -80,6 +80,8 @@ export interface ENSMaturityInput {
   global?: Partial<ENSGlobalConfiguration>;
   // Earlier snapshots of the control, any order.
   snapshots: Pick<ENSControlSnapshot, 'date' | 'score'>[];
+  // Why the snapshots could not be read (for instance, no read permission on the index).
+  snapshotsError?: string;
   now: Date;
 }
 
@@ -162,8 +164,9 @@ const describeLateMachines = (activity: ENSMaturityActivity, expected: string[])
   return late.length ? `; ${late.map(machine => `${machine.agentName || machine.agentId} desde el ${machine.since}`).join(', ')}` : '';
 };
 
-const periodNote = (period: ENSMaturityPeriod, whole: string[]): string =>
-  period.limited ? ` (los hechos se conservan ${whole.length + 1} días, menos que los ${ENS_MATURITY_PERIOD_DAYS} del periodo)` : '';
+// Facts kept (or sent) for less than the period: the gates read what there is, and say so.
+const periodNote = (period: ENSMaturityPeriod, timeZone: string): string =>
+  period.limited ? ` (solo hay hechos desde el ${dayIn(new Date(period.from), timeZone)}, menos que los ${ENS_MATURITY_PERIOD_DAYS} días del periodo)` : '';
 
 export const describeTrend = (
   snapshots: Pick<ENSControlSnapshot, 'date' | 'score'>[],
@@ -286,7 +289,8 @@ const thresholdGate = (input: ENSMaturityInput, timeZone: string): ENSMaturityGa
     .sort((a, b) => a.date.localeCompare(b.date));
   const latest = scored[scored.length - 1];
   if (!latest || (latest.score as number) >= indicators.minScore) {
-    const current = latest ? `última instantánea ${latest.score} % (${latest.date})` : typeof input.result?.score === 'number' ? `sin instantáneas; puntuación actual ${input.result.score} %` : 'sin instantáneas ni puntuación';
+    const none = input.snapshotsError ? 'instantáneas no legibles' : 'sin instantáneas';
+    const current = latest ? `última instantánea ${latest.score} % (${latest.date})` : typeof input.result?.score === 'number' ? `${none}; puntuación actual ${input.result.score} %` : `${none} ni puntuación`;
     return gate('L4.threshold', 4, 'D+A', label, true, `Umbral ${indicators.minScore} %; ${current}: dentro del umbral.`);
   }
   let start = scored.length - 1;
@@ -308,7 +312,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
   const days = new Set(activity?.days || []);
   const whole = wholePeriodDays(period, now, timeZone);
   const grey = greyByCollection(result);
-  const note = periodNote(period, whole);
+  const note = periodNote(period, timeZone);
   const gates: ENSMaturityGate[] = [];
 
   // L1: something of the control in the period.
@@ -414,7 +418,9 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
   );
 
   // L5: improving trend over the persisted snapshots and feedback.
-  const trend = describeTrend(input.snapshots, now, timeZone);
+  const trend = input.snapshotsError
+    ? { improving: false, reason: `No se pudieron leer las instantáneas: ${input.snapshotsError}.` }
+    : describeTrend(input.snapshots, now, timeZone);
   gates.push(gate('L5.trend', 5, 'A', 'Serie histórica con tendencia de mejora', trend.improving, trend.reason));
   gates.push(feedbackGate(record, now, timeZone));
 

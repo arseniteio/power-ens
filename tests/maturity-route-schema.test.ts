@@ -54,7 +54,7 @@ http.setENSConfigurationHttp(() => ({
   const assessment = { level: 3, reviewer: 'Luis', date: '2026-10-19', justification: 'Revisado' };
   await client.saveMaturityEntry({ controlId: 'op.acc.1', kind: 'assessment', entry: assessment, expectedVersion: { seqNo: 4, primaryTerm: 1 } });
   await client.saveMaturityEntry({ controlId: 'op.acc.1', kind: 'review', entry: { date: '2026-10-01', reviewer: 'Ana', result: 'CONFORME', actions: '' }, expectedVersion: null });
-  await client.saveMaturityEntry({ controlId: 'op.acc.1', kind: 'indicators', entry: { minScore: 80, reviewPeriodDays: 365 } });
+  await client.saveMaturityEntry({ controlId: 'op.acc.1', kind: 'indicators', entry: { minScore: 80, reviewPeriodDays: 365 }, expectedVersion: { seqNo: 5, primaryTerm: 1 } });
   await client.fetchMaturitySnapshots({ from: '2026-01-01', to: '2026-10-20', controlId: 'op.acc.1' });
   await client.fetchMaturitySnapshots({ from: '2026-01-01', to: '2026-10-20' });
   const keys = Array.from(new Set(bodies.flatMap(body => Object.keys(body)))).sort();
@@ -81,11 +81,14 @@ http.setENSConfigurationHttp(() => ({
         return { error: error?.message || String(error) };
       }
     };
-    const [withVersion, withNull, without] = bodies.map(body => run(save.validate.body, body, 'request body'));
+    const [withVersion, withNull] = bodies.map(body => run(save.validate.body, body, 'request body'));
+    const { expectedVersion: _dropped, ...withoutVersion } = bodies[0];
+    const without = run(save.validate.body, withoutVersion, 'request body');
     check(`${label}: an assessment reaches the handler as sent`, !withVersion.error && JSON.stringify(withVersion.value.entry) === JSON.stringify(assessment) && withVersion.value.kind === 'assessment' && withVersion.value.controlId === 'op.acc.1', withVersion);
     check(`${label}: the version reaches it as the object sent`, JSON.stringify(withVersion.value?.expectedVersion) === '{"seqNo":4,"primaryTerm":1}');
     check(`${label}: null reaches it as null`, !withNull.error && withNull.value.expectedVersion === null, withNull);
-    check(`${label}: an absent version reaches it as undefined`, !without.error && without.value.expectedVersion === undefined, without);
+    check(`${label}: the client always sends the version`, bodies.every(body => 'expectedVersion' in body));
+    check(`${label}: a body without it reaches the handler as null («there was none»: it can only create)`, !without.error && without.value.expectedVersion === null, without);
     check(`${label}: a key the route does not declare is refused`, /definition for this key is missing/.test(run(save.validate.body, { ...bodies[0], otraClave: 1 }, 'request body').error || ''));
     check(`${label}: a malformed version is refused`, !!run(save.validate.body, { ...bodies[0], expectedVersion: { seqNo: 'x', primaryTerm: 1 } }, 'request body').error);
     const [oneControl, all] = queries.map(query => run(read.validate.query, query, 'request query'));

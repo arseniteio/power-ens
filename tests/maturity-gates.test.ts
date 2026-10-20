@@ -166,7 +166,7 @@ check('grey without facts: L0', level(without(i => { i.result = result({ status:
 console.log('4. Own period, retention and machines added later');
 const limited = without(i => (i.period = { ...period, from: new Date(now.getTime() - 12 * 86400e3).toISOString(), limited: true }));
 const limitedDays = wholePeriodDays(limited.period, now, 'Europe/Madrid');
-check('facts kept 12 days: continuity over them, and the reason says the retention', limitedDays.length === 11 && gateOf(limited, 'L3.continuity').passed && /se conservan 12 días, menos que los 30 del periodo/.test(gateOf(limited, 'L3.continuity').reason), gateOf(limited, 'L3.continuity'));
+check('facts only for 12 days: continuity over them, and the reason says since when', limitedDays.length === 11 && gateOf(limited, 'L3.continuity').passed && /solo hay hechos desde el 2026-10-0\d, menos que los 30 días del periodo/.test(gateOf(limited, 'L3.continuity').reason), gateOf(limited, 'L3.continuity'));
 const added = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', agentName: 'wazuh-real', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10), since: allDays[allDays.length - 10] }] }));
 check('a machine added 10 days ago is not held below L3 for the days before it', gateOf(added, 'L3.continuity').passed && /nuevo desde el/.test(gateOf(added, 'L3.continuity').reason), gateOf(added, 'L3.continuity'));
 const addedGap = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10, -2), since: allDays[allDays.length - 10] }] }));

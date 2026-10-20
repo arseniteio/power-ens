@@ -1,7 +1,7 @@
 // Shape of the `/api/ensfacil/evaluation` responses the screens read (also described in `server/README.md`).
 import type { ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
-import type { ENSControlMaturity, ENSControlMaturitySummary, ENSMaturityDistribution } from '../maturity/types';
+import type { ENSControlMaturity, ENSControlMaturitySummary, ENSMaturityDistribution, ENSMaturityVersion } from '../maturity/types';
 
 // The maturity of the controls of a list view (organisation level); `distribution` only with every control computed.
 export interface ENSMaturityListEntry {
@@ -18,6 +18,8 @@ export interface ENSEvaluationMeta {
   pending?: { rows: number; controls: string[]; total: number };
   // The daily series is still being computed (in the background): the view goes without `timeline` and the browser asks again.
   seriesPending?: boolean;
+  // The maturity's inputs are still being read (in the background): the view goes without `maturity` and the browser asks again.
+  maturityPending?: boolean;
   // The last background refresh that failed: what is shown predates it.
   refreshError?: { message: string; at: string };
   // When the shown result was last confirmed current; while refreshing, the time of the oldest stale part.
@@ -66,6 +68,8 @@ export interface ENSControlEvaluationResponse {
   timeline?: ENSEvaluationTimelinePoint[];
   // The control's maturity, always the organisation's (also in a machine view); absent while it is computed.
   maturity?: ENSControlMaturity;
+  // Version of the maturity document the view was computed with, sent back with a record (null: none yet).
+  maturityVersion?: ENSMaturityVersion | null;
   // Why the maturity is missing, when it could not be computed.
   maturityError?: string;
 }

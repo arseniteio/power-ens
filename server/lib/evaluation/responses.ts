@@ -57,14 +57,19 @@ const maturityOfList = (maturity: Map<string, ENSControlMaturity>, pending: bool
 };
 
 export const buildEvaluationResponse = (run: RunOutput, maturity?: ENSMaturityOfView, maturityError?: string) => {
-  const { meta, query, state, views } = run;
+  const { query, state, views } = run;
+  // Maturity still being read arrives like the series: marked pending, and the browser asks again.
+  const meta = maturity?.pending
+    ? { ...run.meta, maturityPending: true, fingerprint: run.meta.fingerprint.startsWith('refreshing:') ? run.meta.fingerprint : `refreshing:${run.meta.fingerprint}` }
+    : run.meta;
   const timeline = visibleTimeline(run.timeline, query);
   const withMaturity = (list: boolean) => ({
-    ...(maturity
+    ...(maturity && !maturity.pending
       ? list
         ? { maturity: maturityOfList(maturity.controls, !maturity.complete) }
         : { maturity: query.controlId ? maturity.controls.get(query.controlId) : undefined }
       : {}),
+    ...(maturity && !list ? { maturityVersion: maturity.version } : {}),
     ...(maturityError ? { maturityError } : {}),
   });
 

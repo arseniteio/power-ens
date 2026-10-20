@@ -158,13 +158,8 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { organizationData: previous2.organizationData }
           : {};
 
-      // The maturity records are append-only and only the maturity route writes them: a save always keeps the
-      // stored ones, whatever the body carries (or lacks).
-      const { maturity: _sentMaturity, ...sentConfiguration } = bodyText.configuration;
-      const keptMaturity = previous2.maturity && typeof previous2.maturity === 'object' ? { maturity: previous2.maturity } : {};
-
       // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
-      const organization = normalizeOrganizationData({ ...sentConfiguration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData, ...keptMaturity });
+      const organization = normalizeOrganizationData({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData });
       const fills = describeOrganizationFills(organization.filled).filter(line => !requestedReason.includes(line));
       const reason = fills.length ? `${requestedReason} ${fills.join(' ')}` : requestedReason;
       const configurationValue = {
