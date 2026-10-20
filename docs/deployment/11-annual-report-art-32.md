@@ -17,7 +17,7 @@ Los campos exactos del cuestionario INES vigente no están confirmados. El conju
 | op.mon.2 configurado: P-01 (Declaración de Aplicabilidad) y P-02 (periodicidad y `cierre_anual`) | Configuración > op.mon.2 |
 | Runbook de op.mon.2 en el manager, con el registro de ciclos y el registro de incidentes de op.exp.7 | [Runbooks y registros](05-runbooks-and-registers.md) |
 | Rol `ensfacil_admin` o `all_access` para declarar, congelar y regenerar | Una declaración no devuelve el error 403 |
-| Lectura del índice `wazuh-ens-snapshots` para ver los informes congelados | Apartado 6.4 |
+| Lectura del índice `wazuh-ens-snapshots` para ver los informes congelados | Apartado 6.5 |
 
 ## 3. Dónde se ve
 
@@ -40,7 +40,7 @@ El informe es de la organización: es el mismo con o sin máquina seleccionada.
 
 | Dato | Dónde se declara | Campos del informe |
 |---|---|---|
-| Medidas aplicables | op.mon.2 P-01 (Declaración de Aplicabilidad) | `measure.soa`, `measure.applies` |
+| Medidas aplicables | op.mon.2 P-01 (Declaración de Aplicabilidad): una fila por medida; una medida repetida no se guarda (el error la nombra con sus filas) | `measure.soa`, `measure.applies` |
 | Entrada de cada medida sin motor: aplica, madurez valorada y objetivo, referencia documental, enlace, responsable, fecha y, si no aplica, justificación | «Medidas sin motor» > «Declarar» | `measure.applies`, `measure.maturity_assessed`, `measure.maturity_target`, `measure.documentary_reference`, `measure.owner`, `measure.assessed_at` |
 | Madurez de los controles medidos (procedimiento, valoración) | Panel «Madurez» de cada control ([guía 10](10-maturity-assessment.md)) | `measure.maturity_assessed`, `measure.documentary_reference`, `measure.owner` |
 | Horas internas y externas y presupuesto ejecutado de cada ciclo | Registro de ciclos del manager (`/etc/ensfacil/metrics-cycle-register.tsv`) | `resources.hours_internal`, `resources.hours_external`, `resources.budget_executed` |
@@ -87,13 +87,18 @@ Reglas:
 - el servidor comprueba el rol (`ensfacil_admin` o `all_access`) y escribe con el usuario interno;
 - la petición lleva la revisión leída (`expectedRevision`, nulo si no había ninguna); si otro la ha cambiado, devuelve 409;
 - las cifras son las del momento de la petición, no las del cierre: un congelado tardío lo indica con `header.frozen_at` posterior a `header.period_end`;
+- no se regenera un periodo cuyos incidentes ya no se pueden recalcular (por ejemplo, un periodo que op.mon.2 ya no reemite): la petición se rechaza con el motivo y el congelado vigente se conserva;
 - la revisión anterior se conserva entera en `annual_freeze|<periodo>|r<N>`; se lee y se exporta eligiéndola en «Revisión» (o con `?revision=N` en la API, apartado 10); «Regenerar» actúa siempre sobre la vigente.
 
-### 6.3 Reproducibilidad
+### 6.3 Si cambia el cierre anual
+
+Un periodo congelado conserva las fechas de su cabecera (`header.period_start` y `header.period_end`): el panel y la lista de periodos las muestran aunque `cierre_anual` haya cambiado después, con el aviso «Congelado con otro cierre». Si con el cierre nuevo la misma clave de periodo está en curso (por ejemplo, de 03-31 a 12-31, el «2026»), el periodo en curso se calcula en el momento y el congelado del cierre anterior se deja aparte con un aviso; se sigue leyendo por la API con `?period=AAAA&revision=N`.
+
+### 6.4 Reproducibilidad
 
 El informe de un periodo congelado se sirve tal como se guardó: las entradas declaradas, la configuración o los hechos posteriores no lo cambian. Para incorporarlos hay que regenerarlo (apartado 6.2), lo que deja una revisión nueva y conserva la anterior.
 
-### 6.4 Comprobar el congelado en el indexer
+### 6.5 Comprobar el congelado en el indexer
 
 Desde el servidor (variable `IDX` de la [instalación desde cero, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)), con el periodo que corresponda:
 
@@ -231,13 +236,19 @@ Cada dato es un objeto `{ id, key, value, unit, source, trace }`. `value` es tex
 | `incidents.notified_ccn_cert` | Incidentes con `notificacion_ccn_cert` |
 | `incidents.with_personal_data` | Incidentes con `datos_personales` = `si` |
 | `incidents.notified_aepd` | De ellos, con `AEPD` en `notificado_a` |
+| `incidents.alerts_window` | Dónde cae la ventana de la conciliación de op.exp.7 frente al periodo: `DENTRO`, `PARCIAL` o `FUERA`; nulo sin conciliación |
 | `incidents.alerts_relevant` | Alertas Alta y Crítica de la conciliación de op.exp.7 (sin las excluidas por su P-12) |
 | `incidents.alerts_in_incident` | De ellas, dentro de un incidente registrado |
 | `incidents.alerts_to_incident_pct` | Porcentaje de alertas decididas (en incidente o fuera de plazo sin él) que acabaron en incidente; nulo si ninguna está decidida |
 
 Los datos de alertas cubren los 30 días de la conciliación de op.exp.7 hasta la generación, no el periodo entero; la traza lo indica. Si esa ventana no toca el periodo (un periodo cerrado leído o congelado más tarde), los tres datos `incidents.alerts_*` son nulos con «no disponible para este periodo» y el motivo; si lo toca en parte, la traza lo dice.
 
-op.mon.2 publica los incidentes abiertos desde el inicio del periodo anterior (como mucho los 500 más recientes; con más, la traza lo dice). El periodo en curso y el último cerrado se calculan completos; uno anterior solo está completo en su congelado, y sin él los datos de incidentes salen nulos con el motivo.
+Origen de los incidentes:
+
+- el periodo en curso, de la variable que op.mon.2 publica en cada evaluación: los incidentes abiertos desde el inicio del periodo anterior, como mucho los 500 más recientes. Si ese corte cae dentro del periodo, sus datos de incidentes salen nulos con «incompleto» (se calculan enteros al cerrarlo);
+- un periodo cerrado (su congelado, su regeneración y su lectura sin congelar), de la última lectura del registro que op.mon.2 dejó en el indexador, con todas sus filas: todos los incidentes abiertos en el periodo hasta 10 000. Con más, los datos de incidentes salen nulos con «el periodo tiene más de 10000 incidentes»;
+- op.mon.2 reemite los incidentes de los 400 días anteriores a cada lectura: un periodo que empieza antes solo está completo en su congelado, y sin él sus datos de incidentes salen nulos con el motivo;
+- una fila fechada después de la lectura (un error de fecha) no cuenta ni ocupa ningún límite; la traza dice cuántas hay.
 
 ### 9.7 Recursos
 
@@ -269,7 +280,7 @@ op.mon.2 publica los incidentes abiertos desde el inicio del periodo anterior (c
 | `GET /api/ensfacil/annual-report` | Cualquier usuario que pueda leer la evaluación | Periodo en curso; `?period=AAAA` un periodo; `?period=AAAA&revision=N` una revisión congelada anterior |
 | `POST /api/ensfacil/annual-report/freeze` | `ensfacil_admin` o `all_access` | Cuerpo `{ "period": "AAAA", "reason": "…", "expectedRevision": N o null }` |
 
-Un periodo congelado se sirve tal como se guardó, sin evaluar nada: solo se leen la configuración y el congelado. Un periodo sin congelar se calcula con la evaluación de todos los controles (el navegador espera hasta 180 s); si la evaluación responde con filas pendientes, la lectura devuelve `pending: true` sin conjunto y el panel vuelve a pedirlo cada 5 segundos.
+Un periodo congelado se sirve tal como se guardó, sin evaluar nada: se leen la configuración, la versión del documento de madurez y el congelado. Un periodo sin congelar espera a la evaluación de todos los controles (`include=results`), que con la memoria fría puede tardar: el panel muestra «Generando el informe anual…» y el navegador espera hasta 180 s. Esa evaluación no responde a medias, así que en la práctica la lectura no devuelve `pending: true`; si lo hiciera, el panel volvería a pedirla cada 5 segundos. Un periodo cerrado sin congelar lee además sus incidentes en el indexador.
 
 ## 11. Limitaciones
 
@@ -278,6 +289,6 @@ Un periodo congelado se sirve tal como se guardó, sin evaluar nada: solo se lee
 | Los campos del cuestionario INES no están confirmados | Los identificadores son de ENSFácil; el mapeo al cuestionario se hace cuando se disponga de él |
 | La conciliación de alertas de op.exp.7 cubre 30 días | `incidents.alerts_*` y el MTTD por alerta no abarcan el periodo entero |
 | op.exp.7, op.exp.9, op.mon.2 y op.mon.3 leen el mismo registro de incidentes | Los cuatro admiten la cabecera de 14 columnas con `fecha_ocurrencia` (op.exp.9 desde 6ab860e, op.mon.3 desde a9969c5): actualizar los cuatro runbooks en el manager antes de añadir la columna |
-| op.mon.2 publica los incidentes desde el periodo anterior | Un periodo más antiguo solo tiene datos de incidentes en su congelado |
+| op.mon.2 reemite 400 días de incidentes y publica en vivo como mucho 500 | Un periodo más antiguo solo tiene datos de incidentes en su congelado; un periodo con más de 10 000 incidentes no publica cifras de incidentes |
 | El motor recalcula con los hechos vivos | Un periodo sin congelar no reproduce las cifras de su cierre; un congelado tardío lleva las cifras del día en que se pidió |
 | Un ENSFácil es un sistema | La relación de sistemas de una organización con varios se compone con un informe por instalación |

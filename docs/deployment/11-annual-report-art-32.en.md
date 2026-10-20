@@ -17,7 +17,7 @@ The exact fields of the current INES questionnaire are not confirmed. The data s
 | op.mon.2 configured: P-01 (Statement of Applicability) and P-02 (periodicity and `cierre_anual`) | Configuration > op.mon.2 |
 | op.mon.2 runbook on the manager, with the cycle register and op.exp.7's incident register | [Runbooks and registers](05-runbooks-and-registers.en.md) |
 | Role `ensfacil_admin` or `all_access` to declare, freeze and regenerate | A declaration does not return error 403 |
-| Read access to the `wazuh-ens-snapshots` index to see the frozen reports | Section 6.4 |
+| Read access to the `wazuh-ens-snapshots` index to see the frozen reports | Section 6.5 |
 
 ## 3. Where it is shown
 
@@ -40,7 +40,7 @@ The report belongs to the organisation: it is the same with or without a machine
 
 | Datum | Where it is declared | Report fields |
 |---|---|---|
-| Applicable measures | op.mon.2 P-01 (Statement of Applicability) | `measure.soa`, `measure.applies` |
+| Applicable measures | op.mon.2 P-01 (Statement of Applicability): one row per measure; a repeated measure is not saved (the error names it with its rows) | `measure.soa`, `measure.applies` |
 | Entry of each measure without engine: applies, assessed and target maturity, documentary reference, link, owner, date and, when it does not apply, justification | «Medidas sin motor» > «Declarar» | `measure.applies`, `measure.maturity_assessed`, `measure.maturity_target`, `measure.documentary_reference`, `measure.owner`, `measure.assessed_at` |
 | Maturity of the measured controls (procedure, assessment) | «Madurez» panel of each control ([guide 10](10-maturity-assessment.en.md)) | `measure.maturity_assessed`, `measure.documentary_reference`, `measure.owner` |
 | Internal and external hours and executed budget of each cycle | Cycle register on the manager (`/etc/ensfacil/metrics-cycle-register.tsv`) | `resources.hours_internal`, `resources.hours_external`, `resources.budget_executed` |
@@ -87,13 +87,18 @@ Rules:
 - the server checks the role (`ensfacil_admin` or `all_access`) and writes with the internal user;
 - the request carries the revision read (`expectedRevision`, null when there was none); if someone else changed it, it returns 409;
 - the figures are those of the moment of the request, not those of the closing: a late freeze shows it with `header.frozen_at` after `header.period_end`;
+- a period whose incidents can no longer be recomputed (for example, one op.mon.2 no longer re-emits) is not regenerated: the request is refused with the reason and the current freeze is kept;
 - the previous revision is kept whole in `annual_freeze|<period>|r<N>`; it is read and exported by choosing it in «Revisión» (or with `?revision=N` in the API, section 10); «Regenerar» always acts on the current one.
 
-### 6.3 Reproducibility
+### 6.3 If the annual closing changes
+
+A frozen period keeps the dates of its header (`header.period_start` and `header.period_end`): the panel and the period list show them even if `cierre_anual` changed afterwards, with the notice «Congelado con otro cierre». If, with the new closing, the same period key is open (for example, from 03-31 to 12-31, «2026»), the open period is computed at that moment and the freeze of the previous closing is set aside with a notice; it can still be read through the API with `?period=YYYY&revision=N`.
+
+### 6.4 Reproducibility
 
 The report of a frozen period is served as stored: later declared entries, configuration or facts do not change it. To include them, it is regenerated (section 6.2), which creates a new revision and keeps the previous one.
 
-### 6.4 Check the freeze in the indexer
+### 6.5 Check the freeze in the indexer
 
 From the server (variable `IDX` of the [installation from scratch, section 14](01-installation-from-scratch.en.md#14-initialize-and-seed-the-ens-configuration)), with the relevant period:
 
@@ -231,13 +236,19 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 | `incidents.notified_ccn_cert` | Incidents with `notificacion_ccn_cert` |
 | `incidents.with_personal_data` | Incidents with `datos_personales` = `si` |
 | `incidents.notified_aepd` | Of those, with `AEPD` in `notificado_a` |
+| `incidents.alerts_window` | Where op.exp.7's reconciliation window falls against the period: `DENTRO`, `PARCIAL` or `FUERA`; null without reconciliation |
 | `incidents.alerts_relevant` | High and Critical alerts of op.exp.7's reconciliation (without those excluded by its P-12) |
 | `incidents.alerts_in_incident` | Of those, within a recorded incident |
 | `incidents.alerts_to_incident_pct` | Share of the decided alerts (in an incident, or past their deadline without one) that ended in an incident; null when none is decided |
 
 The alert data cover the 30 days of op.exp.7's reconciliation up to the generation, not the whole period; the trace says so. If that window does not touch the period (a closed period read or frozen later), the three `incidents.alerts_*` data are null with «no disponible para este periodo» and the reason; if it touches it in part, the trace says so.
 
-op.mon.2 publishes the incidents opened since the start of the previous period (at most the 500 most recent; with more, the trace says so). The open period and the last closed one are computed whole; an older one is complete only in its freeze, and without it the incident data are null with the reason.
+Source of the incidents:
+
+- the open period, from the variable op.mon.2 publishes in each evaluation: the incidents opened since the start of the previous period, at most the 500 most recent. If that cut falls inside the period, its incident data are null with «incompleto» (they are computed whole once it closes);
+- a closed period (its freeze, its regeneration and its read without a freeze), from op.mon.2's latest register read in the indexer, with all its rows: every incident opened in the period, up to 10,000. With more, the incident data are null with «el periodo tiene más de 10000 incidentes»;
+- op.mon.2 re-emits the incidents of the 400 days before each read: a period that starts earlier is complete only in its freeze, and without it its incident data are null with the reason;
+- a row dated after the read (a date error) never counts nor uses up any limit; the trace says how many there are.
 
 ### 9.7 Resources
 
@@ -269,7 +280,7 @@ op.mon.2 publishes the incidents opened since the start of the previous period (
 | `GET /api/ensfacil/annual-report` | Any user who can read the evaluation | Open period; `?period=YYYY` a period; `?period=YYYY&revision=N` an earlier frozen revision |
 | `POST /api/ensfacil/annual-report/freeze` | `ensfacil_admin` or `all_access` | Body `{ "period": "YYYY", "reason": "…", "expectedRevision": N or null }` |
 
-A frozen period is served as stored, evaluating nothing: only the configuration and the freeze are read. A period without a freeze is computed with the evaluation of all controls (the browser waits up to 180 s); if the evaluation answers with pending rows, the read returns `pending: true` without a data set and the panel asks again every 5 seconds.
+A frozen period is served as stored, evaluating nothing: the configuration, the maturity document's version and the freeze are read. A period without a freeze waits for the evaluation of all controls (`include=results`), which can take a while with a cold cache: the panel shows «Generando el informe anual…» and the browser waits up to 180 s. That evaluation never answers half done, so in practice the read does not return `pending: true`; if it did, the panel would ask again every 5 seconds. A closed period without a freeze also reads its incidents in the indexer.
 
 ## 11. Limitations
 
@@ -278,6 +289,6 @@ A frozen period is served as stored, evaluating nothing: only the configuration 
 | The fields of the INES questionnaire are not confirmed | The ids are ENSFácil's; the mapping to the questionnaire is made when it is available |
 | op.exp.7's alert reconciliation covers 30 days | `incidents.alerts_*` and the alert-based MTTD do not span the whole period |
 | op.exp.7, op.exp.9, op.mon.2 and op.mon.3 read the same incident register | All four accept the 14-column header with `fecha_ocurrencia` (op.exp.9 since 6ab860e, op.mon.3 since a9969c5): update the four runbooks on the manager before adding the column |
-| op.mon.2 publishes the incidents since the previous period | An older period has incident data only in its freeze |
+| op.mon.2 re-emits 400 days of incidents and publishes at most 500 live | An older period has incident data only in its freeze; a period with more than 10,000 incidents publishes no incident figures |
 | The engine recomputes with live facts | A period without a freeze does not reproduce the figures of its closing; a late freeze carries the figures of the day it was requested |
 | One ENSFácil is one system | The list of systems of an organisation with several is put together with one report per installation |
