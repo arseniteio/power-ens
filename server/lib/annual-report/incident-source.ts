@@ -10,7 +10,7 @@ import { art32IncidentsData } from '../../../common/ens/core/policy-runtime/poli
 import { SAME_RUN_WINDOW_MS } from '../../../common/ens/core/policy-runtime/policies/policy-kit';
 import { buildPolicyContext } from '../../../common/ens/core/policy-runtime/policy-context-builder';
 import { buildENSControlFactsFilter } from '../../../common/ens/dashboard/all-controls-facts-filter';
-import { ENSTooManyFactsError, readAllFacts, searchComplete } from '../evaluation/facts-reader';
+import { ENSTooManyFactsError, MAX_FACTS_PER_READ, readAllFacts, searchComplete } from '../evaluation/facts-reader';
 import { ENGINE_SOURCE_FIELDS, FACTS_SORT } from '../evaluation/queries';
 
 const CONTROL = 'op.mon.2';
@@ -18,8 +18,8 @@ const MANAGER = '000';
 const HOUR_MS = 3600e3;
 // A period may have at most this many incidents in the report; beyond it, no incident figure is published.
 export const ENS_ART32_PERIOD_INCIDENTS_LIMIT = 10000;
-// Rows read for one period: every phase of up to the limit of incidents.
-const MAX_ROWS = ENS_ART32_PERIOD_INCIDENTS_LIMIT * 6;
+// Rows read at most: the plugin's own cap per read (memory of the dashboard process).
+const MAX_ROWS = MAX_FACTS_PER_READ;
 
 const factsOf = (event: string, range: Record<string, string>) => ({
   bool: {

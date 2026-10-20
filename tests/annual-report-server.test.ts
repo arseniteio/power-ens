@@ -193,6 +193,11 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
   check('period 2026 comes frozen, revision 1', read2026.status === 200 && read2026.body.data.frozen?.revision === 1);
   check('its data set is exactly the stored one although records changed since', JSON.stringify(read2026.body.data.report) === JSON.stringify(first.report));
   check('the frozen periods are listed', read2026.body.data.periods.map((p: any) => p.period).join() === '2026');
+  check(
+    'period 2026 started more than 400 days ago: «Regenerar» is not available, with the reason',
+    read2026.body.data.regeneration?.allowed === false && /reenvía los incidentes de los 400 días anteriores \(desde el 2025-09-15\) y el periodo empieza el 2025-04-01/.test(read2026.body.data.regeneration.reason),
+    read2026.body.data.regeneration
+  );
   const runsBefore = evaluations.runs;
   evaluations.fail = true;
   const frozenWhileDown = await get(READER, { period: '2026' });
@@ -274,6 +279,26 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
       };
     };
     const service12 = createAnnualReportService({ logger, evaluation: { run: async () => run12(), settings: async () => ({ configuration: configuration({}, '12-31'), maturityVersion: null }) } as any, maturity, clock: () => now });
+    // The indexer times out on the incident read: the job freezes nothing (it tries again), an administrator gets 503.
+    const timingOut = createStore({ search: async () => Promise.reject(Object.assign(new Error('Request timed out'), { statusCode: 504 })) } as any);
+    let jobFailure: any;
+    try {
+      await service12.freezeIfDue(timingOut, run12() as any, maturityMap(), ENS_SNAPSHOT_JOB_USER);
+    } catch (error) {
+      jobFailure = error;
+    }
+    check('a failed incident read: the daily freeze throws (the job retries) and nothing is frozen', Boolean(jobFailure) && freezeIds(timingOut).length === 0, jobFailure?.message);
+    let firstFreeze: any;
+    try {
+      await service12.freezeOnRequest({ asCurrentUser: timingOut, asInternalUser: timingOut }, { period: '2025', reason: 'Cierre', by: 'rsis', expectedRevision: null });
+    } catch (error) {
+      firstFreeze = error;
+    }
+    check(
+      '...an administrator\'s first freeze answers 503 «volver a intentarlo» and saves nothing',
+      firstFreeze?.statusCode === 503 && firstFreeze.message === 'No se han podido leer los incidentes del periodo; volver a intentarlo.' && freezeIds(timingOut).length === 0,
+      firstFreeze?.message
+    );
     const frozen = await service12.freezeIfDue(freezeStore, run12() as any, maturityMap(), ENS_SNAPSHOT_JOB_USER);
     const report = freezeStore.store.get(annualFreezeId('2025'))?.source.report;
     const total = report?.incidents.find((d: any) => d.id === 'incidents.total');
