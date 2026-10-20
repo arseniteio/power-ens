@@ -44,6 +44,7 @@ import {
   REPORT_CRITERION_NOTE,
   buildTemplateCorrespondencePdf,
   describeReportControlLine,
+  describeReportPendingMeasurement,
   pdfProvenanceRuns,
   pdfRowLabel,
   reportRequirementTexts,
@@ -535,6 +536,9 @@ const ControlReport = ({
         { text: 'INFORME DE CUMPLIMIENTO ENS', style: 'h1' },
         { text: definition.name, style: 'h2' },
         { text: ['RD 311/2022', describeReportControlLine(controlId)].filter(Boolean).join(' · '), style: 'sub' },
+        ...(describeReportPendingMeasurement(controlId)
+          ? [{ text: describeReportPendingMeasurement(controlId), style: 'sub', italics: true, margin: [0, 2, 0, 0] }]
+          : []),
         { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#cccccc' }], margin: [0, 4, 0, 12] },
 
         {
@@ -981,6 +985,14 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
         <EuiText size='xs' color='subdued'>
           {describeReportControlLine(entry.controlId)}
         </EuiText>
+      </EuiFlexItem>
+    )}
+
+    {describeReportPendingMeasurement(entry.controlId) && (
+      <EuiFlexItem grow={false}>
+        <EuiBadge color='hollow' iconType='clock' title={describeReportPendingMeasurement(entry.controlId)}>
+          Sin medición todavía
+        </EuiBadge>
       </EuiFlexItem>
     )}
 

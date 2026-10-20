@@ -1,5 +1,7 @@
 // Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict
-// JSON.
+// JSON. The mp.* controls without collector (catalog/support/measurement-plan.ts) are all 'organisation' while they are
+// documentary: the wave that brings their collector decides which ones go per system or per platform, with their
+// built-in templates.
 export type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
 export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
@@ -26,7 +28,18 @@ export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterCl
   "op.mon.1": {"P-01": "system", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-ATT": "organisation"},
   "op.mon.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation"},
   "op.mon.3": {"P-01": "system", "P-02": "organisation", "P-03": "system", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "system", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation", "P-ATT": "organisation"},
-  "op.nub.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation", "P-12": "organisation", "P-13": "organisation"}
+  "op.nub.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation", "P-12": "organisation", "P-13": "organisation"},
+  "mp.eq.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation"},
+  "mp.eq.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation"},
+  "mp.eq.4": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-ATT": "organisation"},
+  "mp.com.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation"},
+  "mp.com.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-ATT": "organisation"},
+  "mp.com.4": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation"},
+  "mp.sw.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation"},
+  "mp.s.1": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-ATT": "organisation"},
+  "mp.s.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation"},
+  "mp.s.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation"},
+  "mp.s.4": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation"}
 };
 
 // Column that NAMES THE MACHINE in per-system tables; the migration distributes rows by it. Per-system tables

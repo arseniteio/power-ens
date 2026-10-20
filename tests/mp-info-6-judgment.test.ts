@@ -1920,7 +1920,7 @@ section('11. No other control changes');
 
   check(
     `the other ${others.length} controls do not change (${keys.length} results compared)`,
-    others.length === 22 && keys.length > others.length && distinct.length === 0 && Object.keys(withIt).length === keys.length,
+    others.length === 33 && keys.length > others.length && distinct.length === 0 && Object.keys(withIt).length === keys.length,
     distinct.slice(0, 5).join('; ')
   );
 

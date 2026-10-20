@@ -17,6 +17,7 @@ import {
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
 import { describeOrganizationFills, normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
+import { describeNewLevelOptionIssues } from '../../common/ens/configuration/services/level-options';
 
 interface Options {
   logger: Logger;
@@ -154,6 +155,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
       // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
       const organization = normalizeOrganizationData({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData });
+      // A choice the control's level does not admit (by a new value or a new level) is refused; a leftover is not.
+      const levelIssues = describeNewLevelOptionIssues(organization.configuration, previous2);
+      if (levelIssues.length) {
+        return failure(response, 400, `No se guarda: ${levelIssues.slice(0, 5).join('; ')}.`);
+      }
       const fills = describeOrganizationFills(organization.filled).filter(line => !requestedReason.includes(line));
       const reason = fills.length ? `${requestedReason} ${fills.join(' ')}` : requestedReason;
       const configurationValue = {

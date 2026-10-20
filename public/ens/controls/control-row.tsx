@@ -9,6 +9,7 @@ import { controlRowWaitLabel } from './control-row-state';
 import type { ENSControlListEntry, ENSMachineTally } from './controls-list-model';
 import { describeTally } from './controls-list-model';
 import { AddControlWithDefaultsButton, NOT_IN_CONFIGURATION_TEXT } from './add-control-button';
+import { ENS_PENDING_MEASUREMENT_LABEL } from '../../../common/ens/catalog';
 
 export interface ControlRowData {
   id: string;
@@ -91,6 +92,25 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado: statusColo
       </EuiFacetButton>,
       <EuiText size='xs' color='subdued'>
         <p>{entry.notMeasured.text}</p>
+      </EuiText>
+    );
+  }
+
+  // In the catalog without collector yet: neither compliance nor failure, and no number on any machine.
+  if (entry.pendingMeasurement) {
+    return row(
+      <EuiFacetButton isSelected={false} onClick={onSelect} style={{ borderLeft: `4px dashed ${ENS_THEME.track}` }}>
+        <strong>{controlId}</strong> — {title}
+        <EuiBadge color='hollow' style={{ marginLeft: 8 }}>
+          {levels}
+        </EuiBadge>
+        <EuiBadge color='hollow' iconType='clock' style={{ marginLeft: 6 }} title={entry.pendingMeasurement}>
+          {ENS_PENDING_MEASUREMENT_LABEL}
+        </EuiBadge>
+        {unconfigured}
+      </EuiFacetButton>,
+      <EuiText size='xs' color='subdued'>
+        <p>{entry.pendingMeasurement}</p>
       </EuiText>
     );
   }

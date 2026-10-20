@@ -76,7 +76,16 @@ const response: any = {
     notMeasuredReason: (id, a) => `${id} no se mide en ${a}`,
   });
   const row = (id: string) => matrix.find(r => r.controlId === id)!;
-  check('the 23 controls, always', matrix.length === 23);
+  check('the 34 controls, always', matrix.length === 34);
+  const withPlan = m.buildMatrix(ENSControls.map((c: any) => ({ id: c.id, title: c.title })), machines, response.controls, response.agents, {
+    isManagerOnly: () => false,
+    notMeasuredReason: () => undefined,
+    pendingMeasurement: id => (id === 'mp.com.1' ? 'Sin medición todavía' : undefined),
+  });
+  const draftRow = withPlan.find(r => r.controlId === 'mp.com.1')!;
+  check('a control without collector: a gap with the reason on every machine, no tally, never a result',
+    draftRow.pendingMeasurement === 'Sin medición todavía' && !draftRow.tally && Object.values(draftRow.cells).every((c: any) => c.kind === 'not-measured' && c.reason === 'Sin medición todavía') &&
+    withPlan.find(r => r.controlId === 'op.acc.1')!.cells['101'].kind === 'result');
   check('op.acc.1: result on 101 and 102; on the manager, «no se mide» with the motive', row('op.acc.1').cells['101'].kind === 'result' && (row('op.acc.1').cells['102'] as any).notMet === 4 && row('op.acc.1').cells['000'].kind === 'not-measured' && (row('op.acc.1').cells['000'] as any).reason === 'op.acc.1 no se mide en 000');
   check('op.exp.7 (manager only): result on 000, «en el manager» on the others', row('op.exp.7').cells['000'].kind === 'result' && row('op.exp.7').cells['101'].kind === 'manager');
   check('mp.info.6 only on 101 (outside its scope on 102: «no se mide»)', row('mp.info.6').cells['101'].kind === 'result' && row('mp.info.6').cells['102'].kind === 'not-measured');
@@ -121,7 +130,7 @@ const response: any = {
   responses.summary = { meta: response.meta, controls: [], timeline: tl };
   let p = await h.render(OverviewENS);
   check('the machine table, with the old one in red', h.findAll('EuiHealth').some(n => n.props.color === 'danger') && /hace 50 h|hace 2 d/.test(p));
-  check('the matrix: 23 rows', h.findAll('EuiTableRow').length === 23, h.findAll('EuiTableRow').length);
+  check('the matrix: 34 rows', h.findAll('EuiTableRow').length === 34, h.findAll('EuiTableRow').length);
   let opens: any;
   for (const enlace of h.findAll('EuiLink')) {
     h.setSearch('?tabView=overview');
@@ -143,7 +152,7 @@ const response: any = {
   check('the trend: legend with the five states and «sin resultado», and the dates of the first and last day', ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'].every(e => p.includes(e)) && /sin resultado ese día/.test(p) && /15\/10 — 17\/10 \(hoy\)/.test(p));
   responses.summary = undefined;
   p = await h.rerender();
-  check('without the trend yet: its loading, and the rest already painted', /Calculando el resultado de cada día/.test(p) && h.findAll('EuiTableRow').length === 23);
+  check('without the trend yet: its loading, and the rest already painted', /Calculando el resultado de cada día/.test(p) && h.findAll('EuiTableRow').length === 34);
 
   console.log('3. The matrix with 6 and with 50 machines');
   for (const n of [6, 50]) {
@@ -162,7 +171,7 @@ const response: any = {
     check(`${n} machines: «Control» fixed on the left and «Máquinas» next to it; each machine with a minimum width`,
       headers.length === n + 2 && headers[0].props.style.position === 'sticky' && /Máquinas/.test(headers[1].texto) && headers.slice(2).every(c => c.props.style.minWidth === 64));
     check(`${n} machines: each header with id and name (trimmed; whole in the tooltip)`, h.findAll('EuiToolTip').filter(t => /^2\d\d · servidor-de-nombre-largo-/.test(String(t.props.content))).length === n && /200 servidor-de-nombre-largo-0/.test(p));
-    check(`${n} machines: the «Control» cells fixed too`, h.findAll('EuiTableRowCell').filter(c => c.props.style?.position === 'sticky').length === 23);
+    check(`${n} machines: the «Control» cells fixed too`, h.findAll('EuiTableRowCell').filter(c => c.props.style?.position === 'sticky').length === 34);
   }
 
   console.log('4. First load in parts (`meta.pending`) and pending series');
@@ -194,7 +203,7 @@ const response: any = {
     p = await h.render(OverviewENS);
     check('the screen says how much is missing and what', h.findAll('EuiCallOut').some(c => /Calculando la evaluación: 16 de 20 filas/.test(String(c.props.title))) && /Faltan 2 controles \(op\.exp\.7, op\.exp\.8\)/.test(p));
     check('no per-machine figures that look final (neither counts nor worst controls)', !h.findAll('EuiBadge').some(b => /^\d+ (CUMPLE|NO_CUMPLE|PARCIAL|NO_EVALUABLE|NO_APLICA)$/.test(b.texto)) && h.findAll('EuiBadge').filter(b => b.props.iconType === 'clock').length >= 3 * 3);
-    check('the matrix: «…» in pending rows, the computed ones with their result', h.findAll('EuiTableRow').length === 23 && /\[ 50% \]|\[ 100% \]/.test(p) && /Calculando…/.test(p));
+    check('the matrix: «…» in pending rows, the computed ones with their result', h.findAll('EuiTableRow').length === 34 && /\[ 50% \]|\[ 100% \]/.test(p) && /Calculando…/.test(p));
     check('the queue does not say «No hay no conformidades abiertas» with controls still to compute', !/No hay no conformidades abiertas/.test(p) && /Incompleta: faltan op\.exp\.7, op\.exp\.8/.test(p));
     check('the trend, with the series pending: «Calculando la serie», not an empty chart', /Calculando la serie de 30 días/.test(p) && !/sin resultado ese día/.test(p));
     responses.overview = response;

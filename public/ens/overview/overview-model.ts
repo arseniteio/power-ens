@@ -52,11 +52,14 @@ export interface MatrixRow {
   tally?: ENSMachineTally;
   // Still computing (`controls[].pending`): neither a result nor 'not measured'.
   pending?: boolean;
+  // In the catalog without collector yet (`DRAFT`): every cell is a gap with this reason, never a result.
+  pendingMeasurement?: string;
 }
 
 export interface MatrixOptions {
   isManagerOnly: (controlId: string) => boolean;
   notMeasuredReason: (controlId: string, agentId: string) => string | undefined;
+  pendingMeasurement?: (controlId: string) => string | undefined;
 }
 
 export const buildMatrix = (
@@ -69,6 +72,13 @@ export const buildMatrix = (
   controls.map(control => {
     const cells: Record<string, MatrixCell> = {};
     const general = overall.find(entry => entry.controlId === control.id);
+    const pendingMeasurement = options.pendingMeasurement?.(control.id);
+    if (pendingMeasurement) {
+      machines.forEach(machine => {
+        cells[machine.agentId] = { kind: 'not-measured', reason: pendingMeasurement };
+      });
+      return { controlId: control.id, title: control.title, overall: general, cells, pendingMeasurement };
+    }
     // A control the server is still computing has no rows yet; that does not mean it is measured on no machine.
     const pending = Boolean(general?.pending);
     machines.forEach(machine => {

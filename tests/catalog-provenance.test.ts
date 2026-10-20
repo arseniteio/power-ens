@@ -39,7 +39,7 @@ const requirements: any[] = ENSCatalog.flatMap((control: any) => control.require
 section('1. Every requirement text is the BOE literal of the template\'s Ficha');
 {
   const notLiteral = requirements.filter(r => r.description !== BOE[r.id]).map(r => r.id);
-  check(`the ${requirements.length} catalog requirements carry the literal`, requirements.length === 182 && notLiteral.length === 0, notLiteral);
+  check(`the ${requirements.length} catalog requirements carry the literal`, requirements.length === 247 && notLiteral.length === 0, notLiteral);
   check('the fixture has exactly the catalog requirements', Object.keys(BOE).length === requirements.length);
   const viewNotLiteral = requirements.filter(r => {
     const text = String((ensRequirementsFile as Record<string, string>)[r.id] || '');
@@ -54,8 +54,9 @@ section('2. The interpretation lives apart, as «Criterio de aplicación»');
 {
   const interpreted = requirements.filter(r => r.interpretation).map(r => r.id);
   const expected = ['mp.info.6.1', 'mp.info.6.2.a', 'mp.info.6.2.b', 'mp.info.6.2.c', 'mp.info.6.2.d', 'mp.info.6.r1.1', 'mp.info.6.r2.1',
-    'op.acc.1.1', 'op.acc.1.2', 'op.acc.1.3', 'op.acc.1.4', 'op.acc.1.5', 'op.acc.1.r1.1', 'op.acc.1.r1.3'];
-  check('the paraphrases moved to `interpretation` (mp.info.6 and op.acc.1)', JSON.stringify([...interpreted].sort()) === JSON.stringify([...expected].sort()), interpreted);
+    'op.acc.1.1', 'op.acc.1.2', 'op.acc.1.3', 'op.acc.1.4', 'op.acc.1.5', 'op.acc.1.r1.1', 'op.acc.1.r1.3',
+    'mp.eq.3.r1.1', 'mp.com.3.r3.1'];
+  check('the paraphrases moved to `interpretation` (mp.info.6, op.acc.1) and the auditor\'s notes of mp.eq.3 R1 and mp.com.3 R3', JSON.stringify([...interpreted].sort()) === JSON.stringify([...expected].sort()), interpreted);
   check('no interpretation repeats the literal', requirements.every(r => !r.interpretation || r.interpretation !== r.description));
   check('«no se admiten cuentas genéricas» is now criterion, not norm', /cuentas genéricas/.test(getENSCatalogControl('op.acc.1').requirements[0].interpretation) && !/genéricas/.test(getENSCatalogControl('op.acc.1').requirements[0].description));
   const texts = describeRequirementTexts(getENSCatalogControl('mp.info.6').requirements[0]);
@@ -70,8 +71,12 @@ section('3. Annex II section and template source per control (auditor\'s index)'
   for (let i = 1; i <= 6; i += 1) expected[`op.acc.${i}`] = `4.2.${i}`;
   for (let i = 1; i <= 10; i += 1) expected[`op.exp.${i}`] = `4.3.${i}`;
   for (let i = 1; i <= 3; i += 1) expected[`op.mon.${i}`] = `4.7.${i}`;
+  Object.assign(expected, {
+    'mp.eq.2': '5.3.2', 'mp.eq.3': '5.3.3', 'mp.eq.4': '5.3.4', 'mp.com.1': '5.4.1', 'mp.com.3': '5.4.3', 'mp.com.4': '5.4.4',
+    'mp.sw.2': '5.6.2', 'mp.s.1': '5.8.1', 'mp.s.2': '5.8.2', 'mp.s.3': '5.8.3', 'mp.s.4': '5.8.4',
+  });
   const wrong = ENSCatalog.filter((c: any) => c.annexSection !== expected[c.id]).map((c: any) => `${c.id}=${c.annexSection}`);
-  check('the 23 sections', ENSCatalog.length === 23 && wrong.length === 0, wrong);
+  check('the 34 sections', ENSCatalog.length === 34 && wrong.length === 0, wrong);
   const badSource = ENSCatalog.filter((c: any) =>
     c.source?.template !== `ENSFacil_Plantilla_${c.id}` ||
     c.source?.version !== (c.id === 'op.acc.2' ? '1.0' : '2.0') ||
@@ -87,17 +92,18 @@ section('4. Lists in Annex II order');
 {
   const ANNEX = ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4', 'op.acc.5', 'op.acc.6',
     'op.exp.1', 'op.exp.2', 'op.exp.3', 'op.exp.4', 'op.exp.5', 'op.exp.6', 'op.exp.7', 'op.exp.8', 'op.exp.9', 'op.exp.10',
-    'op.nub.1', 'op.cont.2', 'op.cont.3', 'op.mon.1', 'op.mon.2', 'op.mon.3', 'mp.info.6'].join(',');
+    'op.nub.1', 'op.cont.2', 'op.cont.3', 'op.mon.1', 'op.mon.2', 'op.mon.3',
+    'mp.eq.2', 'mp.eq.3', 'mp.eq.4', 'mp.com.1', 'mp.com.3', 'mp.com.4', 'mp.sw.2', 'mp.info.6', 'mp.s.1', 'mp.s.2', 'mp.s.3', 'mp.s.4'].join(',');
   check('the engine catalog', ENSCatalog.map((c: any) => c.id).join(',') === ANNEX, ENSCatalog.map((c: any) => c.id).join(','));
   check('the screen controls', ENSControls.map((c: any) => c.id).join(',') === ANNEX);
   check('the Configuration tab', ENSConfigurationRegistry.map((c: any) => c.controlId).join(',') === ANNEX);
-  check('families: op.acc, op.exp, op.nub, op.cont, op.mon, mp.info', listENSFamilies(ENSCatalog.map((c: any) => c.id)).join(',') === 'op.acc,op.exp,op.nub,op.cont,op.mon,mp.info');
+  check('families: op.acc, op.exp, op.nub, op.cont, op.mon, mp.eq, mp.com, mp.sw, mp.info, mp.s', listENSFamilies(ENSCatalog.map((c: any) => c.id)).join(',') === 'op.acc,op.exp,op.nub,op.cont,op.mon,mp.eq,mp.com,mp.sw,mp.info,mp.s', listENSFamilies(ENSCatalog.map((c: any) => c.id)).join(','));
   check('sections compare by number: 4.3.2 < 4.3.10 < 5.7.6', compareENSIds('4.3.2', '4.3.10') < 0 && compareENSIds('4.3.10', '5.7.6') < 0);
   check('an id outside the catalog goes after', compareENSControlIdsByAnnex('mp.info.6', 'org.1') < 0 && compareENSControlIdsByAnnex('org.1', 'op.acc.1') > 0);
   const reversed = { ...defaultENSConfigurationTemplate, controls: [...defaultENSConfigurationTemplate.controls].reverse() };
   const agentList = getAgentControls(reversed, '101', undefined, () => 'MEDIO').map((c: any) => c.controlId);
   check('a machine\'s control list follows Annex II whatever the stored order', agentList.length > 5 && agentList.join(',') === [...agentList].sort(compareENSControlIdsByAnnex).join(','), agentList.join(','));
-  check('...with mp.info.6 last', agentList[agentList.length - 1] === 'mp.info.6', agentList.join(','));
+  check('...with mp.info.6 last (the DRAFT mp.* without collector are not per-machine controls yet)', agentList[agentList.length - 1] === 'mp.info.6', agentList.join(','));
   const model = buildRequirementsModel(ensRequirementsFile, [], { search: '', hideEmpty: false });
   check('the Controls view column', model.controls.map((c: any) => c.id).join(',') === ANNEX, model.controls.map((c: any) => c.id).join(','));
 }
@@ -146,7 +152,7 @@ section('6b. v2.0 wording: op.exp.10 reads by auditd, op.exp.3 EV-11 declared as
 {
   const ev = (control: string, id: string) => ENSEvidenceCatalog.find((e: any) => e.controlId === control && e.id === id);
   check('op.exp.10 EV-01 says reads are audited with auditd and FIM only sees integrity changes', /lecturas auditadas con auditd/.test(ev('op.exp.10', 'EV-01').description) && /FIM solo detecta cambios de integridad/.test(ev('op.exp.10', 'EV-01').description));
-  check('op.exp.10 EV-01 covers Windows reads by a read SACL', /SACL de lectura en Windows \(evento 4663\)/.test(ev('op.exp.10', 'EV-01').description));
+  check('op.exp.10 EV-01 covers Windows with a read SACL (event 4663)', /con una SACL de lectura en Windows \(evento 4663\)/.test(ev('op.exp.10', 'EV-01').description));
   check('op.exp.3 EV-11 is ENSFácil\'s own evidence', /Evidencia propia de ENSFácil/.test(ev('op.exp.3', 'EV-11').description));
 }
 

@@ -871,6 +871,18 @@ section('9. The report: implementation and greys with the result of all controls
     campo('op.mon.2.campo5').status === 'NO_APLICA' && /^2 control\(es\)/.test(campo('op.mon.2.campo5').value) && campo('op.mon.2.campo5').details.includes('op.exp.7: P-07') && campo('op.mon.2.campo5').details.includes('op.mon.1: P-01'),
     `${campo('op.mon.2.campo5').value} ${campo('op.mon.2.campo5').details.join(' | ')}`
   );
+  {
+    // A measure declared applicable whose control is in the catalog without collector (DRAFT): not a level matter.
+    const withDraft = evaluate(withIncidents(), { ...BASE, 'P-01': [...(BASE['P-01'] as string[]), 'mp.com.1 | sí | MEDIA | '] });
+    const draftResult = withDraft.motor() as ENSComplianceResult;
+    const draftReport = buildOpMon2ReportModel(draftResult, [...panorama, from('mp.com.1', 'NO_APLICA', undefined)]);
+    const details = draftReport.fields.find(f => f.id === 'op.mon.2.campo2')!.details;
+    check(
+      'a measure without collector yet: «sin medición todavía», out of the figure, without asking to review P-01',
+      details.some(d => /^mp\.com\.1: sin medición todavía, documental hasta que su recolector emita \(no cuenta en la cifra\)$/.test(d)) && !details.some(d => /mp\.com\.1.*revisa P-01/.test(d)),
+      details.join(' | ')
+    );
+  }
   check('R2 is presented as DATO DECLARADO', /DATO DECLARADO/.test(campo('op.mon.2.campo7').value) && campo('op.mon.2.campo7').status === 'CUMPLE', campo('op.mon.2.campo7').value);
   check('reliability carries the coverage against its target', /Cobertura de la monitorización 100 %.*objetivo ≥ 95 %: alcanzado/.test(campo('op.mon.2.campo4').value), campo('op.mon.2.campo4').value);
   check('the period\'s incident indicators, with R1', campo('op.mon.2.campo6').status === 'CUMPLE' && /tiempo_medio_resolucion: 32\.3 h/.test(campo('op.mon.2.campo6').value), campo('op.mon.2.campo6').value);

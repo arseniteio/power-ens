@@ -18,6 +18,7 @@ import {
   assertENSConfigurationVersion,
 } from './configuration-structure-validator';
 import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
+import { describeNewLevelOptionIssues } from './level-options';
 import {
   ENS_DIMENSION_LEVEL_KEYS,
   ENS_DIMENSIONS,
@@ -241,6 +242,12 @@ const updateControlConfiguration = async (
         ),
     };
 
+  const levelIssues = describeNewLevelOptionIssues(candidateConfiguration, activeENSConfiguration);
+
+  if (levelIssues.length) {
+    throw new Error(`No se guarda: ${levelIssues.join('; ')}.`);
+  }
+
   const changeReason =
     `Configuración actualizada para ${controlConfiguration.controlId}.`;
 
@@ -315,6 +322,13 @@ const updateGlobalConfiguration = async (
 
   if (incoherentLevels) {
     throw new Error(incoherentLevels);
+  }
+
+  // A level change that would leave a choice the new level does not admit (mp.s.2 P-07 = R1 in ALTO).
+  const levelIssues = describeNewLevelOptionIssues(candidateConfiguration, activeENSConfiguration);
+
+  if (levelIssues.length) {
+    throw new Error(`No se guarda: ${levelIssues.join('; ')}. Corregir el parámetro antes de cambiar el nivel.`);
   }
 
   const serverState =

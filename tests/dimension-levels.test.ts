@@ -1,6 +1,6 @@
 /** Applicability by the five ENS dimensions (C, I, T, A, D): each axis, the maximum rule, absent keys, validation and verdict parity. */
 import { existsSync, readFileSync } from 'fs';
-import { ENSCatalog } from '../common/ens/catalog';
+import { ENSCatalog, getPlannedMeasurement } from '../common/ens/catalog';
 import type { ENSControlDefinition, ENSLevelDimension } from '../common/ens/catalog/types';
 import {
   ENS_DIMENSION_LEVEL_KEYS,
@@ -110,6 +110,11 @@ const EXPECTED_AXIS: Record<string, string> = {
   'op.exp.8': 'T',
   'op.cont.2': 'D',
   'op.cont.3': 'D',
+  // The controls of the v2.0 package that entered documentary (DRAFT) in 1.4.0.
+  'mp.eq.2': 'A',
+  'mp.eq.4': 'C',
+  'mp.com.3': 'I,A',
+  'mp.s.4': 'D',
 };
 
 for (const control of ENSCatalog) {
@@ -270,7 +275,9 @@ const upgradeChanges = (document: ENSConfigurationVersion) => {
   const run = () => new Map(getENSComplianceResults(level, labEvents, undefined, undefined, labNow).map(r => [r.control.id, r]));
   const now = run();
   const before = withAxes130(run);
+  // Only the controls 1.3.0 had: the ones that entered in 1.4.0 have no 1.3.0 axis to compare with.
   return ENSCatalog.map(control => control.id)
+    .filter(id => !getPlannedMeasurement(id))
     .filter(id => fingerprint(now.get(id)) !== fingerprint(before.get(id)))
     .map(id => `${id}: ${before.get(id)?.level} → ${now.get(id)?.level} (${listControlDimensions(getCatalog(id)).join('·')})`);
 };

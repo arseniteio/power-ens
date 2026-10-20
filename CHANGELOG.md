@@ -46,6 +46,19 @@ del Anexo II. Datos de la organización pedidos una sola vez.
 - Aviso «Niveles incoherentes» en Controles y en el panel, con enlace a
   General, cuando una dimensión supera el nivel ENS; General no guarda y
   `config/validate-configuration.ts` termina con código 1.
+- Los 11 controles nuevos del paquete v2.0 del auditor, en estado `DRAFT`
+  (documentales, medición por oleadas): mp.eq.2, mp.eq.3, mp.eq.4, mp.com.1,
+  mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 y mp.s.4, con sus
+  requisitos, parámetros, evidencias, informe y bloque de configuración. Ejes
+  del índice: mp.eq.2 por A, mp.eq.4 por C, mp.com.3 por I y A, mp.s.4 por D;
+  el resto, por la categoría. No entran en el índice: Controles y Vista
+  general muestran «Sin medición todavía» y el detalle, por evidencia, la
+  «Fuente necesaria». Bandas de rule ID 111800–112899 reservadas, sin reglas.
+  Se siembran con `config/inject-control.py <control>` como cualquier otro.
+  Leen «Datos de la organización»: mp.sw.2 P-03 (entorno de preproducción,
+  que gana la columna «Aislamiento de producción» y une las filas por pareja
+  de sistemas), mp.com.3 P-02 (algoritmos autorizados por el CCN), mp.com.3
+  P-08 (productos certificados) y mp.s.3 P-07 (formación del personal).
 
 ### Cambiado
 

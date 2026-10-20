@@ -10,6 +10,7 @@ import {
 } from '../types';
 import {
   isEmptyParameterValue,
+  parameterAtLevel,
   validateParameterValue,
 } from './parameter-value-validator';
 
@@ -151,7 +152,9 @@ export const validateControlConfiguration = (
 /** Invalidity reasons of a not yet persisted set of values, used by the form before saving. Ignores levels (the whole control is being edited) and does not judge absences. */
 export const validateControlParameterValues = (
   control: ENSControlConfiguration,
-  values: ENSControlParameterValues
+  values: ENSControlParameterValues,
+  // With it, a select with `optionsByLevel` accepts only what that level admits.
+  level?: ENSLevel
 ): ENSParameterValueIssue[] =>
   control.parameters.reduce<ENSParameterValueIssue[]>(
     (result, parameter) => {
@@ -163,7 +166,7 @@ export const validateControlParameterValues = (
         : parameter.value;
 
       const verdict = validateParameterValue(
-        parameter,
+        parameterAtLevel(parameter, level),
         value
       );
 

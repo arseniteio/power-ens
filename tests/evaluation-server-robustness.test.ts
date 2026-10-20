@@ -6,6 +6,7 @@ import { createEvaluationHandlers } from '../server/lib/evaluation-handlers';
 import { CancelSignal } from '../server/lib/evaluation/cache';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { ENSCatalog } from '../common/ens/catalog';
 import { getENSComplianceResultByControl, getENSComplianceState } from '../common/ens/core/ens-engine';
 import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
 import { buildImpactEventsModel } from '../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
@@ -113,7 +114,12 @@ const reference = () => {
   fail = 1;
   const roto = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
-  check('and nothing is stored', service.rows.size === 0, service.rows.size);
+  // Only the controls without collector, which read nothing and so cannot be computed from incomplete data.
+  const withoutCollector = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').length;
+  const draftIds = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').map((control: any) => control.id);
+  const stored = service.rows.keys();
+  check('and nothing read is stored: only the fallback rows of the controls without collector, which read nothing',
+    stored.length === withoutCollector && stored.every(key => /^f\|/.test(key) && draftIds.includes(key.split('|').pop()!)), stored);
   const viaRuta: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: service }).evaluate(context, { query: { timeZone: 'UTC' } }, response);
   check('the route returns it as 503 with the motive', viaRuta.status === 503 && /reintentar/.test(viaRuta.body.message), viaRuta);
   fail = 0;
@@ -233,7 +239,7 @@ const reference = () => {
     signal.cancel();
     const resp: any = buildEvaluationResponse(first);
     check('§10 the first response arrives without waiting for everything, with `pending`', ms < 1500 && (first.meta.pending?.rows || 0) > 0 && first.meta.refreshing && first.meta.fingerprint.startsWith('refreshing:'), [ms, first.meta.pending]);
-    check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 23 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 34 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
     check('§10 and the cheap ones are already there, on all their machines (by control slices)', resp.controls.some((c: any) => !c.pending && c.evaluated), resp.controls.filter((c: any) => !c.pending).length);
     let n = 0;
     let ultima = first;
