@@ -771,7 +771,7 @@ export const ControlDetailENS = ({
               </EuiFlexItem>
             )}
             <EuiFlexItem grow={false}>
-              <MaturityHeadline maturity={data?.maturity} error={data?.maturityError} />
+              <MaturityHeadline maturity={data?.maturity} error={data?.maturityError} pending={Boolean(data?.meta?.maturityPending)} />
             </EuiFlexItem>
           </EuiFlexGroup>
         </EuiFlexItem>

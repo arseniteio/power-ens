@@ -463,7 +463,7 @@ export const OverviewENS = () => {
 
         <EuiSpacer size='l' />
 
-        <MaturityDistributionPanel maturity={data?.maturity} error={data?.maturityError} />
+        <MaturityDistributionPanel maturity={data?.maturity} error={data?.maturityError} onRetry={general.retry} />
 
         <EuiSpacer size='l' />
 

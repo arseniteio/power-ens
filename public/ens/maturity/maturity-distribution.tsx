@@ -1,10 +1,10 @@
 // The organisation's maturity (overview and panel): controls per level, accredited and assessed, and below target.
 import React from 'react';
-import { EuiBasicTable, EuiLink, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiBasicTable, EuiButton, EuiLink, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 import type { ENSMaturityListEntry } from '../../../common/ens/evaluation/types';
 import { MATURITY_DISTRIBUTION_ROWS, MATURITY_GUIDE_URL, MATURITY_NOTE } from './maturity-view';
 
-export const MaturityDistributionPanel = ({ maturity, error }: { maturity?: ENSMaturityListEntry; error?: string }) => {
+export const MaturityDistributionPanel = ({ maturity, error, onRetry }: { maturity?: ENSMaturityListEntry; error?: string; onRetry?: () => void }) => {
   const distribution = maturity?.distribution;
   const items = distribution
     ? MATURITY_DISTRIBUTION_ROWS.map(row => ({
@@ -29,9 +29,16 @@ export const MaturityDistributionPanel = ({ maturity, error }: { maturity?: ENSM
       </EuiText>
       <EuiSpacer size='s' />
       {!distribution ? (
-        <EuiText size='s' color='subdued'>
-          <p>{error || 'Calculando la madurez de todos los controles…'}</p>
-        </EuiText>
+        <>
+          <EuiText size='s' color='subdued'>
+            <p>{error || 'Calculando la madurez de todos los controles…'}</p>
+          </EuiText>
+          {error && onRetry && (
+            <EuiButton size='s' iconType='refresh' onClick={onRetry}>
+              Reintentar
+            </EuiButton>
+          )}
+        </>
       ) : (
         <>
           <EuiBasicTable

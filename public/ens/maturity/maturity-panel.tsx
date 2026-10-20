@@ -50,9 +50,9 @@ const headlineColor = (maturity?: ENSControlMaturity): string => {
 };
 
 // «Madurez: L3 (acreditado L3, objetivo L3)», next to the traffic light (never inside it).
-export const MaturityHeadline = ({ maturity, error }: { maturity?: ENSControlMaturity; error?: string }) => (
+export const MaturityHeadline = ({ maturity, error, pending }: { maturity?: ENSControlMaturity; error?: string; pending?: boolean }) => (
   <EuiBadge
-    color={headlineColor(maturity)}
+    color={pending ? 'default' : headlineColor(maturity)}
     iconType='visGauge'
     title={
       maturity?.accreditedDropped
@@ -62,7 +62,7 @@ export const MaturityHeadline = ({ maturity, error }: { maturity?: ENSControlMat
         : 'Madurez del proceso (CMM): valoración normativa, aparte del semáforo.'
     }
   >
-    {maturity ? describeMaturityHeadline(maturity) : error ? 'Madurez: no disponible' : 'Madurez: calculando…'}
+    {maturity ? `${describeMaturityHeadline(maturity)}${pending ? ' · actualizando' : ''}` : error ? 'Madurez: no disponible' : 'Madurez: calculando…'}
   </EuiBadge>
 );
 
@@ -225,7 +225,7 @@ export const MaturityPanel = ({
           </EuiTitle>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          <MaturityHeadline maturity={maturity} error={error} />
+          <MaturityHeadline maturity={maturity} error={error} pending={pending} />
         </EuiFlexItem>
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>

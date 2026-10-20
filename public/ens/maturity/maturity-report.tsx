@@ -72,10 +72,13 @@ export const buildMaturityReportModel = (maturity: ENSControlMaturity): Maturity
   ],
 });
 
+const PENDING_TEXT = 'Actualizándose: es la última madurez calculada.';
+
 const DRAFT_TEXT = 'Sin medición todavía: el control está en borrador y ningún agente lo mide. Se puede declarar el nivel valorado.';
 
 // pdfmake nodes, with the document's own styles (h3, th, td, sub).
-export const buildMaturityPdfContent = (maturity?: ENSControlMaturity, error?: string): any[] => {
+// `pending`: the maturity shown is being recomputed; the report says it is the last one computed.
+export const buildMaturityPdfContent = (maturity?: ENSControlMaturity, error?: string, pending?: boolean): any[] => {
   const title = { text: 'Madurez del proceso (CMM)', style: 'h3', margin: [0, 0, 0, 6] };
   const note = { text: MATURITY_REPORT_NOTE, style: 'sub', margin: [0, 4, 0, 16] };
   if (!maturity) return [title, { text: error || 'Madurez no disponible en esta exportación.', style: 'sub' }, note];
@@ -84,6 +87,7 @@ export const buildMaturityPdfContent = (maturity?: ENSControlMaturity, error?: s
   return [
     title,
     { text: model.headline, bold: true, fontSize: 10, margin: [0, 0, 0, 4] },
+    ...(pending ? [{ text: PENDING_TEXT, fontSize: 9, color: '#69707d', margin: [0, 0, 0, 4] }] : []),
     ...(model.assessment ? [{ text: model.assessment, fontSize: 9, margin: [0, 0, 0, 4] }] : []),
     ...(model.mark ? [{ text: model.mark, color: '#BD271E', fontSize: 9, margin: [0, 0, 0, 4] }] : []),
     ...(model.dropped ? [{ text: model.dropped, color: '#BD271E', fontSize: 9, margin: [0, 0, 0, 4] }] : []),
@@ -116,7 +120,7 @@ export const buildMaturityPdfContent = (maturity?: ENSControlMaturity, error?: s
 };
 
 // The same block on the report screen.
-export const MaturityReportSection = ({ maturity, error }: { maturity?: ENSControlMaturity; error?: string }) => {
+export const MaturityReportSection = ({ maturity, error, pending }: { maturity?: ENSControlMaturity; error?: string; pending?: boolean }) => {
   const model = maturity ? buildMaturityReportModel(maturity) : undefined;
   return (
     <>
@@ -141,6 +145,7 @@ export const MaturityReportSection = ({ maturity, error }: { maturity?: ENSContr
             <p>
               <strong>{model.headline}</strong>
             </p>
+            {pending && <p>{PENDING_TEXT}</p>}
             {model.assessment && <p>{model.assessment}</p>}
             {model.draft && <p>{DRAFT_TEXT}</p>}
           </EuiText>

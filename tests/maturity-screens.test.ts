@@ -160,6 +160,8 @@ http.setENSConfigurationHttp(() => ({
   evaluations.control = { data: { meta: { ...meta, maturityPending: true }, result: result(), maturity, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
   p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('pending after a record: the old maturity with «Actualizando la madurez…» and «Valorar» disabled (no version)', /Actualizando la madurez…/.test(p) && h.find('EuiButton', /^Valorar$/)?.props.isDisabled === true);
+  check('...and the header marks it too («· actualizando»)', /Madurez: sin valorar \(acreditado L2, objetivo L3\) · actualizando/.test(p));
+  check('...as does the PDF block', /Actualizándose: es la última madurez calculada/.test(JSON.stringify(buildMaturityPdfContent(maturity, undefined, true))));
   h.reset();
   const retriesBefore = retries;
   evaluations.control = { data: { meta, result: result(), maturityError: 'No se ha podido calcular la madurez.', agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
@@ -188,6 +190,12 @@ http.setENSConfigurationHttp(() => ({
   evaluations.dashboard = { data: { meta, dashboard: { ...buildENSDashboardModel(state), impactEvents: { title: 'Eventos', rows: [] } }, maturity: withDistribution }, isLoading: false };
   p = await h.render(EnsDashboardMain);
   check('the panel shows the organisation maturity apart from the index', /ÍNDICE GLOBAL DE CUMPLIMIENTO ENS/.test(p) && /Madurez de la organización/.test(p) && /L2 · Reproducible/.test(p), p.slice(-1500));
+  h.reset();
+  evaluations.dashboard = { data: { meta, dashboard: { ...buildENSDashboardModel(state), impactEvents: { title: 'Eventos', rows: [] } }, maturityError: 'No se ha podido calcular la madurez.' }, isLoading: false };
+  p = await h.render(EnsDashboardMain);
+  const dashboardRetries = retries;
+  await h.click(/^Reintentar$/);
+  check('the panel says it could not be computed, with «Reintentar»', /No se ha podido calcular la madurez/.test(p) && retries === dashboardRetries + 1);
 
   console.log('5. General: the targets per category');
   h.reset();

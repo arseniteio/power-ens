@@ -881,7 +881,7 @@ export const EnsDashboardMain = () => {
 
       <div style={{ marginTop: 16 }}>
         {/* The organisation's maturity (normative), apart from the compliance index (operational). */}
-        <MaturityDistributionPanel maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} />
+        <MaturityDistributionPanel maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} onRetry={evaluation.retry} />
       </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>

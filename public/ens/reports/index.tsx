@@ -600,7 +600,7 @@ const ControlReport = ({
         },
 
         // The maturity (normative) after the result (operational), never inside it.
-        ...buildMaturityPdfContent(evaluation.data?.maturity, evaluation.data?.maturityError),
+        ...buildMaturityPdfContent(evaluation.data?.maturity, evaluation.data?.maturityError, Boolean(evaluation.data?.meta?.maturityPending)),
 
         { text: 'Campos del informe', style: 'h3' },
         { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
@@ -872,7 +872,7 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} />
+      <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} pending={Boolean(evaluation.data?.meta?.maturityPending)} />
 
       <EuiSpacer size='l' />
 
