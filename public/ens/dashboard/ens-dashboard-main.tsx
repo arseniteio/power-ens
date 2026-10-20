@@ -379,10 +379,10 @@ export const EnsDashboardMain = () => {
             <div title='Todas sus no conformidades son por falta de prueba: hay que habilitar la evidencia.'>
               No evidenciados: <b>{dashboardModel.findings.unevidencedFindings}</b>
             </div>
-            <div title='Tienen no conformidades de los dos orígenes.'>
+            <div title='Fallan por motivos distintos en distintas máquinas: en unas medido, en otras sin prueba. En la vista de una máquina siempre es 0.'>
               Mixtos: <b>{dashboardModel.findings.mixedFindings}</b>
             </div>
-            <div title='Desfavorables sin ninguna no conformidad asociada.'>
+            <div title='Parciales o no evaluables: por diseño no generan no conformidad.'>
               Sin clasificar: <b>{dashboardModel.findings.unclassifiedFindings}</b>
             </div>
           </div>

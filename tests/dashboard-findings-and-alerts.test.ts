@@ -88,6 +88,10 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('title, total and the four origins on screen',
     /REQUISITOS QUE REQUIEREN ATENCIÓN/.test(p) && /Medidos:\s*1/.test(p) && /No evidenciados:\s*1/.test(p) && /Mixtos:\s*1/.test(p) && /Sin clasificar:\s*1/.test(p),
     p.slice(p.indexOf('REQUISITOS QUE'), p.indexOf('REQUISITOS QUE') + 400));
+  const titles = h.findAll('div').map((node: any) => node.props?.title).filter(Boolean);
+  check('«Mixtos» and «Sin clasificar» say what they mean',
+    titles.some((t: string) => /distintas máquinas/.test(t) && /siempre es 0/.test(t)) && titles.some((t: string) => /Parciales o no evaluables/.test(t)), titles);
+  check('the panel model leaves the alerts to the server: an empty box, no events read in the adapter', JSON.stringify(buildENSDashboardModel(state).impactEvents) === JSON.stringify({ title: 'ALERTAS OPERATIVAS SOC', rows: [], total: 0 }));
 
   console.log('3. ENS-DASH-004: operational alerts, one row per incident, judged against the engine');
   let n = 0;
@@ -106,6 +110,8 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const of024 = [
     applicable('op.acc.1', [requirement('op.acc.1.2', 'NO_CUMPLE'), requirement('op.acc.1.r2.1', 'NO_APLICA')], [nc('op.acc.1.2', 'MEDIDA', 'EV-06')]),
     applicable('op.exp.3', [requirement('op.exp.3.1', 'CUMPLE')]),
+    // A forged row of a DRAFT control with an applicable requirement: only the DRAFT status keeps its warning out.
+    applicable('mp.eq.2', [requirement('mp.eq.2.1', 'NO_CUMPLE')]),
     applicable('mp.info.6', [requirement('mp.info.6.1', 'NO_APLICA')]),
   ];
   // On 028 op.acc.1.2 fails, but measured by another evidence (EV-03) and EV-06 only unevidenced: not a multi-role finding.
@@ -156,6 +162,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('…and to the manager when it names none; not shown for a machine outside the scope', security.length === 2 && security.some((row: any) => row.agentId === '000') && !security.some((row: any) => row.agentId === '029'), security.map((r: any) => r.agentId));
   check('applicability: no row for NO_APLICA, DRAFT, a control without a row on that machine, or a machine outside the scope',
     !model.rows.some((row: any) => ['mp.info.6', 'mp.eq.2'].includes(row.controlId) || row.agentId === '028' || row.agentId === '099'), model.rows.map((r: any) => r.id));
+  check('a DRAFT control is out even with a machine row and an applicable requirement', of024.some((r: any) => r.control.id === 'mp.eq.2' && r.requirements[0].status === 'NO_CUMPLE') && model.total === 6 && !model.rows.some((row: any) => row.controlId === 'mp.eq.2'));
   check('five rows at most, the oldest out; the total counts the six that pass (and nothing else)', model.rows.length === 5 && model.total === 6 && model.summary === 'Se muestran 5 de 6.' && !model.rows.some((row: any) => /ssh/.test(row.description)), [model.rows.length, model.total, model.summary]);
   const bounded5 = alerts.buildImpactEventsModel(events, whole, { scope, truncatedAt: 100 });
   check('when the read hit its bound the total is «al menos» and says why', bounded5.summary === 'Se muestran 5 de al menos 6: solo se leen los 100 incidentes más recientes de cada tipo.', bounded5.summary);

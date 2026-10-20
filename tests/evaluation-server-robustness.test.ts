@@ -50,6 +50,13 @@ docs.push(fact('024', 'wazuh-real', { event: 'service_running', evidence_id: 'EV
 docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
 docs.push(fact('024', 'wazuh-real', { control: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'legado' }, 3.5));
 docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.1', control: 'op.exp.3', event: 'asset_system', evidence_id: 'EV-01' }, 2.5));
+// Operational alerts as the runbooks emit them: one of each type per machine.
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 7));
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 8));
+docs.push(fact('028', 'zimbraHldap', { ensfacil: 'op.exp.1', event: 'collector_warning', parametro: 'OPEXP1_INVENTARIO', motivo: 'no se pudo leer' }, 7));
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'multi_role_usage', evidence_id: 'EV-06', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 7));
+docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '024', sistema: 'wazuh-real', regla: '5710', alertas: '4', descripcion: 'sshd: usuario inexistente' }, 7));
+docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '028', sistema: 'zimbraHldap', regla: '5710', alertas: '2', descripcion: 'sshd: usuario inexistente' }, 7));
 
 const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.28',
@@ -170,10 +177,11 @@ const reference = () => {
   const panel024 = buildEvaluationResponse(run024) as any;
   const ref3 = reference();
   const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'), run024.state, { scope: run024.ctx.scope, agentId: '024' });
-  check('«alertas operativas» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
+  const rows024 = panel024.dashboard.impactEvents.rows;
+  check('«alertas operativas» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && panel024.dashboard.impactEvents.total > 0 && rows024.every((r: any) => r.agentId === '024' || r.agentId === '000') && rows024.some((r: any) => r.eventType === 'collector_warning' && r.count === 2) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
   const runAll = await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }));
   const panelAll = buildEvaluationResponse(runAll) as any;
-  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos, runAll.state, { scope: runAll.ctx.scope })));
+  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos, runAll.state, { scope: runAll.ctx.scope })) && panelAll.dashboard.impactEvents.rows.some((r: any) => r.agentId === '028') && panelAll.dashboard.impactEvents.total > rows024.length, panelAll.dashboard.impactEvents);
 
   const hs = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
   const p1: any = await hs.traceability(context, { query: { controlId: 'op.acc.3', agentId: '024', from: '100', size: '50', timeZone: 'UTC' } }, response);

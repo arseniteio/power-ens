@@ -57,11 +57,11 @@ export interface OperationalAlertsOptions {
 
 const ALERTS_TITLE = 'ALERTAS OPERATIVAS SOC';
 
+export const emptyOperationalAlertsModel = (): ImpactEventsModel => ({ title: ALERTS_TITLE, rows: [], total: 0 });
+
 // The panel when the alerts could not be read: the rest of the dashboard is unaffected.
 export const unreadOperationalAlertsModel = (): ImpactEventsModel => ({
-  title: ALERTS_TITLE,
-  rows: [],
-  total: 0,
+  ...emptyOperationalAlertsModel(),
   error: 'No se han podido leer las alertas operativas.',
 });
 
