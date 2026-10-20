@@ -1,0 +1,319 @@
+// What people record about a control's maturity: reading it from the configuration (tolerant: a malformed entry
+// is skipped, never an error that stops the environment) and validating a new entry (strict: the save route and
+// the screen use the same rules, so the browser never sends what the server refuses).
+import { isUsableLink } from '../configuration/services/attestation-service';
+import type { ENSConfigurationVersion, ENSLevel } from '../configuration/types';
+import type {
+  ENSControlMaturityRecord,
+  ENSMaturityAssessment,
+  ENSMaturityFeedback,
+  ENSMaturityFeedbackSource,
+  ENSMaturityIndicators,
+  ENSMaturityLevel,
+  ENSMaturityRecordKind,
+  ENSMaturityReview,
+  ENSMaturityReviewResult,
+  ENSMaturityTargets,
+  ENSProcedureAttestation,
+} from './types';
+
+// CCN practice, pending the auditor's confirmation: L2 in BÁSICA, L3 in MEDIA, L4 in ALTA.
+export const ENS_DEFAULT_MATURITY_TARGETS: ENSMaturityTargets = { BAJO: 2, MEDIO: 3, ALTO: 4 };
+
+// A control's reviews are due every year unless its indicators say otherwise.
+export const ENS_DEFAULT_REVIEW_PERIOD_DAYS = 365;
+
+export const ENS_MATURITY_LEVEL_NAMES: Record<ENSMaturityLevel, string> = {
+  0: 'Inexistente',
+  1: 'Inicial',
+  2: 'Reproducible',
+  3: 'Proceso definido',
+  4: 'Gestionado y medible',
+  5: 'Optimizado',
+};
+
+export const ENS_CATEGORY_NAMES: Record<ENSLevel, string> = { BAJO: 'BÁSICA', MEDIO: 'MEDIA', ALTO: 'ALTA' };
+
+export const ENS_MATURITY_REVIEW_RESULTS: Record<ENSMaturityReviewResult, string> = {
+  CONFORME: 'Conforme',
+  CON_DESVIACIONES: 'Con desviaciones',
+  NO_CONFORME: 'No conforme',
+};
+
+export const ENS_MATURITY_FEEDBACK_SOURCES: Record<ENSMaturityFeedbackSource, string> = {
+  'op.exp.9.3': 'Lección aprendida (op.exp.9.3)',
+  'op.exp.7': 'Gestión de incidentes (op.exp.7)',
+  'op.cont.3': 'Deficiencia de una prueba (op.cont.3)',
+  auditoria: 'Hallazgo de auditoría',
+  revision: 'Revisión del control',
+};
+
+export const RECORD_LIST_KEYS: Record<ENSMaturityRecordKind, keyof ENSControlMaturityRecord> = {
+  attestation: 'attestations',
+  review: 'reviews',
+  assessment: 'assessments',
+  indicators: 'indicators',
+  feedback: 'feedback',
+};
+
+export const ENS_MATURITY_RECORD_KINDS = Object.keys(RECORD_LIST_KEYS) as ENSMaturityRecordKind[];
+
+export const describeMaturityLevel = (level?: ENSMaturityLevel): string => (level === undefined ? '—' : `L${level}`);
+
+export const isMaturityLevel = (value: unknown): value is ENSMaturityLevel =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 5;
+
+const isRecord = (value: unknown): value is Record<string, any> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const isStamped = (entry: any): boolean =>
+  isRecord(entry) && typeof entry.recordedAt === 'string' && typeof entry.recordedBy === 'string';
+
+// The control's record as stored, with only well-formed entries, oldest first.
+export const readControlMaturityRecord = (
+  configuration: Partial<ENSConfigurationVersion> | undefined,
+  controlId: string
+): ENSControlMaturityRecord => {
+  const stored = (configuration as any)?.maturity?.controls?.[controlId];
+  const list = (key: keyof ENSControlMaturityRecord, keep: (entry: any) => boolean): any[] =>
+    isRecord(stored) && Array.isArray(stored[key]) ? stored[key].filter((entry: unknown) => isStamped(entry) && keep(entry)) : [];
+  return {
+    attestations: list('attestations', entry => typeof entry.reference === 'string'),
+    reviews: list('reviews', entry => typeof entry.date === 'string'),
+    assessments: list('assessments', entry => isMaturityLevel(entry.level)),
+    indicators: list('indicators', entry => typeof entry.minScore === 'number'),
+    feedback: list('feedback', entry => typeof entry.reference === 'string'),
+  };
+};
+
+// Target of each category: the one in General, or the default when absent or not a level.
+export const resolveMaturityTargets = (configuration?: Partial<ENSConfigurationVersion>): ENSMaturityTargets => {
+  const declared = (configuration?.global as any)?.maturityTargets;
+  const of = (level: ENSLevel): ENSMaturityLevel =>
+    isRecord(declared) && isMaturityLevel(declared[level]) ? declared[level] : ENS_DEFAULT_MATURITY_TARGETS[level];
+  return { BAJO: of('BAJO'), MEDIO: of('MEDIO'), ALTO: of('ALTO') };
+};
+
+// Shape of `global.maturityTargets` for the save route: absent is valid; present, an object of levels.
+export const validateMaturityTargetsShape = (value: unknown): string[] => {
+  if (value === undefined) return [];
+  if (!isRecord(value)) return ['global.maturityTargets debe ser un objeto.'];
+  return Object.entries(value).flatMap(([key, level]) =>
+    !['BAJO', 'MEDIO', 'ALTO'].includes(key)
+      ? [`global.maturityTargets.${key} no es una categoría.`]
+      : !isMaturityLevel(level)
+      ? [`global.maturityTargets.${key} debe ser un nivel de 0 a 5.`]
+      : []
+  );
+};
+
+// --- validation of a new entry -------------------------------------------------------------------------------
+
+const DAY_MS = 86400e3;
+const SHORT = 200;
+const LONG = 4000;
+
+const isoDay = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value ? value : undefined;
+};
+
+// A day no later than today (one day of margin for time zones).
+const notFuture = (day: string, now: Date): boolean => Date.parse(`${day}T00:00:00Z`) <= now.getTime() + DAY_MS;
+
+const textOf = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+interface Checker {
+  errors: string[];
+  text(field: string, label: string, max?: number): string;
+  optionalText(field: string, label: string, max?: number): string | undefined;
+  day(field: string, label: string, options?: { past?: boolean }): string;
+  optionalDay(field: string, label: string, options?: { past?: boolean }): string | undefined;
+}
+
+const checker = (value: Record<string, any>, now: Date): Checker => {
+  const errors: string[] = [];
+  const optionalText = (field: string, label: string, max = SHORT) => {
+    const text = textOf(value[field]);
+    if (value[field] !== undefined && typeof value[field] !== 'string') errors.push(`${label}: debe ser texto.`);
+    if (text.length > max) errors.push(`${label}: como mucho ${max} caracteres.`);
+    return text || undefined;
+  };
+  const optionalDay = (field: string, label: string, options: { past?: boolean } = {}) => {
+    if (value[field] === undefined || value[field] === '') return undefined;
+    const day = isoDay(value[field]);
+    if (!day) {
+      errors.push(`${label}: fecha AAAA-MM-DD válida.`);
+      return undefined;
+    }
+    if (options.past && !notFuture(day, now)) errors.push(`${label}: no puede ser posterior a hoy.`);
+    return day;
+  };
+  return {
+    errors,
+    optionalText,
+    optionalDay,
+    text: (field, label, max = SHORT) => {
+      const text = optionalText(field, label, max);
+      if (!text) errors.push(`${label}: obligatorio.`);
+      return text || '';
+    },
+    day: (field, label, options = {}) => {
+      const day = optionalDay(field, label, options);
+      if (!day && (value[field] === undefined || value[field] === '')) errors.push(`${label}: obligatorio.`);
+      return day || '';
+    },
+  };
+};
+
+type Unstamped<T> = Omit<T, 'recordedAt' | 'recordedBy'>;
+
+export type ENSMaturityEntryInput =
+  | Unstamped<ENSProcedureAttestation>
+  | Unstamped<ENSMaturityReview>
+  | Unstamped<ENSMaturityAssessment>
+  | Unstamped<ENSMaturityIndicators>
+  | Unstamped<ENSMaturityFeedback>;
+
+// Validates and normalises what a person enters. `accredited` is the level the evidence accredits now (unknown:
+// undefined); the assessment needs a justification when it goes above it or when it cannot be known.
+export const validateMaturityEntry = (
+  kind: ENSMaturityRecordKind,
+  value: unknown,
+  now: Date,
+  accredited?: ENSMaturityLevel
+): { entry?: ENSMaturityEntryInput; errors: string[] } => {
+  if (!isRecord(value)) return { errors: ['La entrada debe ser un objeto.'] };
+  const c = checker(value, now);
+
+  if (kind === 'attestation') {
+    const entry = {
+      reference: c.text('reference', 'Referencia'),
+      version: c.text('version', 'Versión', 50),
+      link: c.text('link', 'Enlace', 1000),
+      approvedAt: c.day('approvedAt', 'Fecha de aprobación', { past: true }),
+      validUntil: c.day('validUntil', 'Vigente hasta'),
+      disseminatedAt: c.day('disseminatedAt', 'Fecha de difusión', { past: true }),
+      disseminatedTo: c.text('disseminatedTo', 'Difundido a', 1000),
+      owner: c.text('owner', 'Responsable'),
+    };
+    if (entry.link && !isUsableLink(entry.link)) c.errors.push('Enlace: http(s)://, file:// o ruta de red; no vale el del ejemplo.');
+    if (entry.approvedAt && entry.validUntil && entry.validUntil < entry.approvedAt) c.errors.push('Vigente hasta: no puede ser anterior a la aprobación.');
+    if (entry.approvedAt && entry.disseminatedAt && entry.disseminatedAt < entry.approvedAt) c.errors.push('Fecha de difusión: no puede ser anterior a la aprobación.');
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  if (kind === 'review') {
+    const result = value.result as ENSMaturityReviewResult;
+    const entry = {
+      date: c.day('date', 'Fecha', { past: true }),
+      reviewer: c.text('reviewer', 'Revisor'),
+      result,
+      actions: c.optionalText('actions', 'Acciones', LONG) || '',
+    };
+    if (!(result in ENS_MATURITY_REVIEW_RESULTS)) c.errors.push('Resultado: Conforme, Con desviaciones o No conforme.');
+    if (result !== 'CONFORME' && !entry.actions) c.errors.push('Acciones: obligatorias si la revisión no es conforme.');
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  if (kind === 'assessment') {
+    const level = value.level;
+    const target = value.target === undefined || value.target === null || value.target === '' ? undefined : value.target;
+    const entry: Unstamped<ENSMaturityAssessment> = {
+      level,
+      ...(target !== undefined ? { target } : {}),
+      reviewer: c.text('reviewer', 'Revisor'),
+      date: c.day('date', 'Fecha', { past: true }),
+      ...(c.optionalText('justification', 'Justificación', LONG) ? { justification: textOf(value.justification) } : {}),
+    };
+    if (!isMaturityLevel(level)) c.errors.push('Nivel valorado: de 0 a 5.');
+    if (target !== undefined && !isMaturityLevel(target)) c.errors.push('Nivel objetivo: de 0 a 5.');
+    if (isMaturityLevel(level) && !entry.justification) {
+      if (accredited === undefined && level > 0) {
+        c.errors.push('Justificación: obligatoria; no se ha podido calcular el nivel acreditado.');
+      } else if (accredited !== undefined && level > accredited) {
+        c.errors.push(`Justificación: obligatoria; el nivel valorado (L${level}) supera al acreditado (L${accredited}).`);
+      }
+    }
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  if (kind === 'indicators') {
+    const entry = { minScore: value.minScore, reviewPeriodDays: value.reviewPeriodDays ?? ENS_DEFAULT_REVIEW_PERIOD_DAYS };
+    if (typeof entry.minScore !== 'number' || !Number.isFinite(entry.minScore) || entry.minScore < 0 || entry.minScore > 100) {
+      c.errors.push('Umbral: porcentaje de 0 a 100.');
+    }
+    if (!Number.isInteger(entry.reviewPeriodDays) || entry.reviewPeriodDays < 1 || entry.reviewPeriodDays > 1095) {
+      c.errors.push('Periodicidad de revisión: de 1 a 1095 días.');
+    }
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  if (kind === 'feedback') {
+    const source = value.source as ENSMaturityFeedbackSource;
+    const entry: Unstamped<ENSMaturityFeedback> = {
+      reference: c.text('reference', 'Referencia'),
+      source,
+      description: c.text('description', 'Descripción', LONG),
+      openedAt: c.day('openedAt', 'Fecha de apertura', { past: true }),
+    };
+    const closedAt = c.optionalDay('closedAt', 'Fecha de cierre', { past: true });
+    const procedureVersion = c.optionalText('procedureVersion', 'Versión del procedimiento', 50);
+    if (closedAt) entry.closedAt = closedAt;
+    if (procedureVersion) entry.procedureVersion = procedureVersion;
+    if (!(source in ENS_MATURITY_FEEDBACK_SOURCES)) c.errors.push('Origen: uno de la lista.');
+    if (closedAt && entry.openedAt && closedAt < entry.openedAt) c.errors.push('Fecha de cierre: no puede ser anterior a la apertura.');
+    if (procedureVersion && !closedAt) c.errors.push('Versión del procedimiento: solo al cerrar.');
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  return { errors: [`Tipo de registro desconocido: ${String(kind)}.`] };
+};
+
+// The configuration with one more entry in the control's list (nothing is replaced or removed).
+export const appendMaturityEntry = <T extends Partial<ENSConfigurationVersion>>(
+  configuration: T,
+  controlId: string,
+  kind: ENSMaturityRecordKind,
+  entry: Record<string, unknown>
+): T => {
+  const maturity = isRecord((configuration as any).maturity) ? (configuration as any).maturity : {};
+  const controls = isRecord(maturity.controls) ? maturity.controls : {};
+  const record = isRecord(controls[controlId]) ? controls[controlId] : {};
+  const key = RECORD_LIST_KEYS[kind];
+  const list = Array.isArray(record[key]) ? record[key] : [];
+  return {
+    ...configuration,
+    maturity: { ...maturity, controls: { ...controls, [controlId]: { ...record, [key]: [...list, entry] } } },
+  };
+};
+
+// One line for the audit trail and the history.
+export const describeMaturityEntry = (controlId: string, kind: ENSMaturityRecordKind, entry: any): string => {
+  switch (kind) {
+    case 'attestation':
+      return `Madurez de ${controlId}: procedimiento ${entry.reference} versión ${entry.version}.`;
+    case 'review':
+      return `Madurez de ${controlId}: revisión del ${entry.date} (${ENS_MATURITY_REVIEW_RESULTS[entry.result as ENSMaturityReviewResult] || entry.result}).`;
+    case 'assessment':
+      return `Madurez de ${controlId}: nivel valorado L${entry.level}${entry.target !== undefined ? `, objetivo L${entry.target}` : ''}.`;
+    case 'indicators':
+      return `Madurez de ${controlId}: umbral ${entry.minScore} %, revisión cada ${entry.reviewPeriodDays} días.`;
+    default:
+      return `Madurez de ${controlId}: realimentación ${entry.reference}${entry.closedAt ? ' cerrada' : ''}.`;
+  }
+};
+
+// Names for the owner and reviewer fields, from the organisation's personnel register (suggestions only).
+export const listOrganizationPeople = (configuration?: Partial<ENSConfigurationVersion>): string[] => {
+  const values = (configuration as any)?.organizationData?.values || {};
+  const rows = (id: string): string[] => (Array.isArray(values[id]) ? values[id].map(String) : []);
+  const names = [
+    ...rows('formacion_personal').map(row => row.split('|')[0]),
+    ...rows('personal_autorizado').map(row => row.split('|')[0]),
+  ]
+    .map(name => name.trim())
+    .filter(Boolean);
+  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, 'es'));
+};
