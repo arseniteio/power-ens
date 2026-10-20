@@ -1,5 +1,4 @@
-// Art. 32 report routes: read (any user who can read the evaluation) and freeze (administrators; written as the
-// internal user, never as the viewer).
+// Art. 32 routes: read for any user who can read the evaluation; freeze for administrators, written as the internal user.
 import type { Logger } from '../../../../src/core/server';
 import { resolveCurrentUser } from './current-user';
 import { ENSAnnualFreezeConflictError } from './annual-report/annual-freeze-storage';

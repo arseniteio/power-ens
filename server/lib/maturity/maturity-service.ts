@@ -481,8 +481,7 @@ export const createMaturityService = ({
     return { date, ...(await writeDay(clients.asInternalUser, run, maturity, recordedBy)), maturity };
   };
 
-  // The art. 32 report: the screen's inputs (refreshed behind when old), or read now; `fresh` reads them now and
-  // fails if any is missing (an explicit freeze).
+  // Art. 32: the screen's inputs (or read now); `fresh` reads them now and fails if one is missing (explicit freeze).
   const forReport = async (clients: ENSEvaluationClients, run: RunOutput, options: { fresh?: boolean } = {}): Promise<Map<string, ENSControlMaturity>> => {
     const data = options.fresh
       ? await loadInputs(clients, run.ctx)

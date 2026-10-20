@@ -1,5 +1,4 @@
-// «Informe anual (art. 32)»: the period's data set, its export (JSON, CSV), its freeze and, in op.mon.2, the measures
-// without engine. The server checks the role of every record and freeze.
+// «Informe anual (art. 32)»: data set, JSON/CSV export, freeze and «Medidas sin motor»; the server checks every role.
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   EuiBasicTable,

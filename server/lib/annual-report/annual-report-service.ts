@@ -1,5 +1,4 @@
-// Art. 32 report on the server: the data set of a period (frozen, or computed now) and its freeze (the daily job at
-// the closing, or an administrator's explicit request with a reason, kept as a new revision).
+// Art. 32 on the server: a period's data set (frozen, or computed now) and its freeze (daily job, or administrator).
 import type { Logger } from '../../../../../src/core/server';
 import { ENSFACIL_PLUGIN_VERSION } from '../../../common/constants';
 import { annualPeriodBounds, annualPeriodOfDay, isAnnualPeriod, lastClosedAnnualPeriod } from '../../../common/ens/annual-report/annual-period';

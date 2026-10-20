@@ -1,5 +1,4 @@
-// Frozen art. 32 reports in `wazuh-ens-snapshots`: `annual_freeze|<period>` (current) and `annual_freeze|<period>|r<n>`
-// (each earlier revision). They have no `date`, so the daily snapshot reads, checks and purge never match them.
+// Frozen art. 32 reports in `wazuh-ens-snapshots` (`annual_freeze|<period>`, earlier ones `|r<n>`), with no `date` field.
 import type { Logger } from '../../../../../src/core/server';
 import { ENS_SNAPSHOTS_INDEX } from '../../../common/constants';
 import type { ENSAnnualFreeze, ENSAnnualFreezeEntry } from '../../../common/ens/annual-report/annual-report-types';

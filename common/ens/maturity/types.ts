@@ -130,8 +130,7 @@ export interface ENSControlMaturityRecord {
   resources: ENSAnnualResourcesDeclaration[];
 }
 
-// The maturity document (`wazuh-ens-configuration/_doc/maturity`). Absent: nothing recorded yet. `controls` is keyed
-// by control id and, for declared entries, by Annex II measure id.
+// The maturity document (`wazuh-ens-configuration/_doc/maturity`), keyed by control or Annex II measure id.
 export interface ENSMaturityRecords {
   controls: Record<string, Partial<ENSControlMaturityRecord>>;
 }
