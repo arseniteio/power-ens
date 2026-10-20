@@ -10,6 +10,9 @@ import type { ENSMaturityService } from './maturity-service';
 
 export const ENS_SNAPSHOT_JOB_USER = 'ENSFácil (tarea diaria)';
 const PURGE_RETRY_MS = 60 * 60e3;
+// A failed run writes nothing and is tried again every 30 minutes until 23:00 local time; then tomorrow at 02:30.
+export const ENS_SNAPSHOT_RETRY_MS = 30 * 60e3;
+export const ENS_SNAPSHOT_LAST_RETRY_MINUTES = 23 * 60;
 // Local time of the daily run, in the zone of Configuration > General (Europe/Madrid by default).
 export const ENS_SNAPSHOT_JOB_MINUTES = 2 * 60 + 30;
 
@@ -19,6 +22,9 @@ export const nextDailyRun = (now: Date, timeZone: string): Date => {
   const today = calendar.startOfDay(now).getTime() + ENS_SNAPSHOT_JOB_MINUTES * 60e3;
   return new Date(today > now.getTime() ? today : calendar.addDays(now, 1).getTime() + ENS_SNAPSHOT_JOB_MINUTES * 60e3);
 };
+
+// Minutes since local midnight in the zone.
+const localMinutes = (now: Date, timeZone: string): number => Math.floor((now.getTime() - zonedCalendar(timeZone).startOfDay(now).getTime()) / 60e3);
 
 export interface ENSJobTimers {
   set: (run: () => void, ms: number) => unknown;
@@ -38,7 +44,7 @@ export interface ENSDailySnapshotJobOptions {
 
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode || error?.body?.status) || 0;
 const refused = (error: any): boolean =>
-  statusOf(error) === 401 || statusOf(error) === 403 || /security_exception|no permissions|unauthorized/i.test(String(error?.message || error));
+  statusOf(error) === 401 || statusOf(error) === 403 || /security_exception|cluster_block_exception|no permissions|unauthorized/i.test(String(error?.message || error));
 
 const NODE_TIMERS: ENSJobTimers = {
   set: (run, ms) => setTimeout(run, ms),
@@ -55,9 +61,9 @@ export const createDailySnapshotJob = ({
   timers = NODE_TIMERS,
 }: ENSDailySnapshotJobOptions) => {
   let doneOn: { day: string; zone: string } | undefined;
-  let disabled = false;
   let stopped = false;
   let running: Promise<void> | undefined;
+  let retryScheduled = false;
   const handles = new Set<unknown>();
   const clients = { asCurrentUser: client, asInternalUser: client };
 
@@ -70,7 +76,7 @@ export const createDailySnapshotJob = ({
     }
   };
 
-  // Whether today already has its snapshots (written by this job or by an administrator's view).
+  // Whether today already has its snapshots.
   const hasToday = async (): Promise<boolean> => {
     const today = dayIn(clock(), await zoneNow());
     const result = await client.search({ index: ENS_SNAPSHOTS_INDEX, ignore_unavailable: true, body: { size: 1, _source: ['date'], query: { term: { date: today } } } });
@@ -78,36 +84,42 @@ export const createDailySnapshotJob = ({
   };
 
   const later = (run: () => Promise<void>, ms: number) => {
+    if (stopped) return;
     const handle = timers.set(() => {
       handles.delete(handle);
-      void run();
+      if (!stopped) void run();
     }, Math.max(0, ms));
     handles.add(handle);
   };
 
-  // One pass: a complete evaluation of its own (it waits for every row) and the day written.
+  // One pass: a complete evaluation of its own (it waits for every row) and the day written; a failure writes nothing.
   const runOnce = (): Promise<void> => {
-    if (disabled) return Promise.resolve();
     if (doneOn && doneOn.day === dayIn(clock(), doneOn.zone)) return Promise.resolve();
     if (running) return running;
     running = (async () => {
+      let zone = configuredTimeZone();
       try {
         const evaluation = createEvaluation();
         const run = await evaluation.run(clients, normalizeQuery({ include: 'results' }), {});
-        const zone = configuredTimeZone(run.ctx.configuration.global.timezone);
+        zone = configuredTimeZone(run.ctx.configuration.global.timezone);
         const result = await maturity.snapshotDay(clients, run, ENS_SNAPSHOT_JOB_USER);
         doneOn = { day: result.date, zone };
         logger.info(`ENSFácil: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
         // A failed purge is retried within the hour, not with tomorrow's run.
         if (!result.purged) later(() => maturity.purgeOld(client, result.date).then(() => undefined), PURGE_RETRY_MS);
       } catch (error: any) {
-        if (refused(error)) {
-          disabled = true;
-          logger.warn(
-            `ENSFácil: the daily maturity snapshot was refused for the internal user (${error?.message || error}); only administrators' views write snapshots from now on`
-          );
-        } else {
-          logger.warn(`ENSFácil: the daily maturity snapshot failed, retried at the next run: ${error?.message || error}`);
+        const now = clock();
+        const retry = localMinutes(now, zone) + ENS_SNAPSHOT_RETRY_MS / 60e3 <= ENS_SNAPSHOT_LAST_RETRY_MINUTES;
+        const what = refused(error) ? 'the indexer refused the daily maturity snapshot' : 'the daily maturity snapshot failed';
+        logger.warn(
+          `ENSFácil: ${what} (${error?.message || error}); nothing written for ${dayIn(now, zone)}, ${retry ? 'retried in 30 minutes' : 'retried tomorrow at 02:30'}`
+        );
+        if (retry && !retryScheduled) {
+          retryScheduled = true;
+          later(async () => {
+            retryScheduled = false;
+            await runOnce();
+          }, ENS_SNAPSHOT_RETRY_MS);
         }
       } finally {
         running = undefined;
@@ -148,9 +160,6 @@ export const createDailySnapshotJob = ({
       stopped = true;
       handles.forEach(handle => timers.clear(handle));
       handles.clear();
-    },
-    get disabled() {
-      return disabled;
     },
   };
 };

@@ -17,6 +17,7 @@ import {
   readMaturityDocument,
 } from './maturity/maturity-storage';
 import type { ENSMaturityService } from './maturity/maturity-service';
+import { ENS_ACCREDITED_TIMEOUT, ENSMaturityUnavailableError } from './maturity/maturity-service';
 
 interface Options {
   logger: Logger;
@@ -77,12 +78,14 @@ export const createMaturityHandlers = ({ logger, securityEnabled, maturity, cloc
     if (access.error) return access.error;
     const username = access.username!;
 
+    // The level is computed now; if it cannot be, nothing is saved and the person is told to try again.
     let accredited: Awaited<ReturnType<ENSMaturityService['accreditedFor']>>;
     if (kind === 'assessment') {
       try {
         accredited = await maturity.accreditedFor(clients(context), controlId);
       } catch (error: any) {
         logger.warn(`ENS maturity: the accredited level of ${controlId} could not be computed: ${error?.message || error}`);
+        return failure(response, 503, error instanceof ENSMaturityUnavailableError ? error.message : ENS_ACCREDITED_TIMEOUT);
       }
     }
     const checked = validateMaturityEntry(kind, body.entry, now, accredited?.level);

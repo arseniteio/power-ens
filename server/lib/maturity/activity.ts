@@ -35,16 +35,19 @@ export const buildActivityRequest = (filters: unknown[], controlIds: string[], t
   },
 });
 
-// Each machine's first ENS fact ever (when it entered the scope) and the oldest ENS fact kept: no time range.
-export const buildMachinesRequest = (scopeFilters: unknown[]) => ({
+// How far back the first fact of each machine is looked up: bounded, and longer than any usual retention.
+export const FIRST_FACT_LOOKBACK_DAYS = 400;
+
+// Each machine's first ENS fact (when it entered the scope) and the oldest ENS fact kept: one bounded aggregation.
+export const buildMachinesRequest = (scopeFilters: unknown[], now: Date, machines: number) => ({
   index: ENS_ALERTS_INDEX,
   ignore_unavailable: true,
   body: {
     size: 0,
-    query: { bool: { filter: scopeFilters } },
+    query: { bool: { filter: [{ range: { '@timestamp': { gte: new Date(now.getTime() - FIRST_FACT_LOOKBACK_DAYS * 86400e3).toISOString(), lte: now.toISOString() } } }, ...scopeFilters] } },
     aggs: {
       oldest: { min: { field: '@timestamp' } },
-      agents: { terms: { field: 'agent.id', size: 10000 }, aggs: { first: { min: { field: '@timestamp' } } } },
+      agents: { terms: { field: 'agent.id', size: Math.max(1, machines) }, aggs: { first: { min: { field: '@timestamp' } } } },
     },
   },
 });

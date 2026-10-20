@@ -44,7 +44,7 @@ const alerts = createFakeIndexer([...docs, monitor('024', 'wazuh-real')], { cloc
 
 // The plugin's own indices (configuration and snapshots), with `_seq_no`, `if_seq_no`, `create` and delete by query.
 const OWN = ['wazuh-ens-configuration', 'wazuh-ens-snapshots'];
-const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number } = {}) => {
+const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number; failActivity?: boolean; failFirstFacts?: boolean; slow?: number } = {}) => {
   const store = new Map<string, { index: string; source: any; seqNo: number }>();
   let sequence = 0;
   let purgeFailures = options.failPurges || 0;
@@ -55,6 +55,9 @@ const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number }
     calls,
     indices: { exists: async () => ({ body: true }), create: async () => ({ body: {} }), putIndexTemplate: async (request: any) => { calls.templates.push(request); return { body: {} }; } },
     search: async (request: any) => {
+      if (options.slow) await new Promise(resolve => setTimeout(resolve, options.slow));
+      if (options.failActivity && request.body?.aggs?.controls?.aggs?.agents?.aggs?.days) throw Object.assign(new Error('activity read timed out'), { statusCode: 504 });
+      if (options.failFirstFacts && Object.keys(request.body?.aggs || {}).sort().join() === 'agents,oldest') throw Object.assign(new Error('first facts timed out'), { statusCode: 504 });
       if (!OWN.includes(request.index)) return alerts.search(request);
       const sort = (request.body?.sort || []).map((s: any) => {
         const [field, order]: [string, any] = Object.entries(s)[0] as any;
@@ -154,15 +157,24 @@ const seed = (internal: any, evaluationPeriod?: string, ensLevel?: string) => {
 };
 
 let maturityClock = 0;
-const setup = (options: { evaluationPeriod?: string; ensLevel?: string; refuseSnapshots?: boolean; failPurges?: number; inputsTtlMs?: number; failOrganisation?: boolean } = {}) => {
+const setup = (
+  options: { evaluationPeriod?: string; ensLevel?: string; refuseSnapshots?: boolean; failPurges?: number; inputsTtlMs?: number; failOrganisation?: boolean; refreshingOrganisation?: boolean; failActivity?: boolean; failFirstFacts?: boolean; slow?: number; justificationTimeoutMs?: number } = {}
+) => {
   const internal = createStore(options);
   seed(internal, options.evaluationPeriod, options.ensLevel);
   const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   // `failOrganisation`: the organisation pass behind a machine view always fails (the views themselves work).
-  const maturityEvaluation: any = options.failOrganisation
-    ? { ...service, run: async (c: any, q: any, o: any) => (q.include === 'summary' && !q.agentId ? Promise.reject(new Error('indexer down')) : service.run(c, q, o)) }
-    : service;
-  const maturity = createMaturityService({ logger, evaluation: maturityEvaluation, inputsTtlMs: options.inputsTtlMs, clock: () => Date.now() + maturityClock });
+  // The organisation pass behind a machine view can be made to fail (`failOrganisation`) or to come back refreshing.
+  const maturityEvaluation: any = {
+    ...service,
+    run: async (c: any, q: any, o: any) => {
+      const organisationPass = q.include === 'summary' && !q.agentId;
+      if (organisationPass && options.failOrganisation) throw new Error('indexer down');
+      const run = await service.run(c, q, o);
+      return organisationPass && options.refreshingOrganisation ? { ...run, meta: { ...run.meta, refreshing: true } } : run;
+    },
+  };
+  const maturity = createMaturityService({ logger, evaluation: maturityEvaluation, inputsTtlMs: options.inputsTtlMs, clock: () => Date.now() + maturityClock, justificationTimeoutMs: options.justificationTimeoutMs });
   const evaluation = createEvaluationHandlers({ logger, securityEnabled: true, service, maturity });
   const routes = createMaturityHandlers({ logger, securityEnabled: true, maturity, clock: () => clock });
   // A view as the browser gets it once the maturity inputs are read (the first answer marks them pending).
@@ -175,7 +187,7 @@ const setup = (options: { evaluationPeriod?: string; ensLevel?: string; refuseSn
     await maturity.flush();
     return answer;
   };
-  return { internal, service, maturity, evaluation, routes, ready };
+  return { internal, service, maturity, evaluation, routes, ready, options };
 };
 const snapshotIds = (internal: any) => [...internal.store.entries()].filter(([, doc]: any) => doc.index === 'wazuh-ens-snapshots').map(([id]: any) => id).sort();
 const historyOf = (internal: any, type: string) => [...internal.store.values()].filter((doc: any) => doc.source.documentType === type);
@@ -294,11 +306,54 @@ const Z = { timeZone: 'Europe/Madrid' };
   alerts.docs.splice(alerts.docs.length - added.length, added.length);
   clock = new Date('2026-10-20T12:00:00Z');
   const refused = setup({ refuseSnapshots: true });
-  const refusedJob = createDailySnapshotJob({ logger, client: { ...refused.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: refused.maturity, clock: () => clock, createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
+  const refusedTimers: { run: () => void; ms: number }[] = [];
+  const refusedJob = createDailySnapshotJob({
+    logger,
+    client: { ...refused.internal, transport: { request: async () => ({ body: INTERNAL }) } },
+    maturity: refused.maturity,
+    clock: () => clock,
+    timers: { set: (run: () => void, ms: number) => refusedTimers.push({ run, ms }), clear: () => undefined },
+    createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
+  });
+  const refusedBefore = warnings.length;
   await refusedJob.runOnce();
-  check('refused by the index: one warning, the job stops', refusedJob.disabled && warnings.filter(w => /daily maturity snapshot was refused/.test(w)).length === 1, warnings.slice(-3));
+  check('refused by the index: nothing written, a warning that says so, and a retry in 30 minutes (the job does not stop)', snapshotIds(refused.internal).length === 0 && /the indexer refused the daily maturity snapshot .*nothing written for 2026-10-20, retried in 30 minutes/.test(warnings.slice(refusedBefore).join(' ')) && refusedTimers.length === 1 && refusedTimers[0].ms === 30 * 60e3, warnings.slice(refusedBefore));
+  refused.options.refuseSnapshots = false;
+  refusedTimers[0].run();
+  await new Promise(resolve => setTimeout(resolve, 0));
   await refusedJob.runOnce();
-  check('...without warning again', warnings.filter(w => /daily maturity snapshot was refused/.test(w)).length === 1);
+  check('...once the index accepts it, the retry writes the day', snapshotIds(refused.internal).filter((id: string) => id.endsWith('|2026-10-20')).length === today.length, snapshotIds(refused.internal).length);
+  const broken = setup({ failActivity: true });
+  const brokenTimers: { run: () => void; ms: number }[] = [];
+  const brokenJob = createDailySnapshotJob({
+    logger,
+    client: { ...broken.internal, transport: { request: async () => ({ body: INTERNAL }) } },
+    maturity: broken.maturity,
+    clock: () => clock,
+    timers: { set: (run: () => void, ms: number) => brokenTimers.push({ run, ms }), clear: () => undefined },
+    createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
+  });
+  const brokenBefore = warnings.length;
+  await brokenJob.runOnce();
+  check('a failed read writes nothing (no L0 for every control), warns and retries in 30 minutes', snapshotIds(broken.internal).length === 0 && /the daily maturity snapshot failed \(could not read la actividad diaria\); nothing written/.test(warnings.slice(brokenBefore).join(' ')) && brokenTimers.length === 1, warnings.slice(brokenBefore));
+  brokenTimers[0].run();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await brokenJob.runOnce();
+  check('...a failure again warns again (every time) and retries again', warnings.slice(brokenBefore).filter(w => /daily maturity snapshot failed/.test(w)).length === 2 && brokenTimers.length === 2);
+  broken.options.failActivity = false;
+  brokenTimers[1].run();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await brokenJob.runOnce();
+  check('...and once the read works, the day is written', snapshotIds(broken.internal).filter((id: string) => id.endsWith('|2026-10-20')).length === today.length);
+  const lateClock = clock;
+  clock = new Date('2026-10-20T21:10:00Z');
+  const lateTimers: { run: () => void; ms: number }[] = [];
+  const late = setup({ failActivity: true });
+  const lateJob = createDailySnapshotJob({ logger, client: { ...late.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: late.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => lateTimers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
+  const lateBefore = warnings.length;
+  await lateJob.runOnce();
+  check('after 23:00 local time (23:10 Madrid) no more retries that day: tomorrow at 02:30', lateTimers.length === 0 && /retried tomorrow at 02:30/.test(warnings.slice(lateBefore).join(' ')), warnings.slice(lateBefore));
+  clock = lateClock;
 
   console.log('3b. The daily job runs at 02:30 local time, and catches up after start only if today is missing');
   check('next run: today at 02:30 Madrid when it is still before, else tomorrow', nextDailyRun(new Date('2026-10-20T00:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-20T00:30:00.000Z' && nextDailyRun(new Date('2026-10-20T10:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-21T00:30:00.000Z');
@@ -398,7 +453,40 @@ const Z = { timeZone: 'Europe/Madrid' };
   const retried: any = await failing.evaluation.evaluate(context(failing.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', retryRefresh: '1', ...Z }), responses);
   check('«Reintentar» starts again', retried.body.data.meta.maturityPending === true && !retried.body.data.maturityError);
   await failing.maturity.flush();
+  for (let i = 0; i < 3; i += 1) {
+    maturityClock += 60e3;
+    await machineView();
+    await failing.maturity.flush();
+  }
+  const stillFailing = (await machineView()).body.data;
+  maturityClock += 5 * 60e3;
+  failing.options.failOrganisation = false;
+  await machineView();
+  await failing.maturity.flush();
+  const recovered = await failing.ready({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z });
+  check('the error does not stick: tried again behind every 5 minutes, it clears with the first successful pass', stillFailing.maturityError === 'No se ha podido calcular la madurez.' && !recovered.body.data.maturityError && recovered.body.data.maturity?.controlId === 'op.exp.3' && !recovered.body.data.meta.maturityPending, recovered.body.data.meta);
   maturityClock = 0;
+
+  const busy = setup();
+  await busy.ready({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z });
+  const busyPolls: any[] = [];
+  const extra: FakeDoc[] = [];
+  for (let i = 0; i < 4; i += 1) {
+    const doc = fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run' }, 0.001 * (i + 1));
+    extra.push(doc);
+    alerts.docs.push(doc);
+    busyPolls.push((await busy.evaluation.evaluate(context(busy.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)).body.data);
+    await busy.maturity.flush();
+  }
+  alerts.docs.splice(alerts.docs.length - extra.length, extra.length);
+  check('new facts between polls do not make a machine view pending: served from memory, with its version', busyPolls.every(d => !d.meta.maturityPending && d.maturity?.controlId === 'op.exp.3' && d.maturityVersion !== undefined), busyPolls.map(d => [d.meta.maturityPending, d.maturityVersion]));
+  const staleOrg = setup({ refreshingOrganisation: true });
+  const stalePolls: any[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    stalePolls.push((await staleOrg.evaluation.evaluate(context(staleOrg.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)).body.data);
+    await staleOrg.maturity.flush();
+  }
+  check('an organisation row that keeps refreshing does not either: the first answer waits once, then it is served', stalePolls.slice(1).every(d => !d.meta.maturityPending && d.maturity?.controlId === 'op.exp.3'), stalePolls.map(d => d.meta.maturityPending));
 
   console.log('6. Reading snapshots: as the user');
   const read = (query: any, user: any = ADMIN, noSnapshots = false) => routes.snapshots(context(internal, user, noSnapshots), { query }, responses) as Promise<any>;
@@ -424,7 +512,33 @@ const Z = { timeZone: 'Europe/Madrid' };
 
   console.log('7. The days come from the indexer, formatted');
   check('the activity histogram asks the indexer for yyyy-MM-dd days in the configured zone', seen.length > 0 && seen.every(h => h.format === 'yyyy-MM-dd' && h.time_zone === 'Europe/Madrid'), seen[0]);
-  check('each machine\'s first fact is looked up over everything kept (no time range), once', firstFactQueries.length === 1 && !JSON.stringify(firstFactQueries[0].query).includes('@timestamp') && firstFactQueries[0].aggs.agents.aggs.first.min.field === '@timestamp', firstFactQueries.map(q => q.query));
+  const firstRange = firstFactQueries[0]?.query.bool.filter[0].range['@timestamp'];
+  check('each machine\'s first fact: one bounded aggregation (400 days, one bucket per machine), once', firstFactQueries.length === 1 && firstRange.gte === '2025-09-15T12:00:00.000Z' && firstFactQueries[0].aggs.agents.terms.size === 3 && firstFactQueries[0].aggs.agents.aggs.first.min.field === '@timestamp', firstFactQueries.map(q => q.query));
+
+  console.log('7b. Assessment check and first facts');
+  const judging = setup();
+  await judging.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  const judgeQueries: any[] = [];
+  const judgeSearch = judging.internal.search;
+  judging.internal.search = async (req: any) => {
+    if (req.body?.aggs?.controls?.aggs?.agents?.aggs?.days) judgeQueries.push(Object.keys(req.body.aggs.controls.filters.filters));
+    return judgeSearch(req);
+  };
+  const reused: any = await judging.routes.save(context(judging.internal), { body: { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null } }, responses);
+  check('with the screen\'s inputs 15 minutes old or less, the assessment reads no activity again', reused.status === 200 && judgeQueries.length === 0, judgeQueries);
+  maturityClock += 16 * 60e3;
+  const fresh2: any = await judging.routes.save(context(judging.internal), { body: { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: reused.body.data.version } }, responses);
+  check('...older ones: only this control\'s activity is read', fresh2.status === 200 && judgeQueries.length === 1 && JSON.stringify(judgeQueries[0]) === '["op.exp.3"]', judgeQueries);
+  maturityClock = 0;
+  const slowJudge = setup({ justificationTimeoutMs: 50, slow: 30 });
+  const timedOut: any = await slowJudge.routes.save(context(slowJudge.internal), { body: { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null } }, responses);
+  check('an accredited level that takes too long: 503 with a clear message, nothing saved', timedOut.status === 503 && /No se ha podido calcular a tiempo el nivel acreditado/.test(timedOut.body.message) && !slowJudge.internal.store.get('maturity'), timedOut.body);
+  slowJudge.options.slow = 0;
+  await slowJudge.maturity.flush();
+  const noFirst = setup({ failFirstFacts: true });
+  const noFirstDetail = await noFirst.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  const noFirstGates = noFirstDetail.body.data.maturity?.gates || [];
+  check('first facts unreadable: the activity is still read (L1 and L2 pass) and the reason says machines count from the period start', noFirstGates.find((g: any) => g.id === 'L1.facts')?.passed && noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.passed && /no se pudo leer el primer hecho de cada máquina/.test(noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.reason || ''), noFirstGates.slice(0, 2));
 
   console.log('8. DRAFT controls (no collector yet): maturity reaches the response and the detail');
   const drafts = list.controls.filter((c: any) => !c.measured).map((c: any) => c.controlId).sort();
@@ -470,7 +584,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   check('after assessing: «Madurez: L2 (sin medición todavía, …)» with who and when', /Madurez: L2 \(sin medición todavía, objetivo L\d\)/.test(page) && /Valorado L2 por Luis el 2026-10-20/.test(page), page.slice(0, 900));
   check('...marked as resting on the justification alone, not «frente a L0»', /Valorado L2 sin medición todavía: se apoya solo en la justificación/.test(page) && !/frente a L0/.test(page));
 
-  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush(), low.maturity.flush(), fresh.maturity.flush(), repeated.maturity.flush(), blind.maturity.flush()]);
+  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush(), low.maturity.flush(), fresh.maturity.flush(), repeated.maturity.flush(), blind.maturity.flush(), busy.maturity.flush(), staleOrg.maturity.flush(), judging.maturity.flush(), noFirst.maturity.flush()]);
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })().catch(error => {
