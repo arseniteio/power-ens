@@ -28,6 +28,9 @@ check(
 check('package.json is named ensfacil', pkg.name === 'ensfacil');
 check('same dashboard version in package.json', pkg.opensearchDashboards?.version === '2.19.5');
 check('same plugin version in both', pkg.version === manifest.version);
+// The annual report header writes this constant: a release that bumps the manifest bumps it too.
+const constants = fs.readFileSync(path.join(root, 'common/constants.ts'), 'utf8');
+check('ENSFACIL_PLUGIN_VERSION equals the manifest version', constants.includes(`ENSFACIL_PLUGIN_VERSION = '${manifest.version}'`));
 check('own pdfmake, 0.2.7', pkg.dependencies?.pdfmake === '0.2.7');
 check('own re2js, 2.8.6', pkg.dependencies?.re2js === '2.8.6');
 

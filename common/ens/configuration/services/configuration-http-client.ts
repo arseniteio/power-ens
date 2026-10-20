@@ -11,6 +11,7 @@ const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 export interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal; query?: Record<string, string> }): Promise<T>;
   put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
+  post<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
 }
 
 let httpProvider: (() => ENSConfigurationHttp) | undefined;
