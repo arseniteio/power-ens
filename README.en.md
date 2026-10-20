@@ -191,6 +191,7 @@ Change version (from the integrated version, to a newer release or back to the p
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
 | 9 | Declare common settings, templates and their assignment to agents, or convert an earlier configuration | [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md) |
+| 10 | Assess each control's maturity and record procedures, reviews and feedback | [Maturity assessment](docs/deployment/10-maturity-assessment.en.md) |
 
 > [!important]
 > When adding controls, first deploy the plugin version that contains them, then seed their configuration ([Installing from a release, section 11](docs/deployment/07-installing-from-a-release.en.md#11-update-to-a-newer-release)).

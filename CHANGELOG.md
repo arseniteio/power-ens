@@ -11,9 +11,30 @@ La entrada de cada versión son las notas de su release en GitLab.
 
 Correcciones del catálogo según las plantillas del auditor v2.0: aplicabilidad
 por las cinco dimensiones, textos literales del BOE con su procedencia y orden
-del Anexo II. Datos de la organización pedidos una sola vez.
+del Anexo II. Datos de la organización pedidos una sola vez. Madurez CMM de
+cada control junto al semáforo.
 
 ### Añadido
+
+- Madurez CMM (L0 a L5) de cada control, junto al semáforo y al porcentaje y
+  sin mezclarse con ellos (guía 10). ENSFácil calcula el nivel acreditado por
+  las evidencias con puertas explicadas por nivel; en el panel «Madurez» del
+  detalle se registran el procedimiento (referencia, versión, enlace,
+  aprobación, vigencia, difusión y responsable), las revisiones, el umbral y la
+  periodicidad, la realimentación y la valoración («Valorar»). Por encima de lo
+  acreditado, la valoración exige justificación y el informe la marca. Todo se
+  añade a `configuration.maturity` sin sobrescribir nada, con el rol de
+  administración y control de versión (409).
+- Objetivo de madurez por categoría en Configuración > General (por defecto L2
+  BÁSICA, L3 MEDIA, L4 ALTA; `global.maturityTargets`, clave ausente = valor por
+  defecto).
+- Madurez en la Vista general (nivel de cada control y distribución de la
+  organización), en el panel y en el informe de cada control, en pantalla y en
+  PDF, con la nota metodológica.
+- Índice `wazuh-ens-snapshots`: una instantánea por control y día (estado,
+  puntuación, cobertura, nivel acreditado, valorado y objetivo), escrita por la
+  evaluación del servidor en las vistas de un administrador, retenida tres años.
+  Ruta `GET /api/ensfacil/maturity/snapshots` para el informe anual.
 
 - Configuración > General > «Datos de la organización»: los datos que piden
   varios controles (personal autorizado, preproducción, reversión, algoritmos
@@ -67,6 +88,9 @@ del Anexo II. Datos de la organización pedidos una sola vez.
 
 ### Actualizar desde la 1.3.0
 
+- La madurez no cambia ningún veredicto ni porcentaje. La tendencia de L5
+  necesita 90 días de instantáneas desde la actualización.
+- Un plugin 1.3.0 carga un documento con madurez registrada y la ignora.
 - Sin ninguna dimensión declarada, los resultados no cambian.
 - Un documento que declara T o D puede cambiar de veredicto: D gobierna
   también mp.info.6, y T también op.acc.1 a op.acc.6 cuando es la más alta de

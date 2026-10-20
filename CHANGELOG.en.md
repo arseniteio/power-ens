@@ -12,9 +12,29 @@ GitLab release.
 
 Catalog corrections from the auditor's v2.0 templates: applicability by the
 five dimensions, BOE literal texts with their provenance and Annex II order.
-Organisation data asked once.
+Organisation data asked once. CMM maturity of each control next to the
+traffic light.
 
 ### Added
+
+- CMM maturity (L0 to L5) of each control, next to the traffic light and the
+  percentage and never mixed with them (guide 10). ENSFácil computes the level
+  the evidence accredits with gates explained per level; the «Madurez» panel of
+  the detail records the procedure (reference, version, link, approval,
+  validity, dissemination and owner), reviews, threshold and period, feedback
+  and the assessment («Valorar»). Above the accredited level, the assessment
+  needs a justification and the report marks it. Everything is appended to
+  `configuration.maturity` without overwriting, with the administration role
+  and version control (409).
+- Maturity target per category in Configuration > General (default L2
+  BÁSICA, L3 MEDIA, L4 ALTA; `global.maturityTargets`, absent key = default).
+- Maturity in the overview (each control's level and the organisation's
+  distribution), in the panel and in each control's report, on screen and in
+  PDF, with the methodological note.
+- `wazuh-ens-snapshots` index: one snapshot per control and day (status,
+  score, coverage, accredited, assessed and target levels), written by the
+  server evaluation in an administrator's views, kept for three years. Route
+  `GET /api/ensfacil/maturity/snapshots` for the annual report.
 
 - Configuration > General > «Datos de la organización»: the data several
   controls ask (authorised staff, pre-production, rollback, CCN algorithms,
@@ -66,6 +86,9 @@ Organisation data asked once.
 
 ### Updating from 1.3.0
 
+- Maturity changes no verdict or percentage. The L5 trend needs 90 days of
+  snapshots from the update.
+- A 1.3.0 plugin loads a document with recorded maturity and ignores it.
 - With no dimension declared, the results do not change.
 - A document that declares T or D may change verdicts: D also governs
   mp.info.6, and T also op.acc.1 to op.acc.6 when it is the highest of their

@@ -1,9 +1,10 @@
 # Servidor de ENSFácil
 
-Dos grupos de rutas, las dos bajo `/api/ensfacil`:
+Tres grupos de rutas, todos bajo `/api/ensfacil`:
 
 - `configuration` — la configuración ENS activa y su historial (ver `lib/configuration-handlers.ts`).
 - `evaluation` — **la evaluación de los controles** (desde 1.2.0). El navegador no descarga hechos para juzgar: pide el resultado aquí.
+- `maturity` — los registros de madurez de cada control y sus instantáneas diarias (desde 1.4.0; apartado «Madurez»).
 
 ## Evaluación
 
@@ -103,3 +104,27 @@ Las mismas opciones por entorno: `ENSFACIL_INDEXER_URL`, `ENSFACIL_INDEXER_CA`, 
 docker run --rm --network host -v "$PWD":/plugin:ro -v /ruta/certs:/certs:ro -w /plugin node:18 \
   npx --yes tsx server/scripts/measure-evaluation.ts --ca /certs/root-ca.pem --cert /certs/admin.pem --key /certs/admin-key.pem
 ```
+
+## Madurez
+
+La madurez CMM de cada control (`lib/maturity/maturity-service.ts`, motor en `common/ens/maturity/`) viaja con la evaluación: `include=control` lleva `maturity` (el `ENSControlMaturity` del control: niveles, puertas con su motivo y lo registrado) y `summary`, `overview` y `dashboard` llevan `maturity` = `{ controls[], distribution }` (la distribución solo con todos los controles calculados). Es siempre la de la organización: en la vista de una máquina se toma de la vista de conjunto, con las filas ya calculadas. Si no se puede calcular, la respuesta lleva `maturityError` y la evaluación no falla. `results` no la lleva.
+
+Para calcularla se leen, aparte de la evaluación: los días con hechos de cada control en cada máquina (una agregación sin documentos como el usuario que mira, en grupos de controles por debajo de 20.000 cubos, guardada 5 minutos) y las instantáneas de los últimos 180 días (`asInternalUser`, guardadas 10 minutos). Lo registrado (`configuration.maturity`) y los objetivos (`global.maturityTargets`) quedan fuera de la huella de las filas: registrar no recalcula ninguna fila, pero cambia la huella de la vista y el navegador vuelve a pedirla.
+
+**Instantáneas.** Tras una vista de conjunto completa y al día de un usuario con `ensfacil_admin` o `all_access`, se escribe (`asInternalUser`, en segundo plano) una instantánea por control y día en `wazuh-ens-snapshots`, con id `<control>|<AAAA-MM-DD>` en la zona de Configuración > General: el mismo día se sustituye, nunca se duplica, y no se reescribe si no cambia. Con la primera escritura de cada día se borran las de más de 1095 días.
+
+### `PUT /api/ensfacil/maturity`
+
+Cuerpo: `{ controlId, kind, entry, expectedVersion? }`, con `kind` = `attestation` | `review` | `assessment` | `indicators` | `feedback`. Rol `ensfacil_admin` o `all_access`. Valida la entrada (`validateMaturityEntry`, la misma regla que la pantalla); en una valoración calcula el nivel acreditado de ese momento y exige justificación si el valorado lo supera (o si no se puede calcular). Añade la entrada al final de su lista con `recordedAt` y `recordedBy`, deja la versión anterior en el historial y una línea en `auditTrail`, y escribe solo sobre la versión leída. Respuesta: `{ configuration, metadata, record, warning? }`.
+
+| Estado | Cuándo |
+|---|---|
+| 400 | Control fuera del catálogo, registro desconocido, entrada no válida o valoración por encima de lo acreditado sin justificación. Con el motivo |
+| 401/403 | Sin sesión o sin el rol |
+| 409 | La configuración cambió desde que se leyó, o todavía no hay configuración guardada |
+
+El guardado de la configuración (`PUT /api/ensfacil/configuration`) conserva siempre la madurez guardada, la envíe o no el navegador, y rechaza (400) un `global.maturityTargets` que no sea un nivel de 0 a 5 por categoría.
+
+### `GET /api/ensfacil/maturity/snapshots`
+
+`from`, `to` (AAAA-MM-DD, como mucho 400 días) y `controlId` opcional. Rol `ensfacil_admin` o `all_access`. `{ from, to, controlId, snapshots[] }`, de la más antigua a la más reciente.
