@@ -345,23 +345,37 @@ export const EnsDashboardMain = () => {
         </div>
 
         <div style={card}>
-          <div style={title}>HALLAZGOS RELEVANTES</div>
-        <div
-          style={{
-          fontSize: 58,
-          lineHeight: '60px',
-          fontWeight: 700,
-          color:
-            findingSeverityColor(dashboardModel.findings.severity),
-        }}
-       >
-        {dashboardModel.findings.total}
-       </div>
-       <div>{dashboardModel.findings.description}</div>
-       <div style={{ marginTop: 20 }}>
-         Última evaluación:<br />
-         <b>{dashboardModel.findings.lastEvaluation}</b>
-       </div>
+          <div style={title}>{dashboardModel.findings.title}</div>
+          <div
+            style={{
+              fontSize: 58,
+              lineHeight: '60px',
+              fontWeight: 700,
+              color: findingSeverityColor(dashboardModel.findings.severity),
+            }}
+          >
+            {dashboardModel.findings.total}
+          </div>
+          <div style={{ fontSize: 12 }}>{dashboardModel.findings.description}</div>
+          {/* The four origins are exclusive: they add up to the total. */}
+          <div style={{ fontSize: 13, lineHeight: '22px', marginTop: 10 }}>
+            <div title='Todas sus no conformidades son de medida: hay que corregir el sistema.'>
+              Medidos: <b>{dashboardModel.findings.measuredFindings}</b>
+            </div>
+            <div title='Todas sus no conformidades son por falta de prueba: hay que habilitar la evidencia.'>
+              No evidenciados: <b>{dashboardModel.findings.unevidencedFindings}</b>
+            </div>
+            <div title='Tienen no conformidades de los dos orígenes.'>
+              Mixtos: <b>{dashboardModel.findings.mixedFindings}</b>
+            </div>
+            <div title='Desfavorables sin ninguna no conformidad asociada.'>
+              Sin clasificar: <b>{dashboardModel.findings.unclassifiedFindings}</b>
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            Última evaluación:<br />
+            <b>{dashboardModel.findings.lastEvaluation}</b>
+          </div>
         </div>
       </div>
 

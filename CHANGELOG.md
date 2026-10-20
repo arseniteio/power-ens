@@ -102,6 +102,11 @@ cada control junto al semáforo.
   auditadas con auditd (Linux y LDAP) o con SACL de lectura (Windows); FIM solo
   detecta cambios de integridad.
 - op.exp.3 EV-11 se declara evidencia propia de ENSFácil.
+- Panel: la tarjeta «Hallazgos relevantes» pasa a «Requisitos que requieren
+  atención» y reparte los requisitos desfavorables por el origen de sus no
+  conformidades: medidos, no evidenciados, mixtos (los dos orígenes) y sin
+  clasificar. Las cuatro cifras son excluyentes y suman el total; los controles
+  que no están en `ACTIVE` no cuentan (ENS-DASH-002, Francisco Caicedo).
 
 ### Corregido
 

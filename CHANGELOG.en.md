@@ -99,6 +99,12 @@ traffic light.
   with auditd (Linux and LDAP) or with a read SACL (Windows); FIM only detects
   integrity changes.
 - op.exp.3 EV-11 is declared ENSFácil's own evidence.
+- Panel: the «Hallazgos relevantes» card becomes «Requisitos que requieren
+  atención» and splits the unfavourable requirements by the origin of their
+  non-conformities: measured, unevidenced, mixed (both origins) and
+  unclassified. The four figures are exclusive and add up to the total;
+  controls that are not `ACTIVE` do not count (ENS-DASH-002, Francisco
+  Caicedo).
 
 ### Fixed
 
