@@ -63,14 +63,16 @@ export const buildEvaluationResponse = (run: RunOutput, maturity?: ENSMaturityOf
     ? { ...run.meta, maturityPending: true, fingerprint: run.meta.fingerprint.startsWith('refreshing:') ? run.meta.fingerprint : `refreshing:${run.meta.fingerprint}` }
     : run.meta;
   const timeline = visibleTimeline(run.timeline, query);
+  // While pending, what is in memory still shows (marked), without a version: nothing is recorded over stale data.
+  const failed = maturityError || maturity?.error;
   const withMaturity = (list: boolean) => ({
-    ...(maturity && !maturity.pending
+    ...(maturity && maturity.controls.size
       ? list
-        ? { maturity: maturityOfList(maturity.controls, !maturity.complete) }
+        ? { maturity: maturityOfList(maturity.controls, maturity.pending || !maturity.complete) }
         : { maturity: query.controlId ? maturity.controls.get(query.controlId) : undefined }
       : {}),
-    ...(maturity && !list ? { maturityVersion: maturity.version } : {}),
-    ...(maturityError ? { maturityError } : {}),
+    ...(maturity && !list && !maturity.pending && !maturity.error ? { maturityVersion: maturity.version } : {}),
+    ...(failed ? { maturityError: failed } : {}),
   });
 
   if (query.include === 'control' && query.controlId) {

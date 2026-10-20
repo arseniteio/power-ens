@@ -241,7 +241,9 @@ const reference = () => {
     const resp: any = buildEvaluationResponse(first);
     check('§10 the first response arrives without waiting for everything, with `pending`', ms < 1500 && (first.meta.pending?.rows || 0) > 0 && first.meta.refreshing && first.meta.fingerprint.startsWith('refreshing:'), [ms, first.meta.pending]);
     check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 34 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
-    check('§10 and the cheap ones are already there, on all their machines (by control slices)', resp.controls.some((c: any) => !c.pending && c.evaluated), resp.controls.filter((c: any) => !c.pending).length);
+    // A control without collector (DRAFT) has its result at once: only a measured one shows the slices work.
+    const measuredIds = require('../common/ens/catalog').ENSCatalog.filter((c: any) => c.status === 'ACTIVE').map((c: any) => c.id);
+    check('§10 and the cheap ones are already there, on all their machines (by control slices)', resp.controls.some((c: any) => !c.pending && c.evaluated && measuredIds.includes(c.controlId)), resp.controls.filter((c: any) => !c.pending && measuredIds.includes(c.controlId)).length);
     let n = 0;
     let ultima = first;
     while (ultima.meta.pending && n++ < 200) {

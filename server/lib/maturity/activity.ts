@@ -35,8 +35,8 @@ export const buildActivityRequest = (filters: unknown[], controlIds: string[], t
   },
 });
 
-// Each machine's first ENS fact in the period (when it entered the scope), and the oldest ENS fact kept at all.
-export const buildMachinesRequest = (filters: unknown[], scopeFilters: unknown[]) => ({
+// Each machine's first ENS fact ever (when it entered the scope) and the oldest ENS fact kept: no time range.
+export const buildMachinesRequest = (scopeFilters: unknown[]) => ({
   index: ENS_ALERTS_INDEX,
   ignore_unavailable: true,
   body: {
@@ -44,7 +44,7 @@ export const buildMachinesRequest = (filters: unknown[], scopeFilters: unknown[]
     query: { bool: { filter: scopeFilters } },
     aggs: {
       oldest: { min: { field: '@timestamp' } },
-      period: { filter: { bool: { filter: filters } }, aggs: { agents: { terms: { field: 'agent.id', size: 10000 }, aggs: { first: { min: { field: '@timestamp' } } } } } },
+      agents: { terms: { field: 'agent.id', size: 10000 }, aggs: { first: { min: { field: '@timestamp' } } } },
     },
   },
 });
@@ -54,7 +54,7 @@ export const readMachinesResponse = (body: any, timeZone: string): { oldest?: st
   return {
     oldest: typeof oldest === 'number' ? new Date(oldest).toISOString() : undefined,
     since: new Map(
-      (body?.aggregations?.period?.agents?.buckets || [])
+      (body?.aggregations?.agents?.buckets || [])
         .filter((agent: any) => typeof agent?.first?.value === 'number')
         .map((agent: any) => [String(agent.key), dayIn(new Date(agent.first.value), timeZone)])
     ),

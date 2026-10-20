@@ -9,6 +9,7 @@ import { normalizeQuery } from '../evaluation/evaluation-service';
 import type { ENSMaturityService } from './maturity-service';
 
 export const ENS_SNAPSHOT_JOB_USER = 'ENSFácil (tarea diaria)';
+const PURGE_RETRY_MS = 60 * 60e3;
 // Local time of the daily run, in the zone of Configuration > General (Europe/Madrid by default).
 export const ENS_SNAPSHOT_JOB_MINUTES = 2 * 60 + 30;
 
@@ -76,6 +77,14 @@ export const createDailySnapshotJob = ({
     return (result.body?.hits?.hits || []).length > 0;
   };
 
+  const later = (run: () => Promise<void>, ms: number) => {
+    const handle = timers.set(() => {
+      handles.delete(handle);
+      void run();
+    }, Math.max(0, ms));
+    handles.add(handle);
+  };
+
   // One pass: a complete evaluation of its own (it waits for every row) and the day written.
   const runOnce = (): Promise<void> => {
     if (disabled) return Promise.resolve();
@@ -89,6 +98,8 @@ export const createDailySnapshotJob = ({
         const result = await maturity.snapshotDay(clients, run, ENS_SNAPSHOT_JOB_USER);
         doneOn = { day: result.date, zone };
         logger.info(`ENSFácil: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
+        // A failed purge is retried within the hour, not with tomorrow's run.
+        if (!result.purged) later(() => maturity.purgeOld(client, result.date).then(() => undefined), PURGE_RETRY_MS);
       } catch (error: any) {
         if (refused(error)) {
           disabled = true;
@@ -113,14 +124,6 @@ export const createDailySnapshotJob = ({
       logger.warn(`ENSFácil: could not check today's maturity snapshots, running the daily job: ${error?.message || error}`);
     }
     await runOnce();
-  };
-
-  const later = (run: () => Promise<void>, ms: number) => {
-    const handle = timers.set(() => {
-      handles.delete(handle);
-      void run();
-    }, Math.max(0, ms));
-    handles.add(handle);
   };
 
   // The next 02:30 of the configured zone, then again each day.

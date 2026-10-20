@@ -86,7 +86,7 @@ export const createEvaluationHandlers = (options: {
       let maturityError: string | undefined;
       if (options.maturity) {
         try {
-          maturity = await options.maturity.forEvaluation(clients(context), output);
+          maturity = await options.maturity.forEvaluation(clients(context), output, { retry: retryRefresh });
         } catch (error: any) {
           if (statusOf(error) === 499) throw error;
           logger.warn(`ENSFácil: could not compute the maturity: ${error?.message || error}`);

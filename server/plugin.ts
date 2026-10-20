@@ -43,7 +43,8 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
         logger: this.logger,
         client: core.opensearch.client.asInternalUser,
         maturity: this.maturity,
-        createEvaluation: () => createEvaluationService({ logger: this.logger, securityEnabled: this.securityEnabled, maxConcurrentReads: 2 }),
+        // Its own rows, 2 reads at a time, and no daily series: the job only needs today's result.
+        createEvaluation: () => createEvaluationService({ logger: this.logger, securityEnabled: this.securityEnabled, maxConcurrentReads: 2, computeSeries: false }),
       });
       void this.job.start();
     }

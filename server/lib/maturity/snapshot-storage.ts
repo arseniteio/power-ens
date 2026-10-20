@@ -13,41 +13,47 @@ const alreadyExists = (error: any): boolean =>
   (error?.body?.error?.type || error?.meta?.body?.error?.type) === 'resource_already_exists_exception' ||
   String(error?.message || error).includes('resource_already_exists_exception');
 
+const SNAPSHOT_SETTINGS = { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } };
+const SNAPSHOT_MAPPINGS = {
+  dynamic: false,
+  properties: {
+    date: { type: 'date', format: 'yyyy-MM-dd' },
+    controlId: { type: 'keyword' },
+    status: { type: 'keyword' },
+    score: { type: 'float' },
+    coverage: { type: 'float' },
+    applicableRequirements: { type: 'integer' },
+    measuredRequirements: { type: 'integer' },
+    level: { type: 'keyword' },
+    accredited: { type: 'byte' },
+    assessed: { type: 'byte' },
+    target: { type: 'byte' },
+    recordedAt: { type: 'date' },
+    recordedBy: { type: 'keyword' },
+  },
+};
+
 // Checked once per process, not on every write.
 let indexReady = false;
 
 export async function ensureSnapshotsIndex(client: any, logger: Logger): Promise<void> {
   if (indexReady) return;
+  // A template too: an index deleted and created again by a write keeps its field types.
+  try {
+    await client.indices.putIndexTemplate({
+      name: ENS_SNAPSHOTS_INDEX,
+      body: { index_patterns: [ENS_SNAPSHOTS_INDEX], priority: 100, template: { settings: SNAPSHOT_SETTINGS, mappings: SNAPSHOT_MAPPINGS } },
+    });
+  } catch (error: any) {
+    logger.warn(`ENSFácil: could not put the index template of ${ENS_SNAPSHOTS_INDEX} (the index keeps its own mapping): ${error?.message || error}`);
+  }
   const exists = await client.indices.exists({ index: ENS_SNAPSHOTS_INDEX });
   if (exists.body) {
     indexReady = true;
     return;
   }
   try {
-    await client.indices.create({
-      index: ENS_SNAPSHOTS_INDEX,
-      body: {
-        settings: { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } },
-        mappings: {
-          dynamic: false,
-          properties: {
-            date: { type: 'date', format: 'yyyy-MM-dd' },
-            controlId: { type: 'keyword' },
-            status: { type: 'keyword' },
-            score: { type: 'float' },
-            coverage: { type: 'float' },
-            applicableRequirements: { type: 'integer' },
-            measuredRequirements: { type: 'integer' },
-            level: { type: 'keyword' },
-            accredited: { type: 'byte' },
-            assessed: { type: 'byte' },
-            target: { type: 'byte' },
-            recordedAt: { type: 'date' },
-            recordedBy: { type: 'keyword' },
-          },
-        },
-      },
-    });
+    await client.indices.create({ index: ENS_SNAPSHOTS_INDEX, body: { settings: SNAPSHOT_SETTINGS, mappings: SNAPSHOT_MAPPINGS } });
     logger.info(`Index ${ENS_SNAPSHOTS_INDEX} created`);
   } catch (error) {
     if (!alreadyExists(error)) throw error;

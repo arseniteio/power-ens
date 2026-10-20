@@ -167,9 +167,6 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
 export interface ENSEvaluationContext {
   now: Date;
   userKey: string;
-  // Whoever asks, and whether they administer ENSFácil (an administrator's views also write the maturity snapshots).
-  username: string;
-  administrator: boolean;
   configuration: ENSConfigurationVersion;
   configurationKey: string;
   // The maturity document and the targets: they change what the view shows, never a row's result.
@@ -333,6 +330,8 @@ export interface ENSEvaluationServiceOptions {
   maxStoredBytes?: number;
   // What the list or panel waits before answering with what exists.
   firstResponseMs?: number;
+  // false: no daily series (the daily maturity job only needs today's result).
+  computeSeries?: boolean;
 }
 
 export interface ENSRunOptions {
@@ -398,6 +397,7 @@ export const createEvaluationService = ({
   maxFactsPerRead = MAX_FACTS_PER_READ,
   maxStoredBytes = 64 * 1024 * 1024,
   firstResponseMs = FIRST_RESPONSE_MS,
+  computeSeries = true,
 }: ENSEvaluationServiceOptions) => {
   const clockValue = () => clock().getTime();
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
@@ -496,8 +496,6 @@ export const createEvaluationService = ({
     return {
       now,
       userKey,
-      username: user.username,
-      administrator: user.administrator,
       configuration,
       configurationKey,
       maturityKey,
@@ -1180,6 +1178,7 @@ export const createEvaluationService = ({
     Boolean(row.cuts && row.cuts.key === seriesKeyValue && row.cuts.pastKey === pastKey && row.cuts.complete);
 
   const wantSeries = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
+    if (!computeSeries) return;
     const seriesKeyValue = seriesOf(ctx).key;
     const row = seriesTarget(ctx, need);
     if (!row || seriesDone(row, seriesKeyValue, pastSignature(ctx, need.spec))) return;
