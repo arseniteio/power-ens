@@ -7,6 +7,7 @@ import { readActiveENSConfiguration } from '../configuration-storage';
 import type { ENSEvaluationService } from '../evaluation/evaluation-service';
 import { normalizeQuery } from '../evaluation/evaluation-service';
 import type { ENSMaturityService } from './maturity-service';
+import type { ENSAnnualReportService } from '../annual-report/annual-report-service';
 import { retryBackoffMs } from './maturity-service';
 
 export const ENS_SNAPSHOT_JOB_USER = 'ENSFácil (tarea diaria)';
@@ -39,6 +40,8 @@ export interface ENSDailySnapshotJobOptions {
   logger: Logger;
   client: any;
   maturity: ENSMaturityService;
+  // Freezes the art. 32 report of a period that has just closed (optional: tests of the snapshot alone).
+  annualReport?: Pick<ENSAnnualReportService, 'freezeIfDue'>;
   // A fresh evaluation service per run: its rows never push out the users' ones, and are freed after.
   createEvaluation: () => ENSEvaluationService;
   clock?: () => Date;
@@ -59,6 +62,7 @@ export const createDailySnapshotJob = ({
   logger,
   client,
   maturity,
+  annualReport,
   createEvaluation,
   clock = () => new Date(),
   catchUpDelayMs = 10 * 60e3,
@@ -114,6 +118,15 @@ export const createDailySnapshotJob = ({
         logger.info(`ENSFácil: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
         // A failed purge is retried within the hour, not with tomorrow's run.
         if (!result.purged) later(() => maturity.purgeOld(client, result.date).then(() => undefined), PURGE_RETRY_MS);
+        // The annual freeze never fails the snapshot: a failure is tried again with tomorrow's run.
+        if (annualReport) {
+          try {
+            const frozen = await annualReport.freezeIfDue(client, run, result.maturity, ENS_SNAPSHOT_JOB_USER);
+            if (frozen.result === 'late') logger.debug(`ENSFácil: annual report ${frozen.period} closed more than a month ago: frozen only on request`);
+          } catch (error: any) {
+            logger.warn(`ENSFácil: could not freeze the annual report (${error?.message || error}); tried again with tomorrow's run`);
+          }
+        }
       } catch (error: any) {
         const now = clock();
         const day = dayIn(now, zone);
