@@ -112,7 +112,8 @@ console.log('2. Each gate failing, with its reason');
 const failing: [string, (i: ENSMaturityInput) => void, RegExp][] = [
   ['L1.facts', i => (i.activity = { days: [] }), /Ningún hecho/],
   ['L1.facts', i => (i.activity = undefined), /No se pudo leer/],
-  ['L2.recurrence', i => (i.activity = { days: allDays.filter(d => d !== allDays[allDays.length - 2]) }), new RegExp(`Sin hechos el ${allDays[allDays.length - 2]}`)],
+  ['L2.recurrence', i => (i.activity = { days: allDays.filter(d => d !== allDays[allDays.length - 2]) }), new RegExp(`Últimos 7 días: 1 de 7 días sin hechos \\(${allDays[allDays.length - 2]}\\)`)],
+  ['L2.recurrence', i => (i.activity = { days: allDays, machines: [{ agentId: '024', agentName: 'wazuh-real', days: allDays }, { agentId: '028', agentName: 'ldap', days: allDays.slice(0, -3) }] }), /ldap: 3 de 7 días sin hechos/],
   ['L3.parameters', i => (i.result = result({ missingParameters: ['P-03'] }) as any), /Faltan P-03/],
   ['L3.parameters', i => (i.result = result({ parameters: [{ id: 'P-02', required: true, status: 'INVALID' }] }) as any), /no válidos P-02/],
   ['L3.parameters', i => (i.configured = false), /no está en la configuración activa/],
@@ -121,6 +122,7 @@ const failing: [string, (i: ENSMaturityInput) => void, RegExp][] = [
   ['L3.procedure', i => (i.record.attestations = [attestation({ disseminatedTo: '' })]), /falta destinatarios de la difusión/],
   ['L3.procedure', i => (i.record.attestations = [attestation({ link: 'https://EJEMPLO.invalido/x.pdf' })]), /sin enlace utilizable/],
   ['L3.continuity', i => (i.activity = { days: allDays.slice(3) }), /3 de \d+ días sin hechos/],
+  ['L3.continuity', i => (i.activity = { days: allDays, machines: [{ agentId: '024', days: allDays }, { agentId: '028', agentName: 'ldap', days: allDays.slice(2) }] }), /ldap: 2 de \d+ días sin hechos/],
   ['L3.continuity', i => (i.result = result({ measuredRequirements: 3, unmeasuredRequirements: ['op.acc.1.4'] }) as any), /3 de 4 requisitos evidenciados; sin evidencia: op\.acc\.1\.4/],
   ['L4.threshold', i => (i.record.indicators = []), /Sin umbral/],
   ['L4.reviews', i => (i.record.reviews = []), /Sin revisiones/],
@@ -143,10 +145,19 @@ check('sustained at 100 % is an improving trend', describeTrend(snapshotsImprovi
 
 console.log('3. Red and grey limit, never force L0');
 check('red by measure (NO_CUMPLE, MEDIDA) at L3: still L5', level(without(i => (i.result = result({ status: 'NO_CUMPLE', score: 50, nonConformities: [{ origin: 'MEDIDA' }] }) as any))) === 5);
-const collection = without(i => (i.result = result({ status: 'NO_CUMPLE', nonConformities: [{ origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', agents: [{ agentId: '024', agentName: 'wazuh-real' }] }] }) as any));
-check('not collected on a machine: L1, not L0', level(collection) === 1);
-check('...and the reason names the machine', /sin datos del recolector en wazuh-real/i.test(gateOf(collection, 'L2.recurrence').reason), gateOf(collection, 'L2.recurrence'));
+const machines = (stopped: string[]) => [{ agentId: '024', agentName: 'wazuh-real', days: stopped }, { agentId: '028', agentName: 'ldap', days: [...allDays, '2026-10-20'] }];
+const collection = without(i => {
+  i.result = result({ status: 'NO_CUMPLE', score: 50, nonConformities: [{ origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', agents: [{ agentId: '024', agentName: 'wazuh-real' }] }] }) as any;
+  i.activity = { days: [...allDays, '2026-10-20'], machines: machines(allDays.slice(0, -4)) };
+});
+check('a machine that stopped reporting: L1, not L0 (the other one does not hide it)', level(collection) === 1);
+check('...and the reason names the machine', /wazuh-real: 4 de 7 días sin hechos/.test(gateOf(collection, 'L2.recurrence').reason), gateOf(collection, 'L2.recurrence'));
+const evidenceMissing = without(i => {
+  i.result = result({ status: 'NO_CUMPLE', score: 75, measuredRequirements: 3, unmeasuredRequirements: ['op.acc.1.2'], nonConformities: [{ origin: 'NO_EVIDENCIADA', cause: 'COLLECTION', agents: [{ agentId: '024' }] }] }) as any;
+});
+check('an evidence that never arrives while the collector reports daily: L2 (it fails continuity, not recurrence)', level(evidenceMissing) === 2 && /3 de 4 requisitos/.test(gateOf(evidenceMissing, 'L3.continuity').reason));
 check('grey (NO_EVALUABLE): L1 with facts', level(without(i => (i.result = result({ status: 'NO_EVALUABLE' }) as any))) === 1);
+check('...the reason says it could not be measured', /no se ha podido medir \(gris\)/.test(gateOf(without(i => (i.result = result({ status: 'NO_EVALUABLE' }) as any)), 'L2.recurrence').reason));
 check('grey without facts: L0', level(without(i => { i.result = result({ status: 'NO_EVALUABLE' }) as any; i.activity = { days: [] }; })) === 0);
 
 console.log('4. The control maturity');

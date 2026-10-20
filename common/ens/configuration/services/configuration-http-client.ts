@@ -9,7 +9,7 @@ const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
 // HTTP client of the dashboard core. Lives in `common/` (shared with the server), which cannot import from
 // `public/`: the browser registers it at startup (`public/services.ts`).
 export interface ENSConfigurationHttp {
-  get<T>(path: string, options?: { signal?: AbortSignal }): Promise<T>;
+  get<T>(path: string, options?: { signal?: AbortSignal; query?: Record<string, string> }): Promise<T>;
   put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
 }
 
@@ -18,6 +18,8 @@ let httpProvider: (() => ENSConfigurationHttp) | undefined;
 export const setENSConfigurationHttp = (provider: () => ENSConfigurationHttp): void => {
   httpProvider = provider;
 };
+
+export const getENSConfigurationHttp = (): ENSConfigurationHttp => getHttp();
 
 const getHttp = (): ENSConfigurationHttp => {
   if (!httpProvider) {
@@ -96,7 +98,7 @@ const getResponseData = (
 
 // The server explains in `body.message` why it rejects a request; the core HTTP client only reports the status
 // text.
-const withServerReason = (error: any): Error => {
+export const withServerReason = (error: any): Error => {
   const reason = error?.body?.message;
 
   return typeof reason === 'string' && reason.trim()

@@ -16,10 +16,14 @@ export const ENSFACIL_API_BASE = '/api/ensfacil';
 export const ENSFACIL_CONFIGURATION_PATH = `${ENSFACIL_API_BASE}/configuration`;
 // The plugin server does the evaluation (since 1.2.0): the browser receives the result and downloads no facts. See `server/README.md`.
 export const ENSFACIL_EVALUATION_PATH = `${ENSFACIL_API_BASE}/evaluation`;
+// Maturity records of each control (save) and its daily snapshots (read), since 1.4.0.
+export const ENSFACIL_MATURITY_PATH = `${ENSFACIL_API_BASE}/maturity`;
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
 export const ENS_CONFIGURATION_INDEX = 'wazuh-ens-configuration';
+// One document per control and day (status, score, coverage, accredited and assessed maturity).
+export const ENS_SNAPSHOTS_INDEX = 'wazuh-ens-snapshots';
 
 // Who can save the configuration and see its history: the plugin's own role or the security plugin's superuser.
 export const ENSFACIL_ADMIN_ROLES = ['ensfacil_admin', 'all_access'];

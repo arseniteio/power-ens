@@ -17,6 +17,7 @@ import {
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
 import { describeOrganizationFills, normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
+import { validateMaturityTargetsShape } from '../../common/ens/maturity/maturity-records';
 
 interface Options {
   logger: Logger;
@@ -106,6 +107,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, `configuration.organizationData no es válida: ${organizationErrors.slice(0, 5).join(' ')}`);
     }
 
+    const targetErrors = validateMaturityTargetsShape(bodyText.configuration.global?.maturityTargets);
+    if (targetErrors.length) {
+      return failure(response, 400, `configuration.global no es válida: ${targetErrors.slice(0, 5).join(' ')}`);
+    }
+
     const access = await administrator(context, response, 'save the configuration');
     if (access.error) return access.error;
     const username = access.usuario!.username;
@@ -152,8 +158,13 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { organizationData: previous2.organizationData }
           : {};
 
+      // The maturity records are append-only and only the maturity route writes them: a save always keeps the
+      // stored ones, whatever the body carries (or lacks).
+      const { maturity: _sentMaturity, ...sentConfiguration } = bodyText.configuration;
+      const keptMaturity = previous2.maturity && typeof previous2.maturity === 'object' ? { maturity: previous2.maturity } : {};
+
       // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
-      const organization = normalizeOrganizationData({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData });
+      const organization = normalizeOrganizationData({ ...sentConfiguration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData, ...keptMaturity });
       const fills = describeOrganizationFills(organization.filled).filter(line => !requestedReason.includes(line));
       const reason = fills.length ? `${requestedReason} ${fills.join(' ')}` : requestedReason;
       const configurationValue = {

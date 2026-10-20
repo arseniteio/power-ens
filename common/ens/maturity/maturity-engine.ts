@@ -2,7 +2,8 @@
 // (CMM levels are cumulative). Each gate says why it passes or fails. The traffic light is not an input: a red or a
 // grey never forces L0; only what was not collected limits what the evidence can accredit (L2 and above).
 // Pure: the server gives it the result, the days with facts, the snapshots and the records; the screens and the
-// tests call it the same way.
+// tests call it the same way. Recurrence and continuity are asked of every machine that measures the control: one
+// that stopped reporting (agent down, collector without heartbeat) holds the control below L2.
 import type { ENSControlDefinition } from '../catalog/types';
 import type { ENSGlobalConfiguration, ENSLevel } from '../configuration/types';
 import type { ENSComplianceResult } from '../core/evaluation/types';
@@ -34,8 +35,11 @@ export const ENS_MATURITY_TREND_MIN_POINTS = 10;
 const DAY_MS = 86400e3;
 
 export interface ENSMaturityActivity {
-  // Days (YYYY-MM-DD in `timeZone`) with at least one fact of the control in the window.
+  // Days (YYYY-MM-DD in `timeZone`) with at least one fact of the control in the window, on any machine.
   days: string[];
+  // The machines that measure the control and their days: recurrence and continuity are required of each one
+  // (a machine that stopped reporting is not hidden by the others). Absent: only `days` is read.
+  machines?: { agentId: string; agentName?: string; days: string[] }[];
 }
 
 export type ENSMaturityResultInput = Pick<
@@ -72,7 +76,8 @@ export interface ENSMaturityInput {
 
 // --- days -----------------------------------------------------------------------------------------------------
 
-const validZone = (timeZone?: string): string => {
+// The zone that decides what a day is: the configuration's, or UTC if it is not an IANA zone.
+export const maturityTimeZone = (timeZone?: string): string => {
   try {
     if (timeZone) {
       new Intl.DateTimeFormat('en-CA', { timeZone });
@@ -86,9 +91,9 @@ const validZone = (timeZone?: string): string => {
 
 // The calendar day of an instant in a zone, YYYY-MM-DD.
 export const dayIn = (date: Date, timeZone?: string): string =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: validZone(timeZone), year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  new Intl.DateTimeFormat('en-CA', { timeZone: maturityTimeZone(timeZone), year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 
-const addDays = (day: string, days: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+export const addDays = (day: string, days: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
 const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
@@ -114,21 +119,26 @@ const gate = (
   reason: string
 ): ENSMaturityGate => ({ id, level, origin, label, passed, reason });
 
-// What was not collected cannot accredit continuity: an agent down or a collector without heartbeat.
-const collectionGap = (result?: ENSMaturityResultInput): string | undefined => {
-  if (!result) return undefined;
-  const machines = Array.from(
-    new Set(
-      (result.nonConformities || [])
-        .filter(nonConformity => nonConformity.origin === 'NO_EVIDENCIADA' && nonConformity.cause === 'COLLECTION')
-        .flatMap(nonConformity => (nonConformity.agents || []).map(agent => agent.agentName || agent.agentId))
-    )
-  );
-  if (machines.length) return `sin datos del recolector en ${machines.join(', ')}`;
-  if ((result.nonConformities || []).some(nonConformity => nonConformity.cause === 'COLLECTION')) return 'sin datos del recolector';
-  if (result.status === 'NO_EVALUABLE') return 'el control no se ha podido medir';
-  return undefined;
+// A grey control (nothing could be measured) cannot accredit recurrence or continuity from the evidence.
+const greyReason = (result?: ENSMaturityResultInput): string | undefined =>
+  result?.status === 'NO_EVALUABLE' ? 'el control no se ha podido medir (gris)' : undefined;
+
+// Each machine (or the whole set when none is given) with the days it lacks among `expected`.
+const missingByMachine = (activity: ENSMaturityActivity, expected: string[]): { name: string; missing: string[] }[] => {
+  const machines = activity.machines?.length ? activity.machines : [{ agentId: '', agentName: '', days: activity.days }];
+  return machines
+    .map(machine => {
+      const days = new Set(machine.days);
+      return { name: machine.agentName || machine.agentId, missing: expected.filter(day => !days.has(day)) };
+    })
+    .filter(machine => machine.missing.length);
 };
+
+const describeMissing = (gaps: { name: string; missing: string[] }[], total: number): string =>
+  gaps
+    .slice(0, 3)
+    .map(gap => `${gap.name ? `${gap.name}: ` : ''}${gap.missing.length} de ${total} días sin hechos (${listDays(gap.missing)})`)
+    .join('; ') + (gaps.length > 3 ? `; y ${gaps.length - 3} máquinas más` : '');
 
 export const describeTrend = (
   snapshots: Pick<ENSControlSnapshot, 'date' | 'score'>[],
@@ -235,10 +245,10 @@ const procedureGate = (record: ENSControlMaturityRecord, now: Date, timeZone: st
 
 export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[] => {
   const { result, activity, record, now } = input;
-  const timeZone = validZone(input.timeZone);
+  const timeZone = maturityTimeZone(input.timeZone);
   const days = new Set(activity?.days || []);
   const whole = wholeWindowDays(input.window, now, timeZone);
-  const gap = collectionGap(result);
+  const gap = greyReason(result);
   const gates: ENSMaturityGate[] = [];
 
   // L1: something of the control in the period.
@@ -252,18 +262,25 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
 
   // L2: recurrent facts over the last days (daily period).
   const recentDays = whole.slice(-ENS_MATURITY_RECURRENT_DAYS);
-  const recentMissing = recentDays.filter(day => !days.has(day));
+  const recentMissing = activity ? missingByMachine(activity, recentDays) : [];
   const recurrenceLabel = 'Hechos recurrentes sin huecos';
   gates.push(
     !activity
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'No se pudo leer la actividad del control.')
       : gap
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `${capitalize(gap)}: lo que no se recoge no acredita L2 ni superior.`)
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `${capitalize(gap)}: lo que no se mide no acredita L2 ni superior.`)
       : recentDays.length < 2
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'La ventana de evaluación no tiene días completos suficientes (hacen falta 2 o más).')
       : recentMissing.length
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `Sin hechos el ${listDays(recentMissing)} (últimos ${recentDays.length} días).`)
-      : gate('L2.recurrence', 2, 'A', recurrenceLabel, true, `Hechos todos los días de los últimos ${recentDays.length} días (periodicidad diaria).`)
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `Últimos ${recentDays.length} días: ${describeMissing(recentMissing, recentDays.length)}.`)
+      : gate(
+          'L2.recurrence',
+          2,
+          'A',
+          recurrenceLabel,
+          true,
+          `Hechos todos los días de los últimos ${recentDays.length} días${activity.machines && activity.machines.length > 1 ? ` en las ${activity.machines.length} máquinas` : ''} (periodicidad diaria).`
+        )
   );
 
   // L3: parameters, procedure and continuity.
@@ -290,7 +307,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
   }
   gates.push(procedureGate(record, now, timeZone));
   const continuityLabel = 'Evidencias continuas y sin lagunas';
-  const gapDays = whole.filter(day => !days.has(day));
+  const gapDays = activity ? missingByMachine(activity, whole) : [];
   const unmeasured = result?.unmeasuredRequirements || [];
   gates.push(
     !activity
@@ -300,7 +317,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
       : !whole.length
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'La ventana de evaluación no tiene días completos.')
       : gapDays.length
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${gapDays.length} de ${whole.length} días sin hechos: ${listDays(gapDays)}.`)
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${describeMissing(gapDays, whole.length)}.`)
       : !result || !result.applicableRequirements
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'Sin requisitos aplicables medidos.')
       : result.measuredRequirements < result.applicableRequirements
@@ -312,7 +329,14 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
           false,
           `${result.measuredRequirements} de ${result.applicableRequirements} requisitos evidenciados${unmeasured.length ? `; sin evidencia: ${listDays(unmeasured)}` : ''}.`
         )
-      : gate('L3.continuity', 3, 'A', continuityLabel, true, `Hechos los ${whole.length} días de la ventana y los ${result.applicableRequirements} requisitos aplicables evidenciados.`)
+      : gate(
+          'L3.continuity',
+          3,
+          'A',
+          continuityLabel,
+          true,
+          `Hechos los ${whole.length} días de la ventana${activity.machines && activity.machines.length > 1 ? ` en las ${activity.machines.length} máquinas` : ''} y los ${result.applicableRequirements} requisitos aplicables evidenciados.`
+        )
   );
 
   // L4: indicator threshold and periodic reviews.

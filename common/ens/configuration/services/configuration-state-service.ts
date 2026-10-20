@@ -35,6 +35,8 @@ import {
   normalizeOrganizationData,
   summarizeOrganizationMigration,
 } from '../organization/organization-data-migration';
+import { saveMaturityEntry } from '../../maturity/maturity-http-client';
+import type { ENSControlMaturityRecord, ENSMaturityRecordKind } from '../../maturity/types';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
@@ -311,6 +313,11 @@ const updateGlobalConfiguration = async (
     }
   });
 
+  // Same for the maturity targets: removed in the form, removed in the document.
+  if (!globalConfiguration.maturityTargets) {
+    delete candidateConfiguration.global.maturityTargets;
+  }
+
   const incoherentLevels = describeDimensionsAboveENSLevel(candidateConfiguration.global);
 
   if (incoherentLevels) {
@@ -376,4 +383,29 @@ export const saveFromLatestConfiguration = (
     const plan = build(getActiveENSConfiguration());
     if (!plan) return undefined;
     return saveActiveENSConfiguration(plan.configuration, plan.reason);
+  });
+
+// Records one maturity entry of a control (its own route, append-only). In the queue like every save, over the
+// version this browser holds; the active configuration takes the stored maturity and save metadata only, so a
+// conversion held in memory (not saved yet) is kept.
+export const recordMaturityEntry = (
+  controlId: string,
+  kind: ENSMaturityRecordKind,
+  entry: Record<string, unknown>
+): Promise<ENSControlMaturityRecord> =>
+  inSaveQueue(async () => {
+    lastSaveWarning = undefined;
+    const saved = await saveMaturityEntry({ controlId, kind, entry, expectedVersion: loadedVersion });
+    loadedVersion = versionFrom(saved.metadata);
+    lastSaveWarning = saved.warning;
+    const active = ensConfigurationRepository.getActive();
+    ensConfigurationRepository.replaceActive({
+      ...active,
+      maturity: saved.configuration.maturity,
+      auditTrail: saved.configuration.auditTrail || active.auditTrail,
+      updatedAt: saved.configuration.updatedAt || active.updatedAt,
+      updatedBy: saved.configuration.updatedBy || active.updatedBy,
+      changeReason: saved.configuration.changeReason || active.changeReason,
+    });
+    return saved.record;
   });

@@ -165,8 +165,14 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
 export interface ENSEvaluationContext {
   now: Date;
   userKey: string;
+  // Whoever asks, and whether they administer ENSFácil (only an administrator's evaluation writes the maturity
+  // snapshots).
+  username: string;
+  administrator: boolean;
   configuration: ENSConfigurationVersion;
   configurationKey: string;
+  // What people recorded about maturity and the targets: it changes what the view shows, never a row's result.
+  maturityKey: string;
   configurationUpdatedAt?: string;
   scope: ENSAgentScope[];
   scopeKey: string;
@@ -394,7 +400,7 @@ export const createEvaluationService = ({
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
   const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
-  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
+  const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string; maturityKey: string }>(4, 24 * 3600 * 1000, clockValue);
   // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What
   // someone waits for goes ahead of background work (refreshes and series).
   const reads = new Semaphore(maxConcurrentReads);
@@ -413,6 +419,15 @@ export const createEvaluationService = ({
 
   // --- 1. context ---
 
+  // What the engine reads of the document: maturity records, targets and save metadata are left out, so recording
+  // a review does not recompute every row.
+  const evaluativePart = (configuration: any) => {
+    if (!configuration || typeof configuration !== 'object') return configuration;
+    const { maturity, auditTrail, updatedAt, updatedBy, changeReason, ...rest } = configuration;
+    const { maturityTargets, ...global } = rest.global || {};
+    return { ...rest, global };
+  };
+
   const loadConfiguration = async (clients: ENSEvaluationClients) => {
     const stamp = (await readConfigurationStamp(clients.asInternalUser)) || 'default';
     const cached = configurations.get('active', stamp);
@@ -426,7 +441,8 @@ export const createEvaluationService = ({
     const entry = {
       configuration,
       updatedAt: stored?.updatedAt || (configuration as any).updatedAt,
-      key: sha(stamp, stored?.configuration || 'default'),
+      key: sha(evaluativePart(stored?.configuration) || 'default'),
+      maturityKey: sha((stored?.configuration as any)?.maturity || null, (stored?.configuration as any)?.global?.maturityTargets || null),
     };
     configurations.set('active', stamp, entry);
     return entry;
@@ -437,7 +453,7 @@ export const createEvaluationService = ({
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
     // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
-    const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients);
+    const { configuration, updatedAt, key: configurationKey, maturityKey } = await loadConfiguration(clients);
 
     let inventory = inventories.get(userKey, 'inventory');
     if (!inventory) {
@@ -470,8 +486,11 @@ export const createEvaluationService = ({
     return {
       now,
       userKey,
+      username: user.username,
+      administrator: user.administrator,
       configuration,
       configurationKey,
+      maturityKey,
       configurationUpdatedAt: updatedAt,
       scope,
       scopeKey,
@@ -538,6 +557,7 @@ export const createEvaluationService = ({
     const { forControl } = identitiesOf(ctx);
     return sha(
       ctx.configurationKey,
+      ctx.maturityKey,
       ctx.scopeKey,
       query.agentId || '*',
       controlsOf(query).map(controlId => {

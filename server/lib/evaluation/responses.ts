@@ -5,6 +5,8 @@ import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/ty
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { catalogControlIds } from './queries';
 import type { ENSEvaluationService } from './evaluation-service';
+import { summarizeControlMaturity, summarizeMaturityDistribution } from '../../../common/ens/maturity/maturity-engine';
+import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 // What the overview views add (Task 2), kept apart so it can be re-hooked without touching the rest.
 import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } from './overview-fields';
 
@@ -46,14 +48,30 @@ const stateHeader = (run: RunOutput) => {
   };
 };
 
-export const buildEvaluationResponse = (run: RunOutput) => {
+// The maturity of the controls of a list view: each one's levels and, with every control computed, the
+// organisation's distribution.
+const maturityOfList = (maturity: Map<string, ENSControlMaturity>, pending: boolean) => {
+  const controls = Array.from(maturity.values()).map(summarizeControlMaturity);
+  return { controls, ...(pending ? {} : { distribution: summarizeMaturityDistribution(controls) }) };
+};
+
+export const buildEvaluationResponse = (run: RunOutput, maturity?: Map<string, ENSControlMaturity>, maturityError?: string) => {
   const { meta, query, state, views } = run;
   const timeline = visibleTimeline(run.timeline, query);
+  const withMaturity = (list: boolean) => ({
+    ...(maturity
+      ? list
+        ? { maturity: maturityOfList(maturity, Boolean(meta.pending?.controls?.length)) }
+        : { maturity: query.controlId ? maturity.get(query.controlId) : undefined }
+      : {}),
+    ...(maturityError ? { maturityError } : {}),
+  });
 
   if (query.include === 'control' && query.controlId) {
     const entry = views.get(query.controlId);
     return {
       meta,
+      ...withMaturity(false),
       // The first traceability entries (the most recent); the rest are paged in `/evaluation/traceability`.
       result: entry?.result
         ? { ...entry.result, traceability: entry.traceability().slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
@@ -87,6 +105,7 @@ export const buildEvaluationResponse = (run: RunOutput) => {
   if (query.include === 'summary' || query.include === 'overview') {
     const summary = {
       meta,
+      ...withMaturity(true),
       ...stateHeader(run),
       controls: withPending(
         state.results.map(result => controlSummaryOf(result.control.id, result)),
@@ -106,6 +125,7 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     const model = buildENSDashboardModel(state, [], (timeline || []).map(point => ({ ...point, date: new Date(point.date) })));
     return {
       meta,
+      ...withMaturity(true),
       ...stateHeader(run),
       dashboard: { ...model, impactEvents: run.impact },
       agents: agentRows(run),
