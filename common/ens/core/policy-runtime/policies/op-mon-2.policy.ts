@@ -1359,7 +1359,7 @@ const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: nu
 
 
 // The art. 32 data carry the incidents opened since the previous report period started, at most this many.
-export const ART32_MAX_INCIDENTS = 1000;
+export const ART32_MAX_INCIDENTS = 500;
 
 // Art. 32 report: the incidents of the current and the previous report period as JSON (bounded), or why not.
 const art32Incidents = (context: ENSPolicyContext, now: number): string => {

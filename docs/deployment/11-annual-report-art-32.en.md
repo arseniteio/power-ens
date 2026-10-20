@@ -237,7 +237,7 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 
 The alert data cover the 30 days of op.exp.7's reconciliation up to the generation, not the whole period; the trace says so. If that window does not touch the period (a closed period read or frozen later), the three `incidents.alerts_*` data are null with «no disponible para este periodo» and the reason; if it touches it in part, the trace says so.
 
-op.mon.2 publishes the incidents opened since the start of the previous period (at most the 1000 most recent). The open period and the last closed one are computed whole; an older one is complete only in its freeze, and without it the incident data are null with the reason.
+op.mon.2 publishes the incidents opened since the start of the previous period (at most the 500 most recent; with more, the trace says so). The open period and the last closed one are computed whole; an older one is complete only in its freeze, and without it the incident data are null with the reason.
 
 ### 9.7 Resources
 

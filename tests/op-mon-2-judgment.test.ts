@@ -904,6 +904,13 @@ section('9. The report: implementation and greys with the result of all controls
       art32
     );
     check('...compact: no repeated first date, booleans only when true', art32.incidentes.every((i: any) => !('primera' in i)) && art32.incidentes[0].ccn === true && !('aepd' in art32.incidentes[0]) && art32.incidentes[1].aepd === true, art32.incidentes);
+    // 150 incidents with their three phases: the variable stays small (the reviewer measured 36.9 KB before).
+    const many = Array.from({ length: 150 }, (_, i) =>
+      ['inicial', 'intermedio', 'final'].map((name, k) => phase(COMPLETE, 2 + i * 3 + k, `INC-2026-${String(i).padStart(3, '0')}`, name, `2026-0${1 + (i % 9)}-1${k}T08:00:00Z`))
+    ).flat();
+    const size = String((evaluate(withIncidents(many)).motor() as ENSComplianceResult).policyRuntime!.runtimeVariables.find(v => v.name === 'informe_art32_incidentes')!.value).length;
+    console.log(`  (informe_art32_incidentes with 150 incidents: ${size} bytes)`);
+    check('150 incidents take less than 200 bytes each (at most 500 are published)', size < 150 * 200, size);
   }
 
   const withoutOverview = buildOpMon2ReportModel(result);

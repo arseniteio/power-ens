@@ -237,7 +237,7 @@ Cada dato es un objeto `{ id, key, value, unit, source, trace }`. `value` es tex
 
 Los datos de alertas cubren los 30 días de la conciliación de op.exp.7 hasta la generación, no el periodo entero; la traza lo indica. Si esa ventana no toca el periodo (un periodo cerrado leído o congelado más tarde), los tres datos `incidents.alerts_*` son nulos con «no disponible para este periodo» y el motivo; si lo toca en parte, la traza lo dice.
 
-op.mon.2 publica los incidentes abiertos desde el inicio del periodo anterior (como mucho los 1000 más recientes). El periodo en curso y el último cerrado se calculan completos; uno anterior solo está completo en su congelado, y sin él los datos de incidentes salen nulos con el motivo.
+op.mon.2 publica los incidentes abiertos desde el inicio del periodo anterior (como mucho los 500 más recientes; con más, la traza lo dice). El periodo en curso y el último cerrado se calculan completos; uno anterior solo está completo en su congelado, y sin él los datos de incidentes salen nulos con el motivo.
 
 ### 9.7 Recursos
 
