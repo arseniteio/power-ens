@@ -241,7 +241,33 @@ type Classification = {
   notificables: Set<string>;
 };
 
-const classification = (context: ENSPolicyContext): Classification | undefined => {
+// One parse per evaluation: EV-02, EV-03 and the art. 32 data read the same alerts, incidents and parameters.
+const memoByContext = <T>(compute: (context: ENSPolicyContext) => T) => {
+  const cache = new WeakMap<ENSPolicyContext, { value: T }>();
+  return (context: ENSPolicyContext): T => {
+    let entry = cache.get(context);
+    if (!entry) {
+      entry = { value: compute(context) };
+      cache.set(context, entry);
+    }
+    return entry.value;
+  };
+};
+
+const memoByInstant = <T>(compute: (context: ENSPolicyContext, now: number) => T) => {
+  const cache = new WeakMap<ENSPolicyContext, Map<number, T>>();
+  return (context: ENSPolicyContext, now: number): T => {
+    let byInstant = cache.get(context);
+    if (!byInstant) {
+      byInstant = new Map();
+      cache.set(context, byInstant);
+    }
+    if (!byInstant.has(now)) byInstant.set(now, compute(context, now));
+    return byInstant.get(now) as T;
+  };
+};
+
+const classification = memoByContext((context: ENSPolicyContext): Classification | undefined => {
   const table = tableParameterRows(context, 'P-01');
 
   if (!table) {
@@ -281,7 +307,7 @@ const classification = (context: ENSPolicyContext): Classification | undefined =
     relevanteDesde: relevantes.length ? Math.min(...relevantes) : undefined,
     notificables: notifiable,
   };
-};
+});
 
 // The highest severity whose minimum level the alert reaches.
 const levelSeverity = (level: number, c: Classification): string | undefined => {
@@ -295,7 +321,7 @@ const levelSeverity = (level: number, c: Classification): string | undefined => 
 // P-02: severity -> recipients and deadline in hours. Empty deadline: no deadline.
 type Escalated = { destinatario: string; plazo?: number };
 
-const escalatedByKey = (context: ENSPolicyContext): Map<string, Escalated> | undefined => {
+const escalatedByKey = memoByContext((context: ENSPolicyContext): Map<string, Escalated> | undefined => {
   const table = tableParameterRows(context, 'P-02');
 
   if (!table) {
@@ -316,7 +342,7 @@ const escalatedByKey = (context: ENSPolicyContext): Map<string, Escalated> | und
   });
 
   return map.size ? map : undefined;
-};
+});
 
 
 type Heartbeat = { evento: ENSNormalizedEvent; t: number };
@@ -460,7 +486,7 @@ type Incident = {
   mejoras: string[];
 };
 
-const incidents = (context: ENSPolicyContext, now: number): Incident[] => {
+const incidents = memoByInstant((context: ENSPolicyContext, now: number): Incident[] => {
   // One row per (incident, phase, date): if the record was re-emitted several times in the window,
   // the last copy counts.
   const seenRows = new Map<string, ENSNormalizedEvent>();
@@ -574,7 +600,7 @@ const incidents = (context: ENSPolicyContext, now: number): Incident[] => {
         (i.cierre === undefined || i.cierre >= now - WINDOW_DAYS * DAY_MS)
     )
     .sort((a, b) => a.apertura - b.apertura);
-};
+});
 
 
 type Alert = {
@@ -587,7 +613,7 @@ type Alert = {
   descripcion: string;
 };
 
-const alerts = (context: ENSPolicyContext, now: number): Alert[] =>
+const alerts = memoByInstant((context: ENSPolicyContext, now: number): Alert[] =>
   facts(context, 'security_alert_observed')
     .map(e => ({
       sistema: factField(e, 'sistema'),
@@ -605,7 +631,7 @@ const alerts = (context: ENSPolicyContext, now: number): Alert[] =>
         a.ultima !== undefined &&
         a.ultima <= now + FUTURE_TOLERANCE_MS &&
         a.ultima >= now - WINDOW_DAYS * DAY_MS
-    );
+    ));
 
 // Does any incident of that system cover instant `t`? An incident covers what happens while open
 // and what happened up to `plazo` hours before opening: registering within the escalation deadline
@@ -695,6 +721,89 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
   );
 };
 
+// Relevant alerts of the window against the recorded incidents (EV-02 and the art. 32 report count the same).
+const reconcileAlerts = (
+  context: ENSPolicyContext,
+  now: number,
+  c: NonNullable<ReturnType<typeof classification>>,
+  p02: NonNullable<ReturnType<typeof escalatedByKey>>
+) => {
+  const excluded = new Map<string, string>();
+
+  (tableParameterRows(context, 'P-12') || []).forEach(f => {
+    if (f.regla) {
+      excluded.set(f.regla.trim(), f.motivo || '');
+    }
+  });
+
+  const recorded = incidents(context, now);
+  const orphan: { texto: string; peso: number }[] = [];
+  const withoutDeadline = new Set<string>();
+  const excludedCounted = new Map<string, number>();
+  let relevantes = 0;
+  let pending = 0;
+  let inIncident = 0;
+  let orphanAlerts = 0;
+  let withoutDeadlineAlerts = 0;
+  const coverers = new Set<string>();
+
+  alerts(context, now).forEach(a => {
+    const severity = levelSeverity(a.nivel, c);
+
+    if (!severity || !RELEVANTES.includes(severity)) {
+      return;
+    }
+
+    if (excluded.has(a.regla)) {
+      excludedCounted.set(a.regla, (excludedCounted.get(a.regla) || 0) + a.alertas);
+
+      return;
+    }
+
+    relevantes += a.alertas;
+
+    const deadline = p02.get(severity)?.plazo;
+
+    if (deadline === undefined) {
+      withoutDeadline.add(NAME[severity]);
+      withoutDeadlineAlerts += a.alertas;
+
+      return;
+    }
+
+    const deadlineMs = deadline * HOUR_MS;
+    const atStart = covered(a.sistema, a.primera, deadlineMs, recorded);
+    const atFinal = covered(a.sistema, a.ultima, deadlineMs, recorded);
+
+    if (atStart && atFinal) {
+      coverers.add(atStart.id);
+      coverers.add(atFinal.id);
+      inIncident += a.alertas;
+
+      return;
+    }
+
+    if (now - a.primera <= deadlineMs) {
+      pending += a.alertas;
+
+      return;
+    }
+
+    orphanAlerts += a.alertas;
+    orphan.push({
+      peso: range(severity) * 1e6 + a.alertas,
+      texto: `${a.sistema}: ${a.alertas} alerta(s) ${NAME[severity]} de la regla ${a.regla} (nivel ${a.nivel}, «${a.descripcion}») entre ${iso(a.primera)} y ${iso(a.ultima)}, sin incidente registrado en ${deadline} h`,
+    });
+  });
+
+  return { excluded, orphan, withoutDeadline, excludedCounted, coverers, relevantes, pending, inIncident, orphanAlerts, withoutDeadlineAlerts };
+};
+
+// The reconciliation once per evaluation (callers check P-01 and P-02 first).
+const reconciled = memoByInstant((context: ENSPolicyContext, now: number) =>
+  reconcileAlerts(context, now, classification(context)!, escalatedByKey(context)!)
+);
+
 const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
   const heartbeat = sources(context, now, 'EV-02', { alertas: true, registro: true });
 
@@ -720,67 +829,7 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  const excluded = new Map<string, string>();
-
-  (tableParameterRows(context, 'P-12') || []).forEach(f => {
-    if (f.regla) {
-      excluded.set(f.regla.trim(), f.motivo || '');
-    }
-  });
-
-  const recorded = incidents(context, now);
-  const orphan: { texto: string; peso: number }[] = [];
-  const withoutDeadline = new Set<string>();
-  const excludedCounted = new Map<string, number>();
-  let relevantes = 0;
-  let pending = 0;
-  const coverers = new Set<string>();
-
-  alerts(context, now).forEach(a => {
-    const severity = levelSeverity(a.nivel, c);
-
-    if (!severity || !RELEVANTES.includes(severity)) {
-      return;
-    }
-
-    if (excluded.has(a.regla)) {
-      excludedCounted.set(a.regla, (excludedCounted.get(a.regla) || 0) + a.alertas);
-
-      return;
-    }
-
-    relevantes += a.alertas;
-
-    const deadline = p02.get(severity)?.plazo;
-
-    if (deadline === undefined) {
-      withoutDeadline.add(NAME[severity]);
-
-      return;
-    }
-
-    const deadlineMs = deadline * HOUR_MS;
-    const atStart = covered(a.sistema, a.primera, deadlineMs, recorded);
-    const atFinal = covered(a.sistema, a.ultima, deadlineMs, recorded);
-
-    if (atStart && atFinal) {
-      coverers.add(atStart.id);
-      coverers.add(atFinal.id);
-
-      return;
-    }
-
-    if (now - a.primera <= deadlineMs) {
-      pending += a.alertas;
-
-      return;
-    }
-
-    orphan.push({
-      peso: range(severity) * 1e6 + a.alertas,
-      texto: `${a.sistema}: ${a.alertas} alerta(s) ${NAME[severity]} de la regla ${a.regla} (nivel ${a.nivel}, «${a.descripcion}») entre ${iso(a.primera)} y ${iso(a.ultima)}, sin incidente registrado en ${deadline} h`,
-    });
-  });
+  const { excluded, orphan, withoutDeadline, excludedCounted, coverers, relevantes, pending } = reconciled(context, now);
 
   const excludedNote = excludedCounted.size
     ? ` No se concilian, por decisión escrita en P-12: ${Array.from(excludedCounted.entries())
@@ -820,8 +869,16 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
   );
 };
 
-// The first relevant alert covering the incident: the detection instant.
-const detection = (
+// The first relevant alert covering the incident: the detection instant (once per incident and evaluation).
+const detections = memoByInstant(() => new Map<string, number | undefined>());
+
+const detection = (i: Incident, context: ENSPolicyContext, now: number): number | undefined => {
+  const known = detections(context, now);
+  if (!known.has(i.id)) known.set(i.id, firstReconciledAlert(i, context, now));
+  return known.get(i.id);
+};
+
+const firstReconciledAlert = (
   i: Incident,
   context: ENSPolicyContext,
   now: number
@@ -846,6 +903,55 @@ const detection = (
   });
 
   return candidate.length ? Math.min(...candidate.map(a => a.primera)) : undefined;
+};
+
+// Art. 32 report (op.mon.2): the reconciliation counts of the window as JSON, or why there are none.
+const art32Reconciliation = (context: ENSPolicyContext, now: number): string => {
+  const heartbeat = sources(context, now, 'EV-02', { alertas: true, registro: true });
+
+  if (isMeasurement(heartbeat)) {
+    return JSON.stringify({ motivo: heartbeat.motivo });
+  }
+
+  const c = classification(context);
+  const p02 = escalatedByKey(context);
+
+  if (!c || c.relevanteDesde === undefined || !p02) {
+    return JSON.stringify({ motivo: 'P-01 o P-02 de op.exp.7 sin configurar: no hay alertas relevantes que conciliar.' });
+  }
+
+  const r = reconciled(context, now);
+
+  return JSON.stringify({
+    desde: iso(now - WINDOW_DAYS * DAY_MS),
+    hasta: iso(now),
+    ventanaDias: WINDOW_DAYS,
+    relevantes: r.relevantes,
+    enIncidente: r.inIncident,
+    pendientes: r.pending,
+    sinIncidente: r.orphanAlerts,
+    sinPlazo: r.withoutDeadlineAlerts,
+    excluidas: Array.from(r.excludedCounted.values()).reduce((a, b) => a + b, 0),
+  });
+};
+
+// Art. 32 report: the first reconciled alert of each incident of the window (its detection instant), as JSON.
+const art32Detection = (context: ENSPolicyContext, now: number): string => {
+  const heartbeat = sources(context, now, 'EV-02', { alertas: true, registro: true });
+
+  if (isMeasurement(heartbeat)) {
+    return JSON.stringify({ motivo: heartbeat.motivo, incidentes: [] });
+  }
+
+  return JSON.stringify({
+    desde: iso(now - WINDOW_DAYS * DAY_MS),
+    hasta: iso(now),
+    incidentes: incidents(context, now).flatMap(i => {
+      const detected = detection(i, context, now);
+
+      return detected === undefined ? [] : [{ id: i.id, apertura: iso(i.apertura), deteccion: iso(detected) }];
+    }),
+  });
 };
 
 const ev03 = (context: ENSPolicyContext, now: number): Measurement => {
@@ -1762,6 +1868,25 @@ export const evaluateOpExp7 = (context: ENSPolicyContext): ENSPolicyEvaluatorRes
     eventIds: [],
     description: measurement.motivo,
   }));
+
+  variables.push(
+    {
+      name: 'informe_art32_conciliacion',
+      value: art32Reconciliation(context, now),
+      parameterIds: ['P-01', 'P-02', 'P-12'],
+      evidenceIds: ['EV-02'],
+      eventIds: [],
+      description: 'Conciliación de las alertas Alta y Crítica de la ventana con los incidentes registrados (JSON), para el informe del art. 32.',
+    },
+    {
+      name: 'informe_art32_deteccion',
+      value: art32Detection(context, now),
+      parameterIds: ['P-01', 'P-02'],
+      evidenceIds: ['EV-03'],
+      eventIds: [],
+      description: 'Primera alerta conciliada de cada incidente de la ventana (JSON): el instante de detección cuando el registro no trae fecha_ocurrencia.',
+    }
+  );
 
   return { decisions, runtimeVariables: variables };
 };

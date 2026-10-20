@@ -14,6 +14,7 @@ import {
   normalizeQuery,
 } from './evaluation/evaluation-service';
 import { buildEvaluationResponse, buildTraceabilityPage } from './evaluation/responses';
+import type { ENSMaturityService } from './maturity/maturity-service';
 
 const correct = (response: any, data: unknown) => response.ok({ body: { statusCode: 200, error: 0, data } });
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
@@ -44,6 +45,8 @@ export const createEvaluationHandlers = (options: {
   logger: Logger;
   securityEnabled: boolean;
   service?: ENSEvaluationService;
+  // Without it, responses carry no maturity (tests of the evaluation alone).
+  maturity?: ENSMaturityService;
 }) => {
   const { logger } = options;
   const service = options.service || createEvaluationService(options);
@@ -78,7 +81,19 @@ export const createEvaluationHandlers = (options: {
         `ENSFácil: evaluation ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} in ${s.totalMs} ms ` +
           `(${s.computed} rows computed, ${s.refreshingInBackground} refreshing, ${s.hits} facts read)`
       );
-      return buildEvaluationResponse(output);
+      // The maturity never fails the evaluation: without it the response says why.
+      let maturity: Awaited<ReturnType<ENSMaturityService['forEvaluation']>>;
+      let maturityError: string | undefined;
+      if (options.maturity) {
+        try {
+          maturity = await options.maturity.forEvaluation(clients(context), output, { retry: retryRefresh });
+        } catch (error: any) {
+          if (statusOf(error) === 499) throw error;
+          logger.warn(`ENSFácil: could not compute the maturity: ${error?.message || error}`);
+          maturityError = 'No se pudo calcular la madurez; el detalle está en el log del dashboard.';
+        }
+      }
+      return buildEvaluationResponse(output, maturity, maturityError);
     });
 
   // Probe: has anything changed since the last evaluation? A few hundred bytes; the browser requests the

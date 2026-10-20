@@ -6,9 +6,13 @@ export const opAcc4CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
+  // Annex II applies op.acc.4 by the levels of C, I, T and A, not the system category: the highest of them rules.
+  levelDimension: ['C', 'I', 'T', 'A'],
   description:
     'op.acc.4 establece los principios que rigen la asignación de derechos: denegación por defecto, mínimo privilegio, necesidad de conocer, capacidad de autorizar y política de acceso remoto.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.2.4',
+  source: { template: 'ENSFacil_Plantilla_op.acc.4', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

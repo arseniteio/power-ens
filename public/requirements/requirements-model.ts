@@ -1,4 +1,6 @@
 // Controls column and requirements column of the classic view, from the descriptions (ens-requirements.ts) and the counts.
+import { ENSCatalog, compareENSControlIdsByAnnex } from '../../common/ens/catalog';
+import { ENSProvenancedText, describeRequirementTexts, describeUncatalogedText } from '../../common/ens/catalog/support/provenance';
 
 export interface ENSRequirementRow { id: string; control: string; description: string; count: number }
 export interface ENSControlRow { id: string; count: number }
@@ -22,7 +24,7 @@ export const buildRequirementsModel = (
   // Only requirements count: a control-level count (old facts with `data.control: op.acc.1`) has no description and is not added.
   const byControl = new Map<string, number>();
   for (const r of all) byControl.set(r.control, (byControl.get(r.control) || 0) + r.count);
-  const controls = [...byControl].map(([id, count]) => ({ id, count }));
+  const controls = [...byControl].map(([id, count]) => ({ id, count })).sort((a, b) => compareENSControlIdsByAnnex(a.id, b.id));
 
   const text = search.trim().toLowerCase();
   const requirements = all
@@ -32,4 +34,14 @@ export const buildRequirementsModel = (
     .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
 
   return { controls, requirements };
+};
+
+// Texts of a requirement with their provenance: the catalog's BOE literal and its interpretation; outside the catalog the source is unknown, so the file's text after its title is criterion, never norm.
+export const requirementTextsOf = (requirementId: string, description: string): ENSProvenancedText[] => {
+  const requirement = ENSCatalog.flatMap(control => control.requirements).find(item => item.id === requirementId);
+  const separator = description.indexOf(' - ');
+
+  return requirement
+    ? describeRequirementTexts(requirement)
+    : [describeUncatalogedText(separator >= 0 ? description.slice(separator + 3) : description)];
 };

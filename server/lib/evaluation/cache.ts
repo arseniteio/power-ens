@@ -84,6 +84,11 @@ export class EvaluationCache<T> {
     }
   }
 
+  // The stored keys, oldest first (tests check which rows were kept).
+  keys(): string[] {
+    return Array.from(this.entries.keys());
+  }
+
   get size(): number {
     return this.entries.size;
   }

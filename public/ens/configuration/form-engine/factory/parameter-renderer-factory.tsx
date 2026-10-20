@@ -15,6 +15,16 @@ import {
   isPlainNumericParameter,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import { supportsParameterPattern } from '../../../../../common/ens/configuration/services/parameter-input';
+import { parameterAtLevel } from '../../../../../common/ens/configuration/services/parameter-value-validator';
+import { getActiveENSConfiguration } from '../../../../../common/ens/configuration/services/configuration-state-service';
+import { getENSCatalogControl } from '../../../../../common/ens/catalog';
+import { resolveControlLevel } from '../../../../../common/ens/core/control-level';
+
+// The level the control is evaluated at (its dimension or the ENS level), to offer only the options the ENS admits there.
+const applicableLevelOf = (controlId: string) => {
+  const global = getActiveENSConfiguration().global;
+  return resolveControlLevel(getENSCatalogControl(controlId) || {}, global.ensLevel, global);
+};
 
 // `boolean`, `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
 // their own renderer.
@@ -25,11 +35,14 @@ import { supportsParameterPattern } from '../../../../../common/ens/configuratio
 // The numeric field is only for parameters whose value is just a number: mp.info.6 P-05 is `duration_days` but
 // accepts 'ALTA=30; MEDIA=90', so it uses the text renderer.
 export const ParameterRendererFactory = ({
-  parameter,
+  parameter: declared,
   value,
   onChange,
   onMatchModeChange,
+  level,
 }: ENSFormFieldProps) => {
+  const parameter = declared.optionsByLevel ? parameterAtLevel(declared, level || applicableLevelOf(declared.controlId)) : declared;
+
   if (supportsParameterPattern(parameter) && (onMatchModeChange || parameter.matchMode === 'regex')) {
     return (
       <PatternParameterRenderer

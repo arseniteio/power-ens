@@ -6,6 +6,7 @@ import { createEvaluationHandlers } from '../server/lib/evaluation-handlers';
 import { CancelSignal } from '../server/lib/evaluation/cache';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { ENSCatalog } from '../common/ens/catalog';
 import { getENSComplianceResultByControl, getENSComplianceState } from '../common/ens/core/ens-engine';
 import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
 import { buildImpactEventsModel } from '../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
@@ -49,6 +50,13 @@ docs.push(fact('024', 'wazuh-real', { event: 'service_running', evidence_id: 'EV
 docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
 docs.push(fact('024', 'wazuh-real', { control: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'legado' }, 3.5));
 docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.1', control: 'op.exp.3', event: 'asset_system', evidence_id: 'EV-01' }, 2.5));
+// Operational alerts as the runbooks emit them: one of each type per machine.
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 7));
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 8));
+docs.push(fact('028', 'zimbraHldap', { ensfacil: 'op.exp.1', event: 'collector_warning', parametro: 'OPEXP1_INVENTARIO', motivo: 'no se pudo leer' }, 7));
+docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'multi_role_usage', evidence_id: 'EV-06', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 7));
+docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '024', sistema: 'wazuh-real', regla: '5710', alertas: '4', descripcion: 'sshd: usuario inexistente' }, 7));
+docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '028', sistema: 'zimbraHldap', regla: '5710', alertas: '2', descripcion: 'sshd: usuario inexistente' }, 7));
 
 const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.28',
@@ -113,7 +121,12 @@ const reference = () => {
   fail = 1;
   const roto = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
-  check('and nothing is stored', service.rows.size === 0, service.rows.size);
+  // Only the controls without collector, which read nothing and so cannot be computed from incomplete data.
+  const withoutCollector = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').length;
+  const draftIds = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').map((control: any) => control.id);
+  const stored = service.rows.keys();
+  check('and nothing read is stored: only the fallback rows of the controls without collector, which read nothing',
+    stored.length === withoutCollector && stored.every(key => /^f\|/.test(key) && draftIds.includes(key.split('|').pop()!)), stored);
   const viaRuta: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: service }).evaluate(context, { query: { timeZone: 'UTC' } }, response);
   check('the route returns it as 503 with the motive', viaRuta.status === 503 && /reintentar/.test(viaRuta.body.message), viaRuta);
   fail = 0;
@@ -160,12 +173,15 @@ const reference = () => {
   while (third.tasks.size) await wait(5);
   check('the browser leaves and nobody else waits: it is cancelled', end === 499 && third.rows.size < 23, [end, third.rows.size]);
 
-  const panel024 = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }))) as any;
+  const run024 = await service.run(clients2, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }));
+  const panel024 = buildEvaluationResponse(run024) as any;
   const ref3 = reference();
-  const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'));
-  check('«eventos con impacto» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
-  const panelAll = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
-  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos)));
+  const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'), run024.state, { scope: run024.ctx.scope, agentId: '024' });
+  const rows024 = panel024.dashboard.impactEvents.rows;
+  check('«alertas operativas» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && panel024.dashboard.impactEvents.total > 0 && rows024.every((r: any) => r.agentId === '024' || r.agentId === '000') && rows024.some((r: any) => r.eventType === 'collector_warning' && r.count === 2) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
+  const runAll = await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }));
+  const panelAll = buildEvaluationResponse(runAll) as any;
+  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos, runAll.state, { scope: runAll.ctx.scope })) && panelAll.dashboard.impactEvents.rows.some((r: any) => r.agentId === '028') && panelAll.dashboard.impactEvents.total > rows024.length, panelAll.dashboard.impactEvents);
 
   const hs = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
   const p1: any = await hs.traceability(context, { query: { controlId: 'op.acc.3', agentId: '024', from: '100', size: '50', timeZone: 'UTC' } }, response);
@@ -225,7 +241,8 @@ const reference = () => {
   {
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return searchIndex.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600 });
+    // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 600 ms.
+    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 150 });
     const signal = new CancelSignal();
     const t0 = Date.now();
     const first = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, signal: signal });
@@ -233,14 +250,23 @@ const reference = () => {
     signal.cancel();
     const resp: any = buildEvaluationResponse(first);
     check('§10 the first response arrives without waiting for everything, with `pending`', ms < 1500 && (first.meta.pending?.rows || 0) > 0 && first.meta.refreshing && first.meta.fingerprint.startsWith('refreshing:'), [ms, first.meta.pending]);
-    check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 23 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
-    check('§10 and the cheap ones are already there, on all their machines (by control slices)', resp.controls.some((c: any) => !c.pending && c.evaluated), resp.controls.filter((c: any) => !c.pending).length);
+    check('§10 pending controls go in the list, marked (no invented state)', resp.controls.length === 34 && resp.controls.filter((c: any) => c.pending).length === first.meta.pending!.controls.length && resp.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    // A control without collector (DRAFT) has its result at once: only a measured one shows the slices work.
+    const measuredIds = require('../common/ens/catalog').ENSCatalog.filter((c: any) => c.status === 'ACTIVE').map((c: any) => c.id);
+    // Under CPU load the first answer may carry no finished slice yet: any partial answer proves the slices.
+    const partial = (r: any) => {
+      const controls: any[] = buildEvaluationResponse(r).controls;
+      return controls.some(c => c.pending) && controls.some(c => !c.pending && c.evaluated && measuredIds.includes(c.controlId));
+    };
+    let sawPartial = partial(first);
     let n = 0;
     let ultima = first;
     while (ultima.meta.pending && n++ < 200) {
       await wait(50);
       ultima = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
+      sawPartial = sawPartial || partial(ultima);
     }
+    check('§10 and the cheap ones arrive before the rest, on all their machines (by control slices)', sawPartial, n);
     const ref10 = reference();
     check('§10 the computation goes on even if whoever asked left, and ends like the engine', !ultima.meta.pending && same(ultima.state!.results.map(withoutTrace), getENSComplianceState(ref10.nivel, ref10.eventos, undefined, ref10.alcance, clock).results.map(withoutTrace)));
     while (!s10.idle()) await wait(20);

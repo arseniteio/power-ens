@@ -24,7 +24,7 @@ Declare each control once: the organisation's common settings, the templates tha
 |---|---|
 | Controles | The 23 catalog controls with their state. In each control: «Ajustes comunes», «Plantillas» and «Asignación» |
 | Agentes | The agents in scope with their detected type and completeness. In each agent, control by control: the template it uses and its own settings |
-| General | ENS level, Traceability level (T), Availability level (D), the rest of the global configuration and the ENS scope, read-only |
+| General | ENS level, dimension levels (C, I, T, A and D), organisation data (section 7.1), the rest of the global configuration and the ENS scope, read-only |
 
 Each parameter of each control belongs to one of three classes (`common/ens/configuration/agents/parameter-classes.ts`), the same for the screen, the evaluation, the validators and `set-parameters.py`.
 
@@ -35,6 +35,8 @@ Each parameter of each control belongs to one of three classes (`common/ens/conf
 | Per platform | What depends on the operating system or product and is the same on every machine of that platform | 35 | Template or agent's own setting |
 
 Controls op.cont.2, op.exp.9, op.mon.2 and op.nub.1 only have common settings: no templates and no assignment.
+
+From 1.4.0, the parameters that ask for the same data in several controls are also **organisation data**: they are declared once in General (section 7.1) and their control shows them read-only.
 
 ## 4. Value applied to an agent
 
@@ -317,13 +319,93 @@ The distribution by agents (section 9) recognises a machine by its id, its agent
 
 1. Open ENSFácil > Configuración > General.
 
-   Expected result: the «Configuración global de evaluación» form with the ENS level, the **Traceability level (T)**, used only by op.exp.8, the **Availability level (D)**, used by op.cont.2 and op.cont.3, and the rest of the global configuration, with «Descripción del alcance (informes)», the text that describes the scope in the reports; below, «Alcance ENS», read-only, with «Agentes evaluados» and, depending on the mode, the groups or the agents.
+   Expected result: the «Configuración global de evaluación» form with the ENS level, the levels of **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** and **Disponibilidad (D)**, each with a line naming the controls that use it, and the rest of the global configuration, with «Descripción del alcance (informes)», the text that describes the scope in the reports; below, «Alcance ENS», read-only, with «Agentes evaluados» and, depending on the mode, the groups or the agents.
 
 2. Change the levels and press «Guardar configuración global».
 
-   Expected result: «Configuración guardada». If T or D is not declared, the ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO.
+   Expected result: «Configuración guardada». An undeclared dimension is the ENS level. A control with several dimensions is evaluated with the highest. op.cont.2 and op.cont.3 only apply with D at ALTO. If a dimension exceeds the ENS level, «Niveles incoherentes» appears and the button does not save: the ENS level is the system category, the highest of its dimensions.
+
+   | Dimensions | Controls |
+   |---|---|
+   | C, I, T and A | op.acc.2 to op.acc.6 |
+   | T and A | op.acc.1 |
+   | T | op.exp.8 |
+   | D | mp.info.6, op.cont.2 and op.cont.3 |
+   | none | the rest, by the category (ENS level) |
 
 The scope is changed with the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup).
+
+### 7.1 Organisation data
+
+From 1.4.0, the data several controls ask for is declared only once in Configuración > General > «Datos de la organización». Each parameter that reads an item keeps its id (`P-xx`) and its name for the engine, the scripts and the runbooks, and takes its value from the item. In per-system and per-platform parameters, an agent's own setting and the template still apply on top (section 4).
+
+| Item | Parameters that read it |
+|---|---|
+| Personal autorizado (authorised personnel) | op.exp.3 P-03 (configuracion), op.exp.4 P-02 (mantenimiento), op.exp.8 P-08 (registros), op.exp.10 P-08 (claves), mp.info.6 P-07 (copias), op.acc.4 P-02 (autorizaciones), op.nub.1 P-11 (cloud) |
+| Entorno de preproducción (pre-production environment) | op.exp.4 P-06 and op.exp.5 P-05 (systems and consistency), mp.sw.2 P-03 (systems and isolation) |
+| Mecanismo de reversión (rollback mechanism) | op.exp.4 P-07, op.exp.5 P-08 |
+| Herramientas de gestión de cambios e incidentes (change and incident tools) | op.exp.5 P-01 (cambios), op.exp.7 P-03 (incidentes) |
+| Algoritmos y parámetros autorizados por el CCN (CCN-authorised algorithms) | op.exp.10 P-03, mp.com.3 P-02 |
+| Plazos de retención (retention periods) | op.exp.8 P-07 (registros), op.exp.9 P-06 (evidencias), op.acc.1 P-06 (cuentas), op.acc.5 P-08 (accesos), mp.info.6 P-03 (copias) |
+| Zonas controladas y segmentos de red (controlled zones) | op.acc.6 P-02 |
+| Canales de acceso remoto autorizados (remote access channels) | op.acc.6 P-07 (channel, encryption, authoriser and constant use) and op.acc.4 P-04 (channel, port and origin) |
+| Productos y servicios certificados (certified products and services) | op.nub.1 P-04, mp.com.3 P-08 |
+| Registro de pruebas periódicas (periodic test register) | op.cont.3 P-04 |
+| Formación y concienciación del personal (staff training) | op.cont.2 P-05, mp.s.3 P-07 |
+| Grupos con privilegio administrativo (privileged groups) | op.acc.1 P-11, op.acc.2 P-12, op.acc.4 P-06 |
+| Declaración de aplicabilidad (Statement of Applicability) | op.mon.2 P-01 (measure, applicable, level and reinforcements) and op.acc.5 P-DA (reason, reference, link, date and owner of the op.acc.5 row when it does not apply) |
+
+«Sistemas y activos en alcance» (systems and assets in scope) has no value: the scope is set by the initial setup and each control narrows it with its scope parameter.
+
+Rules:
+
+- An item with the «Uso» column is a register: each control reads only the rows of its use, with its columns and in its order. A row accepts several uses separated by commas (`root | configuracion, copias`).
+- In «Plazos de retención», op.acc.1 P-06, op.acc.5 P-08 and mp.info.6 P-03 read one value: each accepts a single row of its use (`cuentas`, `accesos` and `copias`). With two rows of the same use, the save is refused with «<control> <parameter>: lee un solo valor: dejar una sola fila con uso «<use>» en «Plazos de retención»».
+- In «Entorno de preproducción» there is one row per pair of systems: op.exp.4 P-06 and op.exp.5 P-05 read the consistency and mp.sw.2 P-03 the isolation. Rows of the three parameters that name the same pair become one.
+- The parameters of the 1.4.0 documentary controls (mp.sw.2, mp.com.3 and mp.s.3) take the item like the rest; while their control has no collector, the value is only shown and goes to the report.
+- In «Canales de acceso remoto autorizados» there is one row per channel: op.acc.6 P-07 reads channel, encryption, authoriser and constant use, and op.acc.4 P-04 reads channel, port and origin. Rows of the two parameters that name the same channel become one.
+- A row with several uses shares «Ámbito» and «Detalle» (or «Categoría»), which mean different things in each use: the item warns with «La fila de «<account>» tiene varios usos…». If they differ, write one row per use.
+- op.exp.9 P-01 stays in its control. If it says the register is ENSFácil's and the incident row of «Herramientas de gestión de cambios e incidentes» does not name it, or the other way round, the item warns about it.
+- In «Declaración de aplicabilidad», op.acc.5 P-DA is the `op.acc.5` row when its «Aplicable» is `no`: with reason, reference and link, op.acc.5 is excluded. If the row says `sí`, P-DA has no value.
+- Each item lists under «Parámetros relacionados que siguen en su control» the parameters the auditor's map relates to it that do not read it, with the reason.
+- Deleting a control's configuration (section 5.2) does not delete the organisation data it reads.
+
+Migration from 1.3.0. When the document loads, each item is built from the values of the parameters that read it:
+
+- If every parameter with a value keeps it (those with the same value and, in registers, each control with its rows), the item moves to «Datos de la organización». The move is saved with the next change or with «Guardar ahora».
+- A parameter without value does not have a different value: it takes the item's, and its control may change verdict. The notice says so with «Se ha completado <control> <parameter> con el valor de <control> <parameter>.», and so does the history entry. With no parameter completed, the notice says «Ningún control cambia de valor.».
+- A parameter is only completed with a value it accepts, with the screen's rules. If the controls with a value agree but that value is not valid for the item or for a parameter that reads it, there is nothing to choose: the item stays without a common value, each control keeps its own and General says so under «Datos sin valor común» with «Solo <control> tiene valor y no vale para «<item>»: <reason>.». The item shows «Sin valor común» and is resolved by writing in «Editar» a value valid for all. For example, op.acc.4 P-04 with a value and op.acc.6 P-07 empty: op.acc.6 P-07 requires encryption and an authoriser, which op.acc.4 does not declare.
+- With an item already stored, an empty parameter that does not accept its value stays without value and the item says so («<control> <parameter> no admite el valor común: …»); the others take it.
+- If the values differ, the item appears in «Valores distintos entre controles», at the top of the section, with each value, the parameters that keep it and the «Elegir este valor» button. Until a value is chosen, each control keeps its own. A value some control does not accept cannot be chosen: it says «No se puede elegir tal cual: …» and is written with «Editar».
+- The migration is idempotent and the server evaluation applies it the same way when it reads the document.
+- After the migration the same rule applies: a parameter without value that reads an item with a value takes that value, for example in a control seeded later. A parameter with a different value written outside 1.4.0 opens a conflict, which also offers the stored value.
+- The server applies the same rule on every save, also those that come through the API.
+
+Outside General, Configuración shows the «Datos de la organización» notice with what is pending and the «Ver Datos de la organización» button. On an agent's page, a per-system or per-platform parameter that is organisation data says «El valor común es «<item>», de Datos de la organización.» with the link to the item; in items that several controls read with the same value, the agent's own setting is declared in each of them.
+
+1. Back up the `active` document as in [installation from scratch, section 14.2](01-installation-from-scratch.en.md#142-back-up-the-document-before-changing-it).
+
+   Expected result: `COPIA_OK`.
+
+2. Open ENSFácil > Configuración > General > «Datos de la organización».
+
+   Expected result: one block per item with its description, «Lo usan: …» and its state («Con valor», «Sin valor» or «Valores distintos»). With control values not saved yet, the «Valores de los controles pasados a Datos de la organización» notice; with conflicts, «Valores distintos entre controles» at the top.
+
+3. In each item under «Valores distintos entre controles», review the values, press «Elegir este valor» on the right one, review in the dialog what each parameter loses («<control> <parameter>: se quita «…»; queda «…».») and confirm with «Elegir este valor».
+
+   Expected result: the item becomes «Con valor» and every parameter that reads it takes that value. The previous version stays in the history with the entry «Datos de la organización: «<item>» con el valor de <control> <parameter>.».
+
+4. To change an item, press «Editar», write the value and press «Guardar».
+
+   Expected result: the value saved. If a control does not accept the value, «Hay valores que no se pueden guardar» with the control, the parameter and the reason, and nothing is saved. If another administrator saved the configuration after it was opened, «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.», the value written stays on screen and nothing is saved (section 12).
+
+5. Open a control that reads the item (Controles > control) and, in «Ajustes comunes», open its form.
+
+   Expected result: the parameter read-only with its value, «Se edita en Datos de la organización.» and the «Ir a «<item>»» link, which opens the item in General.
+
+6. Validate the whole document (section 11.2).
+
+   Expected result: `VALID STRUCTURE`, the `organisation data: …` line and, if any is left, `PENDING CHOICE «…»` (different values), `NO COMMON VALUE «…»` (a value not valid for the item, with the reason) or `NOT COMPLETED «…»` (a parameter that does not accept the stored value). No `INVALID ORGANISATION DATA`.
 
 ## 8. Conversion of a 1.2.0 configuration
 
@@ -359,6 +441,7 @@ Tables with a column naming the system (`sistema`, `activo`, `equipo`, `servidor
 - Rows that name no agent, or several, stay in the common value and are listed as warnings.
 - Two rows are the same only if they are identical: case counts (`Ana` and `ana` are two accounts).
 - Scope lists (mp.info.6 P-04, op.acc.1 P-02, op.acc.2 P-01), per-system tables without a system column (paths, ACLs, privilege matrices) and lists that mix platforms are not touched.
+- Parameters that are organisation data (section 7.1) are not distributed either: their common value is edited in General and an agent's own setting is still available.
 - Nothing is deleted: a common parameter left without rows loses the `value` key (`null` is never written). It is idempotent.
 
 The «Agentes» tab computes the distribution when it loads, without writing: if there are rows to copy, it shows «Hay filas del valor común que son de un agente concreto», the summary, the detail in «Ver qué se mueve y qué se copia» and the «Repartir por agentes» button. If the ENS scope has no agent, the button is disabled with the notice ««Repartir por agentes» no está disponible: el alcance ENS no tiene ningún agente».
@@ -455,7 +538,7 @@ sudo env $CERT python3 set-parameters.py /path/agents.json --apply    # write
 Expected result: without `--apply`, one line per change under `── agent 001` (`op.acc.1 template (the built-in of its type)  ->  linux-ubuntu` for an assignment) and `DRY-RUN: nothing written`; with `--apply`, `Previous version saved in: history of wazuh-ens-configuration (…)` and `<n> change(s) written to wazuh-ens-configuration/active`. For a control not seeded, a parameter that does not exist, a common parameter, a template the control does not have, a name instead of an id or a value with an impossible shape, the tool shows `ERROR:` and writes nothing.
 
 > [!note]
-> In Docker ([Wazuh in Docker, section 10](06-wazuh-in-docker.en.md#10-declare-the-policy-t-and-d-levels)), the `agents` section needs the complete repository mounted: `-v <repo>:/repo:ro -w /repo/config` instead of `-v <repo>/config:/cfg:ro -w /cfg`.
+> In Docker ([Wazuh in Docker, section 10](06-wazuh-in-docker.en.md#10-declare-the-policy-dimension-levels)), the `agents` section needs the complete repository mounted: `-v <repo>:/repo:ro -w /repo/config` instead of `-v <repo>/config:/cfg:ro -w /cfg`.
 
 Custom templates are created and edited on the screen (section 5.3).
 
@@ -469,11 +552,13 @@ npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interact
 npx --yes tsx config/validate-configuration.ts /opt/ensfacil/artifacts/active-now.json
 ```
 
-Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE: the plugin will load this configuration.`, the line `custom templates: …`, one line per agent with its type, its assigned templates and its own settings, and `VALID AGENT AND TEMPLATE SETTINGS.` Without agent settings, the line is `agents with settings: none (everything is evaluated with each control's common value)`. With a 1.2.0 document, the line `1.2.0 document: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
+Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE: the plugin will load this configuration.`, the line `organisation data: …` with the organisation items that have a value, one `PENDING CHOICE «…»` line per item with different values between controls (chosen in General, section 7.1; not an error), the line `custom templates: …`, one line per agent with its type, its assigned templates and its own settings, and `VALID AGENT AND TEMPLATE SETTINGS.` Without agent settings, the line is `agents with settings: none (everything is evaluated with each control's common value)`. With a 1.2.0 document, the line `1.2.0 document: Conversión de la configuración 1.2.0: …` summarises the conversion and the rest is validated on the converted document.
 
 | Message | Meaning | Action |
 |---|---|---|
 | `INVALID STRUCTURE` with `configuration.agents…` or `configuration.templates…` | A `null` value or an object in an agent or a template, a mode other than `exact` or `regex` in `matchModes`, or a known field with the wrong type: the plugin does not load the environment | Restore the backup and fix the item reported |
+| `INVALID STRUCTURE` with `configuration.organizationData…` | An organisation item with a `null` value or an object: the plugin does not load the environment | Restore the backup and remove the item key or fix its value |
+| `INVALID ORGANISATION DATA` | An item with two rows of the same use for a parameter that reads one value | Keep one row of that use in Configuración > General or with `set-parameters.py` |
 | `INVALID COMMON VALUES` | A common value that is not valid for its parameter, for example a regular expression written with `set-parameters.py` that does not compile: the control is «Inválido» | Fix the value in «Ajustes comunes» or with `set-parameters.py` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` with «no se aplica» | A profile stored under a name instead of an id, a control or parameter that does not exist, a common parameter or a comparison mode without its own setting: the setting is ignored | Remove it with «Quitar» (section 6.3) or with `set-parameters.py` and `null` |
 | `INVALID AGENT OR TEMPLATE SETTINGS` with «se evalúa con una configuración inválida» | A value that is not valid for its parameter | Fix the value on the agent page or with `set-parameters.py` |
@@ -486,10 +571,50 @@ Expected result: `Done` after installing the dependencies; then `VALID STRUCTURE
 
 `inject-control.py` keeps `configuration.agents` and `configuration.templates` on every seed, also with `--sustituir`, and when merging keeps the `matchMode` of each common value. If the block no longer declares a parameter and an agent or a custom template had a value for it, the plan shows `AVISO: valores de parámetros retirados, quedan huérfanos: …`; those values do not apply and are removed as in section 6.3 or by editing the template. Seeding a new control creates no templates, assignments or agent settings.
 
+`inject-control.py` also keeps `configuration.organizationData`. A parameter of the control without value that reads an organisation item takes the item's value or, if the item has no value yet, the one the other parameters that read it agree on, also after `--sustituir`, as long as it accepts it; otherwise it stays without value and the plan says so with `<control> <P-xx>: <reason> stays without value…`. The plan says so with `<P-xx> takes «<item>» from <source>`, where the source is `Datos de la organización` or the parameters it comes from. A parameter with a different value is left as it is: the plugin shows it as a conflict (section 7.1). An `organizationData` with value `null` is warned about: the plugin does not load that document.
+
+### 11.4 Declare organisation data with set-parameters.py
+
+The `organization` section declares an organisation item by its id (those of the table in section 7.1: `personal_autorizado`, `entorno_preproduccion`, `mecanismo_reversion`, `herramientas_gestion`, `algoritmos_autorizados`, `retencion`, `zonas_controladas`, `canales_acceso_remoto`, `productos_certificados`, `registro_pruebas`, `formacion_personal`, `grupos_privilegiados` and `declaracion_aplicabilidad`):
+
+```json
+{
+  "organization": {
+    "grupos_privilegiados": ["sudo", "wheel"],
+    "entorno_preproduccion": ["srv-app01 | pre-app01 | informe 2026-05"],
+    "retencion": ["cuentas, accesos |  | 365", "copias |  | 30", "registros | autenticación | 365"]
+  }
+}
+```
+
+Rules:
+
+- The item is stored in `configuration.organizationData.values` and written into every parameter that reads it. The plan lists every parameter that changes.
+- `null`, `""` or `[]` remove the item and the value of every parameter that reads it. `null` is never written to the document.
+- The `P-xx` form still works: `{"op.acc.4": {"P-06": ["wheel"]}}` writes to «Grupos con privilegio administrativo» and, with it, to op.acc.1 P-11 and op.acc.2 P-12.
+- A parameter that reads part of a register changes only that part: `{"op.exp.3": {"P-03": ["bob"]}}` replaces the `configuracion` rows of «Personal autorizado» and leaves the rest.
+- If the item has no value yet and the parameter reads only part of it, only the parameter is written: the plugin moves it to the item on load or shows the conflict.
+- Refused, writing nothing: an id that does not exist, an item with `matchMode`, the same item declared twice (by its id and by a `P-xx`, or by two `P-xx`), a value the item cannot hold (a `|` inside an entry or more cells than columns), two rows of the same use for a parameter that reads one value (`lee un solo valor: dejar una sola fila con uso «…»`), a value that one of the parameters reading the item does not accept (`<control> <P-xx> does not accept the value of «<item>»: …`) and a document with an invalid or `null` `organizationData`.
+- The tool reads the items from `common/ens/configuration/organization/organization-data-items.ts`: it runs from `config/` inside the full plugin repository.
+
+```bash
+cd /opt/ensfacil/repo/config
+sudo env $CERT python3 set-parameters.py /path/organisation.json            # plan
+sudo env $CERT python3 set-parameters.py /path/organisation.json --apply    # write
+```
+
+Expected result: without `--apply`, one `── organisation data «<item>» (<id>), from <source>` block per item with the old and the new value, one line per parameter that changes with its old and new value (`op.acc.4 P-06   ["root"]  ->  ["sudo", "wheel"]`) and `DRY-RUN: nothing written`; with `--apply`, `Previous version saved in: …` and `<n> change(s) written to wazuh-ens-configuration/active`. Then validate the document (section 11.2).
+
 ## 12. Compatibility and rollback
 
 - Custom templates live in the top-level key `configuration.templates`, and each agent's assignment in `configuration.agents.<id>.controls.<control>.templateId`, next to its own settings in `parameters`. `controls[].parameters[].value` remains the common value, which is what a 1.1.0 plugin, the chatbot and the scripts read.
 - A 1.2.0 plugin loads a 1.3.0 document: its validator does not check unknown keys, ignores `templates` and warns about `templateId` as a key it does not know. It evaluates with the own settings and the common value, without the assigned templates.
+- Organisation data (1.4.0) goes in the top-level key `configuration.organizationData.values`, one value per item (absent key: no value, never `null`), and is also written into the `value` of every parameter that reads it. A 1.3.0 plugin loads the document: its validator does not check unknown keys and evaluates with each parameter's `value`, which is the same value. If a 1.3.0 plugin changes one of those parameters, 1.4.0 shows it as a conflict when it loads.
+- The 1.4.0 server rejects with a 400 error a save with a `null` or object organisation item, keeps `organizationData` when the body does not carry the key and writes each item into its parameters before saving.
+- From 1.4.0, a save from the screen carries the version of the document that was loaded. If another administrator, `set-parameters.py` or `inject-control.py` changed it afterwards, the server refuses it with a 409 error and «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.»; what was written stays on screen to copy it before reloading. A save through the API without a version is accepted, and the server still avoids overwriting a document that changes between its read and its write. A screen opened with no configuration saved only creates the first one: if another administrator created it meanwhile, it is also refused with a 409 error.
+- If the document is saved but its history entry cannot be written, the save stands and Configuración warns with «Guardado; no se pudo registrar el historial» until the next save or reload; the detail is in the dashboard log.
+- A save that does not answer within 60 seconds is cut with «El guardado no ha respondido a tiempo y puede haberse aplicado o no. Recarga la página para ver la configuración actual.», and the saves after it do not keep waiting.
+- `set-parameters.py` and `inject-control.py` write only over the version they read. If a save from the screen landed between their read and their write, they stop without writing with `ERROR: La configuración ha cambiado mientras se aplicaba; volver a ejecutar.`; running them again is enough.
 - The 1.3.0 server rejects with a 400 error a save whose `agents` or `templates` does not have the right shape or with a `matchMode` other than `exact` or `regex` on a common value, and keeps the existing ones when the body does not carry the key.
 - A 1.2.0 plugin ignores `matchMode` and `matchModes` and compares a pattern as a literal name. Before going back to 1.2.0, switch those values to «Texto exacto» or restore a version of the document without them.
 - A comparison mode the installed version does not know stops the ENS environment from loading. Before going back from a later version that adds modes, switch those values to «Texto exacto» or «Expresión regular», or restore a version of the document without them.

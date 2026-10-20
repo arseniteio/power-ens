@@ -7,7 +7,9 @@ import {
   ENSParameterStatus,
   ENSParameterType,
 } from '../types';
+import { ENS_DIMENSION_LEVEL_KEYS } from '../../core/control-level';
 import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
+import { validateOrganizationDataShape } from '../organization/organization-data-shape';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -224,6 +226,22 @@ const validateParameter = (
     errors.push(`${path}.options must be a string array.`);
   }
 
+  if (value.optionsByLevel !== undefined) {
+    const byLevel = value.optionsByLevel;
+    const all = isStringArray(value.options) ? value.options : [];
+    if (!isRecord(byLevel)) {
+      errors.push(`${path}.optionsByLevel must be an object.`);
+    } else {
+      Object.entries(byLevel).forEach(([level, options]) => {
+        if (!['BAJO', 'MEDIO', 'ALTO'].includes(level)) {
+          errors.push(`${path}.optionsByLevel.${level} is not a level.`);
+        } else if (!isStringArray(options) || options.some(option => !all.includes(option))) {
+          errors.push(`${path}.optionsByLevel.${level} must list options of \`options\`.`);
+        }
+      });
+    }
+  }
+
   validateParameterColumns(
     value.columns,
     path,
@@ -379,20 +397,12 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
-  if (
-    'traceabilityLevel' in value &&
-    !isAllowedString(value.traceabilityLevel, ENS_LEVELS)
-  ) {
-    errors.push('configuration.global.traceabilityLevel is invalid.');
-  }
-
-  // The Availability level, same contract: absent or a level.
-  if (
-    'availabilityLevel' in value &&
-    !isAllowedString(value.availabilityLevel, ENS_LEVELS)
-  ) {
-    errors.push('configuration.global.availabilityLevel is invalid.');
+  // Dimension levels are optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
+  // `ensLevel` below a dimension is NOT a structural error: it would stop the whole environment loading, so the panel and the scripts reject it instead.
+  for (const key of Object.values(ENS_DIMENSION_LEVEL_KEYS)) {
+    if (key in value && !isAllowedString(value[key], ENS_LEVELS)) {
+      errors.push(`configuration.global.${key} is invalid.`);
+    }
   }
 
   if (
@@ -523,6 +533,8 @@ export const validateENSConfigurationStructure = (
   // that machine's row, not the whole environment.
   errors.push(...validateAgentsConfigurationShape(value.agents));
   errors.push(...validateCustomTemplatesShape(value.templates));
+  // Organisation data (1.4.0): optional; a `null` item value would reach every mapped parameter.
+  errors.push(...validateOrganizationDataShape(value.organizationData));
 
   if (!Array.isArray(value.auditTrail)) {
     errors.push('configuration.auditTrail must be an array.');

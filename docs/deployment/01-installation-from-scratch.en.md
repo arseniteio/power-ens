@@ -354,7 +354,7 @@ Two ways to get the zip; both end in section 13.4.
 Download the four release files to `/opt/ensfacil/releases/<version>`, in the browser or from the server with a deploy token ([guide 07, sections 4 to 6](07-installing-from-a-release.en.md#4-prepare-the-folder-on-the-server)), and verify their integrity:
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -427,7 +427,7 @@ Without `ensfacil_admin` or `all_access`, saving the configuration or viewing it
 With option A, the release folder carries `$R/create-admin-role.sh`, verified with `SHA256SUMS` and with the same options.
 
 > [!note]
-> The role grants no permission by itself: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+> The role only grants read on `wazuh-ens-snapshots` (the maturity series): each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 First in test mode, which changes nothing. Replace `<usuario>` with the dashboard user who will administer ENSFácil:
 
@@ -523,7 +523,14 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('COPIA_OK' if d.get('found') else 'COPIA_FALLIDA')" "$BACKUP_DOC"
 ```
 
-Restoring this copy is described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration).
+From 1.4.0, recorded maturity is kept in its own document, `maturity`; back it up too (with no maturity recorded, the copy says `"found":false`):
+
+```bash
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  "$IDX/wazuh-ens-configuration/_doc/maturity" | sudo tee "${BACKUP_DOC/active-/maturity-}" >/dev/null
+```
+
+Restoring these copies is described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration).
 
 ### 14.3 Seed the ENS controls
 
@@ -580,7 +587,7 @@ Expected result: `Done` after the installation; then `controls (23): …`, `VALI
 
 ### 14.5 Declare the policy
 
-Parameter values are decided by the person in charge and declared in ENSFácil > Configuration: on the «Controles» tab, each control's common settings, its templates (built-in for Linux, Servidor LDAP, Windows and Manager Wazuh, and custom ones) and the template assigned to each agent; on the «Agentes» tab, what belongs to each machine in scope. Complete procedure: [Configuration by controls and templates](09-configuration-by-system.en.md). Configuration > General also holds the ENS level, the **Traceability level (T)** (op.exp.8 only) and the **Availability level (D)** (op.cont.2 and op.cont.3). Without T or D, the global ENS level applies. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica».
+Parameter values are decided by the person in charge and declared in ENSFácil > Configuration: on the «Controles» tab, each control's common settings, its templates (built-in for Linux, Servidor LDAP, Windows and Manager Wazuh, and custom ones) and the template assigned to each agent; on the «Agentes» tab, what belongs to each machine in scope. Complete procedure: [Configuration by controls and templates](09-configuration-by-system.en.md). Configuration > General also holds the ENS level and, optionally, the level of each dimension: **Confidencialidad (C)** (confidentiality), **Integridad (I)** (integrity), **Trazabilidad (T)** (traceability), **Autenticidad (A)** (authenticity) and **Disponibilidad (D)** (availability). They are used by the controls Annex II applies by dimension: op.acc.2 to op.acc.6 (C, I, T and A), op.acc.1 (T and A), op.exp.8 (T) and mp.info.6, op.cont.2 and op.cont.3 (D); with several dimensions the highest rules. An undeclared dimension is the ENS level, which cannot be lower than any of them. op.cont.2 and op.cont.3 only apply with D at ALTO: with the ENS level at MEDIO and D not declared, they show «No aplica».
 
 To declare values from the server (reproducible environments, or when the policy is already decided in writing), use `config/set-parameters.py` with a JSON file:
 
@@ -605,6 +612,8 @@ sudo env $CERT python3 set-parameters.py /path/policy.json --apply    # write
 > An empty parameter is the **absent** `value` key, never `null`. To empty a parameter, do it from the Configuration screen.
 
 An agent's template and own settings are declared with the `agents` section of the same file: [Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy).
+
+The data several controls ask for (authorised personnel, pre-production environment, CCN-authorised algorithms, privileged groups, Statement of Applicability…) is declared only once in Configuración > General > «Datos de la organización», and from the server with the `organization` section of the same file: [Configuration by controls and templates, section 7.1](09-configuration-by-system.en.md#71-organisation-data) and [section 11.4](09-configuration-by-system.en.md#114-declare-organisation-data-with-set-parameterspy). In each control's «Ajustes comunes», those parameters are read-only.
 
 After declaring values, repeat the validation of section 14.4.
 

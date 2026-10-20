@@ -20,8 +20,9 @@
        keys (EV-06) and the P-02 declared protection (EV-08). Hence 111106 and
        111108 do not exist.
 
-       Outside the map: 111100 (base, level 0), 111150 (degradation) and
-       111197-111199 (collector: they enable, they prove nothing).
+       Outside the map: 111100 (base, level 0), 111109 (raw Windows 4663 read of
+       a key store), 111150 (degradation) and 111197-111199 (collector: they
+       enable, they prove nothing).
 
        No fact carries key material: only metadata (path, format, algorithm,
        length, public-part fingerprint, mode, owner, dates). No rule carries a
@@ -67,6 +68,18 @@
     <if_sid>111100</if_sid>
     <field name="event">certificate_observed</field>
     <description>op.exp.10 · EV-07 · certificado $(sujeto) en $(ruta), caduca $(caduca)</description>
+  </rule>
+
+  <!-- EV-01 (Windows). Raw trace of a read SACL on a key store: event 4663 of the
+       Security channel. The judged fact is still `key_material_accessed` (111101),
+       aggregated by the Windows collector; this rule keeps each read in the index. -->
+  <rule id="111109" level="3">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4663$</field>
+    <field name="win.eventdata.objectType">^File$</field>
+    <field name="win.eventdata.objectName" type="pcre2">(?i)\\Microsoft\\Crypto\\|\\ssh_host_[a-z0-9]+_key$|\\ossec-agent\\client\.keys$|\.(?:key|pem|pfx|p12|ppk|jks|keystore)$</field>
+    <options>no_full_log</options>
+    <description>op.exp.10 · EV-01 · $(win.eventdata.subjectDomainName)\$(win.eventdata.subjectUserName) accedió (máscara $(win.eventdata.accessMask)) a material criptográfico: $(win.eventdata.objectName)</description>
   </rule>
 
   <!-- ===== op.exp.10.2 · Generation isolated from operation ===== -->

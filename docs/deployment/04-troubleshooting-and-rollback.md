@@ -186,7 +186,7 @@ Solo para un entorno que viene de la versión integrada ([guía de actualizació
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.2.0   # la versión de ENSFácil instalada
+V=1.4.0   # la versión de ENSFácil instalada
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \
@@ -240,6 +240,8 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 
 Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después el documento restaurado con `config/validate-configuration.ts`, como en la [guía de instalación, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero), y recargar el panel.
 
+La madurez registrada (desde la 1.4.0) va en el documento `maturity`, aparte: se restaura igual, con su copia (`maturity-<fecha>.json` o `$BACKUP/maturity.json`) y `_doc/maturity` en lugar de `_doc/active`. Restaurar una copia anterior quita del documento las entradas posteriores; siguen en las entradas `MATURITY_HISTORY` ([Valoración de la madurez, apartado 9](10-maturity-assessment.md#9-historial)).
+
 ## 8. Problemas conocidos del despliegue
 
 | Síntoma | Causa | Qué hacer |
@@ -248,6 +250,9 @@ Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después 
 | Aviso «ENSFácil: inventario de agentes antiguo» | el último dato de `wazuh-monitoring-*` tiene más de 1 hora: un alta o una baja reciente puede no verse | comprobar que la monitorización de agentes de Wazuh sigue activa |
 | En Controles o Eventos: «No existe el patrón de índice wazuh-alerts-*: créalo desde Wazuh (o Dashboards Management) para usar esta vista» | el patrón de índice `wazuh-alerts-*` no existe todavía | abrir una vez la app de Wazuh, que lo crea en su comprobación inicial, o crearlo en Dashboards Management > Index patterns. Las demás pestañas funcionan sin él |
 | Al guardar la configuración: «Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.» (error 403) | el usuario no tiene ninguno de los dos roles | asignar el rol al usuario con `config/create-admin-role.sh --mapear <usuario>` ([instalación, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)); si el usuario tenía una sesión abierta, debe cerrar la sesión e iniciar otra |
+| Al guardar la configuración: «La configuración ha cambiado desde que la abriste. Recarga la página para ver los cambios.» (error 409) | otro administrador, `set-parameters.py` o `inject-control.py` guardaron la configuración después de abrir la pantalla | copiar lo escrito, recargar la página y repetir el cambio sobre la versión actual ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)) |
+| Al guardar la configuración: «Guardado; no se pudo registrar el historial» | el documento se guardó, pero el índice no aceptó la entrada del historial | revisar el log del dashboard (`journalctl -u wazuh-dashboard`) y los permisos del índice `wazuh-ens-configuration`; el siguiente guardado vuelve a intentarlo |
+| `set-parameters.py` o `inject-control.py` terminan con «La configuración ha cambiado mientras se aplicaba; volver a ejecutar.» | un guardado desde la pantalla llegó entre la lectura y la escritura de la herramienta | volver a ejecutar la herramienta; no ha escrito nada |
 | Las pantallas muestran un error de permisos al buscar datos | el rol del usuario no puede leer `wazuh-alerts-*` | conceder al rol lectura sobre `wazuh-alerts-*`, el permiso habitual para ver datos de Wazuh |
 | No aparece «ENSFácil» en el menú y `/api/ensfacil/configuration` devuelve `404` | el plugin no está instalado o no ha cargado | revisar la lista de plugins y el registro (apartado 3) y desplegar de nuevo con `config/deploy-plugin.sh` |
 | El dashboard no arranca después de actualizar Wazuh: `Failed to initialize plugins` y `ensfacil` | el dashboard nuevo lleva otra versión de OpenSearch Dashboards y el plugin está compilado para `2.19.5` | retirar ENSFácil (apartado 5) y conseguir el zip para esa versión ([compatibilidad de versiones](03-version-compatibility.md)) |

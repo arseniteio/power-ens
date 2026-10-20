@@ -7,6 +7,189 @@ siguen el [versionado semántico](https://semver.org/lang/es/).
 
 La entrada de cada versión son las notas de su release en GitLab.
 
+## [1.4.0] - 2026-10-20
+
+Correcciones del catálogo según las plantillas del auditor v2.0: aplicabilidad
+por las cinco dimensiones, textos literales del BOE con su procedencia y orden
+del Anexo II. Datos de la organización pedidos una sola vez. Madurez CMM de
+cada control junto al semáforo.
+
+### Añadido
+
+- Madurez CMM (L0 a L5) de cada control, junto al semáforo y al porcentaje y
+  sin mezclarse con ellos (guía 10). ENSFácil calcula el nivel acreditado por
+  las evidencias con puertas explicadas por nivel; en el panel «Madurez» del
+  detalle se registran el procedimiento (referencia, versión, enlace,
+  aprobación, vigencia, difusión y responsable), las revisiones, el umbral y la
+  periodicidad, la realimentación y la valoración («Valorar»). Por encima de lo
+  acreditado, la valoración exige justificación y el informe la marca, con quién
+  valoró y cuándo. Todo se añade a su propio documento (`_doc/maturity`, con su
+  versión y su historial) sin sobrescribir nada, con el rol de administración:
+  registrar madurez no provoca el 409 de la configuración.
+- Objetivo de madurez por categoría en Configuración > General (por defecto L2
+  BÁSICA, L3 MEDIA, L4 ALTA; `global.maturityTargets`, clave ausente = valor por
+  defecto).
+- Madurez en la Vista general (nivel de cada control y distribución de la
+  organización), en el panel y en el informe de cada control, en pantalla y en
+  PDF, con la nota metodológica.
+- Índice `wazuh-ens-snapshots`: una instantánea por control y día (estado,
+  puntuación, cobertura, nivel acreditado, valorado y objetivo), escrita por una
+  tarea diaria del servidor con el usuario interno a las 02:30 locales (solo
+  ella la escribe), retenida tres años. Se lee como el usuario (ruta
+  `GET /api/ensfacil/maturity/snapshots` para el informe anual); el rol
+  `ensfacil_admin` concede ahora su lectura.
+
+
+- Configuración > General > «Datos de la organización»: los datos que piden
+  varios controles (personal autorizado, preproducción, reversión, algoritmos
+  del CCN, retención, grupos privilegiados, canales de acceso remoto y otros)
+  se declaran una vez y cada parámetro que los lee conserva su `P-xx`. Al
+  cargar, los valores iguales se unifican solos, un parámetro vacío toma el
+  valor si lo admite y los valores distintos quedan pendientes de elegir.
+- Guardado con control de versión: si la configuración cambia mientras está
+  abierta, el guardado se rechaza (409) con «La configuración ha cambiado desde
+  que la abriste» y se conservan los cambios en pantalla. `set-parameters.py` e
+  `inject-control.py` escriben solo sobre la versión que leyeron.
+
+- Niveles de Confidencialidad (C), Integridad (I) y Autenticidad (A) en
+  Configuración > General, junto a los de Trazabilidad (T) y Disponibilidad
+  (D), cada uno con los controles que lo usan. Clave ausente = nivel ENS,
+  nunca `null`.
+- Etiquetas «Norma ENS» (literal del BOE) y «Criterio de aplicación»
+  (interpretación de ENSFácil o de la plantilla del auditor) por fila en el
+  detalle de cada control, en la vista Controles y en el informe (pantalla y
+  PDF). El catálogo guarda la interpretación aparte (`interpretation`).
+- Apartado del Anexo II, eje de aplicación y plantilla de origen de cada
+  control en el encabezado del detalle y del informe (`annexSection`,
+  `source`). op.acc.2 sigue en la plantilla v1.0, sin fecha.
+- mp.info.6: «Correspondencia con la plantilla del auditor» en el detalle, el
+  informe y el PDF, con la cobertura de cada P-xx y EV-xx de la plantilla.
+  Parámetros, evidencias y requisitos desplegados no cambian.
+- op.exp.10 en Windows: regla 111109 (evento 4663 de lectura de un almacén de
+  claves con SACL) para el runbook `windows/op.exp.10`. EV-01 acepta los
+  accesos auditados con auditd (Linux y LDAP) o con SACL de lectura (Windows).
+- Aviso «Niveles incoherentes» en Controles y en el panel, con enlace a
+  General, cuando una dimensión supera el nivel ENS; General no guarda y
+  `config/validate-configuration.ts` termina con código 1.
+- Los 11 controles nuevos del paquete v2.0 del auditor, en estado `DRAFT`
+  (documentales, medición por oleadas): mp.eq.2, mp.eq.3, mp.eq.4, mp.com.1,
+  mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 y mp.s.4, con sus
+  requisitos, parámetros, evidencias, informe y bloque de configuración. Ejes
+  del índice: mp.eq.2 por A, mp.eq.4 por C, mp.com.3 por I y A, mp.s.4 por D;
+  el resto, por la categoría. No entran en el índice: Controles y Vista
+  general muestran «Sin medición todavía» y el detalle, por evidencia, la
+  «Fuente necesaria». Bandas de rule ID 111800–112899 reservadas, sin reglas.
+  Se siembran con `config/inject-control.py <control>` como cualquier otro.
+  Leen «Datos de la organización»: mp.sw.2 P-03 (entorno de preproducción,
+  que gana la columna «Aislamiento de producción» y une las filas por pareja
+  de sistemas), mp.com.3 P-02 (algoritmos autorizados por el CCN), mp.com.3
+  P-08 (productos certificados) y mp.s.3 P-07 (formación del personal).
+- Informe anual del artículo 32 (op.mon.2, guía 11): conjunto de datos por
+  cada una de las 73 medidas del Anexo II (aplica, nivel, exigencia del
+  Anexo II, estado y porcentaje del motor, cobertura, madurez acreditada,
+  valorada y objetivo, referencia documental y responsable), categorización
+  C, I, T, A y D, grado de implantación por marco, incidentes por tipo y
+  severidad con MTTD, MTTC y MTTR, notificaciones al CCN-CERT y a la AEPD,
+  porcentaje de alertas que acaban en incidente, recursos del registro de
+  ciclos y fiabilidad de la medición. Cada cifra lleva un identificador de
+  campo estable, su origen y su traza. Panel «Informe anual (art. 32)» en el
+  detalle de op.mon.2 y en Informes, con exportación JSON y CSV (fórmulas
+  neutralizadas) de la revisión vigente o de una anterior; el campo 8 del PDF
+  sale del mismo conjunto, con el mismo grado de implantación que el campo 2. Ruta `GET /api/ensfacil/annual-report`.
+- «Medidas sin motor» en el detalle de op.mon.2: entrada declarada (aplica,
+  madurez, referencia documental, responsable y fecha) para las 39 medidas
+  del Anexo II fuera del catálogo y los 11 controles «Sin medición
+  todavía», guardada en el documento de madurez por la misma ruta, con el
+  mismo rol, versión e historial. «Recursos TIC totales» del periodo
+  (presupuesto, plantilla TIC y de seguridad) para los porcentajes de
+  recursos.
+- Congelado anual: la tarea diaria congela en `wazuh-ens-snapshots`
+  (`annual_freeze|<periodo>`, usuario interno, una sola vez) el periodo que
+  acaba de cerrar en P-02 `cierre_anual` (31 de diciembre sin él). Un
+  administrador congela o regenera un periodo cerrado con motivo
+  (`POST /api/ensfacil/annual-report/freeze`); la revisión anterior se
+  conserva. Un periodo cerrado lee en el servidor todos sus incidentes
+  (hasta 10 000); una regeneración que perdería las cifras de incidentes se
+  rechaza. Un congelado conserva las fechas de su cabecera aunque cambie el
+  cierre.
+- op.mon.2 P-01 admite una sola fila por medida: una medida repetida es un
+  error de validación que la nombra con sus filas; el informe lee P-01 una
+  vez por medida.
+- op.mon.2 y op.exp.7 publican sus datos de informe (incidentes, ciclos,
+  conciliación de alertas y detección) como variables del motor, sin cambiar
+  ningún veredicto. Con la columna opcional `fecha_ocurrencia` del registro
+  de incidentes (runbooks op.exp.7 y op.mon.2), el MTTD parte de la fecha de
+  ocurrencia; sin ella, la primera alerta conciliada por op.exp.7 da una cota
+  inferior que se publica aparte. op.exp.7 lee alertas e incidentes una sola
+  vez por evaluación, también para EV-03.
+
+### Cambiado
+
+- Ejes de aplicación del índice del auditor: mp.info.6 por D; op.acc.1 por T
+  y A; op.acc.2 a op.acc.6 por C, I, T y A; op.exp.8 por T; op.cont.2 y
+  op.cont.3 por D. Con varias dimensiones rige la más alta.
+- Textos de requisito literales del BOE: 14 del catálogo (mp.info.6 y
+  op.acc.1) y 20 de la vista Controles (mp.info.6, op.acc.1 y op.acc.2).
+  mp.info.6.2.a a .2.d llevan el literal de su letra.
+- Las listas de controles siguen el orden del Anexo II (op.acc, op.exp,
+  op.nub, op.cont, op.mon y, al final, mp.info.6), también la de cada agente
+  en Configuración.
+- Un control gobernado por una dimensión muestra «Nivel aplicable» con su
+  dimensión, por ejemplo «Nivel aplicable: ALTO (Disponibilidad)».
+- op.exp.10 EV-01 «Accesos auditados al material criptográfico»: lecturas
+  auditadas con auditd (Linux y LDAP) o con SACL de lectura (Windows); FIM solo
+  detecta cambios de integridad.
+- op.exp.3 EV-11 se declara evidencia propia de ENSFácil.
+- Panel: la tarjeta «Hallazgos relevantes» pasa a «Requisitos que requieren
+  atención» y reparte los requisitos desfavorables por el origen de sus no
+  conformidades: medidos, no evidenciados, mixtos (los dos orígenes) y sin
+  clasificar. Las cuatro cifras son excluyentes y suman el total; los controles
+  que no están en `ACTIVE` no cuentan (ENS-DASH-002, Francisco Caicedo).
+- Panel: «Eventos operativos ENS relevantes» pasa a «Alertas operativas SOC»:
+  avisos del recolector (`collector_warning`, uno por parámetro y motivo),
+  alertas de seguridad (`security_alert_observed`, en la máquina que nombran
+  `agente_id` y `sistema`, con la descripción de su regla y contadas en horas
+  con alertas) y usos multirrol (`multi_role_usage`), cada una con su control,
+  su máquina, su última observación y cuántas veces se ha observado. El mismo
+  problema observado muchas veces es una sola alerta. Solo salen las de
+  máquinas del alcance y controles aplicables a esa máquina según el resultado
+  calculado, y un uso multirrol es «Incidencia» solo si el motor tiene una no
+  conformidad medida de ese requisito en esa máquina levantada por la evidencia
+  que escucha el hecho (EV-06 de op.acc.1): el campo `estado` del agente no
+  cuenta. El servidor las agrupa con una agregación acotada (los 100
+  incidentes más recientes por tipo, solo de los tres tipos y de controles en
+  `ACTIVE`; si se alcanza el límite, el total se da como «al menos»); no viajan
+  eventos al navegador, y si esa lectura falla solo el recuadro de alertas lo
+  dice, el resto del panel se muestra (ENS-DASH-004, Francisco Caicedo).
+
+### Corregido
+
+- La serie diaria crea un formateador de fechas por zona horaria, no uno por
+  cálculo.
+
+### Actualizar desde la 1.3.0
+
+- La madurez no cambia ningún veredicto ni porcentaje. La tendencia de L5
+  necesita 90 días de instantáneas desde la actualización.
+- Las copias de seguridad de la configuración incluyen también el documento
+  `maturity` (guías 01, 02, 04, 06 y 07).
+- Volver a ejecutar `config/create-admin-role.sh` para que `ensfacil_admin`
+  lea `wazuh-ens-snapshots` (guías 02 y 07).
+- La madurez pide una retención de `wazuh-alerts-*` de 31 días o más: con
+  menos, L2 y L3 pueden no acreditarse (guía 10).
+- Un plugin 1.3.0 ignora la madurez registrada y no la toca.
+- Sin ninguna dimensión declarada, los resultados no cambian.
+- Informe anual del art. 32: actualizar los runbooks op.exp.7 y op.mon.2 en
+  el manager para leer `fecha_ocurrencia`; un registro de 13 columnas sigue
+  siendo válido. op.exp.9 y op.mon.3 también admiten la cabecera de 14
+  columnas con `fecha_ocurrencia`: actualizarlos junto con op.exp.7 y
+  op.mon.2 antes de añadir la columna (guía 11, apartado 11). Los informes congelados se leen con el permiso de lectura de
+  `wazuh-ens-snapshots`.
+- Un documento que declara T o D puede cambiar de veredicto: D gobierna
+  también mp.info.6, y T también op.acc.1 a op.acc.6 cuando es la más alta de
+  sus dimensiones. Antes de actualizar, comprobar el documento con
+  `config/validate-configuration.ts` (guía 02, apartado 5.1).
+
 ## [1.3.0] - 2026-10-19
 
 Configuración por plantillas de control, comparación por expresión regular y

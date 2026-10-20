@@ -1,5 +1,6 @@
 export * from './parameter-value-validator';
 export * from './validation-engine';
+export * from './level-options';
 export * from './configuration-state-service';
 export * from './configuration-reset-service';
 

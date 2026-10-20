@@ -21,7 +21,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';
 import {
@@ -31,6 +31,7 @@ import {
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../common/ens/core/control-level';
+import { IncoherentLevelsNotice } from '../configuration/components/incoherent-levels-notice';
 import { buildControlListEntries, describeLevelExclusions } from './controls-list-model';
 import { statusBadgeColor, statusColor } from '../status-colors';
 
@@ -86,7 +87,7 @@ export const ControlsENS = () => {
        levelOf: id => resolveControlLevel(getENSCatalogControl(id) || {}, globalLevel, configuration.global),
      },
    );
-   const outOfLevel = describeLevelExclusions(entries, globalLevel);
+   const outOfLevel = describeLevelExclusions(entries, globalLevel, id => resolveControlLevel(getENSCatalogControl(id) || {}, globalLevel, configuration.global));
    const unmeasured = entries.filter(entry => !entry.measured).length;
 
   if (selectedControl) {
@@ -116,6 +117,7 @@ export const ControlsENS = () => {
           </p>
         </EuiText>
         <EuiSpacer size='l' />
+        <IncoherentLevelsNotice global={configuration.global} />
         {summary.error ? (
           <>
             <FactsReadErrorCallOut error={summary.error} onRetry={summary.retry} />

@@ -145,15 +145,40 @@ test -f "$ZIP" && sudo cp -a "$ZIP" "$BACKUP/"
 
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active | sudo tee "$BACKUP/active.json" >/dev/null
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  https://127.0.0.1:9200/wazuh-ens-configuration/_doc/maturity | sudo tee "$BACKUP/maturity.json" >/dev/null
 
 ls -l "$BACKUP"
 echo "BACKUP=$BACKUP"
 ```
 
-Resultado esperado: `plugins-antes.tgz` y `active.json` dentro de `$BACKUP`, y `ensfacil-2.19.5.zip` si el plugin desplegado se compiló en este servidor.
+Resultado esperado: `plugins-antes.tgz`, `active.json` y `maturity.json` (madurez registrada desde la 1.4.0; `"found":false` si no hay) dentro de `$BACKUP`, y `ensfacil-2.19.5.zip` si el plugin desplegado se compiló en este servidor.
 
 > [!important]
 > Si el plugin desplegado viene de una release, su zip ya está en la carpeta de su versión (`/opt/ensfacil/releases/<versión>`), que se conserva. Si se compiló, `config/build-plugin.sh` borra `/opt/ensfacil/build/plugins/ensfacil` antes de compilar: el zip anterior solo se conserva si se copia aquí. Guardar el zip anterior y `active.json` hasta terminar todas las validaciones de la versión nueva.
+
+### 5.1 Antes de actualizar a la 1.4.0
+
+Desde la 1.4.0, un nivel de dimensión declarado en Configuración > General gobierna todos los controles que el Anexo II liga a esa dimensión, no solo op.exp.8 y op.cont.2 y op.cont.3:
+
+| Dimensión declarada | Controles que gobierna desde la 1.4.0 | En la 1.3.0 |
+|---|---|---|
+| D (Disponibilidad) | mp.info.6, op.cont.2 y op.cont.3 | op.cont.2 y op.cont.3 |
+| T (Trazabilidad) | op.acc.1 (con A), op.acc.2 a op.acc.6 (con C, I y A) y op.exp.8 | op.exp.8 |
+| C (Confidencialidad), I (Integridad) y A (Autenticidad) | op.acc.2 a op.acc.6; A también op.acc.1 | ninguno |
+
+Un control con varias dimensiones se evalúa con la más alta; una dimensión sin declarar es el nivel ENS. Un documento que declara T o D puede cambiar de veredicto al actualizar: con el nivel ENS en MEDIO y D en ALTO, mp.info.6 pasa a evaluarse en ALTO y exige R2 (EV-06); con T en ALTO, op.acc.1 a op.acc.6 pasan a ALTO. Sin ninguna dimensión declarada, los resultados no cambian.
+
+Una dimensión por encima del nivel ENS es incoherente: el nivel ENS es la categoría del sistema, el más alto de sus dimensiones. La 1.4.0 carga y evalúa ese documento, pero la pestaña General no guarda hasta corregirlo, y Controles y el panel muestran «Niveles incoherentes» con un enlace a General.
+
+Comprobar el documento respaldado con el validador del repositorio ya actualizado (apartado 3):
+
+```bash
+cd /opt/ensfacil/repo
+npx --yes tsx config/validate-configuration.ts "$BACKUP/active.json"
+```
+
+Resultado esperado: la línea `global level:` con el nivel ENS y los cinco niveles de dimensión. Si una dimensión supera el nivel ENS, aparece la sección `INCOHERENT LEVELS` y la orden termina con código 1. Anotar los niveles declarados y el estado del panel antes de desplegar. Tras desplegar, corregir la incoherencia en Configuración > General: subir el nivel ENS o bajar la dimensión.
 
 ## 6. Conseguir el plugin nuevo
 
@@ -273,6 +298,12 @@ sudo curl -sk --cert $C/admin.pem --key $C/admin-key.pem \
 
 Resultado esperado: `{"acknowledged":true}` y, en la segunda orden, `green open wazuh-ens-configuration 0` (con varios nodos, `green` con `1` réplica). Si sale `yellow`, esperar unos segundos y repetir la segunda orden hasta que salga `green`. En un entorno instalado desde cero con la 1.1.0 o posterior, este paso no es necesario.
 
+Desde la 1.4.0, los datos que piden varios controles se declaran una sola vez en Configuración > General > «Datos de la organización». Al actualizar desde la 1.3.0, cada dato cuyos controles tienen el mismo valor pasa a ese apartado y se guarda con el próximo cambio; un control sin valor toma el de los demás y el aviso lo indica («Se ha completado …»); los datos con valores distintos entre controles aparecen en «Valores distintos entre controles» y cada control sigue con su valor hasta pulsar «Elegir este valor» ([Configuración por controles y plantillas, apartado 7.1](09-configuration-by-system.md#71-datos-de-la-organización)). Antes, guardar una copia del documento (apartado 5).
+
+Al actualizar a la 1.4.0, volver a ejecutar `sudo bash config/create-admin-role.sh` (sin `--mapear`: las asignaciones existentes se conservan) para que el rol `ensfacil_admin` reciba la lectura de `wazuh-ens-snapshots` que usa la madurez ([Valoración de la madurez, apartado 10.2](10-maturity-assessment.md#102-quién-la-lee)).
+
+Resultado esperado: el script termina sin error y `GET _plugins/_security/api/roles/ensfacil_admin` muestra `wazuh-ens-snapshots` en `index_permissions` con `read`.
+
 Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles», «Agentes» y «General». Al actualizar:
 
 - desde la 1.2.0, el documento se convierte al cargarlo: las plantillas aplicadas a cada agente pasan a ser la plantilla asignada en cada control, sin cambiar ningún valor, y la conversión se escribe con el próximo guardado o con «Guardar la conversión» ([Configuración por controles y plantillas, apartado 8](09-configuration-by-system.md#8-conversión-de-una-configuración-de-la-120)); antes, guardar una copia del documento (apartado 5);
@@ -281,7 +312,9 @@ Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles�
 
 Desde la 1.2.0, la evaluación se hace en el servidor del plugin con todos los hechos de la ventana de 30 días; la 1.1.0 evaluaba en el navegador con los 10.000 hechos más recientes. Tras actualizar, algunos veredictos cambian: anotar antes el estado del panel. La primera carga de cada usuario responde por partes («Calculando la evaluación»). Para volver a una versión anterior después de la conversión o de «Repartir por agentes», restaurar la versión del documento anterior ([Configuración por controles y plantillas, apartado 12](09-configuration-by-system.md#12-compatibilidad-y-vuelta-atrás)).
 
-Revisar en Configuración > General los campos opcionales **Nivel de Trazabilidad (T)**, que usa op.exp.8, y **Nivel de Disponibilidad (D)**, añadido en la 1.1.0, que usan op.cont.2 y op.cont.3. Si no se declaran, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+Revisar en Configuración > General los niveles opcionales de las dimensiones. Desde la 1.4.0 son cinco: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**; los usan op.acc.2 a op.acc.6 (C, I, T y A), op.acc.1 (T y A), op.exp.8 (T) y mp.info.6, op.cont.2 y op.cont.3 (D), y con varias dimensiones rige la más alta. Si no se declaran, se usa el nivel ENS global y los resultados no cambian respecto a la 1.3.0; un documento que ya declaraba T o D sí puede cambiar ([apartado 5.1](#51-antes-de-actualizar-a-la-140)). Antes de declarar una dimensión, comprobar que no supera el nivel ENS: la pantalla no lo guarda. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin declarar D, muestran «No aplica».
+
+Desde la 1.4.0 las listas siguen el orden del Anexo II (op.acc, op.exp, op.nub, op.cont, op.mon y, al final, mp.info.6), y el texto de cada requisito es el literal del BOE con la etiqueta «Norma ENS»; la interpretación aparece aparte como «Criterio de aplicación».
 
 ## 9. Agentes y comprobación final
 
@@ -374,7 +407,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 La reinstalación restablece el `build.number`. Recuperar el `package.json` anterior y volver a desplegar ENSFácil, que sube el número:
 
 ```bash
-V=1.2.0   # la versión de ENSFácil instalada en el apartado 10.1
+V=1.4.0   # la versión de ENSFácil instalada en el apartado 10.1
 R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
 sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"

@@ -10,6 +10,8 @@ export const opExp5CatalogDefinition: ENSControlDefinition = {
     'op.exp.5 contrasta los cambios que REALMENTE se producen en cada máquina (configuración, software, puertos en escucha y hardware) con el registro de peticiones de cambio que mantiene la organización. Sin ITSM, ese registro es un fichero TSV en cada máquina, mantenido a mano, y así se declara.',
   // Annex II declares it "n.a." at BÁSICA: not even the base applies. Without BAJO here, at that level all its requirements come out NO_APLICA and the control stays out of the denominator (tests/op-exp-5-judgment.test.ts, block 1).
   levels: ['MEDIO', 'ALTO'],
+  annexSection: '4.3.5',
+  source: { template: 'ENSFacil_Plantilla_op.exp.5', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

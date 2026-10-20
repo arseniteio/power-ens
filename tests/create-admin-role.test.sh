@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 failures=0
 
-ROLE_PUT='PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
+ROLE_PUT='PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
 MAPPING='_plugins/_security/api/rolesmapping/ensfacil_admin'
 
 cat > "$T/curl" <<'FAKE'

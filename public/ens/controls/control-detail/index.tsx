@@ -48,7 +48,19 @@ import { detailConfigurationChanges } from '../../../routing/configuration-link'
 import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
+import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
+import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
+import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
+import { MaturityHeadline, MaturityPanel } from '../../maturity/maturity-panel';
+import { AnnualReportPanel } from '../../annual-report/annual-report-panel';
+import { ENS_ANNUAL_REPORT_CONTROL } from '../../../../common/ens/annual-report/declared-measures';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
+import {
+  ENS_PENDING_MEASUREMENT_LABEL,
+  describePendingMeasurement,
+  describeRequiredSource,
+  isPendingMeasurement,
+} from '../../../../common/ens/catalog/support/measurement-plan';
 import {
   ENSRetainedEvaluation,
   decideDetailView,
@@ -185,7 +197,8 @@ export const ControlDetailENS = ({
     ? consolidatedRequirements
     : applicableRequirements;
 
-  const levelsText = String(ensLevel);
+  // The level this control is evaluated with: the global one or that of its dimensions.
+  const levelsText = String(complianceResult?.level || ensLevel);
 
   const evidenceStatusItems = (complianceResult?.evidences || []).map(evidence => ({
     id: evidence.id,
@@ -717,6 +730,8 @@ export const ControlDetailENS = ({
       })
     );
 
+  const headerCatalog = getENSCatalogControl(control.id);
+
   const header = (
     <div className='ensfacil-control-header' style={{ padding: '4px 8px 12px' }}>
       <EuiButtonEmpty iconType='arrowLeft' size='s' flush='left' onClick={onBack}>
@@ -739,6 +754,28 @@ export const ControlDetailENS = ({
           <EuiTitle size='l'>
             <h2>{control.title}</h2>
           </EuiTitle>
+          {headerCatalog && (
+            <EuiText size='xs' color='subdued'>
+              {[describeAnnexSection(headerCatalog), describeControlAxis(headerCatalog), describeControlSource(headerCatalog)]
+                .filter(Boolean)
+                .join(' · ')}
+            </EuiText>
+          )}
+          <EuiSpacer size='s' />
+          {/* The traffic light (operational) and the maturity (normative) side by side, never mixed. */}
+          <EuiFlexGroup gutterSize='s' responsive={false} wrap alignItems='center'>
+            {data?.result && (
+              <EuiFlexItem grow={false}>
+                <EuiBadge color={getBadgeColor(data.result.status)} iconType={getStatusIcon(data.result.status)}>
+                  {data.result.status}
+                  {typeof data.result.score === 'number' ? ` · ${data.result.score}%` : ''}
+                </EuiBadge>
+              </EuiFlexItem>
+            )}
+            <EuiFlexItem grow={false}>
+              <MaturityHeadline maturity={data?.maturity} error={data?.maturityError} pending={Boolean(data?.meta?.maturityPending)} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
           <EuiButton iconType='gear' onClick={configureControl}>
@@ -821,6 +858,21 @@ export const ControlDetailENS = ({
     </>
   ) : null;
 
+  // In the catalog without collector yet: its evidences have no instrument, so nothing is judged (the engine leaves it out of the index).
+  const pendingMeasurement = isPendingMeasurement(headerCatalog);
+  const pendingMeasurementNotice = pendingMeasurement && headerCatalog ? (
+    <>
+      <EuiCallOut color='primary' iconType='clock' title={`${ENS_PENDING_MEASUREMENT_LABEL}: ${control.id} es documental de momento`}>
+        <p>{describePendingMeasurement(headerCatalog)}</p>
+        <p>
+          Se puede configurar y declarar en la Declaración de Aplicabilidad. Cada evidencia indica la fuente de datos que
+          necesitará («Fuente necesaria»).
+        </p>
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
   // The control is not measured on this machine: neither 'no data' nor 'all compliant'.
   if (!complianceResult) {
     const catalog = getENSCatalogControl(control.id);
@@ -842,6 +894,7 @@ export const ControlDetailENS = ({
           <EuiSpacer size='m' />
           {validityNotice}
           {unconfiguredNotice}
+          {pendingMeasurementNotice}
           <EuiCallOut
             color='primary'
             iconType='iInCircle'
@@ -905,6 +958,7 @@ export const ControlDetailENS = ({
 
         {validityNotice}
         {unconfiguredNotice}
+        {pendingMeasurementNotice}
 
         <EuiText>
           <p>
@@ -920,7 +974,7 @@ export const ControlDetailENS = ({
             <p>
               <strong>Activo:</strong> {agentName} &nbsp; | &nbsp;
               <strong>Fuente:</strong> Wazuh / OpenSearch &nbsp; | &nbsp;
-              <strong>Nivel ENS:</strong> {levelsText} &nbsp; | &nbsp;
+              <strong>{describeApplicableLevelLabel(headerCatalog || {})}:</strong> {levelsText} &nbsp; | &nbsp;
               <strong>Último hecho:</strong> {latestEvaluationDate}
             </p>
           </EuiText>
@@ -1164,7 +1218,7 @@ export const ControlDetailENS = ({
                       </EuiBadge>
                     </EuiFlexItem>
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color='hollow'>Nivel {levelsText}</EuiBadge>
+                      <EuiBadge color='hollow'>{describeApplicableLevel(headerCatalog || {}, levelsText)}</EuiBadge>
                     </EuiFlexItem>
                   </EuiFlexGroup>
                 </EuiPanel>
@@ -1229,6 +1283,32 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
+        <MaturityPanel
+          controlId={control.id}
+          maturity={data?.maturity}
+          version={data?.maturityVersion}
+          pending={Boolean(data?.meta?.maturityPending)}
+          error={data?.maturityError}
+          onRecorded={evaluation.retry}
+          onRetry={evaluation.retry}
+        />
+
+        {control.id === ENS_ANNUAL_REPORT_CONTROL && (
+          <>
+            <EuiSpacer size='l' />
+            <AnnualReportPanel showMeasures />
+          </>
+        )}
+
+        <EuiSpacer size='l' />
+
+        <EuiPanel>
+          <RequirementTextsPanel controlId={control.id} />
+          <TemplateCorrespondencePanel controlId={control.id} />
+        </EuiPanel>
+
+        <EuiSpacer size='l' />
+
         <EuiTitle size='s'>
           <h3>Evidencias ENS del control</h3>
         </EuiTitle>
@@ -1258,19 +1338,38 @@ export const ControlDetailENS = ({
             {
               field: 'title',
               name: 'Descripción',
+              render: (title: string, item: (typeof evidenceStatusItems)[number]) => {
+                const requiredSource = describeRequiredSource(control.id, item.id);
+
+                return (
+                  <EuiText size='s'>
+                    {title} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+                    {requiredSource && (
+                      <EuiText size='xs' color='subdued'>
+                        Fuente necesaria: {requiredSource}
+                      </EuiText>
+                    )}
+                  </EuiText>
+                );
+              },
             },
             {
               field: 'status',
               name: 'Estado',
               width: '150px',
-              render: (status: string) => (
-                <EuiBadge
-                  color={getBadgeColor(status)}
-                  iconType={getStatusIcon(status)}
-                >
-                  {status}
-                </EuiBadge>
-              ),
+              render: (status: string) =>
+                pendingMeasurement ? (
+                  <EuiBadge color='hollow' iconType='clock'>
+                    {ENS_PENDING_MEASUREMENT_LABEL}
+                  </EuiBadge>
+                ) : (
+                  <EuiBadge
+                    color={getBadgeColor(status)}
+                    iconType={getStatusIcon(status)}
+                  >
+                    {status}
+                  </EuiBadge>
+                ),
             },
             {
               field: 'requirement',
@@ -1341,7 +1440,14 @@ export const ControlDetailENS = ({
 
             <EuiSpacer size='s' />
 
-            {openNonConformitiesCount === 0 ? (
+            {pendingMeasurement ? (
+              // Not a green «all clear»: nothing has been measured.
+              <EuiCallOut
+                title={`${ENS_PENDING_MEASUREMENT_LABEL}: nada que remediar hasta que exista el recolector`}
+                color='primary'
+                iconType='clock'
+              />
+            ) : openNonConformitiesCount === 0 ? (
               <EuiCallOut
                 title='Sin no conformidades abiertas'
                 color='success'
@@ -1479,7 +1585,9 @@ export const ControlDetailENS = ({
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
             <p>
-              {complianceResult.status === 'NO_APLICA'
+              {pendingMeasurement
+                ? `${control.id} no tiene medición todavía: no hay no conformidades que medir.`
+                : complianceResult.status === 'NO_APLICA'
                 ? `${control.id} no aplica en el nivel ${levelsText}: no hay no conformidades que medir.`
                 : 'Todo lo aplicable en este control se ha demostrado conforme.'}
             </p>

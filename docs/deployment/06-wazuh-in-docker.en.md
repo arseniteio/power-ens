@@ -219,7 +219,7 @@ If any check fails, stop the procedure and follow
 
 ## 5. Create the `ensfacil_admin` role
 
-Required only if a user without `all_access` must save the configuration or view its history (the Wazuh `admin` user has `all_access`). The role grants no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+Required only if a user without `all_access` must save the configuration or view its history (the Wazuh `admin` user has `all_access`). The role also grants read on `wazuh-ens-snapshots` (the maturity series) and nothing else: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 `create-admin-role.sh`, from the release folder, runs in a container attached
 to the compose network, with the admin certificate of the deployment. First in
@@ -297,9 +297,10 @@ mkdir -p <backups>
 COPY=<backups>/active-$(date +%Y%m%d-%H%M%S).json
 ix wazuh-ens-configuration/_doc/active > "$COPY"
 grep -c '"found":true' "$COPY"
+ix wazuh-ens-configuration/_doc/maturity > "${COPY/active-/maturity-}"
 ```
 
-Expected result: `1`. Restoring this copy in Docker is described in section
+Expected result: `1`, and the copy of the recorded maturity (from 1.4.0; `"found":false` if there is none). Restoring this copy in Docker is described in section
 12.2.
 
 ## 8. Seed the controls
@@ -377,15 +378,20 @@ A `scope` without the `agentIds` and `groupIds` arrays is rejected (`configurati
 
 `<repo>/active.json` can be deleted after the validation.
 
-## 10. Declare the policy: T and D levels
+## 10. Declare the policy: dimension levels
 
 Parameter values are declared in ENSFácil > Configuration. The global configuration card also declares:
 
 | Field | Controls | Not declared |
 |---|---|---|
 | ENS level | all | — |
-| Nivel de Trazabilidad (T) (traceability level) | op.exp.8 | the ENS level applies |
-| Nivel de Disponibilidad (D) (availability level) | op.cont.2 and op.cont.3, which only apply with D at ALTO | the ENS level applies |
+| Nivel de Confidencialidad (C) (confidentiality level) | op.acc.2 to op.acc.6 | the ENS level applies |
+| Nivel de Integridad (I) (integrity level) | op.acc.2 to op.acc.6 | the ENS level applies |
+| Nivel de Trazabilidad (T) (traceability level) | op.acc.1 to op.acc.6 and op.exp.8 | the ENS level applies |
+| Nivel de Autenticidad (A) (authenticity level) | op.acc.1 to op.acc.6 | the ENS level applies |
+| Nivel de Disponibilidad (D) (availability level) | mp.info.6, op.cont.2 and op.cont.3 (these two only apply with D at ALTO) | the ENS level applies |
+
+A control with several dimensions is evaluated with the highest of them. No dimension may exceed the ENS level.
 
 With the ENS level at MEDIO and D not declared, op.cont.2 and op.cont.3 show
 "No aplica" (not applicable).
@@ -415,6 +421,13 @@ the tool reads the parameter classification from `public/`
 ([Configuration by controls and templates, section 11.1](09-configuration-by-system.en.md#111-declare-an-agents-template-and-settings-with-set-parameterspy)).
 After declaring values, repeat the backup (section 7) before and the
 validation (section 9) after.
+
+Organisation data (the `organization` section and parameters such as op.acc.1
+P-11 or op.exp.4 P-06) also needs the full repository mounted: the tool reads the
+items from `common/`. Without it, it writes only the parameter, warns with
+`WARNING: cannot read the organisation data items` and the plugin shows the
+conflict in General
+([Configuration by controls and templates, section 11.4](09-configuration-by-system.en.md#114-declare-organisation-data-with-set-parameterspy)).
 
 ## 11. Final check in the browser
 
@@ -464,7 +477,7 @@ Each ENSFácil version is an image with its tag. Installing, updating or removin
    `ensfacil@X.Y.Z`.
 6. If the version brings new controls or parameters, seed them after the
    deployment (section 8) and validate the document (section 9).
-7. Review the T and D levels (section 10).
+7. Review the dimension levels (section 10).
 
 Keep the previous image until the new one is validated: it is the rollback.
 

@@ -11,6 +11,8 @@ export const opExp7CatalogDefinition: ENSControlDefinition = {
   description:
     'op.exp.7 es el control donde Wazuh y el proceso del cliente tienen que encajar: Wazuh detecta y el proceso clasifica, escala, resuelve y notifica. Se mide en el manager, cruzando sus alertas con el registro de incidentes que mantiene la organización.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.3.7',
+  source: { template: 'ENSFacil_Plantilla_op.exp.7', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

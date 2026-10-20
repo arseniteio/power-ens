@@ -12,6 +12,8 @@ import {
 import { ENSControlForm, parameterAnchorId } from '../form-engine';
 import { applyENSControlParameterValues } from '../engine';
 import {
+  controlLevelIn,
+  getActiveENSConfiguration,
   updateActiveControlConfiguration,
   validateControlParameterValues,
 } from '../../../../common/ens/configuration/services';
@@ -21,6 +23,7 @@ import {
   ENSMatchMode,
 } from '../../../../common/ens/configuration/types';
 import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
+import { isOrganizationDataParameter } from '../../../../common/ens/configuration/organization/organization-data-items';
 
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
@@ -144,16 +147,21 @@ export const ConfigurationSession = ({
     }));
   };
 
+  // The level this control is edited for: a choice the ENS admits only at some levels is offered and checked for it.
+  const editedLevel = controlLevelIn(getActiveENSConfiguration(), control.controlId);
+
   const handleSave = async () => {
     if (isSaving) {
       return;
     }
 
     // An invalid value is rejected here, with the reason: absence is fixed by filling, this by correcting.
+    // Organisation data is checked and fixed in General, not here.
     const issues = validateControlParameterValues(
       draftControl,
-      values
-    );
+      values,
+      editedLevel
+    ).filter(issue => !isOrganizationDataParameter(control.controlId, issue.parameterId));
 
     if (issues.length > 0) {
       setValueIssues(
@@ -282,6 +290,7 @@ export const ConfigurationSession = ({
         values={values}
         onChange={handleParameterChange}
         onMatchModeChange={handleMatchModeChange}
+        level={editedLevel}
       />
 
       {secondaryParameters.length > 0 && (
@@ -308,6 +317,7 @@ export const ConfigurationSession = ({
               values={values}
               onChange={handleParameterChange}
               onMatchModeChange={handleMatchModeChange}
+              level={editedLevel}
             />
           </EuiAccordion>
         </>

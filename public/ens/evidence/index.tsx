@@ -8,7 +8,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 
 export const EvidenceENS = () => {
   const items = ENSControls.flatMap(control =>

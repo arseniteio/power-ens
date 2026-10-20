@@ -10,10 +10,14 @@
  * An invalid parameter does not degrade its control: it prevents loading the whole ENS environment
  * («No se pudo cargar el entorno ENS»). It happens with `value: null` (an empty parameter is the ABSENT
  * `value` key), a table with fewer columns than declared, commas in an `identifier` column, or a
- * `traceabilityLevel` or `availabilityLevel` that is not BAJO, MEDIO or ALTO. `inject-control.py` and
+ * dimension level (`confidentialityLevel`, `integrityLevel`, `traceabilityLevel`, `authenticityLevel`,
+ * `availabilityLevel`) that is not BAJO, MEDIO or ALTO. A dimension above `ensLevel` loads but is incoherent
+ * (the category is the highest dimension): it is reported and exits 1. `inject-control.py` and
  * `set-parameters.py` write what they are given; this check says whether the plugin will accept it.
  *
- * A 1.2.0 document is checked as the plugin loads it: converted first.
+ * A 1.2.0 document is checked as the plugin loads it: converted first. The organisation data
+ * (`organizationData`, 1.4.0) too: what the plugin moves on load, the items with a value, and the items
+ * whose controls hold different values (a choice pending in Configuración > General, not an error).
  *
  * Exits 0 if the document is valid and 1 if not, listing each error.
  */
@@ -31,6 +35,19 @@ import {
 import { getCustomTemplates } from '../common/ens/configuration/templates';
 import { validateControlParameterValues } from '../common/ens/configuration/services/validation-engine';
 import type { ENSControlConfiguration } from '../common/ens/configuration/types';
+import {
+  ENS_DIMENSION_LEVEL_KEYS,
+  ENS_DIMENSIONS,
+  findDimensionsAboveENSLevel,
+} from '../common/ens/core/control-level';
+import {
+  checkOrganizationDataKeys,
+  describeOrganizationData,
+  describeOrganizationFills,
+  normalizeOrganizationData,
+  organizationSingleValueIssues,
+  summarizeOrganizationMigration,
+} from '../common/ens/configuration/organization';
 
 declare const process: {
   argv: string[];
@@ -59,10 +76,15 @@ console.log(`controls (${controls.length}): ${controls.join(' ')}`);
 if (configuration && configuration.global) {
   console.log(
     `global level: ${configuration.global.ensLevel || '(not declared)'}` +
-      ` · Traceability level: ${configuration.global.traceabilityLevel || '(not declared: the global one is used)'}` +
-      ` · Availability level: ${configuration.global.availabilityLevel || '(not declared: the global one is used)'}`
+      ENS_DIMENSIONS.map(
+        dimension => ` · ${dimension}: ${configuration.global[ENS_DIMENSION_LEVEL_KEYS[dimension]] || '(not declared: the global one)'}`
+      ).join('')
   );
 }
+
+const dimensionErrors: string[] = findDimensionsAboveENSLevel(configuration && configuration.global).map(
+  dimension => `${ENS_DIMENSION_LEVEL_KEYS[dimension]} ${configuration.global[ENS_DIMENSION_LEVEL_KEYS[dimension]]} is above ensLevel ${configuration.global.ensLevel}`
+);
 
 if (!result.valid) {
   console.log(`INVALID STRUCTURE (${result.errors.length} error(s)): the plugin will NOT load the ENS environment.`);
@@ -72,11 +94,50 @@ if (!result.valid) {
 
 console.log('VALID STRUCTURE: the plugin will load this configuration.');
 
+if (dimensionErrors.length) {
+  console.log(`INCOHERENT LEVELS (${dimensionErrors.length}): the plugin loads the environment, but the category (ensLevel) must be the highest dimension level and the General tab will not save this.`);
+  dimensionErrors.forEach(message => console.log(`  - ${message}`));
+}
+
 const conversion = planTemplateMigration(configuration);
-const model = conversion.configuration;
 
 if (conversion.changed) {
   console.log(`1.2.0 document: ${summarizeTemplateMigration(conversion)} The plugin converts it on load and writes it with the next save; each agent's values do not change.`);
+}
+
+const organization = normalizeOrganizationData(conversion.configuration);
+const model = organization.configuration;
+const organizationStates = describeOrganizationData(model);
+const withValue = organizationStates.filter(state => state.status === 'value').map(state => state.item.id);
+
+if (organization.moved.length || organization.written.length) {
+  console.log(`${summarizeOrganizationMigration({ ...organization, conflicts: [], incomplete: [] })} The plugin does it on load and writes it with the next save.`);
+  describeOrganizationFills(organization.filled).forEach(line => console.log(`  ${line}`));
+}
+console.log(`organisation data: ${withValue.length ? withValue.join(', ') : 'no item with value'}`);
+organizationStates
+  .filter(state => state.status === 'conflict')
+  .forEach(state =>
+    console.log(
+      `  PENDING CHOICE «${state.item.label}» (${state.item.id}): ${state.candidates
+        .map(candidate => `${candidate.from} keeps ${candidate.keeps.join(', ') || 'none'}`)
+        .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.${state.reasons.length ? ` ${state.reasons.join('; ')}` : ''}`
+    )
+  );
+// Not a choice: the item stays empty (or a parameter without value) because the value does not fit; the reason says why.
+organizationStates
+  .filter(state => state.notice)
+  .forEach(state =>
+    console.log(`  ${state.status === 'incomplete' ? 'NO COMMON VALUE' : 'NOT COMPLETED'} «${state.item.label}» (${state.item.id}): ${state.notice}`)
+  );
+checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
+// A parameter that reads one value and finds several rows: which one applies would depend on their order.
+const organizationErrors: string[] = organizationStates
+  .filter(state => state.value !== undefined)
+  .flatMap(state => organizationSingleValueIssues(model, state.item, state.value).map(issue => `«${state.item.label}» ${issue.source}: ${issue.reason}`));
+if (organizationErrors.length) {
+  console.log(`INVALID ORGANISATION DATA (${organizationErrors.length}): fix the item in Configuración > General or with set-parameters.py.`);
+  organizationErrors.forEach(message => console.log(`  - ${message}`));
 }
 
 const templates = getCustomTemplates(model);
@@ -123,7 +184,7 @@ if (commonErrors.length) {
 
 if (!errors.length) {
   console.log('VALID AGENT AND TEMPLATE SETTINGS.');
-  process.exit(commonErrors.length ? 1 : 0);
+  process.exit(commonErrors.length || dimensionErrors.length || organizationErrors.length ? 1 : 0);
 }
 
 console.log(`INVALID AGENT OR TEMPLATE SETTINGS (${errors.length}): the plugin loads the environment; what «does not apply» is ignored and removed on the agent page or with set-parameters.py, and an agent with an invalid value is evaluated with an invalid configuration.`);

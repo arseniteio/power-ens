@@ -216,7 +216,7 @@ export const opAcc4Control: ENSControl = {
       id: 'P-04',
       name: 'canales_acceso_remoto_permitidos',
       description:
-        'Canales, protocolos y orígenes autorizados para el acceso remoto al sistema: VPN corporativa, bastión SSH, escritorio remoto con doble factor, rangos de IP permitidos.',
+        'Canales autorizados para el acceso remoto, uno por línea como canal | puerto | origen, con el nombre de canal del agente (ssh, rdp, openvpn…), sin espacios: es el mismo canal de op.acc.6 P-07 en Datos de la organización.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.acc.4.5'],
       type: 'list',

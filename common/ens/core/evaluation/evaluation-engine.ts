@@ -17,6 +17,7 @@ import { parseApplicabilityDeclaration } from '../../configuration/services/appl
 import { applyApplicabilityDeclaration } from './requirement/applicability';
 import { ENSNormalizedEvent } from '../data-source/types';
 import { applyPolicyDecisionsToEvidences } from './policy-evidence-bridge';
+import { describePendingMeasurement, isPendingMeasurement } from '../../catalog/support/measurement-plan';
 
 const asTraceabilityStatus = (
   status: string | undefined
@@ -633,6 +634,13 @@ export const evaluateENSControl = (
     }),
   ];
 
+  // A control without collector (not ACTIVE) accuses nobody: no non-conformity of any kind, missing parameters
+  // included. What it will need is told as a neutral hint, never as a gap that counts.
+  const pending = isPendingMeasurement(catalogControl);
+  const pendingHint = blockingParameters.length
+    ? [`Para cuando se mida, faltan o no son válidos: ${blockingParameters.map(parameter => parameter.id).join(', ')}.`]
+    : [];
+
   return {
     control: {
       id: catalogControl.id,
@@ -693,16 +701,18 @@ export const evaluateENSControl = (
     })),
 
     // Includes the invalid ones: for the consumer they block as much as the missing ones.
-    missingParameters: blockingParameters.map(
-      parameter => parameter.id
-    ),
-    missingEvidences: evidencesWithPolicy
-      .filter(evidence => evidence.status === 'NO_EVALUABLE')
-      .map(evidence => evidence.id),
+    missingParameters: pending
+      ? []
+      : blockingParameters.map(parameter => parameter.id),
+    missingEvidences: pending
+      ? []
+      : evidencesWithPolicy
+          .filter(evidence => evidence.status === 'NO_EVALUABLE')
+          .map(evidence => evidence.id),
     relatedRules,
 
-    nonConformities,
-    observations,
+    nonConformities: pending ? [] : nonConformities,
+    observations: pending ? [describePendingMeasurement(catalogControl), ...pendingHint] : observations,
 
     traceability: [
       {

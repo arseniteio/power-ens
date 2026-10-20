@@ -11,6 +11,8 @@ export interface ComplianceCardModel {
   noCumple: number;
   noEvaluable: number;
   noAplica: number;
+  // Controls in the catalog without collector (`DRAFT`): neither measured nor «no aplica» by level.
+  notMeasured: number;
   lastEvaluation: string;
   description: string;
 }

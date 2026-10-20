@@ -42,6 +42,13 @@ The op.cont.2 runbook (`linux/op.cont.2`) is documentation only: there is
 nothing to collect on any machine, and the plugin judges it from the screen
 tables and their validity (`tests/controls-without-runbook.json`).
 
+The 11 documentary controls of the auditor's v2.0 package (mp.eq.2, mp.eq.3,
+mp.eq.4, mp.com.1, mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 and
+mp.s.4) have no runbook yet: nothing is installed on the manager or on the
+agents. They are configured on the screen, show «Sin medición todavía» and do
+not enter the index. Each one has a reserved rule ID band (111800–112899,
+[README](../../README.en.md#development)) for the runbook of its wave.
+
 Rules:
 
 - **On the manager**, run the 22 `install-manager.sh` of the **Linux**
@@ -75,7 +82,7 @@ No installer creates these files. Common rules: **tab**-separated TSV; owner `ro
 
 | Control | Register | Template | What goes in it | While missing / header only | Guide |
 |---|---|---|---|---|---|
-| op.exp.7 | `/etc/ensfacil/incident-register.tsv` (the same one op.exp.9 reads) | `/etc/ensfacil/incident-register.tsv.example`, left by the `install-manager.sh` of `linux/op.exp.7` | one row per phase (`inicial`, `intermedio`, `final`) of each incident: severity, systems, escalation, notifications, case reference | missing → `NO_EVALUABLE` (`CONFIGURATION`). Header only → judged with zero incidents: every High or Critical alert (P-01 levels) with no incident within the P-02 deadline is `NO_CUMPLE` in EV-02 | [02 · The incident register](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.en.md#the-incident-register) |
+| op.exp.7 | `/etc/ensfacil/incident-register.tsv` (the same one op.exp.9 reads) | `/etc/ensfacil/incident-register.tsv.example`, left by the `install-manager.sh` of `linux/op.exp.7` | one row per phase (`inicial`, `intermedio`, `final`) of each incident: severity, systems, escalation, notifications, case reference; optionally `fecha_ocurrencia` (14th column) for the MTTD of the annual report ([guide 11](11-annual-report-art-32.en.md)), accepted by op.exp.7, op.exp.9, op.mon.2 and op.mon.3: update all four before adding it | missing → `NO_EVALUABLE` (`CONFIGURATION`). Header only → judged with zero incidents: every High or Critical alert (P-01 levels) with no incident within the P-02 deadline is `NO_CUMPLE` in EV-02 | [02 · The incident register](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.en.md#the-incident-register) |
 | op.exp.9 | the four in `/etc/ensfacil/`: `incident-register.tsv`, `incident-actions.tsv`, `evidence-custody.tsv`, `evidence-custody-log.tsv` | `/opt/ensfacil/plantillas/opexp9/`, left by the `install-manager.sh` of `linux/op.exp.9`; step 2 of its guide 01 copies them without overwriting an existing register | incident phases; actions linked to the case; sealed evidence (hash) and its chain of custody | no `incident-register.tsv` → all nine evidences `NO_EVALUABLE` (`CONFIGURATION`). Header only → judged: op.exp.9.1 `NO_CUMPLE` if there were alerts of level P-08 or higher without a case | [02 · The registers](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.9/-/blob/main/docs/deployment/02-compliance.en.md#the-registers) |
 | op.exp.8 | `/etc/ensfacil/log-review-register.tsv` | no `.example`: the header (`fecha revisor alcance hallazgos referencia`) and the `printf` command that creates it are in the guide | one row per log review actually carried out | missing → EV-05 `NO_EVALUABLE` (`CONFIGURATION`). Header only → EV-05 `NO_CUMPLE` (zero reviews) | [02 · The review register](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.8/-/blob/main/docs/deployment/02-compliance.en.md#the-review-register) |
 | op.mon.2 | `/etc/ensfacil/metrics-cycle-register.tsv` (and it reads op.exp.7's `incident-register.tsv`) | `/etc/ensfacil/metrics-cycle-register.tsv.example`, left by `install-manager.sh` of `linux/op.mon.2` | one row per consolidated and validated metrics cycle: period, consolidation date, overall implementation degree, internal and external hours, budget spent, who validated it and reference | missing → EV-02 and EV-06 `NO_EVALUABLE` (`CONFIGURATION`). Header only → `NO_CUMPLE`: no cycle has been consolidated | [02](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.mon.2/-/blob/main/docs/deployment/02-compliance.en.md) |

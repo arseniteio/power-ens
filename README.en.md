@@ -25,40 +25,57 @@ and the links to every runbook and its guides are in the
 
 1. **Manager.** Wazuh installed and validated; then the `install-manager.sh` of each of the 22 Linux runbooks (rules and `<localfile>` entries). Those of op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3, op.nub.1 and op.cont.3 also install a collector on the manager; op.cont.2 is documentation only. Finally, the ENSFácil plugin in the dashboard, from its release. For Wazuh in Docker: [Wazuh in Docker](docs/deployment/06-wazuh-in-docker.en.md).
 2. **Machines.** On each agent, first the [initial setup](https://gitlab.com/quersystem/ens-controls-runbook/initial-setup) (enrolment on the manager, `ens` group and the plugin's ENS scope), once; then the runbooks of its platform (Linux, Zimbra LDAP, Zimbra MTA or Windows), following the `01-installation` guide **of each runbook**.
-3. **Configuration in the dashboard.** In ENSFácil > Configuration: each control's common settings, templates and assignment («Controles» tab) and what belongs to each agent («Agentes» tab; [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md)). On the machines or the manager, the [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates), following the `02-compliance` guide **of each runbook** (linked from the table).
+3. **Configuration in the dashboard.** In ENSFácil > Configuration: each control's common settings, templates and assignment («Controles» tab), what belongs to each agent («Agentes» tab) and, only once, the data several controls ask for (General > «Datos de la organización»; [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md)). On the machines or the manager, the [organization's registers](docs/deployment/05-runbooks-and-registers.en.md#registers-the-organization-creates), following the `02-compliance` guide **of each runbook** (linked from the table).
 4. **Measure.** After the collectors' first pass (hourly; op.mon.2 and op.cont.3, every 6 h), the panel judges each control; whatever cannot be demonstrated shows `NO_EVALUABLE` with its cause and where to fix it.
 
 ## Controls
 
-ENSFácil evaluates 23 controls. «Levels» are the system categories in which
-Annex II requires the control; «not required» marks a reinforcement the ENS
-defines but does not require in any category, which comes out `NO_APLICA`.
+The ENSFácil catalog has 34 controls, in Annex II order (operational
+framework, section 4, and protection measures, section 5): 23 are evaluated and
+11 are documentary until their collector exists. «Axis» says whether Annex II
+applies the control by the system category or by the level of one or more
+dimensions (with several, the highest). «Levels» are the levels at which it is
+required; «not required» marks a reinforcement the ENS defines but does not
+require at any level, which comes out `NO_APLICA`.
 
-| Control | Name | Levels | Reinforcements | Where it is measured |
-|---|---|---|---|---|
-| `mp.info.6` | Backups | LOW+ | R1 (MEDIUM+), R2 (HIGH) | machines |
-| `op.acc.1` | Identification | LOW+ | R1 (MEDIUM+) | machines |
-| `op.acc.2` | Access requirements | LOW+ | R1 (HIGH) | machines |
-| `op.acc.3` | Segregation of duties and tasks | MEDIUM+ | R1 (HIGH); R2–R3 not required | machines |
-| `op.acc.4` | Access rights management process | LOW+ | no reinforcements | machines |
-| `op.acc.5` | Authentication mechanism (external users) | LOW+ | R1–R4 (LOW+), R5 (MEDIUM+); R6–R7 not required | machines |
-| `op.acc.6` | Authentication mechanism (organization users) | LOW+ | R1–R4, R8–R9 (LOW+), R5 (MEDIUM+), R6–R7 (HIGH) | machines |
-| `op.cont.2` | Continuity plan | HIGH (by the Availability level) | R1–R2 not required | manager; the plugin judges it from the configuration (documentation-only runbook) |
-| `op.cont.3` | Periodic tests | HIGH (by the Availability level) | no reinforcements | manager |
-| `op.exp.1` | Asset inventory | LOW+ | R1–R4 not required | machines |
-| `op.exp.2` | Security configuration | LOW+ | no reinforcements | machines |
-| `op.exp.3` | Security configuration management | LOW+ | R1 (MEDIUM+), R2–R3 (HIGH); R4–R5 not required | machines |
-| `op.exp.4` | Security maintenance and updates | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3–R4 not required | machines |
-| `op.exp.5` | Change management | MEDIUM+ | R1 (HIGH) | machines |
-| `op.exp.6` | Malware protection | LOW+ | R1–R2 (MEDIUM+), R3–R4 (HIGH); R5 not required | machines |
-| `op.exp.7` | Incident management | LOW+ | R1–R2 (MEDIUM+), R3 (HIGH); R4 not required | manager |
-| `op.exp.8` | Activity logging | LOW+ (by the Traceability level) | R1–R4 (MEDIUM+), R5 (HIGH) | machines and manager |
-| `op.exp.9` | Incident management records | LOW+ | no reinforcements | manager |
-| `op.exp.10` | Cryptographic key protection | LOW+ | R1 (MEDIUM+); R2 not required | machines |
-| `op.mon.1` | Intrusion detection | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3 not required | manager |
-| `op.mon.2` | Metrics system | LOW+ | R1–R2 (MEDIUM+) | manager |
-| `op.mon.3` | Monitoring | LOW+ | R1–R2 (MEDIUM+), R3–R6 (HIGH); R7 not required | machines and manager |
-| `op.nub.1` | Protection of cloud services | LOW+ | R1 (MEDIUM+), R2 (HIGH) | manager |
+| Control | Annex II | Name | Axis | Levels | Reinforcements | Where it is measured |
+|---|---|---|---|---|---|---|
+| `op.acc.1` | 4.2.1 | Identification | T·A level | LOW+ | R1 (MEDIUM+) | machines |
+| `op.acc.2` | 4.2.2 | Access requirements | C·I·T·A level | LOW+ | R1 (HIGH) | machines |
+| `op.acc.3` | 4.2.3 | Segregation of duties and tasks | C·I·T·A level | MEDIUM+ | R1 (HIGH); R2–R3 not required | machines |
+| `op.acc.4` | 4.2.4 | Access rights management process | C·I·T·A level | LOW+ | no reinforcements | machines |
+| `op.acc.5` | 4.2.5 | Authentication mechanism (external users) | C·I·T·A level | LOW+ | R1–R4 (LOW+), R5 (MEDIUM+); R6–R7 not required | machines |
+| `op.acc.6` | 4.2.6 | Authentication mechanism (organization users) | C·I·T·A level | LOW+ | R1–R4, R8–R9 (LOW+), R5 (MEDIUM+), R6–R7 (HIGH) | machines |
+| `op.exp.1` | 4.3.1 | Asset inventory | category | LOW+ | R1–R4 not required | machines |
+| `op.exp.2` | 4.3.2 | Security configuration | category | LOW+ | no reinforcements | machines |
+| `op.exp.3` | 4.3.3 | Security configuration management | category | LOW+ | R1 (MEDIUM+), R2–R3 (HIGH); R4–R5 not required | machines |
+| `op.exp.4` | 4.3.4 | Security maintenance and updates | category | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3–R4 not required | machines |
+| `op.exp.5` | 4.3.5 | Change management | category | MEDIUM+ | R1 (HIGH) | machines |
+| `op.exp.6` | 4.3.6 | Malware protection | category | LOW+ | R1–R2 (MEDIUM+), R3–R4 (HIGH); R5 not required | machines |
+| `op.exp.7` | 4.3.7 | Incident management | category | LOW+ | R1–R2 (MEDIUM+), R3 (HIGH); R4 not required | manager |
+| `op.exp.8` | 4.3.8 | Activity logging | T level | LOW+ | R1–R4 (MEDIUM+), R5 (HIGH) | machines and manager |
+| `op.exp.9` | 4.3.9 | Incident management records | category | LOW+ | no reinforcements | manager |
+| `op.exp.10` | 4.3.10 | Cryptographic key protection | category | LOW+ | R1 (MEDIUM+); R2 not required | machines |
+| `op.nub.1` | 4.5.1 | Protection of cloud services | category | LOW+ | R1 (MEDIUM+), R2 (HIGH) | manager |
+| `op.cont.2` | 4.6.2 | Continuity plan | D level | HIGH | R1–R2 not required | manager; the plugin judges it from the configuration (documentation-only runbook) |
+| `op.cont.3` | 4.6.3 | Periodic tests | D level | HIGH | no reinforcements | manager |
+| `op.mon.1` | 4.7.1 | Intrusion detection | category | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3 not required | manager |
+| `op.mon.2` | 4.7.2 | Metrics system | category | LOW+ | R1–R2 (MEDIUM+) | manager |
+| `op.mon.3` | 4.7.3 | Monitoring | category | LOW+ | R1–R2 (MEDIUM+), R3–R6 (HIGH); R7 not required | machines and manager |
+| `mp.eq.2` | 5.3.2 | Workstation locking | A level | MEDIUM+ | R1 (HIGH) | documentary, measurement in preparation (wave A) |
+| `mp.eq.3` | 5.3.3 | Protection of portable devices | category | LOW+ | R1–R2 (HIGH) | documentary, measurement in preparation (wave B) |
+| `mp.eq.4` | 5.3.4 | Other devices connected to the network | C level | LOW+ | R1 (MEDIUM+); R2 not required | documentary, measurement in preparation (wave C) |
+| `mp.com.1` | 5.4.1 | Secure perimeter | category | LOW+ | no reinforcements | documentary, measurement in preparation (wave C) |
+| `mp.com.3` | 5.4.3 | Protection of integrity and authenticity | I·A level | LOW+ | R1–R2 (MEDIUM+), R3–R4 (HIGH); R5 not required | documentary, measurement in preparation (wave B) |
+| `mp.com.4` | 5.4.4 | Separation of information flows in the network | category | MEDIUM+ | one of R1 (MEDIUM only), R2 or R3; R4 (HIGH) | documentary, measurement in preparation (wave C) |
+| `mp.sw.2` | 5.6.2 | Acceptance and commissioning | category | LOW+ | R1 (MEDIUM+); R2 not required | documentary, measurement in preparation (wave A) |
+| `mp.info.6` | 5.7.6 | Backups | D level | LOW+ | R1 (MEDIUM+), R2 (HIGH) | machines |
+| `mp.s.1` | 5.8.1 | Protection of e-mail | category | LOW+ | no reinforcements | documentary, measurement in preparation (wave A) |
+| `mp.s.2` | 5.8.2 | Protection of web services and applications | category | LOW+ | one of R1 or R2 (LOW and MEDIUM); R2 and R3 (HIGH) | documentary, measurement in preparation (wave B) |
+| `mp.s.3` | 5.8.3 | Protection of web browsing | category | LOW+ | R1 (HIGH); R2 not required | documentary, measurement in preparation (wave C) |
+| `mp.s.4` | 5.8.4 | Protection against denial of service | D level | MEDIUM+ | R1 (HIGH); R2 not required | documentary, measurement in preparation (wave C) |
+
+The 11 controls marked «documentary, measurement in preparation» come with the auditor's v2.0 package and are in the catalog with status `DRAFT`: they appear in Controls and in the Overview, they are configured, they can be declared in the Statement of Applicability (op.mon.2 P-01) and their report carries the parameters. No collector emits their evidences yet, so they do not enter the index and are not judged as a failure: Controls and the Overview show «Sin medición todavía» and the detail gives, per evidence, the data source it will need («Fuente necesaria: registro del cortafuegos perimetral»). Measurement arrives in waves: A (mp.s.1, mp.sw.2, mp.eq.2), with no new sources; B (mp.com.3, mp.eq.3, mp.s.2), with the logs of the services; C (mp.com.1, mp.com.4, mp.s.3, mp.eq.4, mp.s.4), with sources that do not reach Wazuh today (firewall, proxy, network or metrics). A control starts being evaluated when its runbook emits and its rules are deployed.
 
 Each control has a runbook in GitLab, with one variant per machine type. The repository is named as the control and the subgroup gives the platform or role: `linux/op.acc.1`, `zimbra/zimbra-ldap/op.acc.1` and `windows/op.acc.1`.
 
@@ -150,11 +167,11 @@ one folder:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.3.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.4.0-osd-2.19.5.zip
 ```
 
 Expected result: `OK` for the three files and `dashboard: active` at the end
-of the deployment. Replace `1.3.0` with the release's version.
+of the deployment. Replace `1.4.0` with the release's version.
 
 Commands of the package installation (`deploy-plugin.sh` uses `systemctl`, `sudo -u wazuh-dashboard` and `https://localhost:443`). In Docker, the release zip is installed in a custom dashboard image ([Wazuh in Docker, section 3](docs/deployment/06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)).
 
@@ -188,6 +205,8 @@ Change version (from the integrated version, to a newer release or back to the p
 | 7 | Install or update the plugin from a release | [Installing from a release](docs/deployment/07-installing-from-a-release.en.md) |
 | 8 | Build the plugin and run the tests | [Building from source](docs/deployment/08-building-from-source.en.md) |
 | 9 | Declare common settings, templates and their assignment to agents, or convert an earlier configuration | [Configuration by controls and templates](docs/deployment/09-configuration-by-system.en.md) |
+| 10 | Assess each control's maturity and record procedures, reviews and feedback | [Maturity assessment](docs/deployment/10-maturity-assessment.en.md) |
+| 11 | Generate, freeze and export the article 32 annual report and declare the measures without engine | [Article 32 annual report](docs/deployment/11-annual-report-art-32.en.md) |
 
 > [!important]
 > When adding controls, first deploy the plugin version that contains them, then seed their configuration ([Installing from a release, section 11](docs/deployment/07-installing-from-a-release.en.md#11-update-to-a-newer-release)).
@@ -229,13 +248,43 @@ measured on it:
 
 Manager facts arrive with `agent.id=000`. In the view of a machine, the controls measured only on the manager show the result of its row (they are controls of the organization). In the manager view the nine with a row on it are measured: op.cont.2, op.cont.3, op.exp.7, op.exp.8, op.exp.9, op.mon.1, op.mon.2, op.mon.3 and op.nub.1; the rest appear last, in grey, with «No se mide en esta máquina» and the reason. The Vista general tab shows every control on every machine ([installation from scratch, section 14.7](docs/deployment/01-installation-from-scratch.en.md#147-check-the-overview-and-the-detail-of-a-control)).
 
-### Traceability dimension level
+### Dimension levels
 
-op.exp.8 applies by the level of the Traceability (T) dimension, not by the system category. Optional **Traceability level (T)** field in Configuration > General: if empty, op.exp.8 is evaluated with the global ENS level. No other control reads it.
+Annex II applies some controls by the level of a security dimension, not by the system category. Configuration > General has an optional field per dimension: **Confidencialidad (C)** (confidentiality), **Integridad (I)** (integrity), **Trazabilidad (T)** (traceability), **Autenticidad (A)** (authenticity) and **Disponibilidad (D)** (availability). An empty field equals the ENS level; a control with several dimensions is evaluated with the highest of them. The detail and the report of those controls show the level they are evaluated with as «Nivel aplicable» with its dimension, for example «Nivel aplicable: ALTO (Disponibilidad)»; the others, «Nivel ENS».
 
-### Availability dimension level
+| Dimensions | Controls |
+|---|---|
+| C, I, T and A | op.acc.2 to op.acc.6 |
+| T and A | op.acc.1 |
+| I and A | mp.com.3 |
+| C | mp.eq.4 |
+| T | op.exp.8 |
+| A | mp.eq.2 |
+| D | mp.info.6, mp.s.4, op.cont.2 and op.cont.3 (these two only with D at ALTO) |
+| none | the rest, by the category (ENS level) |
 
-op.cont.2 and op.cont.3 apply by the level of the Availability (D) dimension, and only with D at ALTO. Optional **Availability level (D)** field in Configuration > General: if empty, both are evaluated with the global ENS level. No other control reads it.
+The ENS level is the system category, the highest of its dimensions: the screen does not save a dimension above it and `config/validate-configuration.ts` reports it. With no dimension declared, the results are the same as with 1.3.0; a document that already declared T or D may change verdicts on update ([update guide, section 5.1](docs/deployment/02-updating-an-existing-environment.en.md#51-before-updating-to-140)). If a dimension exceeds the ENS level, Controles and the dashboard show «Niveles incoherentes» with a link to General.
+
+### ENS norm and application criterion
+
+Only the «Ficha del Control» sheet of the auditor's templates reproduces the BOE; parameters, evidences, thresholds, non-compliance conditions and report fields are interpretation. The control detail, the Controls view and the PDF report label each text with its provenance:
+
+| Label | Meaning |
+|---|---|
+| «Norma ENS» | literal text of the requirement (Annex II of RD 311/2022) |
+| «Criterio de aplicación» | how ENSFácil or the auditor's template reads and measures it, with no normative value |
+
+The catalog keeps the literal in `description` and the interpretation in `interpretation`. Each control also declares its Annex II section (`annexSection`) and the template it comes from (`source`: v2.0 of 15/10/2026; op.acc.2 stays on v1.0, undated, until its v2.0 arrives). The detail header and the report header show the three.
+
+### mp.info.6 and the auditor's template
+
+mp.info.6 was not built from the auditor's template and keeps what is deployed: parameters P-01 to P-14, its seven evidences and the requirements `mp.info.6.2.a` to `mp.info.6.2.d`, which the PBS and Zimbra collectors report. The control detail and its report show «Correspondencia con la plantilla del auditor»: which ENSFácil parameter and evidence cover each P-xx and EV-xx of the template, with the coverage (equivalent, partial or not measured yet); `mp.info.6.2` itself is partial: b) is accredited by the retention and d) by the permissions, without observing the accesses. Not measured today: P-09 (test register), EV-03 (coverage against the scope), EV-07 (mass deletion of backups) and EV-11 (repository encryption). The table is in `common/ens/catalog/template-correspondence.ts`.
+
+`mp.info.6.2` stays split into its letters a) to d): each letter is one requirement in the control percentage (the base counts five requirements, not two). The ids `.2.a` to `.2.d` do not exist in the BOE; the text of each is the literal of its letter.
+
+### op.exp.10: key reads
+
+op.exp.10 EV-01 records reads, writes, permission changes and deletions of the key stores with auditd rules that include read permission (`-w <path> -p rwa`), on Linux and on the LDAP server, and with a read SACL and event 4663 on Windows (runbook `windows/op.exp.10`, rule 111109). FIM only detects integrity changes. This is the EV-01 correction of the v2.0 template. Without read auditing, EV-01 stays `NO_EVALUABLE` with its reason.
 
 ---
 
@@ -360,9 +409,21 @@ arrive with agent `000` (the manager). op.cont.2 has no rules:
 | `op.mon.3` | 111400–111499 | 111400–111499 |
 | `op.nub.1` | 111500–111599 | 111500–111599 |
 | `op.cont.3` | 111700–111799 | 111700–111799 |
+| `mp.eq.2` | 111800–111899 | — |
+| `mp.eq.3` | 111900–111999 | — |
+| `mp.eq.4` | 112000–112099 | — |
+| `mp.com.1` | 112100–112199 | — |
+| `mp.com.3` | 112200–112299 | — |
+| `mp.com.4` | 112300–112399 | — |
+| `mp.sw.2` | 112400–112499 | — |
+| `mp.s.1` | 112500–112599 | — |
+| `mp.s.2` | 112600–112699 | — |
+| `mp.s.3` | 112700–112799 | — |
+| `mp.s.4` | 112800–112899 | — |
 
 The 107200–109999 band is not used: on some managers other integrations
-occupy it. The 111600–111699 band is free. Before deploying on a manager with its own rules, check that none
+occupy it. The 111600–111699 band is free. The 111800–112899 bands are reserved for the 11 documentary
+controls, one per control in Annex II order, with no rule deployed yet; the next free one is 112900. Before deploying on a manager with its own rules, check that none
 of these bands is in use.
 
 ---

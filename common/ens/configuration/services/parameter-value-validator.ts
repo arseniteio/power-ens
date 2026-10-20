@@ -1,5 +1,6 @@
 import {
   ENSControlParameter,
+  ENSLevel,
   ENSParameterColumn,
   ENSParameterValueVerdict,
 } from '../types';
@@ -676,6 +677,26 @@ export const getParameterOptions = (
     .map(option => String(option).trim())
     .filter(Boolean);
 
+/** The options offered at a level: `optionsByLevel` where it narrows them, every option otherwise. */
+export const getParameterOptionsAtLevel = (
+  parameter: ENSControlParameter,
+  level?: ENSLevel
+): string[] => {
+  const all = getParameterOptions(parameter);
+  const narrowed = level ? parameter.optionsByLevel?.[level] : undefined;
+
+  return narrowed ? all.filter(option => narrowed.includes(option)) : all;
+};
+
+/** The parameter as the form offers it at a level: only the options the ENS admits there. */
+export const parameterAtLevel = (
+  parameter: ENSControlParameter,
+  level?: ENSLevel
+): ENSControlParameter =>
+  parameter.optionsByLevel && level && parameter.optionsByLevel[level]
+    ? { ...parameter, options: getParameterOptionsAtLevel(parameter, level) }
+    : parameter;
+
 /** Whether the parameter is edited as a dropdown. */
 export const hasParameterOptions = (
   parameter: ENSControlParameter
@@ -815,7 +836,45 @@ const validateRestoreThreshold = (
   return VALID;
 };
 
+// op.mon.2 P-01: a valid table and one row per measure (two rows of the same measure would count it twice).
+const validateStatementOfApplicability = (
+  parameter: ENSControlParameter,
+  value: ENSControlParameter['value']
+): ENSParameterValueVerdict => {
+  const typed = validateTable(parameter, value);
+
+  if (!typed.valid) {
+    return typed;
+  }
+
+  const rows = new Map<string, number[]>();
+
+  toParameterTableRows(value)
+    .filter(row => !isBlankRow(row))
+    .forEach((row, index) => {
+      const measure = (toTableRowCells(row)[0] || '').trim().toLowerCase();
+
+      if (measure) {
+        rows.set(measure, [...(rows.get(measure) || []), index + 1]);
+      }
+    });
+
+  const repeated = Array.from(rows.entries()).filter(([, lines]) => lines.length > 1);
+
+  return repeated.length
+    ? invalidVerdict(
+        `una sola fila por medida: ${repeated.map(([measure, lines]) => `«${measure}» está en las filas ${lines.join(', ')}`).join('; ')}`
+      )
+    : VALID;
+};
+
 export const PARAMETER_REFINEMENTS: ParameterRefinement[] = [
+  {
+    controlId: 'op.mon.2',
+    name: 'declaracion_aplicabilidad',
+    criterio: 'una fila por medida',
+    validar: validateStatementOfApplicability,
+  },
   {
     controlId: 'op.acc.2',
     name: 'umask_minimo',

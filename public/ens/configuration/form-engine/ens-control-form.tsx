@@ -4,6 +4,8 @@ import {
   ENSControlFormProps,
   ParameterRendererFactory,
 } from '.';
+import { findOrganizationDataLink } from '../../../../common/ens/configuration/organization/organization-data-items';
+import { OrganizationParameterRenderer } from './renderers/organization-parameter-renderer';
 
 // Anchor of a parameter on the screen, to open it from the URL (`configParam`).
 export const parameterAnchorId = (controlId: string, parameterId: string, agentId?: string): string =>
@@ -14,20 +16,29 @@ export const ENSControlForm = ({
   values,
   onChange,
   onMatchModeChange,
+  level,
 }: ENSControlFormProps) => (
   <>
-    {parameters.map(parameter => (
-      <div
-        key={parameter.id}
-        id={parameterAnchorId(parameter.controlId, parameter.id)}
-      >
-        <ParameterRendererFactory
-          parameter={parameter}
-          value={values[parameter.name]}
-          onChange={onChange}
-          onMatchModeChange={onMatchModeChange}
-        />
-      </div>
-    ))}
+    {parameters.map(parameter => {
+      const link = findOrganizationDataLink(parameter.controlId, parameter.id);
+      return (
+        <div
+          key={parameter.id}
+          id={parameterAnchorId(parameter.controlId, parameter.id)}
+        >
+          {link ? (
+            <OrganizationParameterRenderer parameter={parameter} value={values[parameter.name]} item={link.item} />
+          ) : (
+            <ParameterRendererFactory
+              parameter={parameter}
+              value={values[parameter.name]}
+              onChange={onChange}
+              onMatchModeChange={onMatchModeChange}
+              level={level}
+            />
+          )}
+        </div>
+      );
+    })}
   </>
 );

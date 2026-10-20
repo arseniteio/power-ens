@@ -2,7 +2,7 @@
 // - Every 5 minutes with the tab visible: first the probe (a few hundred bytes), and the evaluation only if the fingerprint changed.
 // - Whatever the fingerprint, a result older than 60 minutes is requested again: the engine measures against the clock.
 // - A stored result served while the server recalculates (`meta.refreshing`) is requested again after 10 s.
-// - First load (`meta.pending`, `meta.seriesPending`): every 2 s for 2 minutes, then every 15 s.
+// - First load (`meta.pending`, `meta.seriesPending`, `meta.maturityPending`): every 2 s for 2 minutes, then every 15 s.
 // - At most 2 concurrent requests in the whole app.
 export const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
@@ -131,7 +131,7 @@ interface RefreshRequest {
   retryRefresh?: boolean;
 }
 
-export const createEvaluationController = <T extends { meta?: { fingerprint?: string; evaluatedAt?: string; refreshing?: boolean; refreshError?: unknown; pending?: unknown; seriesPending?: boolean } }>(
+export const createEvaluationController = <T extends { meta?: { fingerprint?: string; evaluatedAt?: string; refreshing?: boolean; refreshError?: unknown; pending?: unknown; seriesPending?: boolean; maturityPending?: boolean } }>(
   initialDeps: EvaluationControllerDeps<T>
 ) => {
   let deps = initialDeps;
@@ -179,7 +179,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         lastCheck = deps.now();
         // A stored result the server cannot refresh counts as a failure, but only a NEW error does: the same error repeated does not lengthen the wait.
         const error = (data as any)?.meta?.refreshError;
-        const pending = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending);
+        const pending = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending || (data as any)?.meta?.maturityPending);
         partialSince = pending ? partialSince ?? deps.now() : undefined;
         if (!error) {
           failureCount = 0;
@@ -237,7 +237,7 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       const data: any = state.key === key ? state.data : undefined;
       if (failureCount > 0 && now - (lastLoad ?? 0) < backoffAfter(failureCount)) return 'skip';
       // First partial load: every 2 s for 2 minutes, then every 15 s; nothing while the tab is hidden.
-      const partial = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending);
+      const partial = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending || data?.meta?.maturityPending);
       const each =
         partialSince !== undefined && now - partialSince >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
       if (partial) {

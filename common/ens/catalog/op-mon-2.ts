@@ -11,6 +11,8 @@ export const opMon2CatalogDefinition: ENSControlDefinition = {
   description:
     'op.mon.2 pide medir tres cosas: el grado de implantación de las medidas de seguridad, el comportamiento del sistema de gestión de incidentes y los recursos consumidos por el sistema de seguridad.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
+  annexSection: '4.7.2',
+  source: { template: 'ENSFacil_Plantilla_op.mon.2', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // A METACONTROL. The implementation degree of all controls (EV-01), the greys (EV-05) and the art. 32 report data (EV-07) are engine output: they go to the report model without verdict, with no requirement judging them. Requirements are decided with what leaves a trace on the manager:

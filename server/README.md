@@ -1,9 +1,11 @@
 # Servidor de ENSFácil
 
-Dos grupos de rutas, las dos bajo `/api/ensfacil`:
+Cuatro grupos de rutas, todos bajo `/api/ensfacil`:
 
 - `configuration` — la configuración ENS activa y su historial (ver `lib/configuration-handlers.ts`).
 - `evaluation` — **la evaluación de los controles** (desde 1.2.0). El navegador no descarga hechos para juzgar: pide el resultado aquí.
+- `maturity` — los registros de madurez de cada control y sus instantáneas diarias (desde 1.4.0; apartado «Madurez»).
+- `annual-report` — el informe anual del art. 32 y su congelado (desde 1.4.0; apartado «Informe anual del art. 32»).
 
 ## Evaluación
 
@@ -103,3 +105,54 @@ Las mismas opciones por entorno: `ENSFACIL_INDEXER_URL`, `ENSFACIL_INDEXER_CA`, 
 docker run --rm --network host -v "$PWD":/plugin:ro -v /ruta/certs:/certs:ro -w /plugin node:18 \
   npx --yes tsx server/scripts/measure-evaluation.ts --ca /certs/root-ca.pem --cert /certs/admin.pem --key /certs/admin-key.pem
 ```
+
+## Madurez
+
+La madurez CMM de cada control (`lib/maturity/maturity-service.ts`, motor en `common/ens/maturity/`) viaja con la evaluación: `include=control` lleva `maturity` (el `ENSControlMaturity` del control: niveles, puertas con su motivo y lo registrado) y `maturityVersion` (la versión del documento de madurez, `null` sin ninguno); `summary`, `overview` y `dashboard` llevan `maturity` = `{ controls[], distribution }` (la distribución solo con todos los controles de la organización calculados). Es siempre la de la organización: una vista de máquina la toma de la memoria de la última vista de conjunto y, si cambió, la recalcula detrás (sin pase extra en la petición). Si no se puede calcular, la respuesta lleva `maturityError` y la evaluación no falla. `results` no la lleva.
+
+**Nunca retrasa la respuesta.** Lo que lee aparte de la evaluación —los días con hechos de cada control en cada máquina en sus propios 30 días (con el primer hecho de cada máquina; el más antiguo que queda es el menor de los de las máquinas del alcance), en grupos por debajo de 20.000 cubos, y las instantáneas de 180 días— se lee como el usuario que mira, detrás, con el límite de 4 lecturas a la vez de la evaluación (detrás de lo que alguien espera) y se guarda 5 minutos. Mientras no está, la respuesta va sin `maturity` y con `meta.maturityPending` (y la huella `refreshing:`): el navegador vuelve a pedir cada 2 s, como con la serie. Los días los formatea el indexador (`format: yyyy-MM-dd`).
+
+**Documento propio.** Lo registrado va en `wazuh-ens-configuration/_doc/maturity` (`documentType: MATURITY_RECORDS`, los registros en el campo no indexado `configuration`), con su versión y su sello en la huella de la vista: registrar no toca la configuración ni recalcula filas, y las pantallas abiertas se actualizan. Cada registro añade una entrada `MATURITY_HISTORY`. Los objetivos (`global.maturityTargets`) siguen en la configuración.
+
+**Instantáneas.** Una por control y día en `wazuh-ens-snapshots`, id `<control>|<AAAA-MM-DD>` en la zona de Configuración > General: el mismo día se sustituye y no se reescribe si no cambia. Solo las escribe (`asInternalUser`) la tarea diaria (`lib/maturity/daily-snapshot-job.ts`: usuario interno, cada día a las 02:30 en la zona configurada —Europe/Madrid por defecto— y, 10 minutos tras arrancar, solo si el día no tiene instantánea; una evaluación completa propia, con su memoria aparte y sin serie diaria, y las entradas leídas en el momento; solo escribe con la evaluación completa y todas las lecturas bien: si algo falla o el indexador rechaza la escritura, no escribe nada, lo avisa cada vez y lo reintenta a los 30 minutos y, si sigue fallando, tras 1, 2, 4 y 8 horas, siempre que el intento caiga antes de las 23:00). El índice (y su plantilla) se comprueba una vez por proceso. Cada ejecución borra las de más de 1095 días; un borrado fallido se reintenta a la hora.
+
+**Vistas de máquina.** Muestran la madurez de la organización de memoria. Solo la marcan `maturityPending` (con la anterior a la vista y sin `maturityVersion`) cuando cambió lo que la decide —registros, configuración o alcance— o faltan filas de la organización; los hechos nuevos y las filas que se refrescan se sirven de memoria y se recalculan detrás. Solo cuenta como intento fallido una pasada que lanza error; las filas que aún se calculan dejan la vista en `maturityPending` mientras su número baje; si no baja en 10 minutos, la pasada cuenta como fallida (`retryRefresh=1` reinicia esa cuenta). Una madurez ya calculada para los mismos registros, configuración y alcance se sirve aunque fallen los refrescos de detrás. Sin ella, tras 3 intentos fallidos (a los 5 y 30 s), `maturityError` «No se ha podido calcular la madurez.», que se reintenta detrás cada 5 minutos y desaparece con el primer cálculo correcto; `retryRefresh=1` vuelve a empezar. La regla de la justificación reutiliza las entradas de la pantalla si tienen 15 minutos o menos (si no, lee solo las del control), lee las instantáneas con el usuario interno y responde 503 si no termina en 20 s (otro error, con su propio mensaje: 401/403 sin permiso, 503 datos incompletos, 500 en otro caso). El primer hecho de cada máquina sale de una agregación acotada (400 días, un cubo por máquina), guardada 24 h como el primer hecho de cada máquina (un alcance menor la reutiliza) y repetida cuando entra una máquina; si falla, las máquinas cuentan desde el inicio del periodo, el motivo lo dice y la consulta no se repite hasta pasados 30 minutos (1, 2, 4 y 8 h si sigue fallando), salvo con `retryRefresh=1` o al cambiar el día local.
+
+### `PUT /api/ensfacil/maturity`
+
+Cuerpo: `{ controlId, kind, entry, expectedVersion }`, con `kind` = `attestation` | `review` | `assessment` | `indicators` | `feedback` | `declaration` | `resources` y `expectedVersion` obligatoria (la versión del documento de madurez leída; `null` si no había: solo crea). Rol `ensfacil_admin` o `all_access`. Valida la entrada (`validateMaturityEntry`, la misma regla que la pantalla); en una valoración calcula el nivel acreditado y sus puertas de ese momento, los guarda con ella y exige justificación si el valorado lo supera (o si no se puede calcular). Añade la entrada al final de su lista con `recordedAt` y `recordedBy`, escribe solo sobre la versión leída y añade la entrada de historial. Respuesta: `{ record, version, updatedAt, warning? }`.
+
+| Estado | Cuándo |
+|---|---|
+| 400 | Control fuera del catálogo, registro desconocido, sin `expectedVersion`, entrada no válida o valoración por encima de lo acreditado sin justificación; `declaration` para un control que mide el motor o una medida fuera del Anexo II; `resources` fuera de op.mon.2. Con el motivo |
+| 401/403 | Sin sesión o sin el rol |
+| 409 | El documento de madurez cambió desde que se leyó («La madurez ha cambiado desde que la abriste») |
+
+`declaration` es la entrada declarada de una medida del Anexo II sin motor (fuera del catálogo o en borrador; `controlId` es el id de la medida): aplica, nivel valorado y objetivo, referencia documental, enlace, responsable, fecha y justificación si no aplica. `resources` (solo `op.mon.2`) son el presupuesto y la plantilla TIC totales de un periodo del informe anual. Las dos van al mismo documento, con la misma versión e historial.
+
+El guardado de la configuración (`PUT /api/ensfacil/configuration`) rechaza (400) un `global.maturityTargets` que no sea un nivel de 0 a 5 por categoría.
+
+### `GET /api/ensfacil/maturity/snapshots`
+
+`from`, `to` (AAAA-MM-DD, como mucho 400 días) y `controlId` opcional. Se lee como el usuario: los permisos de `wazuh-ens-snapshots` deciden quién ve la serie (403 sin ellos). `{ from, to, controlId, snapshots[] }`, de la más antigua a la más reciente.
+
+## Informe anual del art. 32
+
+El conjunto de datos del informe anual (`common/ens/annual-report/`, servicio en `lib/annual-report/annual-report-service.ts`) se construye con la evaluación de la organización (`include=results`), la madurez de cada control, las entradas declaradas del documento de madurez y las variables de informe de las filas del manager de op.mon.2 (`informe_art32_incidentes`, `informe_art32_ciclos`) y de op.exp.7 (`informe_art32_conciliacion`, `informe_art32_deteccion`). Campos, orígenes y periodo: [guía 11](../docs/deployment/11-annual-report-art-32.md).
+
+**Congelado.** Documento `annual_freeze|<periodo>` en `wazuh-ens-snapshots`, sin campo `date` (las lecturas de instantáneas, la comprobación de la tarea diaria y la purga no lo tocan). Lo escribe siempre el usuario interno: la tarea diaria, tras las instantáneas, crea (`create`) el del periodo que acaba de cerrar si el cierre fue hace 31 días o menos (un fallo se avisa y se reintenta al día siguiente sin afectar a las instantáneas); y la ruta de congelado, a petición de un administrador. Una revisión nueva guarda antes la anterior entera en `annual_freeze|<periodo>|r<N>` y escribe sobre la versión leída.
+
+### `GET /api/ensfacil/annual-report`
+
+`period` (AAAA, opcional: el periodo en curso) y `revision` (opcional: una revisión congelada anterior). El cierre sale de op.mon.2 P-02 en la configuración. Un periodo congelado se sirve tal como se guardó sin evaluar nada (lectura de la configuración, de la versión de la madurez y del congelado como el usuario); solo un periodo sin congelar evalúa todos los controles (`include=results`). Sin permiso de lectura de `wazuh-ens-snapshots`, el conjunto se calcula en el momento y `freezeError` lo dice. Un congelado se sirve con las fechas de su cabecera (`periodFrom`, `periodTo`, `closing`); si el cierre cambió después, `notice` lo dice, y el periodo en curso nunca se sirve con un congelado de otro cierre que tenga su misma clave. Un periodo cerrado sin congelar (y todo congelado o regeneración) lee sus incidentes en el indexador (`lib/annual-report/incident-source.ts`: la última lectura del registro de op.mon.2 con todas sus filas, hasta 10 000 incidentes del periodo y 50 000 filas, el límite de una lectura); el periodo en curso usa la variable de op.mon.2. Un congelado lleva `regeneration`: `allowed: false` con el motivo cuando op.mon.2 ya no reenvía los incidentes del periodo (400 días). `{ period, currentPeriod, lastClosedPeriod, closing, periodFrom, periodTo, periods[], frozen?, report?, pending?, freezeError?, notice?, maturityVersion }`; `pending: true` solo si la evaluación respondiera con filas pendientes, lo que con `include=results` no ocurre. 400 con un periodo mal formado o futuro; 404 con una revisión que no existe.
+
+### `POST /api/ensfacil/annual-report/freeze`
+
+Cuerpo: `{ period, reason, expectedRevision }` (`expectedRevision`: la revisión leída, `null` si no había congelado). Rol `ensfacil_admin` o `all_access`; escribe con el usuario interno. Solo un periodo cerrado y con motivo. Respuesta: `{ frozen, report }`.
+
+| Estado | Cuándo |
+|---|---|
+| 400 | Periodo mal formado o sin cerrar, sin motivo o motivo de más de 1000 caracteres, o una regeneración que perdería las cifras de incidentes del congelado vigente (que se conserva) |
+| 401/403 | Sin sesión o sin el rol |
+| 409 | La revisión congelada cambió desde que se leyó |
+| 503 | La evaluación de todos los controles o su madurez no se han podido completar, o no se han podido leer los incidentes del periodo en el indexador; no se guarda nada y se reintenta |

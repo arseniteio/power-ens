@@ -2,6 +2,9 @@
 // Only the last segment may match partially, and only if nothing matches by whole segments.
 
 import { ENSPrefixFilterResult } from './types';
+import { compareENSFamiliesByAnnex } from '../../../common/ens/catalog';
+
+export { compareENSIds } from '../../../common/ens/catalog';
 
 export const splitENSId = (id: string): string[] =>
   String(id).trim().toLowerCase().split('.');
@@ -79,47 +82,10 @@ export const ensFamilyOf = (id: string): string => {
     : segments.join('.');
 };
 
-const compareENSIdSegments = (a: string, b: string): number => {
-  const aNumber = Number(a);
-  const bNumber = Number(b);
-  const aIsNumber = a !== '' && Number.isFinite(aNumber);
-  const bIsNumber = b !== '' && Number.isFinite(bNumber);
-
-  if (aIsNumber && bIsNumber) {
-    return aNumber - bNumber;
-  }
-
-  if (aIsNumber) {
-    return -1;
-  }
-
-  if (bIsNumber) {
-    return 1;
-  }
-
-  return a < b ? -1 : a > b ? 1 : 0;
-};
-
-export const compareENSIds = (a: string, b: string): number => {
-  const aSegments = splitENSId(a);
-  const bSegments = splitENSId(b);
-  const shared = Math.min(aSegments.length, bSegments.length);
-
-  for (let index = 0; index < shared; index += 1) {
-    const verdict = compareENSIdSegments(aSegments[index], bSegments[index]);
-
-    if (verdict !== 0) {
-      return verdict;
-    }
-  }
-
-  return aSegments.length - bSegments.length;
-};
-
 export const listENSFamilies = (ids: readonly string[]): string[] => {
   const families = ids.map(ensFamilyOf).filter(family => family !== '');
 
-  return [...new Set(families)].sort(compareENSIds);
+  return [...new Set(families)].sort(compareENSFamiliesByAnnex);
 };
 
 // Sections start closed; with exactly one matching control the section starts open.

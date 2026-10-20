@@ -122,7 +122,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Las mismas rutas se vigilan en lectura con auditd (fichero de reglas del runbook) para EV-01. Una ruta de P-02 que auditd no vigila es un hueco que el recolector declara.',
+        'Las mismas rutas se vigilan en lectura para EV-01: con auditd en Linux y LDAP (fichero de reglas del runbook) y con una SACL de lectura en Windows. Una ruta de P-02 sin vigilancia de lectura es un hueco que el recolector declara.',
       ensfacilUsage:
         'EV-02 contrasta el directorio de cada clave privada hallada en disco con `ruta`: una clave fuera de los almacenes es indicio de copia. EV-08 contrasta su modo y propietario con los de su fila.',
       evidenceIds: ['EV-02', 'EV-08'],
@@ -355,7 +355,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'Todo acceso a los almacenes vigilados por una cuenta ajena a esta lista es hallazgo. Es la comprobación que más hallazgos produce en este control.',
       ensfacilUsage:
-        'EV-01 contrasta el actor de cada acceso registrado por auditd con la columna `cuenta`. `claves` y `operacion` documentan el alcance de cada autorización y no se juzgan por clave.',
+        'EV-01 contrasta el actor de cada acceso registrado (auditd en Linux y LDAP, evento 4663 en Windows) con la columna `cuenta`. `claves` y `operacion` documentan el alcance de cada autorización y no se juzgan por clave.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
       ifNotConfigured:

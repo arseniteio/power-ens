@@ -4,7 +4,7 @@
 // not a failure.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
-import { getENSCatalogControl } from '../../catalog';
+import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../catalog';
 import { getCollectedControls } from '../templates';
 import { isAgentLevelParameter } from './parameter-classes';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
@@ -28,7 +28,9 @@ export const getAgentControls = (
   const plane = manager ? 'manager' : 'agent';
   const only = getCollectedControls(type);
 
-  return configuration.controls
+  // The stored document keeps its own order (seed order); the screen follows Annex II like every other list.
+  return [...configuration.controls]
+    .sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId))
     .filter(control => control.parameters.some(parameter => isAgentLevelParameter(control.controlId, parameter.id)))
     .map(control => {
       const planes = getENSCatalogControl(control.controlId)?.measurementPlanes;

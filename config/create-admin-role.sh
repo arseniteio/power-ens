@@ -5,8 +5,8 @@
 #   sudo bash config/create-admin-role.sh [--dry-run] [--mapear <user>]...
 #
 # Whoever has the ensfacil_admin role (or all_access) can save the ENS configuration and see its
-# history; the others see it but get a 403 on save. The role grants no permission: it is a mark the
-# plugin looks for among the user's roles.
+# history; the others see it but get a 403 on save. The role is a mark the plugin looks for among the
+# user's roles, and grants one permission: read on wazuh-ens-snapshots (the maturity series).
 #
 # Talks to the indexer with its administration certificate, no password, and verifies the indexer
 # certificate against its CA (never `-k`: this script writes to cluster security, and without
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 ROLE=ensfacil_admin
-ROLE_BODY='{"description":"ENSFácil: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
+ROLE_BODY='{"description":"ENSFácil: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
 ROLE_PATH="_plugins/_security/api/roles/$ROLE"
 MAPPING_PATH="_plugins/_security/api/rolesmapping/$ROLE"
 

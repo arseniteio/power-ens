@@ -4,12 +4,13 @@ import {
   toParameterTableRows,
   toTableRowCells,
 } from '../../../common/ens/configuration/services/parameter-value-validator';
-// Same grammars as the policy: P-01 and P-06 read the same in the judgement and in the report.
-import {
-  parseStatementOfApplicability,
-  parseMetricTargets,
-} from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+// Same grammar as the policy for P-06; P-01 through `applicableMeasures` (the policy's parser, once per measure).
+import { parseMetricTargets } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
 import type { MetricTarget } from '../../../common/ens/core/policy-runtime/policies/op-mon-2.policy';
+import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
+import { describeAnnualReport } from '../../../common/ens/annual-report/annual-report-export';
+import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from '../../../common/ens/annual-report/implementation-degree';
+import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -90,12 +91,6 @@ const CONTROL = 'op.mon.2';
 
 const figure = (n: number): string => String(Math.round(n * 10) / 10);
 
-const FRAMEWORKS: Record<string, string> = {
-  org: 'Marco organizativo',
-  op: 'Marco operacional',
-  mp: 'Medidas de protección',
-};
-
 const table = (
   result: ENSComplianceResult | undefined,
   id: string,
@@ -137,63 +132,10 @@ const deviation = (value: number, o: MetricTarget | undefined): string => {
     : `${target}: alcanzado`;
 };
 
-interface Rollout {
-  global?: number;
-  medidas: number;
-  evaluadas: number;
-  lineas: string[];
-}
-
-const rollout = (
-  applicable: string[],
-  panorama: ENSComplianceResult[],
-): Rollout => {
-  const byControl = new Map(
-    panorama
-      .filter(r => r.control.id !== CONTROL)
-      .map(r => [r.control.id, r]),
-  );
-  const scored: { medida: string; score: number }[] = [];
-  const lines: string[] = [];
-
-  applicable.forEach(measure => {
-    const r = byControl.get(measure);
-
-    if (!r) {
-      lines.push(`${measure}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
-    } else if (r.status === 'NO_APLICA') {
-      lines.push(`${measure}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
-    } else if (typeof r.score !== 'number') {
-      lines.push(`${measure}: ${r.status}, sin puntuación`);
-    } else {
-      scored.push({ medida: measure, score: r.score });
-      lines.push(`${measure}: ${figure(r.score)} % (${r.status})`);
-    }
-  });
-
-  const byFramework = Object.entries(FRAMEWORKS)
-    .map(([prefix, name]) => {
-      const own = scored.filter(p => p.medida.split('.')[0] === prefix);
-
-      return own.length
-        ? `${name}: ${figure(own.reduce((a, p) => a + p.score, 0) / own.length)} % (${own.length} medidas)`
-        : '';
-    })
-    .filter(Boolean);
-
-  return {
-    global: scored.length
-      ? scored.reduce((a, p) => a + p.score, 0) / scored.length
-      : undefined,
-    medidas: applicable.length,
-    evaluadas: scored.length,
-    lineas: [...byFramework, ...lines],
-  };
-};
-
+// A control without collector is out of every op.mon.2 figure: it cannot be configured «for evaluation» yet.
 const greys = (panorama: ENSComplianceResult[]): string[] =>
   panorama
-    .filter(r => r.control.id !== CONTROL)
+    .filter(r => r.control.id !== CONTROL && !isPendingMeasurement(getENSCatalogControl(r.control.id)))
     .map(r => {
       const parameters = new Set<string>(r.missingParameters || []);
 
@@ -215,6 +157,7 @@ const greys = (panorama: ENSComplianceResult[]): string[] =>
 export const buildOpMon2ReportModel = (
   result: ENSComplianceResult | undefined,
   panorama?: ENSComplianceResult[],
+  extra: { annualReport?: ENSAnnualReport } = {},
 ): OpMon2ReportModel => {
   const evidences = new Map(
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
@@ -243,15 +186,16 @@ export const buildOpMon2ReportModel = (
   const level = (result?.level || '').toUpperCase();
   const reinforcements = level === 'MEDIO' || level === 'ALTO';
 
-  const declaration = parseStatementOfApplicability(
+  // One entry per measure (the last row wins), as in the art. 32 data set.
+  const declaration = applicableMeasures(
     table(result, 'P-01', ['medida', 'aplicable', 'nivel', 'refuerzos_exigibles']),
   );
   const { objetivos: targets } = parseMetricTargets(
     table(result, 'P-06', ['metrica', 'objetivo', 'tolerancia']),
   );
 
-  const degree = panorama && declaration.aplicables.length
-    ? rollout(declaration.aplicables, panorama)
+  const degree = panorama && declaration.applicable.length
+    ? implementationDegree(declaration.applicable, panorama)
     : undefined;
   const pendingItems = panorama ? greys(panorama) : undefined;
   const series = list('serie_ciclos_metricas');
@@ -277,13 +221,13 @@ export const buildOpMon2ReportModel = (
     degree ? 'NO_APLICA' : 'SIN_DATOS',
     !panorama
       ? 'Sin el resultado de todos los controles: se calcula en la pantalla de Informes, con los hechos de todos.'
-      : !declaration.aplicables.length
+      : !declaration.applicable.length
       ? 'Sin Declaración de Aplicabilidad (P-01): el grado de implantación no tiene base.'
       : degree && degree.global !== undefined
       ? `${figure(degree.global)} % global sobre ${degree.evaluadas} de ${degree.medidas} medidas aplicables de P-01 evaluadas por ENSFácil (${deviation(degree.global, targets.get('implantacion_global'))}). Dato del informe, sin veredicto.`
-      : `Ninguna de las ${declaration.aplicables.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
+      : `Ninguna de las ${declaration.applicable.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
     ['EV-01'],
-    [...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
+    [describeRepeatedMeasures(declaration.repeated), ...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
   );
 
   const field3 = field(
@@ -348,7 +292,18 @@ export const buildOpMon2ReportModel = (
     [...(r2?.observations || []), ...evidenceObservations('EV-06')],
   );
 
-  const field8 = field(
+  // With the art. 32 data set, field 8 is its summary (the same figures as the JSON and CSV exports).
+  const annual = extra.annualReport;
+  const field8 = annual
+    ? field(
+        'op.mon.2.campo8',
+        'Datos para el informe anual del artículo 32',
+        'NO_APLICA',
+        `Conjunto de datos del periodo ${annual.period} por medida del Anexo II, con el origen de cada cifra (formato ${annual.schema}). Dato del informe, sin veredicto.`,
+        ['EV-07'],
+        describeAnnualReport(annual),
+      )
+    : field(
     'op.mon.2.campo8',
     'Datos para el informe anual del artículo 32',
     panorama ? 'NO_APLICA' : 'SIN_DATOS',

@@ -267,8 +267,8 @@ const prepare = async (doc: any, agents = AGENTS) => {
     let page = await render(ConfigurationShell);
     check('three tabs', /\[ Controles \]/.test(page) && /\[ Agentes \]/.test(page) && /\[ General \]/.test(page), page.slice(0, 300));
     const table = nodes.find(node => node.type === 'EuiBasicTable');
-    check('the 23 controls, with state; the 6 not added offer «Añadir con valores por defecto»', table?.props.items.length === 23 &&
-      nodes.filter(node => node.type === 'EuiButton' && /^Añadir con valores por defecto$/.test(node.text)).length === 6 && /Sin añadir/.test(page) && /Incompleto|Sin configurar|Configurado/.test(page));
+    check('the 34 controls, with state; the 17 not added offer «Añadir con valores por defecto»', table?.props.items.length === 34 &&
+      nodes.filter(node => node.type === 'EuiButton' && /^Añadir con valores por defecto$/.test(node.text)).length === 17 && /Sin añadir/.test(page) && /Incompleto|Sin configurar|Configurado/.test(page));
     check('control row: built-in and custom templates', /3 de serie · 0 propia\(s\)/.test(page) && /Solo ajustes comunes/.test(page), page.slice(0, 2000));
     check('a control is not green while agents miss a required value: names and counts them', /mp\.info\.6 · Copias de seguridad \] Incompleto Falta «Frecuencia máxima entre copias» en 2 agentes\./.test(page), page.slice(0, 900));
     check('no internal codes in the header', /Estado de la configuración: Borrador/.test(page) && !/DRAFT/.test(page));

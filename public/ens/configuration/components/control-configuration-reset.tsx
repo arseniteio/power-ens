@@ -106,6 +106,7 @@ export const ControlConfigurationReset = ({
           parámetro(s) con valor declarado:{' '}
           {summary.parameterIds.join(', ')}.
         </p>
+        <p>Los Datos de la organización que lee este control no se borran: se editan en General.</p>
         <p>
           El control seguirá en la pantalla y podrás volver a configurarlo.
           Lo que se pierde es <strong>lo que declaró el responsable</strong>,

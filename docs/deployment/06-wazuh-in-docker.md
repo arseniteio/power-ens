@@ -220,7 +220,7 @@ Si alguna comprobación falla, detener el procedimiento y seguir el
 
 ## 5. Crear el rol `ensfacil_admin`
 
-Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial (el usuario `admin` de Wazuh tiene `all_access`). El rol no concede otros permisos: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial (el usuario `admin` de Wazuh tiene `all_access`). El rol concede además lectura de `wazuh-ens-snapshots` (la serie de madurez) y nada más: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 `create-admin-role.sh`, de la carpeta de la release, se ejecuta en un
 contenedor conectado a la red del compose, con el certificado de administrador
@@ -298,9 +298,10 @@ mkdir -p <copias>
 COPIA=<copias>/active-$(date +%Y%m%d-%H%M%S).json
 ix wazuh-ens-configuration/_doc/active > "$COPIA"
 grep -c '"found":true' "$COPIA"
+ix wazuh-ens-configuration/_doc/maturity > "${COPIA/active-/maturity-}"
 ```
 
-Resultado esperado: `1`. La restauración de esta copia en Docker se describe en
+Resultado esperado: `1`, y la copia de la madurez registrada (desde la 1.4.0; `"found":false` si no hay). La restauración de esta copia en Docker se describe en
 el apartado 12.2.
 
 ## 8. Sembrar los controles
@@ -377,15 +378,20 @@ Un `scope` sin las listas `agentIds` y `groupIds` se rechaza (`configuration.sco
 
 `<repo>/active.json` puede borrarse después de la validación.
 
-## 10. Declarar la política: niveles T y D
+## 10. Declarar la política: niveles de las dimensiones
 
 Los valores de los parámetros se declaran en ENSFácil > Configuración. En la tarjeta de configuración global se declaran también:
 
 | Campo | Controles | Sin declarar |
 |---|---|---|
 | Nivel ENS | todos | — |
-| Nivel de Trazabilidad (T) | op.exp.8 | se usa el nivel ENS |
-| Nivel de Disponibilidad (D) | op.cont.2 y op.cont.3, que solo aplican con D en ALTO | se usa el nivel ENS |
+| Nivel de Confidencialidad (C) | op.acc.2 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Integridad (I) | op.acc.2 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Trazabilidad (T) | op.acc.1 a op.acc.6 y op.exp.8 | se usa el nivel ENS |
+| Nivel de Autenticidad (A) | op.acc.1 a op.acc.6 | se usa el nivel ENS |
+| Nivel de Disponibilidad (D) | mp.info.6, op.cont.2 y op.cont.3 (estos dos solo aplican con D en ALTO) | se usa el nivel ENS |
+
+Un control con varias dimensiones se evalúa con la más alta de ellas. Ninguna dimensión puede superar el nivel ENS.
 
 Con el nivel ENS en MEDIO y sin declarar D, op.cont.2 y op.cont.3 muestran
 «No aplica».
@@ -415,6 +421,13 @@ herramienta lee la clasificación de los parámetros de `public/`
 ([Configuración por controles y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-la-plantilla-y-los-ajustes-de-un-agente-con-set-parameterspy)).
 Después de declarar valores, repetir la copia (apartado 7) antes y la
 validación (apartado 9) después.
+
+Los datos de la organización (sección `organization` y parámetros como op.acc.1
+P-11 u op.exp.4 P-06) también necesitan el repositorio completo montado: la
+herramienta lee los datos de `common/`. Sin él, escribe solo el parámetro, avisa
+con `WARNING: cannot read the organisation data items` y el plugin muestra el
+conflicto en General
+([Configuración por controles y plantillas, apartado 11.4](09-configuration-by-system.md#114-declarar-datos-de-la-organización-con-set-parameterspy)).
 
 ## 11. Comprobación final en el navegador
 
@@ -463,7 +476,7 @@ Cada versión de ENSFácil es una imagen con su etiqueta. Instalar, actualizar o
    indicar `ensfacil@X.Y.Z`.
 6. Si la versión trae controles o parámetros nuevos, sembrarlos después de
    desplegar (apartado 8) y validar el documento (apartado 9).
-7. Revisar los niveles T y D (apartado 10).
+7. Revisar los niveles de las dimensiones (apartado 10).
 
 La imagen anterior se conserva hasta validar la nueva: es la vuelta atrás.
 

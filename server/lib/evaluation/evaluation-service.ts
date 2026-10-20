@@ -4,12 +4,13 @@ import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../src/core/server';
 import { ENS_CONFIGURATION_INDEX } from '../../../common/constants';
 import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../../../common/agents/agent-inventory';
-import { ENSCatalog } from '../../../common/ens/catalog';
+import { ENSCatalog, isPendingMeasurement } from '../../../common/ens/catalog';
 import { defaultENSConfigurationTemplate } from '../../../common/ens/configuration/data/default-configuration';
 import { ensConfigurationRepository } from '../../../common/ens/configuration/repository';
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
+import { normalizeOrganizationData } from '../../../common/ens/configuration/organization/organization-data-migration';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
@@ -25,8 +26,7 @@ import {
   listENSControlRowAgents,
   resultStatusStub,
 } from '../../../common/ens/core/control-partition';
-import { buildImpactEventsModelFromCounts } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
-import type { ImpactEventsModel } from '../../../common/ens/core/dashboard-adapter/models/impact-events.model';
+import { buildOperationalAlertsModel, unreadOperationalAlertsModel } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 import { normalizeWazuhAlerts } from '../../../common/ens/core/data-source/data-source-engine';
 import type { ENSNormalizedEvent } from '../../../common/ens/core/data-source/types';
 import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common/ens/core/evaluation/types';
@@ -45,6 +45,8 @@ import { planENSTimelineCuts, startOfDayIn } from '../../../common/ens/core/time
 import type { ENSTimelineCutPlan } from '../../../common/ens/core/timeline/timeline-cuts';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
 import { readActiveENSConfiguration } from '../configuration-storage';
+import { ENS_MATURITY_DOCUMENT_ID, readMaturityDocument } from '../maturity/maturity-storage';
+import type { ENSMaturityRecords, ENSMaturityVersion } from '../../../common/ens/maturity/types';
 import { resolveCurrentUser } from '../current-user';
 import { Cancellable, CancelSignal, EVALUATION_TTL_MS, EvaluationCache, Semaphore } from './cache';
 import { ENSTooManyFactsError, MAX_FACTS_PER_READ, newReadStats, readAllFacts, searchComplete, throwIfCancelled, yieldToEventLoop } from './facts-reader';
@@ -63,6 +65,8 @@ import {
   STREAM_SORT,
   buildFactsQuery,
   buildImpactEventsRequest,
+  readOperationalIncidents,
+  OPERATIONAL_ALERTS_PER_TYPE,
   buildProbeRequest,
   buildStateFactKeepClause,
   buildStateFactLastSeenRequest,
@@ -73,7 +77,7 @@ import {
   readProbeResponse,
   resolveEvaluationWindow,
 } from './queries';
-import type { ENSEvaluationWindow, ENSProbeResult, ENSStateFactLastSeen } from './queries';
+import type { ENSEvaluationWindow, ENSProbeResult, ENSStateFactLastSeen, OperationalIncidentsRead } from './queries';
 import { overviewQueryFlags, perControlOfPoint, perControlOfResults } from './overview-fields';
 
 export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
@@ -166,6 +170,11 @@ export interface ENSEvaluationContext {
   userKey: string;
   configuration: ENSConfigurationVersion;
   configurationKey: string;
+  // The maturity document and the targets: they change what the view shows, never a row's result.
+  maturityKey: string;
+  maturityRecords?: ENSMaturityRecords;
+  // Version of the maturity document (undefined: there is none yet), sent back with each record.
+  maturityVersion?: ENSMaturityVersion;
   configurationUpdatedAt?: string;
   scope: ENSAgentScope[];
   scopeKey: string;
@@ -265,25 +274,27 @@ export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceR
 const hasStateFacts = (controlId: string): boolean =>
   getEvidenceDefinitions(controlId).some(definition => (definition.stateFactEventTypes || []).length > 0);
 
-// The active configuration is re-read only when its stamp changes: the document carries the history and weighs
-// hundreds of KB. The stamp includes `_seq_no` and `_primary_term`, which change on any write.
-const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
+// Configuration and maturity documents are re-read only when their stamp (`_seq_no`, `_primary_term`) changes.
+const readConfigurationStamps = async (client: any): Promise<{ configuration?: string; maturity?: string }> => {
   const body = await searchComplete(
     client,
     {
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        size: 1,
+        size: 2,
         seq_no_primary_term: true,
-        query: { ids: { values: ['active'] } },
+        query: { ids: { values: ['active', ENS_MATURITY_DOCUMENT_ID] } },
         _source: ['updatedAt', 'configuration.updatedAt'],
       },
     },
     'la configuración ENS'
   );
-  const hit = body?.hits?.hits?.[0];
-  const doc = hit?._source;
-  return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
+  const stampOf = (id: string) => {
+    const hit = (body?.hits?.hits || []).find((entry: any) => entry._id === id);
+    const doc = hit?._source;
+    return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
+  };
+  return { configuration: stampOf('active'), maturity: stampOf(ENS_MATURITY_DOCUMENT_ID) };
 };
 
 // A machine's view comes from the overview rows: its row if the control is measured there; the manager's row for
@@ -320,6 +331,8 @@ export interface ENSEvaluationServiceOptions {
   maxStoredBytes?: number;
   // What the list or panel waits before answering with what exists.
   firstResponseMs?: number;
+  // false: no daily series (the daily maturity job only needs today's result).
+  computeSeries?: boolean;
 }
 
 export interface ENSRunOptions {
@@ -385,15 +398,18 @@ export const createEvaluationService = ({
   maxFactsPerRead = MAX_FACTS_PER_READ,
   maxStoredBytes = 64 * 1024 * 1024,
   firstResponseMs = FIRST_RESPONSE_MS,
+  computeSeries = true,
 }: ENSEvaluationServiceOptions) => {
   const clockValue = () => clock().getTime();
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
   // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
   // IANA zones arrive here).
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
-  const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
+  // Operational alert incidents of each view (the aggregation); the model is built against each run's results. Bounded by size too (8 MB).
+  const impacts = new EvaluationCache<OperationalIncidentsRead>(200, EVALUATION_TTL_MS, clockValue, 8 * 1024 * 1024, value => JSON.stringify(value).length);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
+  const maturities = new EvaluationCache<{ records?: ENSMaturityRecords; version?: ENSMaturityVersion }>(4, 24 * 3600 * 1000, clockValue);
   // Up to 4 reads at once (the indexer has room) and the engine one at a time (dashboard process CPU). What
   // someone waits for goes ahead of background work (refreshes and series).
   const reads = new Semaphore(maxConcurrentReads);
@@ -412,14 +428,14 @@ export const createEvaluationService = ({
 
   // --- 1. context ---
 
-  const loadConfiguration = async (clients: ENSEvaluationClients) => {
-    const stamp = (await readConfigurationStamp(clients.asInternalUser)) || 'default';
+  const loadConfiguration = async (clients: ENSEvaluationClients, stamp: string) => {
     const cached = configurations.get('active', stamp);
     if (cached) return cached;
     const stored = await readActiveENSConfiguration(clients.asInternalUser, logger);
-    // A 1.2.0 document is converted once per load, exactly as the browser does on hydration.
+    // A 1.2.0 document is converted once per load, and the organisation data applied, exactly as the browser does
+    // on hydration. Neither changes a parameter the engine reads unless the organisation value says so.
     const configuration = stored?.configuration
-      ? toTemplateModel(assertENSConfigurationVersion(stored.configuration))
+      ? normalizeOrganizationData(toTemplateModel(assertENSConfigurationVersion(stored.configuration))).configuration
       : (defaultENSConfigurationTemplate as ENSConfigurationVersion);
     const entry = {
       configuration,
@@ -430,12 +446,26 @@ export const createEvaluationService = ({
     return entry;
   };
 
+  // The maturity records (their own document): changing them changes the view, never a row.
+  const loadMaturityRecords = async (clients: ENSEvaluationClients, stamp?: string) => {
+    if (!stamp) return { records: undefined, version: undefined };
+    const cached = maturities.get('maturity', stamp);
+    if (cached) return cached;
+    const stored = await readMaturityDocument(clients.asInternalUser, logger);
+    const entry = { records: stored.records, version: stored.version };
+    maturities.set('maturity', stamp, entry);
+    return entry;
+  };
+
   const loadContext = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery): Promise<ENSEvaluationContext> => {
     const now = clock();
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
     // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
-    const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients);
+    const stamps = await readConfigurationStamps(clients.asInternalUser);
+    const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients, stamps.configuration || 'default');
+    const maturity = await loadMaturityRecords(clients, stamps.maturity);
+    const maturityKey = sha(stamps.maturity || null, configuration.global?.maturityTargets || null);
 
     let inventory = inventories.get(userKey, 'inventory');
     if (!inventory) {
@@ -470,6 +500,9 @@ export const createEvaluationService = ({
       userKey,
       configuration,
       configurationKey,
+      maturityKey,
+      maturityRecords: maturity.records,
+      maturityVersion: maturity.version,
       configurationUpdatedAt: updatedAt,
       scope,
       scopeKey,
@@ -536,6 +569,7 @@ export const createEvaluationService = ({
     const { forControl } = identitiesOf(ctx);
     return sha(
       ctx.configurationKey,
+      ctx.maturityKey,
       ctx.scopeKey,
       query.agentId || '*',
       controlsOf(query).map(controlId => {
@@ -712,6 +746,9 @@ export const createEvaluationService = ({
   // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a
   // machine's view of an organization control without a manager row. The read slot is kept until the engine
   // finishes: no more than `maxConcurrentReads` reads in memory.
+  // A control without collector reads nothing: no fact can be about it, and its one result needs none.
+  const readsNothing = (spec: RowSpec): boolean => isPendingMeasurement(ENSCatalog.find(entry => entry.id === spec.controlId));
+
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -725,8 +762,10 @@ export const createEvaluationService = ({
       throwIfCancelled(signal);
       const stats = newReadStats();
       const subject = `${spec.controlId}${spec.factsAgent ? ` en ${spec.factsAgent}` : ''}`;
-      const pruning = spec.factsAgent ? await pruningFor(clients, ctx, spec.controlId, spec.factsAgent, [ctx.now], stats, signal) : undefined;
-      const hits = await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${subject}`, signal);
+      const pruning = spec.factsAgent && !readsNothing(spec) ? await pruningFor(clients, ctx, spec.controlId, spec.factsAgent, [ctx.now], stats, signal) : undefined;
+      const hits = readsNothing(spec)
+        ? []
+        : await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${subject}`, signal);
       return evaluateRow(ctx, spec, hits, { searchMs: stats.searchMs, hits: stats.hits, pages: stats.pages }, {
         queueMs: reading - requested,
         pruned: Boolean(pruning),
@@ -1141,6 +1180,7 @@ export const createEvaluationService = ({
     Boolean(row.cuts && row.cuts.key === seriesKeyValue && row.cuts.pastKey === pastKey && row.cuts.complete);
 
   const wantSeries = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed) => {
+    if (!computeSeries) return;
     const seriesKeyValue = seriesOf(ctx).key;
     const row = seriesTarget(ctx, need);
     if (!row || seriesDone(row, seriesKeyValue, pastSignature(ctx, need.spec))) return;
@@ -1317,7 +1357,7 @@ export const createEvaluationService = ({
     const instants = [...series.plan.map(cut => cut.cutoff), ctx.now];
     const subject = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;
     const signal = new CancelSignal();
-    const hits = await reads.use(async () => {
+    const hits = readsNothing(need.spec) ? [] : await reads.use(async () => {
       const pruning = need.spec.factsAgent ? await pruningFor(clients, ctx, need.spec.controlId, need.spec.factsAgent, instants, stats, signal) : undefined;
       return readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, need.spec.controlId, need.spec.factsAgent, pruning), stats, `la serie de ${subject}`, signal);
     }, { background: true });
@@ -1371,17 +1411,26 @@ export const createEvaluationService = ({
     return cuts.map(cut => days.filter((d: any) => d.at <= cut.cutoff.getTime()).reduce((s: number, d: any) => s + d.n, 0));
   };
 
-  const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string) => {
+  const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string, state: ENSComplianceState | undefined) => {
     const key = `i|${ctx.userKey}|${query.agentId || '*'}`;
-    const savedValue = impacts.get(key, fingerprint);
-    if (savedValue) return savedValue;
-    // The view's: the machine and the manager, or the whole scope.
-    const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'los eventos operativos');
-    const model = buildImpactEventsModelFromCounts(
-      Object.fromEntries((body?.aggregations?.types?.buckets || []).map((b: any) => [String(b.key), Number(b.doc_count || 0)]))
-    );
-    impacts.set(key, fingerprint, model);
-    return model;
+    let read = impacts.get(key, fingerprint);
+    if (!read) {
+      try {
+        // The view's: the machine and the manager, or the whole scope.
+        const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'las alertas operativas');
+        read = readOperationalIncidents(body?.aggregations);
+      } catch (error: any) {
+        // Only the alerts panel degrades, and the failure is not cached: the next request reads again.
+        logger.warn(`ENSFácil: could not read the operational alerts: ${error?.message || error}`);
+        return unreadOperationalAlertsModel();
+      }
+      impacts.set(key, fingerprint, read);
+    }
+    return buildOperationalAlertsModel(read.incidents, state, {
+      scope: ctx.scope,
+      agentId: query.agentId,
+      ...(read.truncated ? { truncatedAt: OPERATIONAL_ALERTS_PER_TYPE } : {}),
+    });
   };
 
   interface UsedRow {
@@ -1627,6 +1676,19 @@ export const createEvaluationService = ({
             },
           };
         }
+      } else if (fallbackNeed && !isManagerAgentId(query.agentId) && isPendingMeasurement(ENSCatalog.find(entry => entry.id === controlId))) {
+        // A control without collector has one result, the same on every machine: no row of its own. The manager's
+        // view carries only what is measured on it.
+        const row = rowOf(fallbackNeed);
+        view = {
+          controlId,
+          result: row.result,
+          traceability: () => decompressTraceability(row.traceability),
+          traceabilityStored: row.traceabilityStored,
+          traceabilityTotal: row.traceabilityTotal,
+          rows: [],
+          pointAt: iso => pointOf(row, iso, fallbackNeed),
+        };
       } else {
         const decision = deriveForAgent(controlId, query.agentId, rowList.map(f => f.agentId), ctx.scope);
         let ofRow: RowNeed | undefined =
@@ -1753,7 +1815,7 @@ export const createEvaluationService = ({
 
     const refreshing = used.some(u => u.stale);
     const fingerprint = viewFingerprint(ctx, query);
-    const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
+    const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint, state) : undefined;
     const computed = used.filter(u => u.computed);
     // A refresh error is reported while no other attempt is in progress (a new attempt clears it; if it also
     // fails it is noted with its time).
@@ -1814,8 +1876,17 @@ export const createEvaluationService = ({
     return !w.rows && !w.series && !w.reads && !w.engine;
   };
 
+  // The active configuration and the maturity document's version, without reading facts (a frozen report needs no more).
+  const settings = async (clients: ENSEvaluationClients) => {
+    const stamps = await readConfigurationStamps(clients.asInternalUser);
+    const { configuration } = await loadConfiguration(clients, stamps.configuration || 'default');
+    const maturity = await loadMaturityRecords(clients, stamps.maturity);
+    return { configuration, maturityVersion: maturity.version };
+  };
+
   return {
     loadContext,
+    settings,
     run,
     viewFingerprint,
     rows,

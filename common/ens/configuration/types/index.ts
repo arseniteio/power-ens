@@ -1,4 +1,4 @@
-import type { ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
+import type { ENSAgentParameterValue, ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
 
 export type {
   ENSAgentControlOverrides,
@@ -78,10 +78,12 @@ export interface ENSGlobalConfiguration {
   clientName: string;
   organization: string;
   ensLevel: ENSLevel;
-  // Traceability (T) dimension level. Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Read
-  // only by controls declaring `levelDimension: 'T'`.
+  // Dimension levels (C, I, T, A, D). Optional: an ABSENT key means "same as `ensLevel`"; never `null`. Each is read
+  // only by controls whose `levelDimension` includes it; `ensLevel` (the category) may not be below any of them.
+  confidentialityLevel?: ENSLevel;
+  integrityLevel?: ENSLevel;
   traceabilityLevel?: ENSLevel;
-  // Availability (D) dimension level, same contract as T; read by controls declaring `levelDimension: 'D'`.
+  authenticityLevel?: ENSLevel;
   availabilityLevel?: ENSLevel;
   ensVersion: string;
   scope: string;
@@ -89,6 +91,8 @@ export interface ENSGlobalConfiguration {
   timezone: string;
   reportLanguage: 'es' | 'en';
   activePolicy: string;
+  // Maturity target per category (1.4.0); an absent key or category is the default (L2/L3/L4), never `null`.
+  maturityTargets?: Partial<Record<ENSLevel, 0 | 1 | 2 | 3 | 4 | 5>>;
 }
 
 export interface ENSControlParameter {
@@ -107,6 +111,9 @@ export interface ENSControlParameter {
   // Optional: without `options` the select is free text and validated as "not empty" (blocks seeded earlier;
   // reseed with `inject-control.py`, which keeps configured values).
   options?: string[];
+  // The options the ENS admits at each level, where it narrows them (a reinforcement offered only at some levels:
+  // mp.com.4 P-03, mp.s.2 P-07). A level without an entry offers every option. The form offers only these.
+  optionsByLevel?: Partial<Record<ENSLevel, string[]>>;
   // Shape of the parameter ITEM; same two effects as `options` (editable grid and per-cell validation).
   //   - `type: 'table'`: one column per field of the row.
   //   - `type: 'list'`: ONE column describing each item; only the first applies.
@@ -186,6 +193,13 @@ export interface ENSConfigurationVersion {
   agents?: ENSAgentsConfiguration;
   // Custom control templates (1.3.0). Its presence marks a 1.3.0 document; built-ins live in code.
   templates?: ENSCustomTemplate[];
+  // Shared data asked once (1.4.0); each mapped control parameter is a view of its item. Absent: not migrated.
+  organizationData?: ENSOrganizationData;
+}
+
+export interface ENSOrganizationData {
+  // Value of each item by id; an absent key is no value, never `null`. Unknown ids (a later version) are kept.
+  values: Record<string, ENSAgentParameterValue>;
 }
 export type ENSConfigurationLifecycleStatus =
   | 'DRAFT'

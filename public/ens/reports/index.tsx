@@ -10,7 +10,8 @@ import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationStatusLine, EvaluationLoading } from '../../evaluation/evaluation-status';
 import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../common/ens/configuration/services';
-import { getENSCatalogControl } from '../../../common/ens/catalog';
+import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../../common/ens/catalog';
+import { describeApplicableLevelLabel } from '../../../common/ens/core/control-level';
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { canExportReport, reportViewState } from './report-view-state';
 import { describeParameterForMachine } from '../controls/parameter-origins';
@@ -20,6 +21,10 @@ import type {
   ENSRequirementResult,
 } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
+import { buildMaturityPdfContent, MaturityReportSection } from '../maturity/maturity-report';
+import { AnnualReportPanel } from '../annual-report/annual-report-panel';
+import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
+import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
   getENSReportModelDefinition,
@@ -37,9 +42,19 @@ import {
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
-import { ENSControls } from '../data';
+import { ProvenanceLabel, ProvenancedText, TemplateCorrespondencePanel } from '../controls/control-detail/requirement-texts';
+import { ENS_PROPOSAL_TEXT_PROVENANCE } from '../../../common/ens/catalog/support/provenance';
 import {
-  compareENSIds,
+  REPORT_CRITERION_NOTE,
+  buildTemplateCorrespondencePdf,
+  describeReportControlLine,
+  describeReportPendingMeasurement,
+  pdfProvenanceRuns,
+  pdfRowLabel,
+  reportRequirementTexts,
+} from './report-provenance';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
+import {
   filterByENSPrefix,
   listENSFamilies,
   resolveENSSectionOpenState,
@@ -99,7 +114,7 @@ const ControlReport = ({
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
+  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta; maturity?: ENSControlMaturity; maturityError?: string }>({
     include: 'control',
     controlId,
     agentId,
@@ -128,16 +143,20 @@ const ControlReport = ({
   const exportable = canExportReport(view);
 
   const panoramaResults = panorama?.results;
+  // op.mon.2: the art. 32 data set (field 8 of the PDF is drawn from it).
+  const [annualReport, setAnnualReport] = useState<ENSAnnualReport | undefined>(undefined);
 
   const reportModel = useMemo(
-    () => definition.build(complianceResult, panoramaResults),
-    [definition, complianceResult, panoramaResults],
+    () => definition.build(complianceResult, panoramaResults, { annualReport }),
+    [definition, complianceResult, panoramaResults, annualReport],
   );
 
   // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
   const engineScore = complianceResult ? complianceResult.score ?? null : null;
   const engineCoverage = complianceResult ? complianceResult.coverage : null;
   const engineLevel = complianceResult?.level || ensLevel;
+  // The level this control is evaluated with: «Nivel ENS» by category, «Nivel aplicable (Disponibilidad)» by dimension.
+  const levelLabel = describeApplicableLevelLabel(getENSCatalogControl(controlId) || {});
   const engineEvaluatedAt = complianceResult?.evaluatedAt || '-';
 
   const engineApplicable = complianceResult?.applicableRequirements ?? null;
@@ -229,6 +248,7 @@ const ControlReport = ({
     observationList: requirement.observations || [],
     observations: (requirement.observations || []).join(' · '),
     traza: evidenceTrace(requirement.evidenceIds || []),
+    texts: reportRequirementTexts(controlId, requirement.id),
   }));
 
   const formatParameterValue = (value, matchMode?: string) => {
@@ -282,9 +302,10 @@ const ControlReport = ({
       ? '#f5a700'
       : PDF_SECONDARY_COLOR;
 
-  const hasDetail = (item: { observations: string; traza: string[] }) =>
+  const hasDetail = (item: { observations: string; traza: string[]; texts?: unknown[] }) =>
     (item.observations || '').length > OBSERVATION_PREVIEW_LENGTH ||
-    item.traza.length > 0;
+    item.traza.length > 0 ||
+    (item.texts || []).length > 0;
 
   const requirementColumns = [
     {
@@ -365,6 +386,10 @@ const ControlReport = ({
       if (row && hasDetail(row)) {
         acc[id] = (
           <EuiText size='xs'>
+            {row.texts.map(text => (
+              <ProvenancedText key={text.provenance} provenance={text.provenance} text={text.text} />
+            ))}
+
             {row.observationList.length > 0 ? (
               <>
                 <strong>Observaciones</strong>
@@ -401,7 +426,9 @@ const ControlReport = ({
       name: 'Parámetro',
       render: (parameter: string, item: { ifNotConfigured: string }) => (
         <>
-          <EuiText size='xs'>{parameter}</EuiText>
+          <EuiText size='xs'>
+            {parameter} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+          </EuiText>
           {item.ifNotConfigured ? (
             <EuiText size='xs' color='subdued'>
               Si falta: {item.ifNotConfigured}
@@ -449,6 +476,11 @@ const ControlReport = ({
       field: 'campo',
       name: 'Campo',
       width: '28%',
+      render: (campo: string) => (
+        <EuiText size='s'>
+          {campo} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+        </EuiText>
+      ),
     },
     {
       field: 'valor',
@@ -509,7 +541,10 @@ const ControlReport = ({
       content: [
         { text: 'INFORME DE CUMPLIMIENTO ENS', style: 'h1' },
         { text: definition.name, style: 'h2' },
-        { text: 'RD 311/2022', style: 'sub' },
+        { text: ['RD 311/2022', describeReportControlLine(controlId)].filter(Boolean).join(' · '), style: 'sub' },
+        ...(describeReportPendingMeasurement(controlId)
+          ? [{ text: describeReportPendingMeasurement(controlId), style: 'sub', italics: true, margin: [0, 2, 0, 0] }]
+          : []),
         { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, lineColor: '#cccccc' }], margin: [0, 4, 0, 12] },
 
         {
@@ -537,7 +572,7 @@ const ControlReport = ({
             widths: ['*', '*', '*', '*'],
             body: [
               [
-                { text: 'Nivel ENS', style: 'th' },
+                { text: levelLabel, style: 'th' },
                 { text: 'Cumplimiento', style: 'th' },
                 { text: 'Cobertura', style: 'th' },
                 { text: 'Requisitos demostrados', style: 'th' },
@@ -568,7 +603,11 @@ const ControlReport = ({
           margin: [0, 0, 0, 16],
         },
 
+        // The maturity (normative) after the result (operational), never inside it.
+        ...buildMaturityPdfContent(evaluation.data?.maturity, evaluation.data?.maturityError, Boolean(evaluation.data?.meta?.maturityPending)),
+
         { text: 'Campos del informe', style: 'h3' },
+        { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
           table: {
             headerRows: 1,
@@ -581,7 +620,7 @@ const ControlReport = ({
                 { text: 'Evidencia', style: 'th' },
               ],
               ...rows.map((r) => [
-                { text: r.campo, style: 'td' },
+                { text: [pdfRowLabel(), r.campo], style: 'td' },
                 {
                   text: r.contexto
                     ? [
@@ -619,12 +658,12 @@ const ControlReport = ({
                 { text: requirement.id, style: 'td' },
                 {
                   text: [
-                    requirement.title,
-                    ...requirement.traza,
-                    requirement.observations || undefined,
-                  ]
-                    .filter(Boolean)
-                    .join('\n'),
+                    { text: requirement.title, bold: true },
+                    ...pdfProvenanceRuns(requirement.texts),
+                    ...[...requirement.traza, requirement.observations || undefined]
+                      .filter(Boolean)
+                      .map(line => ({ text: `\n${line}` })),
+                  ],
                   style: 'td',
                 },
                 { text: requirement.level, style: 'td' },
@@ -649,6 +688,7 @@ const ControlReport = ({
         },
 
         { text: 'Parámetros', style: 'h3' },
+        { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
           table: {
             headerRows: 1,
@@ -662,7 +702,7 @@ const ControlReport = ({
               ],
               ...parameterRows.map(parameter => [
                 {
-                  text: `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`,
+                  text: [pdfRowLabel(), `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`],
                   style: 'td',
                 },
                 { text: parameter.required, style: 'td' },
@@ -690,6 +730,8 @@ const ControlReport = ({
           },
           layout: 'lightHorizontalLines',
         },
+
+        ...buildTemplateCorrespondencePdf(controlId),
       ],
       styles: {
         h1: { fontSize: 16, bold: true, color: '#1a1c21' },
@@ -806,7 +848,7 @@ const ControlReport = ({
 
       <EuiFlexGroup gutterSize='l'>
         <EuiFlexItem>
-          <EuiStat title={String(engineLevel)} description='Nivel ENS' />
+          <EuiStat title={String(engineLevel)} description={levelLabel} />
         </EuiFlexItem>
 
         <EuiFlexItem>
@@ -834,9 +876,24 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
+      <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} pending={Boolean(evaluation.data?.meta?.maturityPending)} />
+
+      <EuiSpacer size='l' />
+
+      {definition.usesAnnualReport && (
+        <>
+          <AnnualReportPanel onReport={setAnnualReport} />
+          <EuiSpacer size='l' />
+        </>
+      )}
+
       <EuiTitle size='xs'>
         <h3>Campos del informe</h3>
       </EuiTitle>
+
+      <EuiText size='xs' color='subdued'>
+        <p>{REPORT_CRITERION_NOTE}</p>
+      </EuiText>
 
       <EuiSpacer size='s' />
 
@@ -872,6 +929,10 @@ const ControlReport = ({
         compressed={true}
         columns={parameterColumns}
       />
+
+      <EuiSpacer size='l' />
+
+      <TemplateCorrespondencePanel controlId={controlId} />
 
       <EuiSpacer size='l' />
 
@@ -938,6 +999,22 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
         <strong>{entry.controlId}</strong> — {entry.title}
       </EuiText>
     </EuiFlexItem>
+
+    {describeReportControlLine(entry.controlId) && (
+      <EuiFlexItem grow={false}>
+        <EuiText size='xs' color='subdued'>
+          {describeReportControlLine(entry.controlId)}
+        </EuiText>
+      </EuiFlexItem>
+    )}
+
+    {describeReportPendingMeasurement(entry.controlId) && (
+      <EuiFlexItem grow={false}>
+        <EuiBadge color='hollow' iconType='clock' title={describeReportPendingMeasurement(entry.controlId)}>
+          Sin medición todavía
+        </EuiBadge>
+      </EuiFlexItem>
+    )}
 
     <EuiFlexItem grow={false}>
       <EuiBadge color='hollow'>{entry.levels}</EuiBadge>
@@ -1006,7 +1083,7 @@ export const ReportsENS = () => {
           ...control.requirements.map(requirement => requirement.id),
         ],
         reportModelDefinition: getENSReportModelDefinition(control.id),
-      })).sort((a, b) => compareENSIds(a.controlId, b.controlId)),
+      })).sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId)),
     [],
   );
 

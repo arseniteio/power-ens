@@ -6,9 +6,13 @@ export const opAcc3CatalogDefinition: ENSControlDefinition = {
   family: 'Marco operacional',
   category: 'Control de acceso',
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
+  // Annex II applies op.acc.3 by the levels of C, I, T and A, not the system category: the highest of them rules.
+  levelDimension: ['C', 'I', 'T', 'A'],
   description:
     'op.acc.3 es una medida fundamentalmente organizativa: exige que ciertas funciones no recaigan en la misma persona.',
   levels: ['MEDIO', 'ALTO'],
+  annexSection: '4.2.3',
+  source: { template: 'ENSFacil_Plantilla_op.acc.3', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

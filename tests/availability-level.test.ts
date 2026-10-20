@@ -1,7 +1,7 @@
 /** Level of the Availability dimension (op.cont.2 and op.cont.3). */
 import { ENSCatalog } from '../common/ens/catalog';
 import type { ENSControlDefinition } from '../common/ens/catalog/types';
-import { resolveControlLevel } from '../common/ens/core/control-level';
+import { listControlDimensions, resolveControlLevel } from '../common/ens/core/control-level';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
@@ -95,11 +95,11 @@ check(
   resolveControlLevel({ levelDimension: 'D' }, 'MEDIO', { ensLevel: 'MEDIO', traceabilityLevel: 'ALTO' }) === 'MEDIO'
 );
 
-const declareD = ENSCatalog.filter(c => c.levelDimension === 'D');
+const declareD = ENSCatalog.filter(c => listControlDimensions(c).includes('D'));
 
 check(
-  'only op.cont.2 and op.cont.3 can declare that they follow Availability',
-  declareD.every(c => ['op.cont.2', 'op.cont.3'].includes(c.id)),
+  'only mp.info.6, mp.s.4, op.cont.2 and op.cont.3 follow Availability (Annex II index)',
+  declareD.map(c => c.id).sort().join(',') === 'mp.info.6,mp.s.4,op.cont.2,op.cont.3',
   declareD.map(c => c.id).join(', ')
 );
 

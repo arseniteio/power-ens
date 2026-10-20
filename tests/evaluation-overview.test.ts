@@ -53,8 +53,10 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   const request1 = async (q: any) => buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q })) as any;
   const request = async (q: any) => {
     let r = await request1(q);
+    // Polls slower than the series idle window (SERIES_IDLE_MS, 200 ms; the screen polls every 2 s): at 50 ms a
+    // request that takes longer than the gap leaves the background series no turn, and it never completes.
     for (let i = 0; i < 600 && (r.meta?.pending || r.meta?.seriesPending); i++) {
-      await new Promise(ready => setTimeout(ready, 50));
+      await new Promise(ready => setTimeout(ready, 300));
       r = await request1(q);
     }
     return r;
@@ -144,12 +146,13 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     const wait = (ms: number) => new Promise(ready => setTimeout(ready, ms));
     const lento = { ...index, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return index.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 300 });
+    // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 300 ms.
+    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 100 });
     const t0 = Date.now();
     const first = buildEvaluationResponse(await s5.run(cl, { include: 'overview', timeZone: 'UTC' })) as any;
     const pending = first.meta.pending?.controls || [];
     check('answers without waiting for everything, with `meta.pending`', Date.now() - t0 < 3000 && (first.meta.pending?.rows || 0) > 0 && first.meta.refreshing, first.meta.pending);
-    check('pending controls, in place and marked (no invented state)', first.controls.length === 23 && first.controls.filter((c: any) => c.pending).map((c: any) => c.controlId).join() === pending.join() && first.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
+    check('pending controls, in place and marked (no invented state)', first.controls.length === 34 && first.controls.filter((c: any) => c.pending).map((c: any) => c.controlId).join() === pending.join() && first.controls.filter((c: any) => c.pending).every((c: any) => !c.evaluated));
     check('no machine brings a pending control yet', first.agents.every((a: any) => a.controls.every((c: any) => !pending.includes(c.controlId))));
     check('freshness already goes complete (it comes from the probe)', first.freshness.agents.map((a: any) => a.agentId).sort().join() === '000,101,102');
     check('the queue only with already computed controls', first.nonConformities.every((nc: any) => !pending.includes(nc.controlId)));

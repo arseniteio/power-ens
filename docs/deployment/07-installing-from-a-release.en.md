@@ -44,6 +44,8 @@ Each zip works for a single OpenSearch Dashboards version, the one in its name (
 | `1.0.0` | `4.14.7` | `2.19.5` | `ensfacil-1.0.0-osd-2.19.5.zip` |
 | `1.1.0` | `4.14.7` | `2.19.5` | `ensfacil-1.1.0-osd-2.19.5.zip` |
 | `1.2.0` | `4.14.7` | `2.19.5` | `ensfacil-1.2.0-osd-2.19.5.zip` |
+| `1.3.0` | `4.14.7` | `2.19.5` | `ensfacil-1.3.0-osd-2.19.5.zip` |
+| `1.4.0` | `4.14.7` | `2.19.5` | `ensfacil-1.4.0-osd-2.19.5.zip` |
 
 The validated combinations are kept in
 [Version compatibility](03-version-compatibility.en.md#2-validated-version).
@@ -81,7 +83,7 @@ Requires a GitLab account with access to `quersystem/plugin-wazuh-ens`.
 Each version in its own folder. Retain the previous version's folder (rollback).
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 sudo mkdir -p "$R"
 sudo chown "$USER":root "$R"
@@ -99,7 +101,7 @@ Replace `1.2.0` with the version being installed. The following sections use
 3. Copy the files to the server folder:
 
    ```bash
-   scp ensfacil-1.2.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
+   scp ensfacil-1.4.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
      <user>@<server>:/opt/ensfacil/releases/1.2.0/
    ```
 
@@ -151,7 +153,7 @@ Expected result: `600 root:root`. The file has a single line,
 ### 6.3 Download the four files
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
 
@@ -239,7 +241,7 @@ Seeding uses the tools in the repository's `config/`, which the release does not
 > [!note]
 > Required only if a user without `all_access` must save the configuration or view its history. The Wazuh `admin` user has `all_access`.
 
-Without `ensfacil_admin` or `all_access`, saving returns a 403 error. The role grants no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+Without `ensfacil_admin` or `all_access`, saving returns a 403 error. The role also grants read on `wazuh-ens-snapshots` (the maturity series, [Maturity assessment, section 10.2](10-maturity-assessment.en.md#102-who-reads-it)) and no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 First in test mode, which sends no change. Replace `<user>` with the dashboard
 user who will administer ENSFácil:
@@ -329,10 +331,14 @@ In Docker, the same three queries are made with the `ix` function of
    sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
      https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active \
      | sudo tee "/opt/ensfacil/artifacts/active-$(date +%Y%m%d-%H%M%S).json" >/dev/null
+   sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+     https://127.0.0.1:9200/wazuh-ens-configuration/_doc/maturity \
+     | sudo tee "/opt/ensfacil/artifacts/maturity-$(date +%Y%m%d-%H%M%S).json" >/dev/null
    ```
 
    Expected result: the `active-<date>.json` file in `/opt/ensfacil/artifacts`,
-   with `"found":true`.
+   with `"found":true`, and `maturity-<date>.json` (maturity recorded from
+   1.4.0; `"found":false` if there is none).
 
 3. Download the new version in its own folder and verify it: sections 4, 6.3
    (or 5) and 7, with the new version in `V`. With the stored token, section
@@ -341,11 +347,25 @@ In Docker, the same three queries are made with the `ix` function of
    `ensfacil` and first saves the installed version in
    `/var/backups/ensfacil/`.
 5. Check as in section 10. The plugin list must show the new version.
-6. If the version brings new controls or parameters, seed their configuration
+6. Run the `create-admin-role.sh` in the new version's folder again, without
+   `--mapear` (existing mappings are kept), so the `ensfacil_admin` role gets
+   the permissions the version needs; since 1.4.0, the read on
+   `wazuh-ens-snapshots` that maturity uses
+   ([Maturity assessment, section 10.2](10-maturity-assessment.en.md#102-who-reads-it)):
+
+   ```bash
+   sudo bash create-admin-role.sh
+   ```
+
+   Expected result: the script ends without error and
+   `GET _plugins/_security/api/roles/ensfacil_admin` shows
+   `wazuh-ens-snapshots` under `index_permissions` with `read`.
+7. If the version brings new controls or parameters, seed their configuration
    **after** the deployment
    ([update guide, section 8](02-updating-an-existing-environment.en.md#8-seed-and-validate-the-configuration)).
-7. Review the Traceability (T) and Availability (D) levels on the
-   Configuración screen
+8. Review the dimension levels (C, I, T, A and D) on the
+   Configuración screen and, in General, «Datos de la organización»: the items
+   pending a choice and those without a common value
    ([installation guide, section 14.5](01-installation-from-scratch.en.md#145-declare-the-policy)).
 
 > [!important]

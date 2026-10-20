@@ -230,7 +230,7 @@ export const resolveEvidenceForControl = (
         ...baseEvidence,
         status: 'NO_APLICA',
         observations: [
-          `La evidencia ${definition.id} no aplica para el nivel ENS ${level}.`,
+          `La evidencia ${definition.id} no aplica en el nivel ${level} con el que se evalúa el control.`,
           `Pregunta de auditoría: ${definition.auditQuestion}`,
         ],
       };

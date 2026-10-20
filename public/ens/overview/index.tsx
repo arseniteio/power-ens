@@ -29,13 +29,20 @@ import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../../app/tabs';
 import type { ENSOverviewEvaluationResponse, ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
-import { ENSControls } from '../data';
+import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { describeNotMeasuredOnAgent, isManagerOnlyControl } from '../../../common/ens/core/scope/measurement-planes';
+import {
+  ENS_PENDING_MEASUREMENT_LABEL,
+  describePendingMeasurement,
+  isPendingMeasurement,
+} from '../../../common/ens/catalog/support/measurement-plan';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';
 import { describeTally } from '../controls/controls-list-model';
 import { ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
 import { ENS_NO_RESULT_PATTERN, ENS_THEME } from '../theme-colors';
+import { MaturityDistributionPanel } from '../maturity/maturity-distribution';
+import { describeMaturityCell } from '../maturity/maturity-view';
 import {
   buildMachineSummaries,
   buildMatrix,
@@ -107,6 +114,10 @@ export const OverviewENS = () => {
             isManagerOnly: id => {
               const catalog = getENSCatalogControl(id);
               return Boolean(catalog && isManagerOnlyControl(catalog));
+            },
+            pendingMeasurement: id => {
+              const catalog = getENSCatalogControl(id);
+              return catalog && isPendingMeasurement(catalog) ? describePendingMeasurement(catalog) : undefined;
             },
             notMeasuredReason: (id, agent) => {
               const catalog = getENSCatalogControl(id);
@@ -315,10 +326,21 @@ export const OverviewENS = () => {
                         <EuiLink onClick={() => openDetail(row.controlId)} title={row.title}>
                           {row.controlId}
                         </EuiLink>
+                        {/* The control's maturity (organisation level), under its id. */}
+                        {(() => {
+                          const cell = describeMaturityCell(data.maturity?.controls.find(entry => entry.controlId === row.controlId));
+                          return (
+                            <EuiText size='xs' color={cell.belowTarget ? 'warning' : 'subdued'}>
+                              <span title={cell.title}>{cell.text}</span>
+                            </EuiText>
+                          );
+                        })()}
                       </EuiTableRowCell>
                       <EuiTableRowCell>
                         <EuiText size='xs' color='subdued'>
-                          {row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
+                          {row.pendingMeasurement ? (
+                            <span title={row.pendingMeasurement}>{ENS_PENDING_MEASUREMENT_LABEL}</span>
+                          ) : row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
                         </EuiText>
                       </EuiTableRowCell>
                       {machines.map(m => {
@@ -438,6 +460,10 @@ export const OverviewENS = () => {
             ))}
           </>
         )}
+
+        <EuiSpacer size='l' />
+
+        <MaturityDistributionPanel maturity={data?.maturity} error={data?.maturityError} onRetry={general.retry} />
 
         <EuiSpacer size='l' />
 

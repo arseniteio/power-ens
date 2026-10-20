@@ -348,7 +348,7 @@ Dos formas de conseguir el zip; ambas terminan en el apartado 13.4.
 Descargar los cuatro ficheros de la release en `/opt/ensfacil/releases/<versión>`, desde el navegador o desde el servidor con un token de despliegue ([guía 07, apartados 4 a 6](07-installing-from-a-release.md#4-preparar-la-carpeta-en-el-servidor)), y verificar su integridad:
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 cd "$R"
 sha256sum -c SHA256SUMS
@@ -421,7 +421,7 @@ Sin `ensfacil_admin` ni `all_access`, guardar la configuración o ver su histori
 Con la opción A, la carpeta de la release trae `$R/create-admin-role.sh`, verificado con `SHA256SUMS` y con las mismas opciones.
 
 > [!note]
-> El rol no concede permisos por sí mismo: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+> El rol solo concede lectura de `wazuh-ens-snapshots` (la serie de madurez): cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario del dashboard que administrará ENSFácil:
 
@@ -517,7 +517,14 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('COPIA_OK' if d.get('found') else 'COPIA_FALLIDA')" "$BACKUP_DOC"
 ```
 
-La restauración de esta copia se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
+Desde la 1.4.0, la madurez registrada va en su propio documento, `maturity`; copiarlo también (sin madurez registrada, la copia dice `"found":false`):
+
+```bash
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  "$IDX/wazuh-ens-configuration/_doc/maturity" | sudo tee "${BACKUP_DOC/active-/maturity-}" >/dev/null
+```
+
+La restauración de estas copias se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
 
 ### 14.3 Sembrar los controles ENS
 
@@ -574,7 +581,7 @@ Resultado esperado: `Done` tras la instalación; después, `controls (23): …`,
 
 ### 14.5 Declarar la política
 
-Los valores de los parámetros los decide el responsable y se declaran en ENSFácil > Configuración: en «Controles», los ajustes comunes de cada control, sus plantillas (de serie para Linux, Servidor LDAP, Windows y Manager Wazuh, y propias) y la plantilla asignada a cada agente; en «Agentes», lo propio de cada máquina del alcance. Procedimiento completo: [Configuración por controles y plantillas](09-configuration-by-system.md). En Configuración > General se declaran también el nivel ENS, el **Nivel de Trazabilidad (T)** (solo op.exp.8) y el **Nivel de Disponibilidad (D)** (op.cont.2 y op.cont.3). Sin T o D, se usa el nivel ENS global. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin D, muestran «No aplica».
+Los valores de los parámetros los decide el responsable y se declaran en ENSFácil > Configuración: en «Controles», los ajustes comunes de cada control, sus plantillas (de serie para Linux, Servidor LDAP, Windows y Manager Wazuh, y propias) y la plantilla asignada a cada agente; en «Agentes», lo propio de cada máquina del alcance. Procedimiento completo: [Configuración por controles y plantillas](09-configuration-by-system.md). En Configuración > General se declaran también el nivel ENS y, opcionalmente, el nivel de cada dimensión: **Confidencialidad (C)**, **Integridad (I)**, **Trazabilidad (T)**, **Autenticidad (A)** y **Disponibilidad (D)**. Los usan los controles que el Anexo II aplica por dimensión: op.acc.2 a op.acc.6 (C, I, T y A), op.acc.1 (T y A), op.exp.8 (T) y mp.info.6, op.cont.2 y op.cont.3 (D); con varias dimensiones rige la más alta. Una dimensión sin declarar es el nivel ENS, que no puede ser inferior a ninguna. op.cont.2 y op.cont.3 solo aplican con D en ALTO: con el nivel ENS en MEDIO y sin D, muestran «No aplica».
 
 Para declarar valores desde el servidor (entornos reproducibles, o cuando la política ya está decidida por escrito) se usa `config/set-parameters.py` con un fichero JSON:
 
@@ -599,6 +606,8 @@ sudo env $CERT python3 set-parameters.py /ruta/politica.json --apply    # escrib
 > Un parámetro vacío es la clave `value` **ausente**, nunca `null`. Para vaciar un parámetro, hacerlo desde la pantalla de Configuración.
 
 La plantilla y los ajustes propios de un agente se declaran con la sección `agents` del mismo fichero: [Configuración por controles y plantillas, apartado 11.1](09-configuration-by-system.md#111-declarar-la-plantilla-y-los-ajustes-de-un-agente-con-set-parameterspy).
+
+Los datos que piden varios controles (personal autorizado, entorno de preproducción, algoritmos autorizados por el CCN, grupos con privilegio administrativo, Declaración de aplicabilidad…) se declaran una sola vez en Configuración > General > «Datos de la organización», y desde el servidor con la sección `organization` del mismo fichero: [Configuración por controles y plantillas, apartado 7.1](09-configuration-by-system.md#71-datos-de-la-organización) y [apartado 11.4](09-configuration-by-system.md#114-declarar-datos-de-la-organización-con-set-parameterspy). En «Ajustes comunes» de cada control, esos parámetros aparecen en solo lectura.
 
 Después de declarar valores, repetir la validación del apartado 14.4.
 

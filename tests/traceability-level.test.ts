@@ -1,6 +1,6 @@
 /** Level of the Traceability dimension (op.exp.8). */
 import { ENSCatalog } from '../common/ens/catalog';
-import { resolveControlLevel } from '../common/ens/core/control-level';
+import { listControlDimensions, resolveControlLevel } from '../common/ens/core/control-level';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
@@ -82,13 +82,13 @@ const requirement = (
 section('1. Level resolution per control');
 
 const opExp8 = ENSCatalog.find(c => c.id === 'op.exp.8');
-const others = ENSCatalog.filter(c => c.id !== 'op.exp.8');
+const followT = ENSCatalog.filter(c => listControlDimensions(c).includes('T')).map(c => c.id);
 
-check('op.exp.8 declares it is governed by Traceability', opExp8?.levelDimension === 'T');
+check('op.exp.8 declares it is governed by Traceability only', opExp8?.levelDimension === 'T');
 check(
-  'no other control is governed by Traceability',
-  others.every(c => c.levelDimension !== 'T'),
-  others.filter(c => c.levelDimension === 'T').map(c => c.id).join(', ')
+  'T is followed by op.exp.8 and op.acc.1 to op.acc.6, as the Annex II index says',
+  followT.sort().join(',') === 'op.acc.1,op.acc.2,op.acc.3,op.acc.4,op.acc.5,op.acc.6,op.exp.8',
+  followT.join(', ')
 );
 check(
   'without a T level, op.exp.8 uses the global one',
@@ -103,7 +103,7 @@ check(
   resolveControlLevel({}, 'MEDIO', { ensLevel: 'MEDIO', traceabilityLevel: 'ALTO' }) === 'MEDIO'
 );
 
-section('2. The engine: without T nothing changes; with T only op.exp.8 changes');
+section('2. The engine: without T nothing changes; with T only the controls following T change');
 
 for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
   const base = evaluate({ ensLevel: global }, global);
@@ -126,8 +126,18 @@ for (const global of ['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]) {
       after.get('op.exp.8')?.level
     );
 
+    // With several dimensions the highest rules: the others are still at the global level.
+    const expectedMulti = ['BAJO', 'MEDIO', 'ALTO'].indexOf(t) > ['BAJO', 'MEDIO', 'ALTO'].indexOf(global) ? t : global;
+    const multi = followT.filter(id => id !== 'op.exp.8');
+
+    check(
+      `${global} with T=${t} · op.acc.1-6 are evaluated with the highest of T and the rest (${expectedMulti})`,
+      multi.every(id => after.get(id)?.level === expectedMulti),
+      multi.map(id => `${id}=${after.get(id)?.level}`).join(' ')
+    );
+
     const changed = Array.from(antes.keys()).filter(
-      id => id !== 'op.exp.8' && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
+      id => !followT.includes(id) && fingerprint(antes.get(id)) !== fingerprint(after.get(id))
     );
 
     check(

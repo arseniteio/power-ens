@@ -42,6 +42,13 @@ El runbook de op.cont.2 (`linux/op.cont.2`) es solo documentación: no hay nada
 que recoger en ninguna máquina, y el plugin lo juzga con las tablas de la
 pantalla y su vigencia (`tests/controls-without-runbook.json`).
 
+Los 11 controles documentales del paquete v2.0 del auditor (mp.eq.2, mp.eq.3,
+mp.eq.4, mp.com.1, mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 y
+mp.s.4) no tienen runbook todavía: no se instala nada en el manager ni en los
+agentes. Se configuran en la pantalla, salen «Sin medición todavía» y no entran
+en el índice. Cada uno tiene reservada una banda de rule ID (111800–112899,
+[README](../../README.md#desarrollo)) para el runbook de su oleada.
+
 Reglas:
 
 - **En el manager** se ejecutan los 22 `install-manager.sh` de los runbooks
@@ -73,7 +80,7 @@ Registro **ausente**: `NO_EVALUABLE` con causa `CONFIGURATION`. Registro con sol
 
 | Control | Registro | Plantilla | Qué se anota | Mientras no existe / solo cabecera | Guía |
 |---|---|---|---|---|---|
-| op.exp.7 | `/etc/ensfacil/incident-register.tsv` (el mismo que op.exp.9) | `/etc/ensfacil/incident-register.tsv.example`, la deja `install-manager.sh` de `linux/op.exp.7` | una fila por fase (`inicial`, `intermedio`, `final`) de cada incidente: severidad, sistemas, escalado, notificaciones, referencia al expediente | no existe → `NO_EVALUABLE` (`CONFIGURATION`). Solo cabecera → se juzga con cero incidentes: cada alerta Alta o Crítica (niveles de P-01) sin incidente dentro del plazo de P-02 sale `NO_CUMPLE` en EV-02 | [02 · El registro de incidentes](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.md#el-registro-de-incidentes) |
+| op.exp.7 | `/etc/ensfacil/incident-register.tsv` (el mismo que op.exp.9) | `/etc/ensfacil/incident-register.tsv.example`, la deja `install-manager.sh` de `linux/op.exp.7` | una fila por fase (`inicial`, `intermedio`, `final`) de cada incidente: severidad, sistemas, escalado, notificaciones, referencia al expediente; opcional, `fecha_ocurrencia` (14.ª columna) para el MTTD del informe anual ([guía 11](11-annual-report-art-32.md)), que admiten op.exp.7, op.exp.9, op.mon.2 y op.mon.3: actualizar los cuatro antes de añadirla | no existe → `NO_EVALUABLE` (`CONFIGURATION`). Solo cabecera → se juzga con cero incidentes: cada alerta Alta o Crítica (niveles de P-01) sin incidente dentro del plazo de P-02 sale `NO_CUMPLE` en EV-02 | [02 · El registro de incidentes](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.md#el-registro-de-incidentes) |
 | op.exp.9 | los cuatro de `/etc/ensfacil/`: `incident-register.tsv`, `incident-actions.tsv`, `evidence-custody.tsv`, `evidence-custody-log.tsv` | `/opt/ensfacil/plantillas/opexp9/`, las deja `install-manager.sh` de `linux/op.exp.9`; el paso 2 de su guía 01 las copia sin pisar un registro existente | fases del incidente; actuaciones vinculadas al expediente; evidencia sellada (hash) y su cadena de custodia | sin `incident-register.tsv` → las nueve evidencias `NO_EVALUABLE` (`CONFIGURATION`). Solo cabecera → se juzga: op.exp.9.1 `NO_CUMPLE` si hubo alertas de nivel P-08 o superior sin expediente | [02 · Los registros](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.9/-/blob/main/docs/deployment/02-compliance.md#los-registros) |
 | op.exp.8 | `/etc/ensfacil/log-review-register.tsv` | no hay `.example`: la cabecera (`fecha revisor alcance hallazgos referencia`) y el comando `printf` que la crea están en la guía | una fila por revisión de los registros hecha de verdad | no existe → EV-05 `NO_EVALUABLE` (`CONFIGURATION`). Solo cabecera → EV-05 `NO_CUMPLE` (cero revisiones) | [02 · El registro de revisiones](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.8/-/blob/main/docs/deployment/02-compliance.md#el-registro-de-revisiones) |
 | op.mon.2 | `/etc/ensfacil/metrics-cycle-register.tsv` (y lee el `incident-register.tsv` de op.exp.7) | `/etc/ensfacil/metrics-cycle-register.tsv.example`, la deja `install-manager.sh` de `linux/op.mon.2` | una fila por ciclo de métricas consolidado y validado: periodo, fecha de consolidación, grado de implantación global, horas internas y externas, presupuesto ejecutado, quién lo validó y referencia | no existe → EV-02 y EV-06 `NO_EVALUABLE` (`CONFIGURATION`). Solo cabecera → `NO_CUMPLE`: no hay ningún ciclo consolidado | [02](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.mon.2/-/blob/main/docs/deployment/02-compliance.md) |
