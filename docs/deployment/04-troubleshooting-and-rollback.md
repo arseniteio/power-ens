@@ -240,6 +240,8 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 
 Resultado esperado: la respuesta incluye `"result":"updated"`. Validar después el documento restaurado con `config/validate-configuration.ts`, como en la [guía de instalación, apartado 14.4](01-installation-from-scratch.md#144-validar-el-documento-entero), y recargar el panel.
 
+La madurez registrada (desde la 1.4.0) va en el documento `maturity`, aparte: se restaura igual, con su copia (`maturity-<fecha>.json` o `$BACKUP/maturity.json`) y `_doc/maturity` en lugar de `_doc/active`. Restaurar una copia anterior quita del documento las entradas posteriores; siguen en las entradas `MATURITY_HISTORY` ([Valoración de la madurez, apartado 9](10-maturity-assessment.md#9-historial)).
+
 ## 8. Problemas conocidos del despliegue
 
 | Síntoma | Causa | Qué hacer |

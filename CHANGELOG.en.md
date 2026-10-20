@@ -23,18 +23,21 @@ traffic light.
   the detail records the procedure (reference, version, link, approval,
   validity, dissemination and owner), reviews, threshold and period, feedback
   and the assessment («Valorar»). Above the accredited level, the assessment
-  needs a justification and the report marks it. Everything is appended to
-  `configuration.maturity` without overwriting, with the administration role
-  and version control (409).
+  needs a justification and the report marks it, with who assessed and when.
+  Everything is appended to its own document (`_doc/maturity`, with its own
+  version and history) without overwriting, with the administration role:
+  recording maturity does not cause the configuration's 409.
 - Maturity target per category in Configuration > General (default L2
   BÁSICA, L3 MEDIA, L4 ALTA; `global.maturityTargets`, absent key = default).
 - Maturity in the overview (each control's level and the organisation's
   distribution), in the panel and in each control's report, on screen and in
   PDF, with the methodological note.
 - `wazuh-ens-snapshots` index: one snapshot per control and day (status,
-  score, coverage, accredited, assessed and target levels), written by the
-  server evaluation in an administrator's views, kept for three years. Route
-  `GET /api/ensfacil/maturity/snapshots` for the annual report.
+  score, coverage, accredited, assessed and target levels), written by a daily
+  server task with the internal user and by an administrator's views, kept for
+  three years. Read as the user (route `GET /api/ensfacil/maturity/snapshots`
+  for the annual report).
+
 
 - Configuration > General > «Datos de la organización»: the data several
   controls ask (authorised staff, pre-production, rollback, CCN algorithms,
@@ -84,11 +87,18 @@ traffic light.
   integrity changes.
 - op.exp.3 EV-11 is declared ENSFácil's own evidence.
 
+### Fixed
+
+- The daily series builds one date formatter per time zone, not one per
+  computation.
+
 ### Updating from 1.3.0
 
 - Maturity changes no verdict or percentage. The L5 trend needs 90 days of
   snapshots from the update.
-- A 1.3.0 plugin loads a document with recorded maturity and ignores it.
+- Configuration backups also include the `maturity` document (guides 01, 02,
+  04, 06 and 07).
+- A 1.3.0 plugin ignores the recorded maturity and does not touch it.
 - With no dimension declared, the results do not change.
 - A document that declares T or D may change verdicts: D also governs
   mp.info.6, and T also op.acc.1 to op.acc.6 when it is the highest of their

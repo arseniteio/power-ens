@@ -517,7 +517,14 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('COPIA_OK' if d.get('found') else 'COPIA_FALLIDA')" "$BACKUP_DOC"
 ```
 
-La restauración de esta copia se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
+Desde la 1.4.0, la madurez registrada va en su propio documento, `maturity`; copiarlo también (sin madurez registrada, la copia dice `"found":false`):
+
+```bash
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  "$IDX/wazuh-ens-configuration/_doc/maturity" | sudo tee "${BACKUP_DOC/active-/maturity-}" >/dev/null
+```
+
+La restauración de estas copias se describe en la [guía de diagnóstico y rollback](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens).
 
 ### 14.3 Sembrar los controles ENS
 

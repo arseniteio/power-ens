@@ -240,6 +240,8 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 
 Expected result: the response includes `"result":"updated"`. Then validate the restored document with `config/validate-configuration.ts`, as in the [installation guide, section 14.4](01-installation-from-scratch.en.md#144-validate-the-whole-document), and reload the dashboard.
 
+Recorded maturity (from 1.4.0) is kept apart in the `maturity` document: restore it the same way, with its copy (`maturity-<date>.json` or `$BACKUP/maturity.json`) and `_doc/maturity` instead of `_doc/active`. Restoring an older copy removes later entries from the document; they remain in the `MATURITY_HISTORY` entries ([Maturity assessment, section 9](10-maturity-assessment.en.md#9-history)).
+
 ## 8. Known deployment problems
 
 | Symptom | Cause | What to do |

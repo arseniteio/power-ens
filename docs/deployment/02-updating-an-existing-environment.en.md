@@ -145,12 +145,14 @@ test -f "$ZIP" && sudo cp -a "$ZIP" "$BACKUP/"
 
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
   https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active | sudo tee "$BACKUP/active.json" >/dev/null
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  https://127.0.0.1:9200/wazuh-ens-configuration/_doc/maturity | sudo tee "$BACKUP/maturity.json" >/dev/null
 
 ls -l "$BACKUP"
 echo "BACKUP=$BACKUP"
 ```
 
-Expected result: `plugins-antes.tgz` and `active.json` inside `$BACKUP`, and `ensfacil-2.19.5.zip` if the deployed plugin was built on this server.
+Expected result: `plugins-antes.tgz`, `active.json` and `maturity.json` (maturity recorded from 1.4.0; `"found":false` if there is none) inside `$BACKUP`, and `ensfacil-2.19.5.zip` if the deployed plugin was built on this server.
 
 > [!important]
 > If the deployed plugin comes from a release, its zip is already in its version's folder (`/opt/ensfacil/releases/<version>`), which is kept. If it was built, `config/build-plugin.sh` deletes `/opt/ensfacil/build/plugins/ensfacil` before building: the previous zip is only kept if it is copied here. Keep the previous zip and `active.json` until every validation of the new version is complete.

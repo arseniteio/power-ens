@@ -298,9 +298,10 @@ mkdir -p <copias>
 COPIA=<copias>/active-$(date +%Y%m%d-%H%M%S).json
 ix wazuh-ens-configuration/_doc/active > "$COPIA"
 grep -c '"found":true' "$COPIA"
+ix wazuh-ens-configuration/_doc/maturity > "${COPIA/active-/maturity-}"
 ```
 
-Resultado esperado: `1`. La restauración de esta copia en Docker se describe en
+Resultado esperado: `1`, y la copia de la madurez registrada (desde la 1.4.0; `"found":false` si no hay). La restauración de esta copia en Docker se describe en
 el apartado 12.2.
 
 ## 8. Sembrar los controles

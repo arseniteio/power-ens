@@ -329,10 +329,14 @@ In Docker, the same three queries are made with the `ix` function of
    sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
      https://127.0.0.1:9200/wazuh-ens-configuration/_doc/active \
      | sudo tee "/opt/ensfacil/artifacts/active-$(date +%Y%m%d-%H%M%S).json" >/dev/null
+   sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+     https://127.0.0.1:9200/wazuh-ens-configuration/_doc/maturity \
+     | sudo tee "/opt/ensfacil/artifacts/maturity-$(date +%Y%m%d-%H%M%S).json" >/dev/null
    ```
 
    Expected result: the `active-<date>.json` file in `/opt/ensfacil/artifacts`,
-   with `"found":true`.
+   with `"found":true`, and `maturity-<date>.json` (maturity recorded from
+   1.4.0; `"found":false` if there is none).
 
 3. Download the new version in its own folder and verify it: sections 4, 6.3
    (or 5) and 7, with the new version in `V`. With the stored token, section

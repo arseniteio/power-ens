@@ -523,7 +523,14 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
 sudo python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('COPIA_OK' if d.get('found') else 'COPIA_FALLIDA')" "$BACKUP_DOC"
 ```
 
-Restoring this copy is described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration).
+From 1.4.0, recorded maturity is kept in its own document, `maturity`; back it up too (with no maturity recorded, the copy says `"found":false`):
+
+```bash
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  "$IDX/wazuh-ens-configuration/_doc/maturity" | sudo tee "${BACKUP_DOC/active-/maturity-}" >/dev/null
+```
+
+Restoring these copies is described in the [troubleshooting and rollback guide](04-troubleshooting-and-rollback.en.md#7-restore-the-ens-configuration).
 
 ### 14.3 Seed the ENS controls
 

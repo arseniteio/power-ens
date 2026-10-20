@@ -13,8 +13,8 @@ Valorar cada control como proceso, según el apartado 6 del Anexo II del RD 311/
 |---|---|
 | Plugin ENSFácil 1.4.0 o posterior desplegado | El detalle de un control muestra «Madurez: …» junto al semáforo |
 | Usuario con el rol `ensfacil_admin` o `all_access` para registrar | Un registro de madurez no devuelve el error 403 ([instalación desde cero, apartado 13.5](01-installation-from-scratch.md#135-crear-el-rol-ensfacil_admin)) |
-| Documento `active` creado | [Instalación desde cero, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens). Sin él, el registro devuelve 409 «Todavía no hay configuración ENS guardada» |
-| Copia del documento `active` antes de cambios desde el servidor | [Instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo) |
+| Lectura del índice `wazuh-ens-snapshots` para ver la tendencia y las instantáneas | Apartado 10.2 |
+| Copia de los documentos `active` y `maturity` antes de cambios desde el servidor | [Instalación desde cero, apartado 14.2](01-installation-from-scratch.md#142-copiar-el-documento-antes-de-modificarlo) |
 
 ## 3. Madurez y semáforo
 
@@ -34,22 +34,25 @@ El nivel acreditado es el más alto cuyas puertas, y las de todos los niveles in
 | Nivel | Puerta | Origen | Se cumple cuando |
 |---|---|---|---|
 | L1 | Hechos del control en el periodo | Automático | Hay algún hecho del control en la ventana de evaluación |
-| L2 | Hechos recurrentes sin huecos | Automático | Cada máquina que mide el control tiene hechos en cada uno de los últimos 7 días completos (periodicidad diaria) |
+| L2 | Hechos recurrentes sin huecos | Automático | Cada máquina que mide el control tiene hechos en cada uno de los últimos 7 días completos (periodicidad diaria), salvo los anteriores a su primer hecho |
 | L3 | Parámetros obligatorios completos | Automático | El control está en la configuración activa y no le falta ni tiene inválido ningún parámetro obligatorio |
 | L3 | Procedimiento documentado y difundido | Documental | El procedimiento registrado (apartado 6) está completo, tiene enlace utilizable, está aprobado y sigue vigente |
-| L3 | Evidencias continuas y sin lagunas | Automático | Cada máquina tiene hechos todos los días completos de la ventana y todos los requisitos aplicables están evidenciados |
-| L4 | Umbral definido y vigilado | Declarado y medido | Hay un umbral de cumplimiento declarado; el motivo dice si la puntuación actual está dentro o en desviación |
+| L3 | Evidencias continuas y sin lagunas | Automático | Cada máquina tiene hechos todos los días completos del periodo desde su primer hecho, y en la evaluación actual todos los requisitos aplicables están evidenciados |
+| L4 | Umbral definido y vigilado | Declarado y medido | Hay un umbral de cumplimiento declarado. Si la última instantánea está por debajo, hay una revisión (apartado 7.1) fechada desde la primera instantánea de esa racha bajo el umbral, con acciones o con el resultado «Desviación en tratamiento» |
 | L4 | Revisiones periódicas registradas | Declarado y medido | La última revisión registrada no tiene más antigüedad que la periodicidad declarada (365 días por defecto) |
 | L5 | Serie histórica con tendencia de mejora | Automático | En los últimos 180 días hay al menos 90 días y 10 instantáneas (apartado 10), y la media de la segunda mitad supera a la de la primera, o la puntuación se mantiene en el 100 % |
 | L5 | Realimentación cerrada con cambio de procedimiento | Documental y declarado | Una lección o deficiencia registrada (apartado 7.3) está cerrada con una versión del procedimiento aprobada después de su apertura |
 
 Reglas:
 
-- El rojo y el gris no fijan L0. Un control gris (no se pudo medir) no acredita L2 ni superior desde la evidencia. Una máquina que deja de enviar datos impide L2 aunque las demás informen: el motivo nombra la máquina y los días sin hechos.
+- Periodo propio: L1 a L3 leen los últimos 30 días de hechos de toda la organización, sea cual sea la ventana de evaluación de la pantalla. Si solo hay hechos de menos días (retención del índice o instalación reciente), se leen los que hay y el motivo lo dice («solo hay hechos desde el …»). Si `wazuh-alerts-*` conserva menos de 30 días, L3 nunca cubre el periodo completo.
+- Una máquina que entra en el alcance durante el periodo cuenta desde su primer hecho: el motivo lo indica («… desde el …»).
+- El rojo y el gris no fijan L0. Solo un gris por falta de recogida (sin datos del recolector o recolector parado) deja el control en L1. Un gris por configuración o por catálogo puede acreditar L2 si los hechos son recurrentes, como prevé la tabla del auditor; L3 no se cumple por los parámetros o los requisitos sin evidencia.
+- Una máquina que deja de enviar datos impide L2 aunque las demás informen: el motivo nombra la máquina y los días sin hechos.
 - Una evidencia que no llega mientras el recolector informa a diario no impide L2: impide L3 (requisitos sin evidencia).
 - Un control en borrador (`DRAFT`) muestra «Sin medición todavía» y no tiene nivel acreditado. Se puede registrar su nivel valorado.
 - Un control que no aplica en el nivel ENS (todos sus requisitos fuera del nivel) muestra «no aplica en este nivel» y queda fuera de la distribución.
-- La ventana de evaluación es la de Configuración > General. Con «Últimas 24 horas» no hay días completos y no se acredita L2 ni superior.
+- La primera vez que se abre una vista, la madurez aparece unos segundos después del resultado («Madurez: calculando…»), como la serie diaria: su lectura nunca retrasa la evaluación.
 
 ## 5. Objetivo por categoría
 
@@ -90,7 +93,7 @@ El procedimiento es el del control como proceso, uno por control y para toda la 
 ### 7.1 Registrar una revisión
 
 1. En el panel «Madurez», pulsar «Registrar una revisión».
-2. Indicar la fecha, el revisor, el resultado («Conforme», «Con desviaciones» o «No conforme») y las acciones. Las acciones son obligatorias si la revisión no es conforme.
+2. Indicar la fecha, el revisor, el resultado («Conforme», «Con desviaciones», «No conforme» o «Desviación en tratamiento») y las acciones. Las acciones son obligatorias con desviaciones o no conforme. Una revisión con acciones o con «Desviación en tratamiento» trata una desviación del umbral (L4).
 3. Pulsar «Guardar».
 
    Resultado esperado: «Última revisión» muestra la nueva y la puerta «Revisiones periódicas registradas» se cumple si está dentro de la periodicidad.
@@ -123,33 +126,49 @@ Una lección aprendida (op.exp.9.3), un incidente (op.exp.7), una deficiencia de
 
    Resultado esperado: el encabezado del detalle muestra «Madurez: L… (acreditado L…, objetivo L…)». Por encima de lo acreditado, el panel y el informe lo marcan con la justificación.
 
-La valoración guarda el nivel acreditado de ese momento. Si después cambia lo acreditado, la marca se recalcula con el nivel actual.
+La valoración guarda el nivel acreditado y sus puertas de ese momento. El panel y el informe muestran siempre quién valoró y cuándo; la marca «por encima de lo acreditado al registrarlo» se calcula con ese nivel guardado. Si después la evidencia acredita menos que entonces y menos que lo valorado, se muestra «La evidencia acreditaba L… al valorarlo (fecha); hoy acredita L…: revisar la valoración».
 
 ## 9. Historial
 
-Lo que se registra va a `configuration.maturity` del documento `active` de `wazuh-ens-configuration`, por control y en listas de solo añadir: procedimientos, revisiones, valoraciones, umbrales y realimentación. Cada entrada lleva `recordedAt` y `recordedBy`, que fija el servidor.
+Lo que se registra va a su propio documento, `maturity`, del índice `wazuh-ens-configuration` (`documentType: MATURITY_RECORDS`), con su propia versión: registrar madurez no cambia la configuración y nadie que la esté editando recibe un 409 por ello.
 
-- Nada se sobrescribe ni se borra: la entrada vigente es la última.
-- Cada registro deja la versión anterior del documento en el historial de la configuración y una línea en `auditTrail` («Madurez de op.acc.1: nivel valorado L3.»).
-- El guardado de Configuración conserva siempre la madurez guardada, aunque el navegador la envíe distinta o no la envíe.
-- Si la configuración cambió desde que se abrió la página, el registro se rechaza (409) con «La configuración ha cambiado desde que la abriste». Recargar la página y repetirlo.
+- Por control, listas de solo añadir: procedimientos, revisiones, valoraciones, umbrales y realimentación. Cada entrada lleva `recordedAt` y `recordedBy`, que fija el servidor. Nada se sobrescribe ni se borra.
+- Cada registro añade además una entrada de historial (`documentType: MATURITY_HISTORY`) con el control, el tipo, la entrada y una línea («Madurez de op.acc.1: nivel valorado L3.»).
+- Cada registro envía la versión del documento que mostraba la pantalla (`expectedVersion`, obligatoria; `null` si no había ninguno). Si cambió desde entonces, se rechaza (409) con «La madurez ha cambiado desde que la abriste». Recargar la página y repetirlo. Tras un registro, las pantallas abiertas se actualizan solas.
 
-Consultar la madurez registrada desde el servidor (variable `IDX` de la [instalación desde cero, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)):
+Consultar la madurez registrada y su historial desde el servidor (variable `IDX` de la [instalación desde cero, apartado 14](01-installation-from-scratch.md#14-inicializar-y-sembrar-la-configuración-ens)):
 
 ```bash
 sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
-  "$IDX/wazuh-ens-configuration/_doc/active?filter_path=_source.configuration.maturity&pretty"
+  "$IDX/wazuh-ens-configuration/_doc/maturity?filter_path=found,_seq_no,_source.updatedAt&pretty"
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  -H 'Content-Type: application/json' "$IDX/wazuh-ens-configuration/_search?pretty" \
+  -d '{"size":50,"query":{"term":{"documentType":"MATURITY_HISTORY"}},"sort":[{"createdAt":"desc"}]}'
 ```
 
-Resultado esperado: un objeto por control con las listas `attestations`, `reviews`, `assessments`, `indicators` y `feedback`, de la entrada más antigua a la más reciente. Sin nada registrado, `{}`.
+Resultado esperado: `"found" : true` con su `_seq_no` (o `false` sin nada registrado) y las últimas entradas de historial, de la más reciente a la más antigua.
+
+Copia del documento antes de cambios desde el servidor, junto a la del documento `active`:
+
+```bash
+sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+  "$IDX/wazuh-ens-configuration/_doc/maturity" | sudo tee "/opt/ensfacil/artifacts/maturity-$(date +%Y%m%d-%H%M%S).json" >/dev/null
+```
 
 ## 10. Instantáneas diarias
 
-El índice `wazuh-ens-snapshots` guarda una instantánea por control y día: estado, puntuación, cobertura, requisitos aplicables y medidos, nivel ENS aplicable, nivel acreditado, nivel valorado y objetivo. La serie alimenta la tendencia de L5 y el informe anual.
+El índice `wazuh-ens-snapshots` guarda una instantánea por control y día: estado, puntuación, cobertura, requisitos aplicables y medidos, nivel ENS aplicable, nivel acreditado, nivel valorado y objetivo. La serie alimenta la tendencia de L5, la desviación de L4 y el informe anual.
 
-- La escribe la evaluación del servidor cuando un usuario con el rol `ensfacil_admin` o `all_access` abre una vista de toda la organización (Vista general, panel, lista de controles o detalle de un control) y el resultado está completo y al día. Una vista recortada por los permisos de otro usuario no fija la serie de la organización.
-- El identificador es `<control>|<AAAA-MM-DD>`, con el día en la zona horaria de Configuración > General: repetir la evaluación el mismo día sustituye el documento del día, nunca lo duplica. Un día sin ninguna vista de un administrador queda sin instantánea.
-- Retención: 1095 días (tres años). Las más antiguas se borran con la primera escritura de cada día.
+### 10.1 Quién la escribe
+
+- **La tarea diaria del servidor**, con el usuario interno del dashboard: 10 minutos después de arrancar y después cada hora comprueba si el día ya tiene instantánea; si no, hace una evaluación completa de toda la organización (propia, sin tocar la memoria de los usuarios), espera a que termine y escribe el día. En Wazuh, el usuario interno tiene el rol de serie `manage_wazuh_index` (lectura, escritura, borrado y gestión en `wazuh-*`), que basta para crear el índice, escribir y purgar. Si el indexador rechaza una llamada, el log del dashboard lo avisa una vez y la tarea se detiene.
+- **Las vistas de un administrador** (`ensfacil_admin` o `all_access`) de toda la organización (Vista general, panel, lista de controles o detalle de un control), cuando el resultado está completo y al día.
+- El identificador es `<control>|<AAAA-MM-DD>`, con el día en la zona horaria de Configuración > General: repetir el mismo día sustituye el documento del día, nunca lo duplica.
+- Retención: 1095 días (tres años). Las más antiguas se borran con la primera escritura de cada día; si el borrado falla, se reintenta con la siguiente escritura.
+
+### 10.2 Quién la lee
+
+La tendencia de L5, la desviación de L4 y la ruta de lectura leen el índice **como el usuario que mira**: los permisos del índice deciden quién ve la serie de la organización. Necesitan `read` sobre `wazuh-ens-snapshots`: lo dan los roles de serie `readall` y `all_access`, o un rol propio con `read` sobre `wazuh-*` o sobre ese índice. Sin él, la puerta de tendencia dice «No se pudieron leer las instantáneas: sin permiso de lectura de wazuh-ens-snapshots» y la ruta responde 403.
 
 Consultar las instantáneas de un control:
 
@@ -159,24 +178,26 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
   -d '{"size":400,"query":{"term":{"controlId":"op.acc.1"}},"sort":[{"date":"asc"}]}'
 ```
 
-Resultado esperado: un documento por día con `date`, `status`, `score`, `accredited`, `assessed` y `target`.
+Resultado esperado: un documento por día con `date`, `status`, `score`, `accredited`, `assessed`, `target` y `recordedBy` («ENSFácil (tarea diaria)» o el administrador).
 
-Desde el dashboard, con sesión y el rol de administración: `GET /api/ensfacil/maturity/snapshots?from=AAAA-MM-DD&to=AAAA-MM-DD[&controlId=…]`, como mucho 400 días por petición.
+Desde el dashboard, con sesión: `GET /api/ensfacil/maturity/snapshots?from=AAAA-MM-DD&to=AAAA-MM-DD[&controlId=…]`, como mucho 400 días por petición.
 
 ## 11. Informe
 
-El informe de cada control, en pantalla y en PDF, lleva tras el resultado el bloque «Madurez del proceso (CMM)»: el nivel valorado, el acreditado y el objetivo, la marca y la justificación si se valoró por encima de lo acreditado, las puertas con su motivo, el procedimiento, la última revisión, el umbral, la realimentación y la nota metodológica (semáforo operativo, madurez normativa). El bloque es el mismo para todos los controles del catálogo, también los que se añadan.
+El informe de cada control, en pantalla y en PDF, lleva tras el resultado el bloque «Madurez del proceso (CMM)»: el nivel valorado, el acreditado y el objetivo; quién valoró, cuándo y con qué justificación; la marca si se valoró por encima de lo acreditado al registrarlo, o el aviso si la evidencia acredita hoy menos; las puertas con su motivo, el procedimiento, la última revisión, el umbral, la realimentación y la nota metodológica (semáforo operativo, madurez normativa). El bloque es el mismo para todos los controles del catálogo, también los que se añadan.
 
-La Vista general muestra bajo cada control su nivel («L2 acr. · obj. L3»: acreditado, sin valorar) y la tabla «Madurez de la organización»; el panel muestra la misma tabla.
+La Vista general muestra bajo cada control su nivel («L2 acreditado · objetivo L3» o «L3 valorado · objetivo L3») y la tabla «Madurez de la organización»; el panel muestra la misma tabla.
 
 ## 12. Compatibilidad y vuelta atrás
 
-- Un plugin 1.3.0 carga un documento con `maturity` y `global.maturityTargets`: no los lee. Al volver a la 1.4.0, la madurez registrada sigue en el documento o, si un guardado de la 1.3.0 la quitó, en el historial de la configuración (restaurar con la [guía de diagnóstico y rollback, apartado 7](04-troubleshooting-and-rollback.md#7-restaurar-la-configuración-ens)).
-- El índice `wazuh-ens-snapshots` no lo lee ninguna versión anterior. Para retirarlo:
+- Un plugin 1.3.0 no lee el documento `maturity`, sus entradas de historial ni `global.maturityTargets`, y su guardado no los toca: al volver a la 1.4.0 siguen ahí.
+- El índice `wazuh-ens-snapshots` no lo lee ninguna versión anterior. Para retirar la madurez por completo:
 
   ```bash
   sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
     -X DELETE "$IDX/wazuh-ens-snapshots"
+  sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer/certs/admin-key.pem \
+    -X DELETE "$IDX/wazuh-ens-configuration/_doc/maturity"
   ```
 
-  Resultado esperado: `{"acknowledged":true}`. La tendencia de L5 vuelve a empezar desde cero.
+  Resultado esperado: `{"acknowledged":true}` y `"result" : "deleted"`. La tendencia de L5 vuelve a empezar desde cero; las entradas `MATURITY_HISTORY` quedan como registro.

@@ -297,9 +297,10 @@ mkdir -p <backups>
 COPY=<backups>/active-$(date +%Y%m%d-%H%M%S).json
 ix wazuh-ens-configuration/_doc/active > "$COPY"
 grep -c '"found":true' "$COPY"
+ix wazuh-ens-configuration/_doc/maturity > "${COPY/active-/maturity-}"
 ```
 
-Expected result: `1`. Restoring this copy in Docker is described in section
+Expected result: `1`, and the copy of the recorded maturity (from 1.4.0; `"found":false` if there is none). Restoring this copy in Docker is described in section
 12.2.
 
 ## 8. Seed the controls
