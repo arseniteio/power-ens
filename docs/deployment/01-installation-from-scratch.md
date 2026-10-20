@@ -421,7 +421,7 @@ Sin `ensfacil_admin` ni `all_access`, guardar la configuración o ver su histori
 Con la opción A, la carpeta de la release trae `$R/create-admin-role.sh`, verificado con `SHA256SUMS` y con las mismas opciones.
 
 > [!note]
-> El rol no concede permisos por sí mismo: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+> El rol solo concede lectura de `wazuh-ens-snapshots` (la serie de madurez): cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 Primero en modo prueba, que no cambia nada. Sustituir `<usuario>` por el usuario del dashboard que administrará ENSFácil:
 

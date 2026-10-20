@@ -219,7 +219,7 @@ If any check fails, stop the procedure and follow
 
 ## 5. Create the `ensfacil_admin` role
 
-Required only if a user without `all_access` must save the configuration or view its history (the Wazuh `admin` user has `all_access`). The role grants no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+Required only if a user without `all_access` must save the configuration or view its history (the Wazuh `admin` user has `all_access`). The role also grants read on `wazuh-ens-snapshots` (the maturity series) and nothing else: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 `create-admin-role.sh`, from the release folder, runs in a container attached
 to the compose network, with the admin certificate of the deployment. First in

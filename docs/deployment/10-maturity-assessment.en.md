@@ -38,21 +38,21 @@ The accredited level is the highest one whose gates, and those of every lower le
 | L3 | Mandatory parameters complete | Automatic | The control is in the active configuration and no mandatory parameter is missing or invalid |
 | L3 | Procedure documented and disseminated | Documentary | The recorded procedure (section 6) is complete, has a usable link, is approved and still valid |
 | L3 | Evidence continuous without gaps | Automatic | Every machine has facts on every whole day of the period since its first fact, and in the current evaluation every applicable requirement is evidenced |
-| L4 | Threshold defined and watched | Declared and measured | A compliance threshold is declared. If the latest snapshot is below it, there is a review (section 7.1) dated on or after the first snapshot of that run below the threshold, with actions or with the result «Desviación en tratamiento» |
+| L4 | Threshold defined and watched | Declared and measured | A compliance threshold is declared and checked against the snapshots: with no snapshots, or when they cannot be read, it fails. If the latest is below it, there is a review (section 7.1) dated on or after the first snapshot of that run below the threshold, with actions or with the result «Desviación en tratamiento» |
 | L4 | Periodic reviews recorded | Declared and measured | The last recorded review is not older than the declared period (365 days by default) |
 | L5 | Historical series with an improving trend | Automatic | In the last 180 days there are at least 90 days and 10 snapshots (section 10), and the mean of the second half exceeds the first, or the score stays at 100 % |
 | L5 | Feedback closed with a procedure change | Documentary and declared | A recorded lesson or deficiency (section 7.3) is closed with a procedure version approved after it was opened |
 
 Rules:
 
-- Own period: L1 to L3 read the last 30 days of facts of the whole organisation, whatever the screen's evaluation window. If there are facts for fewer days (index retention or a recent installation), the gates read what there is and the reason says so («solo hay hechos desde el …»). If `wazuh-alerts-*` keeps less than 30 days, L3 never covers the whole period.
-- A machine that enters the scope during the period counts from its first fact; the reason says so («… desde el …»).
+- Own period: L1 to L3 read the last 30 days of facts of the whole organisation, whatever the screen's evaluation window. L2 and L3 need the whole period: with less history (a recent installation, or `wazuh-alerts-*` kept for less than 30 days) they fail with the reason «Faltan N días de historial». A new installation rises above L1 once it has 30 days of facts; with a shorter retention, L2 and L3 are never accredited.
+- A machine that enters the scope during the period counts from its first fact ever (not its first in the window); the reason says so («… desde el …»). An agent stopped at the start of the window still counts as a gap.
 - Red and grey do not set L0. Only a grey caused by collection (no collector data, or a stopped collector) holds the control at L1. A grey caused by configuration or by the catalog can accredit L2 if the facts recur, as the auditor's table provides; L3 then fails on the parameters or the requirements without evidence.
 - A machine that stops sending data prevents L2 even if the others report: the reason names the machine and the days without facts.
 - An evidence that never arrives while the collector reports daily does not prevent L2: it prevents L3 (requirements without evidence).
 - A control in draft (`DRAFT`, the 11 waiting for a collector) shows «Sin medición todavía» and has no accredited level. Its assessed level can still be recorded; above L0 it needs a justification and is marked «sin medición todavía: se apoya solo en la justificación». It counts as applicable only if one of its requirements applies at the level the control is applied with.
 - A control that does not apply at the ENS level (every requirement above it) shows «no aplica en este nivel» and is left out of the distribution.
-- The first time a view opens, maturity appears a few seconds after the result («Madurez: calculando…»), like the daily series: reading it never delays the evaluation.
+- The first time a view opens, maturity appears a few seconds after the result («Madurez: calculando…»), like the daily series: reading it never delays the evaluation. After a record, views (also with a machine selected) show «Actualizando la madurez…» until the new one arrives, without allowing a record over the old one. If it cannot be computed after three attempts, the panel says «No se ha podido calcular la madurez» with a «Reintentar» button.
 
 ## 5. Target per category
 
@@ -162,13 +162,22 @@ The `wazuh-ens-snapshots` index keeps one snapshot per control and day: status, 
 ### 10.1 Who writes it
 
 - **The server's daily task**, with the dashboard's internal user: every day at 02:30 in the time zone of Configuration > General (Europe/Madrid when none is set; 03:30 on the spring clock-change night) and, 10 minutes after the dashboard starts, once more only if the day has no snapshot yet. It runs a complete evaluation of the whole organisation (its own, without touching the users' memory), waits for it to finish and writes the day. On Wazuh the internal user has the built-in `manage_wazuh_index` role (read, write, delete and manage on `wazuh-*`), which is enough to create the index, write and purge. If the indexer refuses a call, the dashboard log warns once and the task stops.
-- **An administrator's views** (`ensfacil_admin` or `all_access`) of the whole organisation (overview, panel, control list or a control's detail), when the result is complete and current.
+- Only the task writes it: no view does, not even an administrator's. The task reads the facts and the snapshots at that moment (never from memory) and its evaluation does not compute the daily series.
 - One for each catalog control, including those in draft (they carry their assessed level). The id is `<control>|<YYYY-MM-DD>`, with the day in the time zone of Configuration > General: writing again the same day replaces that day's document, never duplicates it.
-- Retention: 1095 days (three years). Older ones are deleted on the first write of each day; if the deletion fails, it is retried with the next write.
+- Retention: 1095 days (three years). Older ones are deleted on every run of the task; if the deletion fails, it is retried an hour later.
+- The index has a template (`wazuh-ens-snapshots`) with its field types: if it is deleted and a write creates it again, it keeps them.
 
 ### 10.2 Who reads it
 
-The L5 trend, the L4 deviation and the read route read the index **as the viewing user**: the index permissions decide who sees the organisation's series. They need `read` on `wazuh-ens-snapshots`: the built-in `readall` and `all_access` roles give it, or a custom role with `read` on `wazuh-*` or on that index. Without it, the trend gate says «No se pudieron leer las instantáneas: sin permiso de lectura de wazuh-ens-snapshots» and the route answers 403.
+The L5 trend, the L4 threshold and the read route read the index **as the viewing user**: the index permissions decide who sees the organisation's series. They need `read` on `wazuh-ens-snapshots`:
+
+| Role | Read on `wazuh-ens-snapshots` |
+|---|---|
+| `all_access`, `readall` (built-in) | Yes |
+| `ensfacil_admin` (created with `config/create-admin-role.sh` 1.4.0 or later) | Yes: the role grants it |
+| A custom role | If it has `read` on `wazuh-*` or on that index |
+
+Without it, the trend (L5) and threshold (L4) gates fail («no se pueden leer las instantáneas»), the route answers 403 and the dashboard log warns once per user. When assessing, the server computes the accredited level reading the snapshots with its own user: the assessor's permissions never lower the justification bar.
 
 Read a control's snapshots:
 
@@ -178,7 +187,7 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
   -d '{"size":400,"query":{"term":{"controlId":"op.acc.1"}},"sort":[{"date":"asc"}]}'
 ```
 
-Expected result: one document per day with `date`, `status`, `score`, `accredited`, `assessed`, `target` and `recordedBy` («ENSFácil (tarea diaria)» or the administrator).
+Expected result: one document per day with `date`, `status`, `score`, `accredited`, `assessed`, `target` and `recordedBy` («ENSFácil (tarea diaria)»).
 
 From the dashboard, with a session: `GET /api/ensfacil/maturity/snapshots?from=YYYY-MM-DD&to=YYYY-MM-DD[&controlId=…]`, at most 400 days per request.
 

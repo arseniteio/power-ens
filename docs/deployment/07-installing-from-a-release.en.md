@@ -239,7 +239,7 @@ Seeding uses the tools in the repository's `config/`, which the release does not
 > [!note]
 > Required only if a user without `all_access` must save the configuration or view its history. The Wazuh `admin` user has `all_access`.
 
-Without `ensfacil_admin` or `all_access`, saving returns a 403 error. The role grants no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
+Without `ensfacil_admin` or `all_access`, saving returns a 403 error. The role also grants read on `wazuh-ens-snapshots` (the maturity series, [Maturity assessment, section 10.2](10-maturity-assessment.en.md#102-who-reads-it)) and no other permission: each user also needs their Wazuh role with read access to `wazuh-alerts-*` and `wazuh-monitoring-*`.
 
 First in test mode, which sends no change. Replace `<user>` with the dashboard
 user who will administer ENSFácil:

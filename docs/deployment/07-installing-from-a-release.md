@@ -239,7 +239,7 @@ La siembra usa las herramientas de `config/` del repositorio, que la release no 
 > [!note]
 > Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial. El usuario `admin` de Wazuh tiene `all_access`.
 
-Sin `ensfacil_admin` ni `all_access`, guardar devuelve un error 403. El rol no concede otros permisos: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+Sin `ensfacil_admin` ni `all_access`, guardar devuelve un error 403. El rol concede además lectura de `wazuh-ens-snapshots` (la serie de madurez, [Valoración de la madurez, apartado 10.2](10-maturity-assessment.md#102-quién-la-lee)) y ningún otro permiso: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 Primero en modo prueba, que no envía ningún cambio. Sustituir `<usuario>` por
 el usuario del dashboard que administrará ENSFácil:

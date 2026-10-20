@@ -38,21 +38,21 @@ El nivel acreditado es el más alto cuyas puertas, y las de todos los niveles in
 | L3 | Parámetros obligatorios completos | Automático | El control está en la configuración activa y no le falta ni tiene inválido ningún parámetro obligatorio |
 | L3 | Procedimiento documentado y difundido | Documental | El procedimiento registrado (apartado 6) está completo, tiene enlace utilizable, está aprobado y sigue vigente |
 | L3 | Evidencias continuas y sin lagunas | Automático | Cada máquina tiene hechos todos los días completos del periodo desde su primer hecho, y en la evaluación actual todos los requisitos aplicables están evidenciados |
-| L4 | Umbral definido y vigilado | Declarado y medido | Hay un umbral de cumplimiento declarado. Si la última instantánea está por debajo, hay una revisión (apartado 7.1) fechada desde la primera instantánea de esa racha bajo el umbral, con acciones o con el resultado «Desviación en tratamiento» |
+| L4 | Umbral definido y vigilado | Declarado y medido | Hay un umbral de cumplimiento declarado y se comprueba con las instantáneas: sin instantáneas, o sin poder leerlas, no se cumple. Si la última está por debajo, hay una revisión (apartado 7.1) fechada desde la primera instantánea de esa racha bajo el umbral, con acciones o con el resultado «Desviación en tratamiento» |
 | L4 | Revisiones periódicas registradas | Declarado y medido | La última revisión registrada no tiene más antigüedad que la periodicidad declarada (365 días por defecto) |
 | L5 | Serie histórica con tendencia de mejora | Automático | En los últimos 180 días hay al menos 90 días y 10 instantáneas (apartado 10), y la media de la segunda mitad supera a la de la primera, o la puntuación se mantiene en el 100 % |
 | L5 | Realimentación cerrada con cambio de procedimiento | Documental y declarado | Una lección o deficiencia registrada (apartado 7.3) está cerrada con una versión del procedimiento aprobada después de su apertura |
 
 Reglas:
 
-- Periodo propio: L1 a L3 leen los últimos 30 días de hechos de toda la organización, sea cual sea la ventana de evaluación de la pantalla. Si solo hay hechos de menos días (retención del índice o instalación reciente), se leen los que hay y el motivo lo dice («solo hay hechos desde el …»). Si `wazuh-alerts-*` conserva menos de 30 días, L3 nunca cubre el periodo completo.
-- Una máquina que entra en el alcance durante el periodo cuenta desde su primer hecho: el motivo lo indica («… desde el …»).
+- Periodo propio: L1 a L3 leen los últimos 30 días de hechos de toda la organización, sea cual sea la ventana de evaluación de la pantalla. L2 y L3 necesitan el periodo entero: con menos historial (instalación reciente o retención de `wazuh-alerts-*` inferior a 30 días) no se cumplen, con el motivo «Faltan N días de historial». Una instalación nueva sube de L1 cuando cumple 30 días de hechos; con una retención menor, L2 y L3 no se acreditan nunca.
+- Una máquina que entra en el alcance durante el periodo cuenta desde su primer hecho de siempre (no desde el primero de la ventana): el motivo lo indica («… desde el …»). Un agente parado al principio de la ventana sí cuenta como hueco.
 - El rojo y el gris no fijan L0. Solo un gris por falta de recogida (sin datos del recolector o recolector parado) deja el control en L1. Un gris por configuración o por catálogo puede acreditar L2 si los hechos son recurrentes, como prevé la tabla del auditor; L3 no se cumple por los parámetros o los requisitos sin evidencia.
 - Una máquina que deja de enviar datos impide L2 aunque las demás informen: el motivo nombra la máquina y los días sin hechos.
 - Una evidencia que no llega mientras el recolector informa a diario no impide L2: impide L3 (requisitos sin evidencia).
 - Un control en borrador (`DRAFT`, los 11 que esperan recolector) muestra «Sin medición todavía» y no tiene nivel acreditado. Se puede registrar su nivel valorado; por encima de L0 necesita justificación y se marca «sin medición todavía: se apoya solo en la justificación». Cuenta como aplicable solo si alguno de sus requisitos aplica al nivel con que se aplica el control.
 - Un control que no aplica en el nivel ENS (todos sus requisitos fuera del nivel) muestra «no aplica en este nivel» y queda fuera de la distribución.
-- La primera vez que se abre una vista, la madurez aparece unos segundos después del resultado («Madurez: calculando…»), como la serie diaria: su lectura nunca retrasa la evaluación.
+- La primera vez que se abre una vista, la madurez aparece unos segundos después del resultado («Madurez: calculando…»), como la serie diaria: su lectura nunca retrasa la evaluación. Tras un registro, las vistas (también con una máquina seleccionada) muestran «Actualizando la madurez…» hasta tener la nueva, sin permitir registrar sobre la anterior. Si no se puede calcular tras tres intentos, el panel dice «No se ha podido calcular la madurez» con un botón «Reintentar».
 
 ## 5. Objetivo por categoría
 
@@ -162,13 +162,22 @@ El índice `wazuh-ens-snapshots` guarda una instantánea por control y día: est
 ### 10.1 Quién la escribe
 
 - **La tarea diaria del servidor**, con el usuario interno del dashboard: cada día a las 02:30 en la zona horaria de Configuración > General (Europe/Madrid si no hay ninguna; la noche del cambio de hora de primavera, a las 03:30) y, 10 minutos después de arrancar el dashboard, una vez más solo si el día todavía no tiene instantánea. Hace una evaluación completa de toda la organización (propia, sin tocar la memoria de los usuarios), espera a que termine y escribe el día. En Wazuh, el usuario interno tiene el rol de serie `manage_wazuh_index` (lectura, escritura, borrado y gestión en `wazuh-*`), que basta para crear el índice, escribir y purgar. Si el indexador rechaza una llamada, el log del dashboard lo avisa una vez y la tarea se detiene.
-- **Las vistas de un administrador** (`ensfacil_admin` o `all_access`) de toda la organización (Vista general, panel, lista de controles o detalle de un control), cuando el resultado está completo y al día.
+- Solo la escribe la tarea: ninguna vista la escribe, ni siquiera la de un administrador. La tarea lee los hechos y las instantáneas en el momento (nunca de la memoria) y su evaluación no calcula la serie diaria.
 - Una por cada control del catálogo, también los que están en borrador (llevan su nivel valorado). El identificador es `<control>|<AAAA-MM-DD>`, con el día en la zona horaria de Configuración > General: repetir el mismo día sustituye el documento del día, nunca lo duplica.
-- Retención: 1095 días (tres años). Las más antiguas se borran con la primera escritura de cada día; si el borrado falla, se reintenta con la siguiente escritura.
+- Retención: 1095 días (tres años). Las más antiguas se borran con cada ejecución de la tarea; si el borrado falla, se reintenta al cabo de una hora.
+- El índice tiene una plantilla (`wazuh-ens-snapshots`) con los tipos de sus campos: si se borra y una escritura lo vuelve a crear, los conserva.
 
 ### 10.2 Quién la lee
 
-La tendencia de L5, la desviación de L4 y la ruta de lectura leen el índice **como el usuario que mira**: los permisos del índice deciden quién ve la serie de la organización. Necesitan `read` sobre `wazuh-ens-snapshots`: lo dan los roles de serie `readall` y `all_access`, o un rol propio con `read` sobre `wazuh-*` o sobre ese índice. Sin él, la puerta de tendencia dice «No se pudieron leer las instantáneas: sin permiso de lectura de wazuh-ens-snapshots» y la ruta responde 403.
+La tendencia de L5, el umbral de L4 y la ruta de lectura leen el índice **como el usuario que mira**: los permisos del índice deciden quién ve la serie de la organización. Necesitan `read` sobre `wazuh-ens-snapshots`:
+
+| Rol | Lectura de `wazuh-ens-snapshots` |
+|---|---|
+| `all_access`, `readall` (de serie) | Sí |
+| `ensfacil_admin` (creado con `config/create-admin-role.sh` 1.4.0 o posterior) | Sí: el rol la concede |
+| Un rol propio | Si tiene `read` sobre `wazuh-*` o sobre ese índice |
+
+Sin ella, las puertas de tendencia (L5) y de umbral (L4) no se cumplen («no se pueden leer las instantáneas»), la ruta responde 403 y el log del dashboard lo avisa una vez por usuario. Al valorar, el servidor calcula el nivel acreditado leyendo las instantáneas con su propio usuario: los permisos de quien valora no rebajan el listón de la justificación.
 
 Consultar las instantáneas de un control:
 
@@ -178,7 +187,7 @@ sudo curl -sk --cert /etc/wazuh-indexer/certs/admin.pem --key /etc/wazuh-indexer
   -d '{"size":400,"query":{"term":{"controlId":"op.acc.1"}},"sort":[{"date":"asc"}]}'
 ```
 
-Resultado esperado: un documento por día con `date`, `status`, `score`, `accredited`, `assessed`, `target` y `recordedBy` («ENSFácil (tarea diaria)» o el administrador).
+Resultado esperado: un documento por día con `date`, `status`, `score`, `accredited`, `assessed`, `target` y `recordedBy` («ENSFácil (tarea diaria)»).
 
 Desde el dashboard, con sesión: `GET /api/ensfacil/maturity/snapshots?from=AAAA-MM-DD&to=AAAA-MM-DD[&controlId=…]`, como mucho 400 días por petición.
 

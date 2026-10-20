@@ -34,9 +34,10 @@ cada control junto al semáforo.
   PDF, con la nota metodológica.
 - Índice `wazuh-ens-snapshots`: una instantánea por control y día (estado,
   puntuación, cobertura, nivel acreditado, valorado y objetivo), escrita por una
-  tarea diaria del servidor con el usuario interno y por las vistas de un
-  administrador, retenida tres años. Se lee como el usuario (ruta
-  `GET /api/ensfacil/maturity/snapshots` para el informe anual).
+  tarea diaria del servidor con el usuario interno a las 02:30 locales (solo
+  ella la escribe), retenida tres años. Se lee como el usuario (ruta
+  `GET /api/ensfacil/maturity/snapshots` para el informe anual); el rol
+  `ensfacil_admin` concede ahora su lectura.
 
 
 - Configuración > General > «Datos de la organización»: los datos que piden

@@ -33,10 +33,10 @@ traffic light.
   distribution), in the panel and in each control's report, on screen and in
   PDF, with the methodological note.
 - `wazuh-ens-snapshots` index: one snapshot per control and day (status,
-  score, coverage, accredited, assessed and target levels), written by a daily
-  server task with the internal user and by an administrator's views, kept for
-  three years. Read as the user (route `GET /api/ensfacil/maturity/snapshots`
-  for the annual report).
+  score, coverage, accredited, assessed and target levels), written only by a
+  daily server task with the internal user at 02:30 local time, kept for three
+  years. Read as the user (route `GET /api/ensfacil/maturity/snapshots` for the
+  annual report); the `ensfacil_admin` role now grants read on it.
 
 
 - Configuration > General > «Datos de la organización»: the data several

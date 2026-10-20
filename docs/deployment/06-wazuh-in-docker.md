@@ -220,7 +220,7 @@ Si alguna comprobación falla, detener el procedimiento y seguir el
 
 ## 5. Crear el rol `ensfacil_admin`
 
-Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial (el usuario `admin` de Wazuh tiene `all_access`). El rol no concede otros permisos: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
+Necesario solo si un usuario sin `all_access` debe guardar la configuración o consultar su historial (el usuario `admin` de Wazuh tiene `all_access`). El rol concede además lectura de `wazuh-ens-snapshots` (la serie de madurez) y nada más: cada usuario necesita además su rol de Wazuh con lectura de `wazuh-alerts-*` y `wazuh-monitoring-*`.
 
 `create-admin-role.sh`, de la carpeta de la release, se ejecuta en un
 contenedor conectado a la red del compose, con el certificado de administrador
