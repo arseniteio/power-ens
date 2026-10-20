@@ -94,8 +94,11 @@ export const resourcesInitial = (report: ENSAnnualReport): Record<string, string
 };
 
 // Freeze offered for the period shown: «Congelar» a closed one without freeze, «Regenerar» a frozen one.
-export const freezeActionOf = (response: ENSAnnualReportResponse): { label: string; expectedRevision: number | null } | undefined => {
-  if (response.frozen) return { label: 'Regenerar', expectedRevision: response.frozen.revision };
+export const freezeActionOf = (response: ENSAnnualReportResponse): { label: string; expectedRevision: number | null; disabledReason?: string } | undefined => {
+  if (response.frozen) {
+    const blocked = response.regeneration && !response.regeneration.allowed;
+    return { label: 'Regenerar', expectedRevision: response.frozen.revision, ...(blocked ? { disabledReason: response.regeneration!.reason } : {}) };
+  }
   if (response.period <= response.lastClosedPeriod && !response.freezeError) return { label: 'Congelar', expectedRevision: null };
   return undefined;
 };

@@ -111,6 +111,8 @@ export interface ENSAnnualReportResponse {
   freezeError?: string;
   // A closing moved since a freeze: what the period would cover now, or the freeze of another closing left aside.
   notice?: string;
+  // A frozen period: whether «Regenerar» can still recompute it (op.mon.2 still re-sends its incidents), and why not.
+  regeneration?: { allowed: boolean; reason?: string };
   // Version of the maturity document: «Medidas sin motor» records with it.
   maturityVersion: { seqNo: number; primaryTerm: number } | null;
 }

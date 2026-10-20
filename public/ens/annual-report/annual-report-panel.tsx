@@ -20,6 +20,7 @@ import {
   EuiText,
   EuiTextArea,
   EuiTitle,
+  EuiToolTip,
 } from '@elastic/eui';
 import { fetchAnnualReport, freezeAnnualReport } from '../../../common/ens/annual-report/annual-report-http-client';
 import { annualReportFileName, describeAnnualReport, toAnnualReportCsv, toAnnualReportJson } from '../../../common/ens/annual-report/annual-report-export';
@@ -333,9 +334,14 @@ export const AnnualReportPanel = ({
             </EuiFlexItem>
             {action && (
               <EuiFlexItem grow={false}>
-                <EuiButtonEmpty size='s' iconType='lock' onClick={() => setForm({ kind: 'freeze' })}>
-                  {action.label}
-                </EuiButtonEmpty>
+                {/* Disabled with its reason when op.mon.2 no longer re-sends the period's incidents. */}
+                <EuiToolTip content={action.disabledReason}>
+                  <span>
+                    <EuiButtonEmpty size='s' iconType='lock' onClick={() => setForm({ kind: 'freeze' })} isDisabled={Boolean(action.disabledReason)}>
+                      {action.label}
+                    </EuiButtonEmpty>
+                  </span>
+                </EuiToolTip>
               </EuiFlexItem>
             )}
             <EuiFlexItem grow={false}>

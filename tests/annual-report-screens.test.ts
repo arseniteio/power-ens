@@ -59,12 +59,14 @@ const responseFor = (period?: string) => ({
 // Period 2025: frozen twice (r1 by the job, r2 regenerated); reading r1 returns the archived one.
 const r1 = { revision: 1, frozenAt: '2026-04-01T00:30:00.000Z', frozenBy: 'ENSFácil (tarea diaria)' };
 const r2 = { revision: 2, frozenAt: '2026-10-20T12:05:00.000Z', frozenBy: 'rsis', reason: 'Corrección de la DA' };
+let regenerationBlocked = false;
 const frozenResponse = (revision?: string) => ({
   ...responseFor('2026'),
   period: '2025',
   periodFrom: '2024-04-01',
   periodTo: '2025-03-31',
   frozen: revision === '1' ? { ...r1, history: [] } : { ...r2, history: [r1] },
+  regeneration: regenerationBlocked ? { allowed: false, reason: 'No se puede regenerar: op.mon.2 reenvía los incidentes de los 400 días anteriores (desde el 2025-09-15) y el periodo empieza el 2024-04-01. El congelado vigente se conserva.' } : { allowed: true },
   report: { ...closed, period: '2025', header: closed.header.map((d: any) => (d.id === 'header.revision' ? { ...d, value: revision === '1' ? 1 : 2 } : d)) },
 });
 const gets: any[] = [];
@@ -137,7 +139,16 @@ http.setENSConfigurationHttp(() => ({
   p = await h.rerender(6);
   const revisionSelect = () => h.findAll('EuiSelect').find(node => node.props.prepend === 'Revisión');
   check('the frozen period offers its revisions, the current one marked', Boolean(revisionSelect()) && revisionSelect()!.props.options.map((o: any) => o.text).join(' | ') === 'r2 · 2026-10-20 · rsis (vigente) | r1 · 2026-04-01 · ENSFácil (tarea diaria)', revisionSelect()?.props.options);
-  check('the current revision offers «Regenerar»', /\[ Regenerar \]/.test(p));
+  check('the current revision offers «Regenerar»', /\[ Regenerar \]/.test(p) && !h.findAll('EuiButtonEmpty').find(node => /Regenerar/.test(node.texto))!.props.isDisabled);
+  regenerationBlocked = true;
+  h.findAll('EuiSelect').find(node => node.props.prepend === 'Periodo')!.props.onChange({ target: { value: '2026' } });
+  await h.rerender(6);
+  h.findAll('EuiSelect').find(node => node.props.prepend === 'Periodo')!.props.onChange({ target: { value: '2025' } });
+  p = await h.rerender(6);
+  const blockedButton = h.findAll('EuiButtonEmpty').find(node => /Regenerar/.test(node.texto));
+  const tip = h.findAll('EuiToolTip').find(node => /No se puede regenerar/.test(String(node.props.content)));
+  check('once op.mon.2 no longer re-sends the period, «Regenerar» is disabled with the reason in its tooltip', Boolean(blockedButton?.props.isDisabled) && Boolean(tip), [blockedButton?.props.isDisabled, tip?.props.content]);
+  regenerationBlocked = false;
   revisionSelect()!.props.onChange({ target: { value: '1' } });
   p = await h.rerender(6);
   check('choosing r1 reads it from the route', gets.some(g => g.query?.period === '2025' && g.query?.revision === '1'));
