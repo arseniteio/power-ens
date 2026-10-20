@@ -160,6 +160,8 @@ const snapshotIds = (internal: any) => [...internal.store.entries()].filter(([, 
   const list = overview.body.data.maturity;
   check('the overview carries every control and the distribution', list?.controls?.length > 20 && list.distribution && list.distribution.applicable > 0, list && { n: list.controls?.length, d: list.distribution });
   check('a DRAFT control has no accredited level («sin medición todavía»)', list.controls.filter((c: any) => !c.measured).every((c: any) => c.accredited === undefined));
+  const machinePanel: any = await evaluation.evaluate(context(internal), request({ include: 'dashboard', agentId: '024', timeZone: 'Europe/Madrid', timelineDays: '7' }), responses);
+  check('a machine panel carries the organisation distribution', JSON.stringify(machinePanel.body.data.maturity?.distribution) === JSON.stringify(list.distribution), machinePanel.body.data.maturity);
   const results: any = await evaluation.evaluate(context(internal), request({ include: 'results', timeZone: 'Europe/Madrid' }), responses);
   check('the results view (panorama) carries no maturity', results.body.data.maturity === undefined);
 

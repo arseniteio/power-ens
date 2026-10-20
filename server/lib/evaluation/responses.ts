@@ -7,6 +7,7 @@ import { catalogControlIds } from './queries';
 import type { ENSEvaluationService } from './evaluation-service';
 import { summarizeControlMaturity, summarizeMaturityDistribution } from '../../../common/ens/maturity/maturity-engine';
 import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
+import type { ENSMaturityOfView } from '../maturity/maturity-service';
 // What the overview views add (Task 2), kept apart so it can be re-hooked without touching the rest.
 import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } from './overview-fields';
 
@@ -55,14 +56,14 @@ const maturityOfList = (maturity: Map<string, ENSControlMaturity>, pending: bool
   return { controls, ...(pending ? {} : { distribution: summarizeMaturityDistribution(controls) }) };
 };
 
-export const buildEvaluationResponse = (run: RunOutput, maturity?: Map<string, ENSControlMaturity>, maturityError?: string) => {
+export const buildEvaluationResponse = (run: RunOutput, maturity?: ENSMaturityOfView, maturityError?: string) => {
   const { meta, query, state, views } = run;
   const timeline = visibleTimeline(run.timeline, query);
   const withMaturity = (list: boolean) => ({
     ...(maturity
       ? list
-        ? { maturity: maturityOfList(maturity, Boolean(meta.pending?.controls?.length)) }
-        : { maturity: query.controlId ? maturity.get(query.controlId) : undefined }
+        ? { maturity: maturityOfList(maturity.controls, !maturity.complete) }
+        : { maturity: query.controlId ? maturity.controls.get(query.controlId) : undefined }
       : {}),
     ...(maturityError ? { maturityError } : {}),
   });

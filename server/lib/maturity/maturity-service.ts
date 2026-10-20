@@ -24,6 +24,12 @@ import { ENS_SNAPSHOT_RETENTION_DAYS, purgeSnapshots, readSnapshots, snapshotId,
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
+// The maturity of a view, and whether the organisation view it comes from had every control computed.
+export interface ENSMaturityOfView {
+  controls: Map<string, ENSControlMaturity>;
+  complete: boolean;
+}
+
 export interface ENSMaturityServiceOptions {
   logger: Logger;
   evaluation: ENSEvaluationService;
@@ -45,8 +51,9 @@ export const createMaturityService = ({ logger, evaluation, activityTtlMs = 5 * 
 
   const activityOf = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext): Promise<Map<string, ENSMaturityActivity> | undefined> => {
     const zone = zoneOf(ctx);
-    // New facts change the probe; otherwise the days are re-read every few minutes.
-    const key = [ctx.userKey, ctx.scopeKey, ctx.window.from.slice(0, 13), zone, ctx.probe.count, ctx.probe.newest || ''].join('|');
+    // Days with facts change at most with a new day or a machine that resumes: read again every few minutes, not
+    // on every new fact (collectors report all the time).
+    const key = [ctx.userKey, ctx.scopeKey, ctx.window.from.slice(0, 13), zone].join('|');
     const cached = activity.get(key);
     if (cached && ctx.now.getTime() - cached.at < activityTtlMs) return cached.days;
     try {
@@ -183,7 +190,7 @@ export const createMaturityService = ({ logger, evaluation, activityTtlMs = 5 * 
     clients: ENSEvaluationClients,
     run: RunOutput,
     signal?: CancelSignal
-  ): Promise<Map<string, ENSControlMaturity> | undefined> => {
+  ): Promise<ENSMaturityOfView | undefined> => {
     if (run.query.include === 'results') return undefined;
     const organisation = run.query.agentId
       ? await evaluation.run(
@@ -194,7 +201,7 @@ export const createMaturityService = ({ logger, evaluation, activityTtlMs = 5 * 
       : run;
     const maturity = await compute(clients, organisation);
     recordSnapshots(clients, organisation, maturity);
-    return maturity;
+    return { controls: maturity, complete: !organisation.meta.pending };
   };
 
   // The level the evidence accredits now (for the assessment rule); undefined when it cannot be computed.

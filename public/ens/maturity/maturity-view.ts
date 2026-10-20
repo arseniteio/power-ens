@@ -22,7 +22,7 @@ export const MATURITY_ORIGIN_LABELS: Record<ENSMaturityGateOrigin, string> = {
 };
 
 export const MATURITY_NOTE =
-  'El semáforo y el porcentaje son indicadores operativos: dicen si hay algo que atender hoy. La madurez es la valoración normativa del proceso (Anexo II, apartado 6): se informa junto a ellos, sin mezclarla.';
+  'El semáforo y el porcentaje son indicadores operativos: dicen si hay algo que atender hoy. La madurez es la valoración normativa del proceso (Anexo II, apartado 6): se informa junto a ellos, sin mezclarla. Es de la organización, la misma con cualquier máquina seleccionada.';
 
 export const MATURITY_FORM_TITLES: Record<ENSMaturityRecordKind, string> = {
   assessment: 'Valorar la madurez',
