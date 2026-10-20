@@ -2,6 +2,7 @@
 import { isUsableLink } from '../configuration/services/attestation-service';
 import type { ENSConfigurationVersion, ENSLevel } from '../configuration/types';
 import type {
+  ENSAnnualResourcesDeclaration,
   ENSControlMaturityRecord,
   ENSMaturityAssessment,
   ENSMaturityFeedback,
@@ -13,6 +14,7 @@ import type {
   ENSMaturityReview,
   ENSMaturityReviewResult,
   ENSMaturityTargets,
+  ENSMeasureDeclaration,
   ENSProcedureAttestation,
 } from './types';
 
@@ -58,6 +60,8 @@ export const RECORD_LIST_KEYS: Record<ENSMaturityRecordKind, keyof ENSControlMat
   assessment: 'assessments',
   indicators: 'indicators',
   feedback: 'feedback',
+  declaration: 'declarations',
+  resources: 'resources',
 };
 
 export const ENS_MATURITY_RECORD_KINDS = Object.keys(RECORD_LIST_KEYS) as ENSMaturityRecordKind[];
@@ -85,6 +89,8 @@ export const readControlMaturityRecord = (records: Partial<ENSMaturityRecords> |
     assessments: list('assessments', entry => isMaturityLevel(entry.level)),
     indicators: list('indicators', entry => typeof entry.minScore === 'number'),
     feedback: list('feedback', entry => typeof entry.reference === 'string'),
+    declarations: list('declarations', entry => typeof entry.applies === 'boolean' && typeof entry.reference === 'string'),
+    resources: list('resources', entry => typeof entry.period === 'string'),
   };
 };
 
@@ -176,7 +182,20 @@ export type ENSMaturityEntryInput =
   | Unstamped<ENSMaturityReview>
   | Unstamped<ENSMaturityAssessment>
   | Unstamped<ENSMaturityIndicators>
-  | Unstamped<ENSMaturityFeedback>;
+  | Unstamped<ENSMaturityFeedback>
+  | Unstamped<ENSMeasureDeclaration>
+  | Unstamped<ENSAnnualResourcesDeclaration>;
+
+// «sí»/«si»/true and «no»/false: the form sends text, the stored entry a boolean.
+const yesNo = (value: unknown): boolean | undefined =>
+  value === true || value === 'si' || value === 'sí' ? true : value === false || value === 'no' ? false : undefined;
+
+// A non-negative amount, absent when empty; NaN marks a malformed one.
+const amount = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value.replace(',', '.')) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+};
 
 // Validates a person's entry; above `accredited` (or with it unknown) an assessment needs a justification.
 export const validateMaturityEntry = (
@@ -271,6 +290,60 @@ export const validateMaturityEntry = (
     return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
   }
 
+  if (kind === 'declaration') {
+    const applies = yesNo(value.applies);
+    const level = value.level === undefined || value.level === null || value.level === '' ? undefined : value.level;
+    const target = value.target === undefined || value.target === null || value.target === '' ? undefined : value.target;
+    const link = c.optionalText('link', 'Enlace', 1000);
+    const justification = c.optionalText('justification', 'Justificación', LONG);
+    const entry: Unstamped<ENSMeasureDeclaration> = {
+      applies: applies === true,
+      ...(level !== undefined ? { level } : {}),
+      ...(target !== undefined ? { target } : {}),
+      reference: c.text('reference', 'Referencia documental'),
+      ...(link ? { link } : {}),
+      owner: c.text('owner', 'Responsable'),
+      date: c.day('date', 'Fecha', { past: true }),
+      ...(justification ? { justification } : {}),
+    };
+    if (applies === undefined) c.errors.push('Aplica: sí o no.');
+    if (level !== undefined && !isMaturityLevel(level)) c.errors.push('Nivel valorado: de 0 a 5.');
+    if (target !== undefined && !isMaturityLevel(target)) c.errors.push('Nivel objetivo: de 0 a 5.');
+    if (applies === true && level === undefined) c.errors.push('Nivel valorado: obligatorio si la medida aplica.');
+    if (applies === false && !justification) c.errors.push('Justificación: obligatoria si la medida no aplica.');
+    if (link && !isUsableLink(link)) c.errors.push('Enlace: http(s)://, file:// o ruta de red; no vale el del ejemplo.');
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
+  if (kind === 'resources') {
+    const period = textOf(value.period);
+    const ictBudget = amount(value.ictBudget);
+    const ictStaff = amount(value.ictStaff);
+    const securityStaff = amount(value.securityStaff);
+    const entry: Unstamped<ENSAnnualResourcesDeclaration> = {
+      period,
+      ...(ictBudget !== undefined ? { ictBudget } : {}),
+      ...(ictStaff !== undefined ? { ictStaff } : {}),
+      ...(securityStaff !== undefined ? { securityStaff } : {}),
+      reference: c.text('reference', 'Referencia documental'),
+      owner: c.text('owner', 'Responsable'),
+    };
+    if (!/^\d{4}$/.test(period)) c.errors.push('Periodo: el año del cierre (AAAA).');
+    [
+      [ictBudget, 'Presupuesto TIC total'],
+      [ictStaff, 'Plantilla TIC total'],
+      [securityStaff, 'Plantilla de seguridad'],
+    ].forEach(([n, label]) => {
+      if (Number.isNaN(n)) c.errors.push(`${label}: número no negativo.`);
+    });
+    if (ictBudget === undefined && ictStaff === undefined) c.errors.push('Presupuesto TIC total o plantilla TIC total: al menos uno.');
+    if (securityStaff !== undefined && ictStaff === undefined) c.errors.push('Plantilla de seguridad: solo con la plantilla TIC total.');
+    if (typeof securityStaff === 'number' && typeof ictStaff === 'number' && securityStaff > ictStaff) {
+      c.errors.push('Plantilla de seguridad: no puede superar a la plantilla TIC total.');
+    }
+    return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
+  }
+
   return { errors: [`Tipo de registro desconocido: ${String(kind)}.`] };
 };
 
@@ -299,6 +372,16 @@ export const describeMaturityEntry = (controlId: string, kind: ENSMaturityRecord
       return `Madurez de ${controlId}: nivel valorado L${entry.level}${entry.target !== undefined ? `, objetivo L${entry.target}` : ''}.`;
     case 'indicators':
       return `Madurez de ${controlId}: umbral ${entry.minScore} %, revisión cada ${entry.reviewPeriodDays} días.`;
+    case 'declaration':
+      return `Medida sin motor ${controlId}: ${entry.applies ? `aplica, nivel valorado L${entry.level}` : 'no aplica'} (${entry.reference}).`;
+    case 'resources':
+      return `Recursos TIC totales del periodo ${entry.period}: ${[
+        entry.ictBudget !== undefined ? `presupuesto ${entry.ictBudget} €` : '',
+        entry.ictStaff !== undefined ? `plantilla ${entry.ictStaff}` : '',
+        entry.securityStaff !== undefined ? `seguridad ${entry.securityStaff}` : '',
+      ]
+        .filter(Boolean)
+        .join(', ')}.`;
     default:
       return `Madurez de ${controlId}: realimentación ${entry.reference}${entry.closedAt ? ' cerrada' : ''}.`;
   }

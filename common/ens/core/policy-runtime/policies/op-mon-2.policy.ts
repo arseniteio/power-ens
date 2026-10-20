@@ -11,6 +11,7 @@ import type { ENSNormalizedEvent } from '../../data-source/types';
 import { toParameterListItems } from '../../../configuration/services/parameter-value-validator';
 import { ENS_SCOPE_GROUP } from '../../scope/engine';
 import { STALE_COLLECTOR_MAX_AGE_HOURS } from '../../evidence/stale-collector';
+import { annualPeriodBounds, annualPeriodOfDay, ENS_DEFAULT_ANNUAL_CLOSING } from '../../../annual-report/annual-period';
 import {
   HOUR_MS,
   DAY_MS,
@@ -203,8 +204,23 @@ interface Cycle {
   linea: string;
 }
 
+// One read of each register per evaluation and evidence: the judgement, the report lines and the art. 32 data share it.
+const registerReads = new WeakMap<ENSPolicyContext, Map<string, LogRow | Measurement>>();
+
+const readOnce = (context: ENSPolicyContext, key: string, read: () => LogRow | Measurement): LogRow | Measurement => {
+  let reads = registerReads.get(context);
+  if (!reads) {
+    reads = new Map();
+    registerReads.set(context, reads);
+  }
+  if (!reads.has(key)) reads.set(key, read());
+  return reads.get(key) as LogRow | Measurement;
+};
+
 const READS_CYCLES = (context: ENSPolicyContext, now: number, evidence: string): LogRow | Measurement =>
-  record(context, now, 'metrics_register_read', 'metrics_cycle_recorded', evidence, 'registro de ciclos de métricas', CYCLE_RECORD);
+  readOnce(context, `cycles|${now}|${evidence}`, () =>
+    record(context, now, 'metrics_register_read', 'metrics_cycle_recorded', evidence, 'registro de ciclos de métricas', CYCLE_RECORD)
+  );
 
 // Cycles that count, oldest to newest, and what was left out (template examples, future-dated,
 // unreadable).
@@ -894,14 +910,25 @@ interface Incident {
   datosPersonales: 'si' | 'no' | '-';
   aepd: boolean;
   ccnCert?: number;
+  // When the incident started (optional column fecha_ocurrencia): the base of the detection time.
+  ocurrencia?: number;
 }
 
 const READS_INCIDENTS = (context: ENSPolicyContext, now: number): LogRow | Measurement =>
-  record(context, now, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', INCIDENT_RECORD);
+  readOnce(context, `incidents|${now}`, () =>
+    record(context, now, 'incident_register_read', 'incident_registered', 'EV-03', 'registro de incidentes', INCIDENT_RECORD)
+  );
 
 // Record phases grouped by incident with op.exp.7's rules: severity is the highest of its phases;
 // containment, the first intermediate phase; closing, the last final one.
+const groupedIncidents = new WeakMap<LogRow, Incident[]>();
+
 const incidentsOf = (reg: LogRow): Incident[] => {
+  if (!groupedIncidents.has(reg)) groupedIncidents.set(reg, groupIncidents(reg));
+  return groupedIncidents.get(reg) as Incident[];
+};
+
+const groupIncidents = (reg: LogRow): Incident[] => {
   const byId = new Map<string, Incident>();
 
   reg.filas.forEach(e => {
@@ -948,6 +975,13 @@ const incidentsOf = (reg: LogRow): Incident[] => {
 
     if (ccn !== undefined) {
       actual.ccnCert = Math.min(actual.ccnCert ?? ccn, ccn);
+    }
+
+    // Registers without the column (13 columns) send no field: the incident has no occurrence date.
+    const occurred = isEmptyField(factField(e, 'fecha_ocurrencia')) ? undefined : parseInstant(factField(e, 'fecha_ocurrencia'));
+
+    if (occurred !== undefined) {
+      actual.ocurrencia = Math.min(actual.ocurrencia ?? occurred, occurred);
     }
 
     byId.set(id, actual);
@@ -1324,6 +1358,106 @@ const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: nu
 };
 
 
+// The live art. 32 variable carries the incidents opened since the previous report period started, at most this many.
+export const ART32_MAX_INCIDENTS = 500;
+// Days the collector re-emits (OPMON2_WINDOW_DAYS of the runbook): a period that starts earlier is not covered.
+export const ART32_REGISTER_WINDOW_DAYS = 400;
+
+// One report period read on the server for a freeze or a closed period: all its incidents, up to `limit`.
+export interface ENSArt32IncidentsRange {
+  fromMs: number;
+  toMs: number;
+  limit: number;
+}
+
+const art32Incident = (i: Incident) => {
+  const at = (t?: number): string | undefined => (t === undefined ? undefined : iso(t));
+
+  return {
+    id: i.id,
+    severidad: i.severidad || undefined,
+    clasificacion: i.clasificacion,
+    apertura: at(i.apertura),
+    ...(i.apertura === undefined ? { primera: iso(i.primera) } : {}),
+    contencion: at(i.contencion),
+    cierre: at(i.cierre),
+    ocurrencia: at(i.ocurrencia),
+    ...(i.ccnCert !== undefined ? { ccn: true } : {}),
+    ...(i.aepd ? { aepd: true } : {}),
+    ...(i.datosPersonales !== 'no' ? { datosPersonales: i.datosPersonales } : {}),
+  };
+};
+
+// Art. 32 incidents: live (since the previous period, at most 500) or one period's (all, up to `limit`), or why not.
+// A row dated after the read never counts and never uses up a limit.
+export const art32IncidentsData = (context: ENSPolicyContext, now: number, range?: ENSArt32IncidentsRange): Record<string, unknown> => {
+  const reg = READS_INCIDENTS(context, now);
+
+  if (isMeasurement(reg)) {
+    return { motivo: reg.motivo, incidentes: [] };
+  }
+
+  const openedAt = (i: Incident) => i.apertura ?? i.primera;
+  const all = incidentsOf(reg);
+  const present = all.filter(i => openedAt(i) <= reg.t + FUTURE_TOLERANCE_MS);
+  const base = {
+    leido: iso(reg.t),
+    cubreDesde: iso(reg.t - ART32_REGISTER_WINDOW_DAYS * DAY_MS),
+    descartadas: reg.descartadas,
+    ...(present.length < all.length ? { futuros: all.length - present.length } : {}),
+  };
+
+  if (range) {
+    const ofPeriod = present.filter(i => openedAt(i) >= range.fromMs && openedAt(i) < range.toMs);
+
+    return ofPeriod.length > range.limit
+      ? { ...base, desde: iso(range.fromMs), excedido: ofPeriod.length, limite: range.limit, incidentes: [] }
+      : { ...base, desde: iso(range.fromMs), incidentes: ofPeriod.map(art32Incident) };
+  }
+
+  const per = periodicity(context);
+  const closing = !isMeasurement(per) && per.cierre ? per.cierre : ENS_DEFAULT_ANNUAL_CLOSING;
+  const previous = String(Number(annualPeriodOfDay(date(now), closing)) - 1);
+  // One day of margin: the report cuts the period at local midnight.
+  const since = Date.parse(`${annualPeriodBounds(previous, closing).from}T00:00:00Z`) - DAY_MS;
+  const opened = present.filter(i => openedAt(i) >= since);
+  const kept = opened.slice(-ART32_MAX_INCIDENTS);
+
+  return {
+    ...base,
+    desde: iso(since),
+    ...(kept.length < opened.length ? { recortados: opened.length - kept.length } : {}),
+    incidentes: kept.map(art32Incident),
+  };
+};
+
+const art32Incidents = (context: ENSPolicyContext, now: number): string => JSON.stringify(art32IncidentsData(context, now));
+
+// Art. 32 report: the cycles of the register as JSON, oldest first, or why not.
+const art32Cycles = (context: ENSPolicyContext, now: number): string => {
+  const reg = READS_CYCLES(context, now, 'EV-02');
+
+  if (isMeasurement(reg)) {
+    return JSON.stringify({ motivo: reg.motivo, ciclos: [] });
+  }
+
+  return JSON.stringify({
+    leido: iso(reg.t),
+    ciclos: cyclesOf(reg).ciclos.map(c => ({
+      periodo: c.periodo,
+      fecha: iso(c.fecha),
+      implantacion: c.implantacion,
+      horasInternas: c.horasInternas,
+      horasExternas: c.horasExternas,
+      presupuesto: c.presupuesto,
+      validadoPor: isEmptyField(c.validadoPor) ? undefined : c.validadoPor,
+      referencia: isEmptyField(c.referencia) ? undefined : c.referencia,
+      linea: c.linea,
+    })),
+  });
+};
+
+
 interface Technician {
   requisito: string;
   evidencias: string[];
@@ -1466,6 +1600,22 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       evidenceIds: ['EV-03'],
       eventIds: [],
       description: 'Indicadores de la gestión de incidentes de los últimos 365 días, para el informe anual del art. 32.',
+    },
+    {
+      name: 'informe_art32_incidentes',
+      value: art32Incidents(context, now),
+      parameterIds: [],
+      evidenceIds: ['EV-03'],
+      eventIds: [],
+      description: 'Incidentes del registro de op.exp.7 agrupados por fases (JSON), para el informe anual del art. 32.',
+    },
+    {
+      name: 'informe_art32_ciclos',
+      value: art32Cycles(context, now),
+      parameterIds: ['P-04', 'P-05'],
+      evidenceIds: ['EV-02', 'EV-06'],
+      eventIds: [],
+      description: 'Ciclos del registro de ciclos de métricas (JSON), para el informe anual del art. 32.',
     },
   ];
 

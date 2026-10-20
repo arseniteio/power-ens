@@ -22,6 +22,8 @@ import type {
 } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import { buildMaturityPdfContent, MaturityReportSection } from '../maturity/maturity-report';
+import { AnnualReportPanel } from '../annual-report/annual-report-panel';
+import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
@@ -141,10 +143,12 @@ const ControlReport = ({
   const exportable = canExportReport(view);
 
   const panoramaResults = panorama?.results;
+  // op.mon.2: the art. 32 data set (field 8 of the PDF is drawn from it).
+  const [annualReport, setAnnualReport] = useState<ENSAnnualReport | undefined>(undefined);
 
   const reportModel = useMemo(
-    () => definition.build(complianceResult, panoramaResults),
-    [definition, complianceResult, panoramaResults],
+    () => definition.build(complianceResult, panoramaResults, { annualReport }),
+    [definition, complianceResult, panoramaResults, annualReport],
   );
 
   // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
@@ -875,6 +879,13 @@ const ControlReport = ({
       <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} pending={Boolean(evaluation.data?.meta?.maturityPending)} />
 
       <EuiSpacer size='l' />
+
+      {definition.usesAnnualReport && (
+        <>
+          <AnnualReportPanel onReport={setAnnualReport} />
+          <EuiSpacer size='l' />
+        </>
+      )}
 
       <EuiTitle size='xs'>
         <h3>Campos del informe</h3>

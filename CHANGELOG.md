@@ -84,6 +84,44 @@ cada control junto al semáforo.
   que gana la columna «Aislamiento de producción» y une las filas por pareja
   de sistemas), mp.com.3 P-02 (algoritmos autorizados por el CCN), mp.com.3
   P-08 (productos certificados) y mp.s.3 P-07 (formación del personal).
+- Informe anual del artículo 32 (op.mon.2, guía 11): conjunto de datos por
+  cada una de las 73 medidas del Anexo II (aplica, nivel, exigencia del
+  Anexo II, estado y porcentaje del motor, cobertura, madurez acreditada,
+  valorada y objetivo, referencia documental y responsable), categorización
+  C, I, T, A y D, grado de implantación por marco, incidentes por tipo y
+  severidad con MTTD, MTTC y MTTR, notificaciones al CCN-CERT y a la AEPD,
+  porcentaje de alertas que acaban en incidente, recursos del registro de
+  ciclos y fiabilidad de la medición. Cada cifra lleva un identificador de
+  campo estable, su origen y su traza. Panel «Informe anual (art. 32)» en el
+  detalle de op.mon.2 y en Informes, con exportación JSON y CSV (fórmulas
+  neutralizadas) de la revisión vigente o de una anterior; el campo 8 del PDF
+  sale del mismo conjunto, con el mismo grado de implantación que el campo 2. Ruta `GET /api/ensfacil/annual-report`.
+- «Medidas sin motor» en el detalle de op.mon.2: entrada declarada (aplica,
+  madurez, referencia documental, responsable y fecha) para las 39 medidas
+  del Anexo II fuera del catálogo y los 11 controles «Sin medición
+  todavía», guardada en el documento de madurez por la misma ruta, con el
+  mismo rol, versión e historial. «Recursos TIC totales» del periodo
+  (presupuesto, plantilla TIC y de seguridad) para los porcentajes de
+  recursos.
+- Congelado anual: la tarea diaria congela en `wazuh-ens-snapshots`
+  (`annual_freeze|<periodo>`, usuario interno, una sola vez) el periodo que
+  acaba de cerrar en P-02 `cierre_anual` (31 de diciembre sin él). Un
+  administrador congela o regenera un periodo cerrado con motivo
+  (`POST /api/ensfacil/annual-report/freeze`); la revisión anterior se
+  conserva. Un periodo cerrado lee en el servidor todos sus incidentes
+  (hasta 10 000); una regeneración que perdería las cifras de incidentes se
+  rechaza. Un congelado conserva las fechas de su cabecera aunque cambie el
+  cierre.
+- op.mon.2 P-01 admite una sola fila por medida: una medida repetida es un
+  error de validación que la nombra con sus filas; el informe lee P-01 una
+  vez por medida.
+- op.mon.2 y op.exp.7 publican sus datos de informe (incidentes, ciclos,
+  conciliación de alertas y detección) como variables del motor, sin cambiar
+  ningún veredicto. Con la columna opcional `fecha_ocurrencia` del registro
+  de incidentes (runbooks op.exp.7 y op.mon.2), el MTTD parte de la fecha de
+  ocurrencia; sin ella, la primera alerta conciliada por op.exp.7 da una cota
+  inferior que se publica aparte. op.exp.7 lee alertas e incidentes una sola
+  vez por evaluación, también para EV-03.
 
 ### Cambiado
 
@@ -141,6 +179,12 @@ cada control junto al semáforo.
   menos, L2 y L3 pueden no acreditarse (guía 10).
 - Un plugin 1.3.0 ignora la madurez registrada y no la toca.
 - Sin ninguna dimensión declarada, los resultados no cambian.
+- Informe anual del art. 32: actualizar los runbooks op.exp.7 y op.mon.2 en
+  el manager para leer `fecha_ocurrencia`; un registro de 13 columnas sigue
+  siendo válido. op.exp.9 y op.mon.3 también admiten la cabecera de 14
+  columnas con `fecha_ocurrencia`: actualizarlos junto con op.exp.7 y
+  op.mon.2 antes de añadir la columna (guía 11, apartado 11). Los informes congelados se leen con el permiso de lectura de
+  `wazuh-ens-snapshots`.
 - Un documento que declara T o D puede cambiar de veredicto: D gobierna
   también mp.info.6, y T también op.acc.1 a op.acc.6 cuando es la más alta de
   sus dimensiones. Antes de actualizar, comprobar el documento con

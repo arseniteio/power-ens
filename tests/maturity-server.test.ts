@@ -502,6 +502,23 @@ const Z = { timeZone: 'Europe/Madrid' };
   const badTargets: any = await configuration.save(context(internal), { body: { configuration: { ...active, global: { ...active.global, maturityTargets: { MEDIO: 9 } } } } }, responses);
   check('targets out of range are refused by the configuration save', badTargets.status === 400 && /maturityTargets/.test(badTargets.body.message));
 
+  // Declared entries of the measures without engine (art. 32) go through the same route, role, version and history.
+  const versionNow = () => ({ seqNo: maturityDoc().seqNo, primaryTerm: 1 });
+  const declaration = { applies: 'si', level: 2, reference: 'POL-SEG-01', owner: 'RSEG', date: '2026-10-01' };
+  check('a declared entry without the role: 403', (await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: versionNow() }, READER)).status === 403);
+  const measured: any = await save({ controlId: 'op.exp.3', kind: 'declaration', entry: declaration, expectedVersion: versionNow() });
+  check('a declared entry for a control the engine measures: 400', measured.status === 400 && /lo mide ENSFácil/.test(measured.body.message));
+  check('a declared entry over a newer document: 409', (await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: null })).status === 409);
+  const declared: any = await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: versionNow() });
+  const declaredEntry = maturityDoc().source.configuration.controls['org.1']?.declarations?.[0];
+  check('org.1 (no engine): saved in the maturity document, applies as a boolean, with who and when', declared.status === 200 && declaredEntry?.applies === true && declaredEntry.level === 2 && declaredEntry.recordedBy === 'rsis', declared.body);
+  check('...with its history entry', historyOf(internal, 'MATURITY_HISTORY').some((h: any) => /Medida sin motor org\.1: aplica, nivel valorado L2/.test(h.source.configuration.summary)));
+  const draftDeclared: any = await save({ controlId: 'mp.eq.2', kind: 'declaration', entry: { ...declaration, level: 1 }, expectedVersion: versionNow() });
+  check('a DRAFT control also takes a declared entry', draftDeclared.status === 200);
+  const totals: any = await save({ controlId: 'op.mon.2', kind: 'resources', entry: { period: '2027', ictBudget: 100000, reference: 'Presupuesto 2027', owner: 'Intervención' }, expectedVersion: versionNow() });
+  check('the ICT totals of a period are recorded in op.mon.2', totals.status === 200 && maturityDoc().source.configuration.controls['op.mon.2'].resources[0].ictBudget === 100000);
+  check('...and nowhere else', (await save({ controlId: 'op.exp.3', kind: 'resources', entry: { period: '2027', ictBudget: 1, reference: 'x', owner: 'y' }, expectedVersion: versionNow() })).status === 400);
+
   console.log('5. After recording: the view changes, the rows are not recomputed');
   const before = await ready({ include: 'control', controlId: 'op.exp.3', ...Z });
   const reviewed: any = await save({ controlId: 'op.exp.3', kind: 'review', entry: { date: '2026-10-15', reviewer: 'Ana', result: 'CONFORME' }, expectedVersion: before.body.data.maturityVersion });

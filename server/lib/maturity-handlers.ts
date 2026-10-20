@@ -1,6 +1,6 @@
 // Maturity routes: append one entry to a control's record (own document, version and history) and read snapshots.
 import type { Logger } from '../../../../src/core/server';
-import { ENSCatalog } from '../../common/ens/catalog';
+import { maturityRecordTargetError } from '../../common/ens/annual-report/declared-measures';
 import {
   appendMaturityEntry,
   describeMaturityEntry,
@@ -75,10 +75,12 @@ export const createMaturityHandlers = ({ logger, securityEnabled, maturity, cloc
     const body = request?.body || {};
     const controlId = text(body.controlId);
     const kind = body.kind as ENSMaturityRecordKind;
-    if (!controlId || !ENSCatalog.some(control => control.id === controlId)) {
-      return failure(response, 400, `El control «${controlId || ''}» no está en el catálogo de ENSFácil.`);
-    }
-    if (!ENS_MATURITY_RECORD_KINDS.includes(kind)) return failure(response, 400, `Registro de madurez desconocido: «${String(kind)}».`);
+    if (!controlId) return failure(response, 400, 'El control «» no está en el catálogo de ENSFácil.');
+    const knownKind = ENS_MATURITY_RECORD_KINDS.includes(kind);
+    // A catalog control takes its maturity; a measure without engine, its declared entry; op.mon.2, the ICT resources.
+    const targetError = maturityRecordTargetError(controlId, knownKind ? kind : 'assessment');
+    if (targetError) return failure(response, 400, targetError);
+    if (!knownKind) return failure(response, 400, `Registro de madurez desconocido: «${String(kind)}».`);
     if (body.expectedVersion === undefined) return failure(response, 400, NO_VERSION);
     const now = clock();
     // The format first (the justification rule needs the accredited level, computed below).

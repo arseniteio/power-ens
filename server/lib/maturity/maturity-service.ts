@@ -467,12 +467,27 @@ export const createMaturityService = ({
   };
 
   // The daily job: a complete organisation evaluation of its own and every input read now; any failure writes nothing.
-  const snapshotDay = async (clients: ENSEvaluationClients, run: RunOutput, recordedBy: string): Promise<{ date: string; written: number; purged: boolean }> => {
+  // The maturity it wrote is returned too: the annual freeze of the same run uses it.
+  const snapshotDay = async (
+    clients: ENSEvaluationClients,
+    run: RunOutput,
+    recordedBy: string
+  ): Promise<{ date: string; written: number; purged: boolean; maturity: Map<string, ENSControlMaturity> }> => {
     if (run.meta.pending || run.meta.refreshing) throw new Error('the organisation evaluation is not complete');
     const data = await loadInputs(clients, run.ctx);
     if (data.failures.length) throw new Error(`could not read ${data.failures.join(', ')}`);
     const date = dayIn(run.ctx.now, zoneOf(run.ctx));
-    return { date, ...(await writeDay(clients.asInternalUser, run, compute(run, data), recordedBy)) };
+    const maturity = compute(run, data);
+    return { date, ...(await writeDay(clients.asInternalUser, run, maturity, recordedBy)), maturity };
+  };
+
+  // Art. 32: the screen's inputs (or read now); `fresh` reads them now and fails if one is missing (explicit freeze).
+  const forReport = async (clients: ENSEvaluationClients, run: RunOutput, options: { fresh?: boolean } = {}): Promise<Map<string, ENSControlMaturity>> => {
+    const data = options.fresh
+      ? await loadInputs(clients, run.ctx)
+      : peekInputs(clients, run.ctx) || (await loading.get(inputsKey(run.ctx))) || (await loadInputs(clients, run.ctx));
+    if (options.fresh && data.failures.length) throw new Error(`could not read ${data.failures.join(', ')}`);
+    return compute(run, data);
   };
 
   // Snapshots for the annual report and the trends, read as the user: the index permissions decide who sees them.
@@ -494,6 +509,7 @@ export const createMaturityService = ({
     forEvaluation,
     accreditedFor,
     snapshotDay,
+    forReport,
     purgeOld: (client: any, date: string) => purge(client, date),
     snapshotsBetween,
     // Tests and the plugin stop: wait for what runs behind.

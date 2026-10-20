@@ -88,18 +88,49 @@ export interface ENSMaturityFeedback extends ENSMaturityStamp {
   procedureVersion?: string;
 }
 
-export type ENSMaturityRecordKind = 'attestation' | 'review' | 'assessment' | 'indicators' | 'feedback';
+// Declared entry of an Annex II measure without engine (not in the catalog, or in DRAFT) for the art. 32 report.
+export interface ENSMeasureDeclaration extends ENSMaturityStamp {
+  applies: boolean;
+  // Assessed maturity: required when the measure applies.
+  level?: ENSMaturityLevel;
+  target?: ENSMaturityLevel;
+  // Documentary reference (document code and title) and, optionally, where it is.
+  reference: string;
+  link?: string;
+  owner: string;
+  // YYYY-MM-DD of the assessment.
+  date: string;
+  // Required when the measure does not apply.
+  justification?: string;
+}
 
-// What is stored per control. Every list is append-only: the last entry is the current one.
+// Total ICT resources of a report period (op.mon.2 only): the base of the resource percentages.
+export interface ENSAnnualResourcesDeclaration extends ENSMaturityStamp {
+  // Report period, the year of its closing date (YYYY).
+  period: string;
+  // Euros.
+  ictBudget?: number;
+  // Full-time equivalents.
+  ictStaff?: number;
+  securityStaff?: number;
+  reference: string;
+  owner: string;
+}
+
+export type ENSMaturityRecordKind = 'attestation' | 'review' | 'assessment' | 'indicators' | 'feedback' | 'declaration' | 'resources';
+
+// What is stored per control (or Annex II measure). Every list is append-only: the last entry is the current one.
 export interface ENSControlMaturityRecord {
   attestations: ENSProcedureAttestation[];
   reviews: ENSMaturityReview[];
   assessments: ENSMaturityAssessment[];
   indicators: ENSMaturityIndicators[];
   feedback: ENSMaturityFeedback[];
+  declarations: ENSMeasureDeclaration[];
+  resources: ENSAnnualResourcesDeclaration[];
 }
 
-// The maturity document (`wazuh-ens-configuration/_doc/maturity`). Absent: nothing recorded yet.
+// The maturity document (`wazuh-ens-configuration/_doc/maturity`), keyed by control or Annex II measure id.
 export interface ENSMaturityRecords {
   controls: Record<string, Partial<ENSControlMaturityRecord>>;
 }
