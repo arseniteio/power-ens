@@ -98,8 +98,8 @@ check(
 const declareD = ENSCatalog.filter(c => listControlDimensions(c).includes('D'));
 
 check(
-  'only mp.info.6, op.cont.2 and op.cont.3 follow Availability (Annex II index)',
-  declareD.map(c => c.id).sort().join(',') === 'mp.info.6,op.cont.2,op.cont.3',
+  'only mp.info.6, mp.s.4, op.cont.2 and op.cont.3 follow Availability (Annex II index)',
+  declareD.map(c => c.id).sort().join(',') === 'mp.info.6,mp.s.4,op.cont.2,op.cont.3',
   declareD.map(c => c.id).join(', ')
 );
 

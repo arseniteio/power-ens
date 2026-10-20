@@ -57,8 +57,10 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 
 const request = async (service: any, clients2: any, q: any) => {
   let r = buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
+  // Slower than the series idle window (SERIES_IDLE_MS, 200 ms; the screen polls every 2 s), or the background
+  // series never gets a turn.
   for (let i = 0; i < 600 && (r.meta?.pending || r.meta?.seriesPending); i++) {
-    await new Promise(ready => setTimeout(ready, 50));
+    await new Promise(ready => setTimeout(ready, 300));
     r = buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q }, { allowStale: true })) as any;
   }
   return r;

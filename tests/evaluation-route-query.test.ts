@@ -120,7 +120,9 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
     for (let i = 0; i < 600; i++) {
       r = await h.evaluate(context, { query: validator.validate(ofUrl(string)), events: {} }, response);
       if (r.status !== 200 || (!r.data.meta?.pending && !r.data.meta?.seriesPending)) break;
-      await new Promise(ready => setTimeout(ready, 50));
+      // Slower than the series idle window (SERIES_IDLE_MS, 200 ms; the screen polls every 2 s), or the background
+      // series never gets a turn.
+      await new Promise(ready => setTimeout(ready, 300));
     }
     return r;
   };

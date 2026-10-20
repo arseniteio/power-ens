@@ -8,6 +8,13 @@ import type {
 import type { ENSLevel } from '../common/ens/configuration/types';
 import { evaluateRequirements } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateControlStatus } from '../common/ens/core/evaluation/control/control-evaluator';
+import { getENSComplianceState } from '../common/ens/core/ens-engine';
+import {
+  ENS_PLANNED_MEASUREMENTS,
+  describePendingMeasurement,
+  describeRequiredSource,
+  getPlannedMeasurement,
+} from '../common/ens/catalog/support/measurement-plan';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -69,10 +76,21 @@ section('1. Each control\'s state is consistent with what it can measure');
     );
 
     if (c.status === 'DRAFT') {
+      // A DRAFT control may declare the template's evidences (they are shown with the source they need), but none
+      // can accredit a rule: a rule exists only when a runbook deploys it.
+      const rules = ENSEvidenceCatalog.filter(evidence => evidence.controlId === controlId).flatMap(
+        evidence => evidence.relatedRules
+      );
+
       check(
-        `${controlId} · in DRAFT it does not accredit evidences yet`,
-        !accreditsRules,
-        'está en DRAFT y sus requisitos ya declaran evidencias'
+        `${controlId} · in DRAFT it accredits no rule yet`,
+        rules.length === 0,
+        rules.join(', ')
+      );
+      check(
+        `${controlId} · in DRAFT it is in the measurement plan`,
+        Boolean(getPlannedMeasurement(controlId)),
+        'sin oleada ni fuentes en catalog/support/measurement-plan.ts'
       );
     } else {
       check(
@@ -299,6 +317,93 @@ section('6. Traceability is not invented: each rule exists on a manager');
       .flatMap(e => e.relatedRules)
       .filter(r => !/^\d+$/.test(r))
       .join(', ')
+  );
+}
+
+section('6b. The controls without collector (owner decision 19/10/2026): documentary, out of the index');
+
+{
+  const planned = ENS_PLANNED_MEASUREMENTS.map(plan => plan.controlId);
+
+  check(
+    'the plan names the eleven controls of the auditor v2.0 package without collector',
+    planned.join(',') === 'mp.eq.2,mp.eq.3,mp.eq.4,mp.com.1,mp.com.3,mp.com.4,mp.sw.2,mp.s.1,mp.s.2,mp.s.3,mp.s.4',
+    planned.join(',')
+  );
+
+  check(
+    'every planned control is in the catalog and DRAFT',
+    planned.every(id => ENSCatalog.find(c => c.id === id)?.status === 'DRAFT'),
+    planned.filter(id => ENSCatalog.find(c => c.id === id)?.status !== 'DRAFT').join(', ')
+  );
+
+  check(
+    'the waves are the owner\'s (A: mp.s.1, mp.sw.2, mp.eq.2 · B: mp.com.3, mp.eq.3, mp.s.2 · C: the rest)',
+    ['A', 'B', 'C']
+      .map(wave => ENS_PLANNED_MEASUREMENTS.filter(plan => plan.wave === wave).map(plan => plan.controlId).sort().join(','))
+      .join(' | ') === 'mp.eq.2,mp.s.1,mp.sw.2 | mp.com.3,mp.eq.3,mp.s.2 | mp.com.1,mp.com.4,mp.eq.4,mp.s.3,mp.s.4'
+  );
+
+  const withoutSource = ENSEvidenceCatalog.filter(
+    evidence => planned.includes(evidence.controlId) && !describeRequiredSource(evidence.controlId, evidence.id)
+  );
+  const unknownSource = ENS_PLANNED_MEASUREMENTS.flatMap(plan =>
+    Object.keys(plan.sources)
+      .filter(id => !ENSEvidenceCatalog.some(evidence => evidence.controlId === plan.controlId && evidence.id === id))
+      .map(id => `${plan.controlId} ${id}`)
+  );
+
+  check(
+    'every evidence of a planned control says which source it needs, and no source names a missing evidence',
+    withoutSource.length === 0 && unknownSource.length === 0,
+    [...withoutSource.map(e => `${e.controlId} ${e.id}`), ...unknownSource].join(', ')
+  );
+
+  const bands = ENS_PLANNED_MEASUREMENTS.map(plan => plan.rulesBand);
+
+  check(
+    'one band of 100 per control from 111800, consecutive and in Annex II order',
+    bands.every((band, index) => band.from === 111800 + index * 100 && band.to === band.from + 99),
+    bands.map(band => `${band.from}-${band.to}`).join(' ')
+  );
+
+  for (const id of planned) {
+    const results = LEVELS.map(level => evaluate(control(id).requirements, level, 'DRAFT'));
+
+    check(
+      `${id} · NO_APLICA and no score at the three levels (out of the index average)`,
+      results.every(result => result.status === 'NO_APLICA' && result.score === undefined && result.applicableRequirements === 0),
+      results.map(result => `${result.status}/${result.score}`).join(' ')
+    );
+  }
+
+  const state = getENSComplianceState('ALTO', [], undefined, [{ id: '101', name: 'srv-01' }] as any, new Date('2026-10-20T10:00:00Z'));
+  const ofPlanned = state.results.filter(result => planned.includes(result.control.id));
+  const measuredOthers = state.results.filter(result => !planned.includes(result.control.id) && result.status !== 'NO_APLICA');
+
+  check(
+    'in the panel state, the eleven come out NO_APLICA without score and the index averages only the others',
+    ofPlanned.length === planned.length &&
+      ofPlanned.every(result => result.status === 'NO_APLICA' && result.score === undefined) &&
+      state.summary.measured === measuredOthers.length,
+    `${ofPlanned.map(r => `${r.control.id}=${r.status}`).join(' ')} · measured ${state.summary.measured} vs ${measuredOthers.length}`
+  );
+
+  const observation = evaluateRequirements(control('mp.s.1').requirements, 'MEDIO', [], true, [], 'DRAFT')[0]
+    ?.observations?.[0] || '';
+
+  check(
+    'the requirement says the control is not active yet, never that it fails',
+    /todavía no está activo/.test(observation) && !/incumpl/i.test(observation),
+    observation
+  );
+
+  check(
+    'the screen sentence names the wave and what it needs, and that it is not judged as a failure',
+    /no se juzga como incumplimiento/.test(describePendingMeasurement(control('mp.com.1'))) &&
+      /oleada C/.test(describePendingMeasurement(control('mp.com.1'))) &&
+      /cortafuegos/.test(describePendingMeasurement(control('mp.com.1'))),
+    describePendingMeasurement(control('mp.com.1'))
   );
 }
 

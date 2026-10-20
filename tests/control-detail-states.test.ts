@@ -42,9 +42,10 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
   console.log('1. Not measured on this machine');
   {
     const ofAgent = ENSCatalog.filter((c: any) => !planes.isControlMeasuredOnPlane(c, 'manager')).map((c: any) => c.id).sort();
-    check('14 controls of plane agent', ofAgent.length === 14, ofAgent);
+    // The 11 without collector (1.4.0) keep the default plane until their wave decides it.
+    check('25 controls of plane agent (14 measured and the 11 without collector)', ofAgent.length === 25, ofAgent);
     const onManager = ofAgent.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
-    check('the 14, on the manager: PLANE with its text', onManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), onManager.map((m: any) => m?.cause));
+    check('the 25, on the manager: PLANE with its text', onManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), onManager.map((m: any) => m?.cause));
     const managerOnly = ENSCatalog.filter((c: any) => planes.isManagerOnlyControl(c));
     check('manager-only ones, on another machine: no motive (seen with the manager row)',
       managerOnly.length === 7 && managerOnly.every((c: any) => planes.describeNotMeasuredOnAgent(c, '101', 'srv-web01', undefined) === undefined), managerOnly.map((c: any) => c.id));
@@ -172,6 +173,18 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
     evaluation = { data: { meta, result: { ...result('NO_APLICA'), score: undefined }, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
     p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '101', onBack: () => undefined });
     check('NO_APLICA: «no aplica en el nivel», never «todo conforme»', /no aplica en el nivel BAJO/.test(p) && !/Todo lo aplicable/.test(p), p.slice(-400));
+
+    h.reset();
+    const draftEvidence = (id: string) => ({ id, description: `Evidencia ${id}`, requirements: ['mp.com.1.1'], levels: ['BAJO'], status: 'NO_EVALUABLE', relatedRules: [], observations: [], observationGroups: [] });
+    const draft = { ...result('NO_APLICA'), control: { id: 'mp.com.1' }, score: undefined, requirements: [{ id: 'mp.com.1.1', status: 'NO_APLICA', evidenceIds: ['EV-01'] }], evidences: [draftEvidence('EV-01'), draftEvidence('EV-03')] };
+    evaluation = { data: { meta, result: draft, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    p = await h.render(ControlDetailENS, { control: ctl('mp.com.1'), agentId: '101', onBack: () => undefined });
+    check('a control without collector: «Sin medición todavía», the wave and what it needs, never a failure', /Sin medición todavía: mp\.com\.1 es documental de momento/.test(p) && /oleada C/.test(p) && /no se juzga como incumplimiento/.test(p), p.slice(0, 900));
+    check('...each evidence with «Fuente necesaria» and no verdict badge', /Fuente necesaria: registro del cortafuegos perimetral \(pfSense/.test(p) && /Fuente necesaria: Syscollector: interfaces de red/.test(p) && !/\[ NO_EVALUABLE \]/.test(p), p.slice(p.indexOf('Evidencias ENS'), p.indexOf('Evidencias ENS') + 900));
+    h.reset();
+    evaluation = { data: { meta, result: result('PARCIAL'), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+    p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '101', onBack: () => undefined });
+    check('...and a measured control shows neither', !/Sin medición todavía/.test(p) && !/Fuente necesaria/.test(p));
   }
 
   console.log('5. A render failure stays in the tab');
@@ -196,7 +209,7 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
     list = await h.rerender();
     check('if the URL changes control with the detail open, the detail follows', /MP\.INFO\.6/.test(list) && !/OP\.ACC\.1 -/.test(list), list.slice(0, 200));
     await h.click(/Volver a controles/);
-    check('«Volver a controles» removes the control from the URL and returns to the list', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 23, h.search());
+    check('«Volver a controles» removes the control from the URL and returns to the list', !parseRouterSearch(h.search()).control && h.findAll('EuiFacetButton').length === 34, h.search());
   }
 
   console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');

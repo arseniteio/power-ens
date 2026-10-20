@@ -48,7 +48,7 @@ readdirSync(CONFIG)
 
 console.log('1. Parameter classes');
 {
-  check('23 seed blocks', Object.keys(blocks).length === 23, Object.keys(blocks));
+  check('34 seed blocks', Object.keys(blocks).length === 34, Object.keys(blocks));
   const unclassified: string[] = [];
   const extra: string[] = [];
   const totals: Record<string, number> = { organisation: 0, system: 0, platform: 0 };
@@ -66,7 +66,8 @@ console.log('1. Parameter classes');
   );
   check('every parameter has a class', unclassified.length === 0, unclassified);
   check('no class is left over', extra.length === 0, extra);
-  check('239 parameters: 163 common, 41 per system, 35 per platform', totals.organisation === 163 && totals.system === 41 && totals.platform === 35, totals);
+  // The 91 of the eleven documentary mp.* (1.4.0) are common until their collector exists.
+  check('330 parameters: 254 common, 41 per system, 35 per platform', totals.organisation === 254 && totals.system === 41 && totals.platform === 35, totals);
 
   const bad: string[] = [];
   Object.entries(ENS_SYSTEM_KEY_COLUMNS).forEach(([controlId, parameters]) =>
@@ -84,14 +85,14 @@ console.log('1. Parameter classes');
   const end = source.indexOf('\n};', start);
   let json: any;
   try { json = JSON.parse(source.slice(start, end + 2)); } catch (error) { json = undefined; }
-  check('the classes are JSON between braces (set-parameters.py reads them)', json && Object.keys(json).length === 23);
+  check('the classes are JSON between braces (set-parameters.py reads them)', json && Object.keys(json).length === 34);
 }
 
 console.log('2. Built-in templates');
 {
   const LAB = /qsprueba|zimbraH|wazuh-real|wazuh-fake|WIN-OPACC|dioni|fran\b|22121|Wazuh-4|hetzner|tailscale|\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/i;
   const withTemplates = Object.keys(ENS_PARAMETER_CLASSES).filter(hasTemplateParameters);
-  check('19 controls have template parameters (the 4 all-common ones have none)', withTemplates.length === 19 &&
+  check('19 controls have template parameters (the 15 all-common ones have none)', withTemplates.length === 19 &&
     ['op.cont.2', 'op.exp.9', 'op.mon.2', 'op.nub.1'].every(id => !hasTemplateParameters(id) && getBuiltinTemplates(id).length === 0), withTemplates);
 
   const problems: string[] = [];
