@@ -206,6 +206,7 @@ Cambiar de versión (desde la versión integrada, a una release más nueva o a l
 | 8 | Compilar el plugin y pasar las pruebas | [Compilar desde el código fuente](docs/deployment/08-building-from-source.md) |
 | 9 | Declarar los ajustes comunes, las plantillas y su asignación a los agentes, o convertir una configuración anterior | [Configuración por controles y plantillas](docs/deployment/09-configuration-by-system.md) |
 | 10 | Valorar la madurez de cada control y registrar procedimientos, revisiones y realimentación | [Valoración de la madurez](docs/deployment/10-maturity-assessment.md) |
+| 11 | Generar, congelar y exportar el informe anual del artículo 32 y declarar las medidas sin motor | [Informe anual del artículo 32](docs/deployment/11-annual-report-art-32.md) |
 
 > [!important]
 > Al añadir controles, desplegar primero la versión del plugin que los contiene y sembrar después su configuración ([Instalar desde una release, apartado 11](docs/deployment/07-installing-from-a-release.md#11-actualizar-a-una-release-nueva)).

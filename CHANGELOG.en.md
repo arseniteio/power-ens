@@ -82,6 +82,34 @@ traffic light.
   environment, which gains the «Aislamiento de producción» column and joins
   rows by pair of systems), mp.com.3 P-02 (CCN-authorised algorithms),
   mp.com.3 P-08 (certified products) and mp.s.3 P-07 (staff training).
+- Annual report of article 32 (op.mon.2, guide 11): data set for each of the
+  73 Annex II measures (applies, level, Annex II requirement, engine status
+  and percentage, coverage, accredited, assessed and target maturity,
+  documentary reference and owner), C, I, T, A and D categorisation,
+  implementation degree per framework, incidents by type and severity with
+  MTTD, MTTC and MTTR, notifications to CCN-CERT and AEPD, share of alerts
+  that end in an incident, resources from the cycle register and measurement
+  reliability. Each figure carries a stable field id, its source and its
+  trace. «Informe anual (art. 32)» panel in the op.mon.2 detail and in
+  Reports, with JSON and CSV export; field 8 of the PDF comes from the same
+  data set. Route `GET /api/ensfacil/annual-report`.
+- «Medidas sin motor» in the op.mon.2 detail: declared entry (applies,
+  maturity, documentary reference, owner and date) for the 39 Annex II
+  measures outside the catalog and the 11 «Sin medición todavía» controls,
+  stored in the maturity document through the same route, with the same
+  role, version and history. «Recursos TIC totales» of the period (budget,
+  ICT and security staff) for the resource percentages.
+- Annual freeze: the daily job freezes in `wazuh-ens-snapshots`
+  (`annual_freeze|<period>`, internal user, once) the period that has just
+  closed at P-02 `cierre_anual` (31 December without it). An administrator
+  freezes or regenerates a closed period with a reason
+  (`POST /api/ensfacil/annual-report/freeze`); the previous revision is
+  kept.
+- op.mon.2 and op.exp.7 publish their report data (incidents, cycles, alert
+  reconciliation and detection) as engine variables, changing no verdict.
+  With the optional `fecha_ocurrencia` column of the incident register
+  (op.exp.7 and op.mon.2 runbooks), MTTD starts at the occurrence date;
+  without it, at the first alert reconciled by op.exp.7.
 
 ### Changed
 
@@ -117,6 +145,11 @@ traffic light.
   less, L2 and L3 may not be accredited (guide 10).
 - A 1.3.0 plugin ignores the recorded maturity and does not touch it.
 - With no dimension declared, the results do not change.
+- Art. 32 annual report: update the op.exp.7 and op.mon.2 runbooks on the
+  manager to read `fecha_ocurrencia`; a 13-column register remains valid.
+  op.exp.9 and op.mon.3 still require the 13-column header: do not add the
+  column where they are installed (guide 11, section 11). Frozen reports are
+  read with read access to `wazuh-ens-snapshots`.
 - A document that declares T or D may change verdicts: D also governs
   mp.info.6, and T also op.acc.1 to op.acc.6 when it is the highest of their
   dimensions. Before updating, check the document with

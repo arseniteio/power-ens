@@ -1,10 +1,11 @@
 # Servidor de ENSFácil
 
-Tres grupos de rutas, todos bajo `/api/ensfacil`:
+Cuatro grupos de rutas, todos bajo `/api/ensfacil`:
 
 - `configuration` — la configuración ENS activa y su historial (ver `lib/configuration-handlers.ts`).
 - `evaluation` — **la evaluación de los controles** (desde 1.2.0). El navegador no descarga hechos para juzgar: pide el resultado aquí.
 - `maturity` — los registros de madurez de cada control y sus instantáneas diarias (desde 1.4.0; apartado «Madurez»).
+- `annual-report` — el informe anual del art. 32 y su congelado (desde 1.4.0; apartado «Informe anual del art. 32»).
 
 ## Evaluación
 
@@ -119,16 +120,39 @@ La madurez CMM de cada control (`lib/maturity/maturity-service.ts`, motor en `co
 
 ### `PUT /api/ensfacil/maturity`
 
-Cuerpo: `{ controlId, kind, entry, expectedVersion }`, con `kind` = `attestation` | `review` | `assessment` | `indicators` | `feedback` y `expectedVersion` obligatoria (la versión del documento de madurez leída; `null` si no había: solo crea). Rol `ensfacil_admin` o `all_access`. Valida la entrada (`validateMaturityEntry`, la misma regla que la pantalla); en una valoración calcula el nivel acreditado y sus puertas de ese momento, los guarda con ella y exige justificación si el valorado lo supera (o si no se puede calcular). Añade la entrada al final de su lista con `recordedAt` y `recordedBy`, escribe solo sobre la versión leída y añade la entrada de historial. Respuesta: `{ record, version, updatedAt, warning? }`.
+Cuerpo: `{ controlId, kind, entry, expectedVersion }`, con `kind` = `attestation` | `review` | `assessment` | `indicators` | `feedback` | `declaration` | `resources` y `expectedVersion` obligatoria (la versión del documento de madurez leída; `null` si no había: solo crea). Rol `ensfacil_admin` o `all_access`. Valida la entrada (`validateMaturityEntry`, la misma regla que la pantalla); en una valoración calcula el nivel acreditado y sus puertas de ese momento, los guarda con ella y exige justificación si el valorado lo supera (o si no se puede calcular). Añade la entrada al final de su lista con `recordedAt` y `recordedBy`, escribe solo sobre la versión leída y añade la entrada de historial. Respuesta: `{ record, version, updatedAt, warning? }`.
 
 | Estado | Cuándo |
 |---|---|
-| 400 | Control fuera del catálogo, registro desconocido, sin `expectedVersion`, entrada no válida o valoración por encima de lo acreditado sin justificación. Con el motivo |
+| 400 | Control fuera del catálogo, registro desconocido, sin `expectedVersion`, entrada no válida o valoración por encima de lo acreditado sin justificación; `declaration` para un control que mide el motor o una medida fuera del Anexo II; `resources` fuera de op.mon.2. Con el motivo |
 | 401/403 | Sin sesión o sin el rol |
 | 409 | El documento de madurez cambió desde que se leyó («La madurez ha cambiado desde que la abriste») |
+
+`declaration` es la entrada declarada de una medida del Anexo II sin motor (fuera del catálogo o en borrador; `controlId` es el id de la medida): aplica, nivel valorado y objetivo, referencia documental, enlace, responsable, fecha y justificación si no aplica. `resources` (solo `op.mon.2`) son el presupuesto y la plantilla TIC totales de un periodo del informe anual. Las dos van al mismo documento, con la misma versión e historial.
 
 El guardado de la configuración (`PUT /api/ensfacil/configuration`) rechaza (400) un `global.maturityTargets` que no sea un nivel de 0 a 5 por categoría.
 
 ### `GET /api/ensfacil/maturity/snapshots`
 
 `from`, `to` (AAAA-MM-DD, como mucho 400 días) y `controlId` opcional. Se lee como el usuario: los permisos de `wazuh-ens-snapshots` deciden quién ve la serie (403 sin ellos). `{ from, to, controlId, snapshots[] }`, de la más antigua a la más reciente.
+
+## Informe anual del art. 32
+
+El conjunto de datos del informe anual (`common/ens/annual-report/`, servicio en `lib/annual-report/annual-report-service.ts`) se construye con la evaluación de la organización (`include=results`), la madurez de cada control, las entradas declaradas del documento de madurez y las variables de informe de las filas del manager de op.mon.2 (`informe_art32_incidentes`, `informe_art32_ciclos`) y de op.exp.7 (`informe_art32_conciliacion`, `informe_art32_deteccion`). Campos, orígenes y periodo: [guía 11](../docs/deployment/11-annual-report-art-32.md).
+
+**Congelado.** Documento `annual_freeze|<periodo>` en `wazuh-ens-snapshots`, sin campo `date` (las lecturas de instantáneas, la comprobación de la tarea diaria y la purga no lo tocan). Lo escribe siempre el usuario interno: la tarea diaria, tras las instantáneas, crea (`create`) el del periodo que acaba de cerrar si el cierre fue hace 31 días o menos (un fallo se avisa y se reintenta al día siguiente sin afectar a las instantáneas); y la ruta de congelado, a petición de un administrador. Una revisión nueva guarda antes la anterior entera en `annual_freeze|<periodo>|r<N>` y escribe sobre la versión leída.
+
+### `GET /api/ensfacil/annual-report`
+
+`period` (AAAA, opcional: el periodo en curso) y `revision` (opcional: una revisión congelada anterior). Se lee como el usuario; los congelados también (sin permiso de lectura de `wazuh-ens-snapshots`, el conjunto se calcula en el momento y `freezeError` lo dice). `{ period, currentPeriod, lastClosedPeriod, closing, periodFrom, periodTo, periods[], frozen?, report?, pending?, freezeError?, maturityVersion }`; con la evaluación aún calculándose, `pending: true` sin `report`. 400 con un periodo mal formado o futuro; 404 con una revisión que no existe.
+
+### `POST /api/ensfacil/annual-report/freeze`
+
+Cuerpo: `{ period, reason, expectedRevision }` (`expectedRevision`: la revisión leída, `null` si no había congelado). Rol `ensfacil_admin` o `all_access`; escribe con el usuario interno. Solo un periodo cerrado y con motivo. Respuesta: `{ frozen, report }`.
+
+| Estado | Cuándo |
+|---|---|
+| 400 | Periodo mal formado o sin cerrar, sin motivo o motivo de más de 1000 caracteres |
+| 401/403 | Sin sesión o sin el rol |
+| 409 | La revisión congelada cambió desde que se leyó |
+| 503 | La evaluación de todos los controles o su madurez no se han podido completar; se reintenta |
