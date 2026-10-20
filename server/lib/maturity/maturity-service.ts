@@ -7,7 +7,7 @@ import {
   dayIn,
   ENS_MATURITY_PERIOD_DAYS,
   ENS_MATURITY_TREND_WINDOW_DAYS,
-  maturityTimeZone,
+  configuredTimeZone,
 } from '../../../common/ens/maturity/maturity-engine';
 import type { ENSMaturityActivity, ENSMaturityPeriod } from '../../../common/ens/maturity/maturity-engine';
 import { readControlMaturityRecord, resolveMaturityTargets } from '../../../common/ens/maturity/maturity-records';
@@ -62,7 +62,7 @@ export const createMaturityService = ({ logger, evaluation, inputsTtlMs = 5 * 60
   const warned = new Set<string>();
   let purgedOn: string | undefined;
 
-  const zoneOf = (ctx: ENSEvaluationContext): string => maturityTimeZone(ctx.configuration.global.timezone);
+  const zoneOf = (ctx: ENSEvaluationContext): string => configuredTimeZone(ctx.configuration.global.timezone);
   const inputsKey = (ctx: ENSEvaluationContext): string => `${ctx.userKey}|${ctx.scopeKey}`;
   const warnOnce = (key: string, message: string) => {
     if (warned.has(key)) return;

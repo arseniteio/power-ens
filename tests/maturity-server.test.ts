@@ -6,7 +6,7 @@ import { createMaturityService } from '../server/lib/maturity/maturity-service';
 import { createMaturityHandlers } from '../server/lib/maturity-handlers';
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 import { writeSnapshots } from '../server/lib/maturity/snapshot-storage';
-import { createDailySnapshotJob } from '../server/lib/maturity/daily-snapshot-job';
+import { createDailySnapshotJob, nextDailyRun } from '../server/lib/maturity/daily-snapshot-job';
 import { groupActivityControls, MAX_ACTIVITY_BUCKETS } from '../server/lib/maturity/activity';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 
@@ -263,6 +263,39 @@ const Z = { timeZone: 'Europe/Madrid' };
   await refusedJob.runOnce();
   check('...without warning again', warnings.filter(w => /daily maturity snapshot was refused/.test(w)).length === 1);
 
+  console.log('3b. The daily job runs at 02:30 local time, and catches up after start only if today is missing');
+  check('next run: today at 02:30 Madrid when it is still before, else tomorrow', nextDailyRun(new Date('2026-10-20T00:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-20T00:30:00.000Z' && nextDailyRun(new Date('2026-10-20T10:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-21T00:30:00.000Z');
+  check('...in the configured zone (UTC) and across the October clock change (02:30 CEST)', nextDailyRun(new Date('2026-10-20T10:00:00Z'), 'UTC').toISOString() === '2026-10-21T02:30:00.000Z' && nextDailyRun(new Date('2026-10-24T12:00:00Z'), 'Europe/Madrid').toISOString() === '2026-10-25T00:30:00.000Z');
+  const scheduled = (store: any) => {
+    const timers: { run: () => void; ms: number }[] = [];
+    let built = 0;
+    const scheduledJob = createDailySnapshotJob({
+      logger,
+      client: { ...store.internal, transport: { request: async () => ({ body: INTERNAL }) } },
+      maturity: store.maturity,
+      clock: () => clock,
+      createEvaluation: () => {
+        built += 1;
+        return createEvaluationService({ logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2 });
+      },
+      timers: { set: (run: () => void, ms: number) => timers.push({ run, ms }), clear: () => undefined },
+    });
+    return { scheduledJob, timers, built: () => built };
+  };
+  const fresh = setup();
+  const freshJob = scheduled(fresh);
+  await freshJob.scheduledJob.start();
+  check('start: a catch-up in 10 minutes and the daily run at the next 02:30 Madrid (14:00 Madrid → 12 h 30 min)', freshJob.timers.length === 2 && freshJob.timers[0].ms === 10 * 60e3 && freshJob.timers[1].ms === 12.5 * 3600e3, freshJob.timers.map(t => t.ms));
+  await freshJob.scheduledJob.catchUp();
+  check('catch-up with today missing: it evaluates and writes the day', freshJob.built() === 1 && snapshotIds(fresh.internal).some((id: string) => id.endsWith('|2026-10-20')));
+  const restarted = scheduled(fresh);
+  await restarted.scheduledJob.catchUp();
+  check('catch-up after a restart with today already written: nothing evaluated', restarted.built() === 0);
+  freshJob.timers[1].run();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await fresh.maturity.flush();
+  check('the 02:30 run reschedules itself for the next day', freshJob.timers.length === 3 && freshJob.timers[2].ms === 12.5 * 3600e3, freshJob.timers.map(t => t.ms));
+
   console.log('4. The save route: own document, version, history');
   const save = (body: any, user: any = ADMIN) => routes.save(context(internal, user), { body }, responses) as Promise<any>;
   const maturityDoc = () => internal.store.get('maturity');
@@ -369,7 +402,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   check('after assessing: «Madurez: L2 (sin medición todavía, …)» with who and when', /Madurez: L2 \(sin medición todavía, objetivo L\d\)/.test(page) && /Valorado L2 por Luis el 2026-10-20/.test(page), page.slice(0, 900));
   check('...marked as resting on the justification alone, not «frente a L0»', /Valorado L2 sin medición todavía: se apoya solo en la justificación/.test(page) && !/frente a L0/.test(page));
 
-  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush(), low.maturity.flush()]);
+  await Promise.all([maturity.flush(), short.maturity.flush(), job.maturity.flush(), hooked.maturity.flush(), low.maturity.flush(), fresh.maturity.flush()]);
   console.log(failures.length ? `\n${failures.length} FAILED` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })().catch(error => {

@@ -105,6 +105,10 @@ const formatterOf = (timeZone?: string): Intl.DateTimeFormat | null => {
 // The zone that decides what a day is: the configuration's, or UTC if it is not an IANA zone.
 export const maturityTimeZone = (timeZone?: string): string => (timeZone && formatterOf(timeZone) ? timeZone : 'UTC');
 
+// The configured zone for the maturity's days and the daily job: Europe/Madrid when none is configured.
+export const ENS_DEFAULT_TIME_ZONE = 'Europe/Madrid';
+export const configuredTimeZone = (timeZone?: string): string => maturityTimeZone(timeZone || ENS_DEFAULT_TIME_ZONE);
+
 // The calendar day of an instant in a zone, YYYY-MM-DD.
 export const dayIn = (date: Date, timeZone?: string): string => (formatterOf(maturityTimeZone(timeZone)) as Intl.DateTimeFormat).format(date);
 

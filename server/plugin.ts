@@ -37,7 +37,7 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
   }
 
   public start(core: CoreStart): {} {
-    // The day's maturity snapshot as the internal user, with an evaluation of its own (see `daily-snapshot-job.ts`).
+    // The day's maturity snapshot as the internal user at 02:30 local time, with an evaluation of its own.
     if (this.maturity) {
       this.job = createDailySnapshotJob({
         logger: this.logger,
@@ -45,7 +45,7 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
         maturity: this.maturity,
         createEvaluation: () => createEvaluationService({ logger: this.logger, securityEnabled: this.securityEnabled, maxConcurrentReads: 2 }),
       });
-      this.job.start();
+      void this.job.start();
     }
     return {};
   }
