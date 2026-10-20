@@ -22,7 +22,8 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
-import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
+import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../../common/ens/catalog';
+import { ENS_PENDING_MEASUREMENT_LABEL, isPendingMeasurement } from '../../../common/ens/catalog/support/measurement-plan';
 // Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type {
   ENSComplianceResult,
@@ -53,6 +54,9 @@ interface EvidenceRow {
 
   status: string;
 
+  // Of a control without collector: its NO_APLICA is not the level's, it shows as «Sin medición todavía».
+  pending: boolean;
+
   // Whose gap it is when the status is NO_EVALUABLE: COLLECTION is fixed by whoever operates Wazuh, CONFIGURATION by whoever configures ENSFácil, CATALOG by the product.
   gapCauses: ENSGapCause[];
 
@@ -82,6 +86,8 @@ interface ControlEvidenceGroup {
   partial: number;
   unmeasured: number;
   notApplicable: number;
+  // Evidences of a control without collector, apart from NO_APLICA.
+  pendingMeasurement: number;
 }
 
 const statusColorOf = (status: string): string => {
@@ -123,7 +129,14 @@ const STATUS_LEGEND: { estado: string; glosa: string }[] = [
     glosa: 'no demostrado · resta igual · se habilita la prueba',
   },
   { estado: 'NO_APLICA', glosa: 'fuera del nivel activo · no resta' },
+  { estado: ENS_PENDING_MEASUREMENT_LABEL, glosa: 'control sin recolector todavía · no entra en el índice' },
 ];
+
+const PendingBadge = () => (
+  <EuiBadge color='hollow' iconType='clock'>
+    {ENS_PENDING_MEASUREMENT_LABEL}
+  </EuiBadge>
+);
 
 const StatusLegend = () => (
   <EuiFlexGroup gutterSize='m' alignItems='center' wrap responsive={false}>
@@ -131,7 +144,7 @@ const StatusLegend = () => (
       <EuiFlexItem grow={false} key={status}>
         <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
           <EuiFlexItem grow={false}>
-            <StatusBadge estado={status} />
+            {status === ENS_PENDING_MEASUREMENT_LABEL ? <PendingBadge /> : <StatusBadge estado={status} />}
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color='subdued'>
@@ -296,7 +309,7 @@ const buildColumns = (totalMachines: number) => [
         responsive={false}
       >
         <EuiFlexItem grow={false}>
-          <StatusBadge estado={value} />
+          {item.pending ? <PendingBadge /> : <StatusBadge estado={value} />}
         </EuiFlexItem>
         {item.gapCauses.map(cause => (
           <EuiFlexItem grow={false} key={cause}>
@@ -397,6 +410,12 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
       color='hollow'
       etiqueta='NO_APLICA'
     />
+    <CountBadge
+      valor={group.pendingMeasurement}
+      color='hollow'
+      etiqueta={ENS_PENDING_MEASUREMENT_LABEL.toLowerCase()}
+      icono='clock'
+    />
 
     {!group.hasResult && (
       <EuiFlexItem grow={false}>
@@ -460,9 +479,11 @@ export const EvidencesENS = () => {
       const complianceResult = results.get(control.id);
 
       const evidences = complianceResult?.evidences || [];
+      // A control without collector: its evidences are counted apart, never as «fuera del nivel activo».
+      const pending = isPendingMeasurement(getENSCatalogControl(control.id));
 
       const countByStatus = (status: string) =>
-        evidences.filter(evidence => evidence.status === status).length;
+        pending ? 0 : evidences.filter(evidence => evidence.status === status).length;
 
       // Gap cause per evidence: each NO_EVIDENCIADA non-conformity names in `evidenceIds` the evidences that block its requirement, so giving them its `cause` repeats what the card states.
       const causesByEvidence = new Map<string, ENSGapCause[]>();
@@ -498,6 +519,7 @@ export const EvidencesENS = () => {
           levels: evidence.levels || [],
           ruleIds: evidence.relatedRules || [],
           status: evidence.status,
+          pending,
           // Only for NO_EVALUABLE: any other status has no gap.
           gapCauses:
             evidence.status === 'NO_EVALUABLE'
@@ -515,6 +537,7 @@ export const EvidencesENS = () => {
         partial: countByStatus('PARCIAL'),
         unmeasured: countByStatus('NO_EVALUABLE'),
         notApplicable: countByStatus('NO_APLICA'),
+        pendingMeasurement: pending ? evidences.length : 0,
       };
     }).sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId));
   }, [results]);

@@ -30,8 +30,9 @@ and the links to every runbook and its guides are in the
 
 ## Controls
 
-ENSFácil evaluates 23 controls, in Annex II order (operational framework,
-section 4, and protection measures, section 5). «Axis» says whether Annex II
+The ENSFácil catalog has 34 controls, in Annex II order (operational
+framework, section 4, and protection measures, section 5): 23 are evaluated and
+11 are documentary until their collector exists. «Axis» says whether Annex II
 applies the control by the system category or by the level of one or more
 dimensions (with several, the highest). «Levels» are the levels at which it is
 required; «not required» marks a reinforcement the ENS defines but does not
@@ -61,7 +62,20 @@ require at any level, which comes out `NO_APLICA`.
 | `op.mon.1` | 4.7.1 | Intrusion detection | category | LOW+ | R1 (MEDIUM+), R2 (HIGH); R3 not required | manager |
 | `op.mon.2` | 4.7.2 | Metrics system | category | LOW+ | R1–R2 (MEDIUM+) | manager |
 | `op.mon.3` | 4.7.3 | Monitoring | category | LOW+ | R1–R2 (MEDIUM+), R3–R6 (HIGH); R7 not required | machines and manager |
+| `mp.eq.2` | 5.3.2 | Workstation locking | A level | MEDIUM+ | R1 (HIGH) | documentary, measurement in preparation (wave A) |
+| `mp.eq.3` | 5.3.3 | Protection of portable devices | category | LOW+ | R1–R2 (HIGH) | documentary, measurement in preparation (wave B) |
+| `mp.eq.4` | 5.3.4 | Other devices connected to the network | C level | LOW+ | R1 (MEDIUM+); R2 not required | documentary, measurement in preparation (wave C) |
+| `mp.com.1` | 5.4.1 | Secure perimeter | category | LOW+ | no reinforcements | documentary, measurement in preparation (wave C) |
+| `mp.com.3` | 5.4.3 | Protection of integrity and authenticity | I·A level | LOW+ | R1–R2 (MEDIUM+), R3–R4 (HIGH); R5 not required | documentary, measurement in preparation (wave B) |
+| `mp.com.4` | 5.4.4 | Separation of information flows in the network | category | MEDIUM+ | one of R1 (MEDIUM only), R2 or R3; R4 (HIGH) | documentary, measurement in preparation (wave C) |
+| `mp.sw.2` | 5.6.2 | Acceptance and commissioning | category | LOW+ | R1 (MEDIUM+); R2 not required | documentary, measurement in preparation (wave A) |
 | `mp.info.6` | 5.7.6 | Backups | D level | LOW+ | R1 (MEDIUM+), R2 (HIGH) | machines |
+| `mp.s.1` | 5.8.1 | Protection of e-mail | category | LOW+ | no reinforcements | documentary, measurement in preparation (wave A) |
+| `mp.s.2` | 5.8.2 | Protection of web services and applications | category | LOW+ | one of R1 or R2 (LOW and MEDIUM); R2 and R3 (HIGH) | documentary, measurement in preparation (wave B) |
+| `mp.s.3` | 5.8.3 | Protection of web browsing | category | LOW+ | R1 (HIGH); R2 not required | documentary, measurement in preparation (wave C) |
+| `mp.s.4` | 5.8.4 | Protection against denial of service | D level | MEDIUM+ | R1 (HIGH); R2 not required | documentary, measurement in preparation (wave C) |
+
+The 11 controls marked «documentary, measurement in preparation» come with the auditor's v2.0 package and are in the catalog with status `DRAFT`: they appear in Controls and in the Overview, they are configured, they can be declared in the Statement of Applicability (op.mon.2 P-01) and their report carries the parameters. No collector emits their evidences yet, so they do not enter the index and are not judged as a failure: Controls and the Overview show «Sin medición todavía» and the detail gives, per evidence, the data source it will need («Fuente necesaria: registro del cortafuegos perimetral»). Measurement arrives in waves: A (mp.s.1, mp.sw.2, mp.eq.2), with no new sources; B (mp.com.3, mp.eq.3, mp.s.2), with the logs of the services; C (mp.com.1, mp.com.4, mp.s.3, mp.eq.4, mp.s.4), with sources that do not reach Wazuh today (firewall, proxy, network or metrics). A control starts being evaluated when its runbook emits and its rules are deployed.
 
 Each control has a runbook in GitLab, with one variant per machine type. The repository is named as the control and the subgroup gives the platform or role: `linux/op.acc.1`, `zimbra/zimbra-ldap/op.acc.1` and `windows/op.acc.1`.
 
@@ -241,8 +255,11 @@ Annex II applies some controls by the level of a security dimension, not by the 
 |---|---|
 | C, I, T and A | op.acc.2 to op.acc.6 |
 | T and A | op.acc.1 |
+| I and A | mp.com.3 |
+| C | mp.eq.4 |
 | T | op.exp.8 |
-| D | mp.info.6, op.cont.2 and op.cont.3 (these two only with D at ALTO) |
+| A | mp.eq.2 |
+| D | mp.info.6, mp.s.4, op.cont.2 and op.cont.3 (these two only with D at ALTO) |
 | none | the rest, by the category (ENS level) |
 
 The ENS level is the system category, the highest of its dimensions: the screen does not save a dimension above it and `config/validate-configuration.ts` reports it. With no dimension declared, the results are the same as with 1.3.0; a document that already declared T or D may change verdicts on update ([update guide, section 5.1](docs/deployment/02-updating-an-existing-environment.en.md#51-before-updating-to-140)). If a dimension exceeds the ENS level, Controles and the dashboard show «Niveles incoherentes» with a link to General.
@@ -391,9 +408,21 @@ arrive with agent `000` (the manager). op.cont.2 has no rules:
 | `op.mon.3` | 111400–111499 | 111400–111499 |
 | `op.nub.1` | 111500–111599 | 111500–111599 |
 | `op.cont.3` | 111700–111799 | 111700–111799 |
+| `mp.eq.2` | 111800–111899 | — |
+| `mp.eq.3` | 111900–111999 | — |
+| `mp.eq.4` | 112000–112099 | — |
+| `mp.com.1` | 112100–112199 | — |
+| `mp.com.3` | 112200–112299 | — |
+| `mp.com.4` | 112300–112399 | — |
+| `mp.sw.2` | 112400–112499 | — |
+| `mp.s.1` | 112500–112599 | — |
+| `mp.s.2` | 112600–112699 | — |
+| `mp.s.3` | 112700–112799 | — |
+| `mp.s.4` | 112800–112899 | — |
 
 The 107200–109999 band is not used: on some managers other integrations
-occupy it. The 111600–111699 band is free. Before deploying on a manager with its own rules, check that none
+occupy it. The 111600–111699 band is free. The 111800–112899 bands are reserved for the 11 documentary
+controls, one per control in Annex II order, with no rule deployed yet; the next free one is 112900. Before deploying on a manager with its own rules, check that none
 of these bands is in use.
 
 ---

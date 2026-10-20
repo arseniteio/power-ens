@@ -30,8 +30,9 @@ y los enlaces a cada runbook y a sus guías, en la
 
 ## Controles
 
-ENSFácil evalúa 23 controles, en el orden del Anexo II (marco operacional,
-apartado 4, y medidas de protección, apartado 5). «Eje» indica si el Anexo II
+El catálogo de ENSFácil tiene 34 controles, en el orden del Anexo II (marco
+operacional, apartado 4, y medidas de protección, apartado 5): 23 se evalúan y
+11 son documentales hasta que exista su recolector. «Eje» indica si el Anexo II
 aplica el control por la categoría del sistema o por el nivel de una o varias
 dimensiones (con varias, la más alta). «Niveles» son los niveles en los que se
 exige; «no exigible» indica un refuerzo que el ENS define pero no exige en
@@ -61,7 +62,20 @@ ningún nivel, que sale `NO_APLICA`.
 | `op.mon.1` | 4.7.1 | Detección de intrusión | categoría | BAJO+ | R1 (MEDIO+), R2 (ALTO); R3 no exigible | manager |
 | `op.mon.2` | 4.7.2 | Sistema de métricas | categoría | BAJO+ | R1–R2 (MEDIO+) | manager |
 | `op.mon.3` | 4.7.3 | Vigilancia | categoría | BAJO+ | R1–R2 (MEDIO+), R3–R6 (ALTO); R7 no exigible | máquinas y manager |
+| `mp.eq.2` | 5.3.2 | Bloqueo de puesto de trabajo | nivel A | MEDIO+ | R1 (ALTO) | documental, medición en preparación (oleada A) |
+| `mp.eq.3` | 5.3.3 | Protección de dispositivos portátiles | categoría | BAJO+ | R1–R2 (ALTO) | documental, medición en preparación (oleada B) |
+| `mp.eq.4` | 5.3.4 | Otros dispositivos conectados a la red | nivel C | BAJO+ | R1 (MEDIO+); R2 no exigible | documental, medición en preparación (oleada C) |
+| `mp.com.1` | 5.4.1 | Perímetro seguro | categoría | BAJO+ | sin refuerzos | documental, medición en preparación (oleada C) |
+| `mp.com.3` | 5.4.3 | Protección de la integridad y de la autenticidad | nivel I·A | BAJO+ | R1–R2 (MEDIO+), R3–R4 (ALTO); R5 no exigible | documental, medición en preparación (oleada B) |
+| `mp.com.4` | 5.4.4 | Separación de flujos de información en la red | categoría | MEDIO+ | uno de R1 (solo MEDIO), R2 o R3; R4 (ALTO) | documental, medición en preparación (oleada C) |
+| `mp.sw.2` | 5.6.2 | Aceptación y puesta en servicio | categoría | BAJO+ | R1 (MEDIO+); R2 no exigible | documental, medición en preparación (oleada A) |
 | `mp.info.6` | 5.7.6 | Copias de seguridad | nivel D | BAJO+ | R1 (MEDIO+), R2 (ALTO) | máquinas |
+| `mp.s.1` | 5.8.1 | Protección del correo electrónico | categoría | BAJO+ | sin refuerzos | documental, medición en preparación (oleada A) |
+| `mp.s.2` | 5.8.2 | Protección de servicios y aplicaciones web | categoría | BAJO+ | uno de R1 o R2 (BAJO y MEDIO); R2 y R3 (ALTO) | documental, medición en preparación (oleada B) |
+| `mp.s.3` | 5.8.3 | Protección de la navegación web | categoría | BAJO+ | R1 (ALTO); R2 no exigible | documental, medición en preparación (oleada C) |
+| `mp.s.4` | 5.8.4 | Protección frente a la denegación de servicio | nivel D | MEDIO+ | R1 (ALTO); R2 no exigible | documental, medición en preparación (oleada C) |
+
+Los 11 controles «documental, medición en preparación» llegan con el paquete v2.0 del auditor y están en el catálogo en estado `DRAFT`: se ven en Controles y en Vista general, se configuran, se pueden declarar en la Declaración de Aplicabilidad (op.mon.2 P-01) y su informe recoge los parámetros. Ningún recolector emite todavía sus evidencias, así que no entran en el índice ni se juzgan como incumplimiento: Controles y Vista general muestran «Sin medición todavía» y el detalle indica, por evidencia, la fuente de datos que necesitará («Fuente necesaria: registro del cortafuegos perimetral»). La medición llega por oleadas: A (mp.s.1, mp.sw.2, mp.eq.2), sin fuentes nuevas; B (mp.com.3, mp.eq.3, mp.s.2), con los registros de los servicios; C (mp.com.1, mp.com.4, mp.s.3, mp.eq.4, mp.s.4), con fuentes que hoy no llegan a Wazuh (cortafuegos, proxy, red o métricas). Un control pasa a evaluarse cuando su runbook emite y sus reglas están desplegadas.
 
 Cada control tiene un runbook en GitLab, con una variante por tipo de máquina. El repositorio se llama como el control y el subgrupo indica la plataforma o el rol: `linux/op.acc.1`, `zimbra/zimbra-ldap/op.acc.1` y `windows/op.acc.1`.
 
@@ -240,8 +254,11 @@ El Anexo II aplica algunos controles por el nivel de una dimensión de seguridad
 |---|---|
 | C, I, T y A | op.acc.2 a op.acc.6 |
 | T y A | op.acc.1 |
+| I y A | mp.com.3 |
+| C | mp.eq.4 |
 | T | op.exp.8 |
-| D | mp.info.6, op.cont.2 y op.cont.3 (estos dos, solo con D en ALTO) |
+| A | mp.eq.2 |
+| D | mp.info.6, mp.s.4, op.cont.2 y op.cont.3 (estos dos, solo con D en ALTO) |
 | ninguna | el resto, por la categoría (nivel ENS) |
 
 El nivel ENS es la categoría del sistema, el más alto de sus dimensiones: la pantalla no guarda una dimensión por encima de él y `config/validate-configuration.ts` lo señala. Sin ninguna dimensión declarada, los resultados son los mismos que con la 1.3.0; un documento que ya declaraba T o D puede cambiar de veredicto al actualizar ([guía de actualización, apartado 5.1](docs/deployment/02-updating-an-existing-environment.md#51-antes-de-actualizar-a-la-140)). Si una dimensión supera el nivel ENS, Controles y el panel muestran «Niveles incoherentes» con un enlace a General.
@@ -390,9 +407,22 @@ el agente `000` (el manager). op.cont.2 no tiene reglas:
 | `op.mon.3` | 111400–111499 | 111400–111499 |
 | `op.nub.1` | 111500–111599 | 111500–111599 |
 | `op.cont.3` | 111700–111799 | 111700–111799 |
+| `mp.eq.2` | 111800–111899 | — |
+| `mp.eq.3` | 111900–111999 | — |
+| `mp.eq.4` | 112000–112099 | — |
+| `mp.com.1` | 112100–112199 | — |
+| `mp.com.3` | 112200–112299 | — |
+| `mp.com.4` | 112300–112399 | — |
+| `mp.sw.2` | 112400–112499 | — |
+| `mp.s.1` | 112500–112599 | — |
+| `mp.s.2` | 112600–112699 | — |
+| `mp.s.3` | 112700–112799 | — |
+| `mp.s.4` | 112800–112899 | — |
 
 La banda 107200–109999 no se usa: en algunos managers la ocupan otras
-integraciones. La 111600–111699 queda libre. Antes de desplegar en un manager con reglas propias, comprobar
+integraciones. La 111600–111699 queda libre. Las bandas 111800–112899 están reservadas para los 11 controles
+documentales, una por control en el orden del Anexo II, sin ninguna regla desplegada todavía; la siguiente libre es
+112900. Antes de desplegar en un manager con reglas propias, comprobar
 que ninguna de estas bandas está en uso.
 
 ---

@@ -262,10 +262,21 @@ export const EnsDashboardMain = () => {
                 <br />
                 No aplicables
               </div>
+
+              {dashboardModel.compliance.sinMedicion > 0 && (
+                <div title='Controles en el catálogo sin recolector todavía: no entran en el índice ni se juzgan.'>
+                  <b style={{ color: '#69707D' }}>{dashboardModel.compliance.sinMedicion}</b>
+                  <br />
+                  Sin medición todavía
+                </div>
+              )}
             </div>
 
             <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: '#69707D' }}>
-              Total controles evaluados: <b>{dashboardModel.compliance.total}</b>
+              Total controles evaluados: <b>{dashboardModel.compliance.total - dashboardModel.compliance.sinMedicion}</b>
+              {dashboardModel.compliance.sinMedicion > 0 && (
+                <> · sin medición todavía: <b>{dashboardModel.compliance.sinMedicion}</b></>
+              )}
             </div>
           </div>
 
@@ -305,6 +316,12 @@ export const EnsDashboardMain = () => {
                   <span style={legendDot('#D3DAE6')} />
                   {requirementsModel.noAplica} No aplicables
                 </div>
+                {requirementsModel.sinMedicion > 0 && (
+                  <div>
+                    <span style={legendDot('#EEF1F5')} />
+                    {requirementsModel.sinMedicion} Sin medición todavía
+                  </div>
+                )}
               </div>
             </div>
 
@@ -473,6 +490,13 @@ export const EnsDashboardMain = () => {
                 <span style={legendDot('#D3DAE6')} />
                 No aplican <b>{requirementsModel.noAplica}</b> ({requirementsModel.noAplicaPercent}%)
               </div>
+
+              {requirementsModel.sinMedicion > 0 && (
+                <div>
+                  <span style={legendDot('#EEF1F5')} />
+                  Sin medición todavía <b>{requirementsModel.sinMedicion}</b> ({requirementsModel.sinMedicionPercent}%)
+                </div>
+              )}
             </div>
           </div>
         </div>

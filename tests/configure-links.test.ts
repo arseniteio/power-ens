@@ -148,6 +148,22 @@ doc.agents = {
   ev2 = await h.click(/Quitar filtro/);
   check('«Quitar filtro» removes it and it stops coming from the URL', h.find('EuiFieldSearch')?.props.value === '' && !parseRouterSearch(h.search()).evidenceControl, h.search());
 
+  console.log('6. Evidences of a control without collector: «Sin medición todavía», not «fuera del nivel activo»');
+  {
+    const engine = require('../common/ens/core/ens-engine');
+    const pendingResult = engine.getENSComplianceResultByControl('mp.com.1', 'MEDIO', [], undefined, undefined, new Date('2026-10-17T12:00:00Z'));
+    const byLevel = engine.getENSComplianceResultByControl('op.cont.3', 'MEDIO', [], undefined, undefined, new Date('2026-10-17T12:00:00Z'));
+    h.reset();
+    h.setSearch('?tabView=evidences');
+    evaluation = { data: { meta, results: [pendingResult, byLevel] }, isLoading: false };
+    const page = await h.render(EvidencesENS);
+    // The badges in the header of a control's group (its accordion button).
+    const headerOf = (id: string) => h.findAll('EuiBadge').filter(n => n.ruta.includes(`.${id}.c.0.buttonContent/`)).map(n => n.texto).join(' | ');
+    check('the legend tells «Sin medición todavía» apart from NO_APLICA «fuera del nivel activo»', /Sin medición todavía/.test(page) && /control sin recolector todavía/.test(page) && /fuera del nivel activo/.test(page));
+    check('mp.com.1 counts its 8 evidences as «sin medición todavía», none as NO_APLICA', /8 sin medición todavía/.test(headerOf('mp.com.1')) && !/NO_APLICA/.test(headerOf('mp.com.1')), headerOf('mp.com.1'));
+    check('op.cont.3, outside the level in MEDIA, keeps NO_APLICA', /\d+ NO_APLICA/.test(headerOf('op.cont.3')) && !/sin medición/.test(headerOf('op.cont.3')), headerOf('op.cont.3'));
+  }
+
   console.log(failures.length ? `\n${failures.length} FAILURES` : '\nALL OK');
   process.exit(failures.length ? 1 : 0);
 })().catch(error => {

@@ -111,6 +111,9 @@ export interface ENSControlParameter {
   // Optional: without `options` the select is free text and validated as "not empty" (blocks seeded earlier;
   // reseed with `inject-control.py`, which keeps configured values).
   options?: string[];
+  // The options the ENS admits at each level, where it narrows them (a reinforcement offered only at some levels:
+  // mp.com.4 P-03, mp.s.2 P-07). A level without an entry offers every option. The form offers only these.
+  optionsByLevel?: Partial<Record<ENSLevel, string[]>>;
   // Shape of the parameter ITEM; same two effects as `options` (editable grid and per-cell validation).
   //   - `type: 'table'`: one column per field of the row.
   //   - `type: 'list'`: ONE column describing each item; only the first applies.

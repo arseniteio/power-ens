@@ -63,16 +63,19 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "entorno_preproduccion",
     "label": "Entorno de preproducción",
-    "description": "Parejas de sistema de producción y de preproducción, con la referencia que acredita que son equivalentes.",
+    "description": "Parejas de sistema de producción y de preproducción, con la referencia que acredita que son equivalentes y cómo está aislada la preproducción.",
     "type": "table",
+    "key": ["sistema_prod", "sistema_preprod"],
     "columns": [
       {"name": "sistema_prod", "label": "Sistema de producción", "type": "identifier", "required": true},
       {"name": "sistema_preprod", "label": "Sistema de preproducción", "type": "identifier", "required": true},
-      {"name": "consistencia", "label": "Evidencia de consistencia", "type": "string", "required": false}
+      {"name": "consistencia", "label": "Evidencia de consistencia", "type": "string", "required": false},
+      {"name": "aislamiento", "label": "Aislamiento de producción", "type": "string", "required": false}
     ],
     "views": [
-      {"controlId": "op.exp.4", "parameterId": "P-06"},
-      {"controlId": "op.exp.5", "parameterId": "P-05"}
+      {"controlId": "op.exp.4", "parameterId": "P-06", "columns": ["sistema_prod", "sistema_preprod", "consistencia"]},
+      {"controlId": "op.exp.5", "parameterId": "P-05", "columns": ["sistema_prod", "sistema_preprod", "consistencia"]},
+      {"controlId": "mp.sw.2", "parameterId": "P-03", "columns": ["sistema_prod", "sistema_preprod", "aislamiento"]}
     ],
     "unmapped": []
   },
@@ -110,7 +113,8 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.exp.7", "parameterId": "P-03", "where": {"uso": "incidentes"}, "columns": ["herramienta", "ubicacion", "detalle"]}
     ],
     "unmapped": [
-      {"controlId": "op.exp.9", "parameterId": "P-01", "reason": "Es una lista cerrada que indica si ENSFácil lee su registro de incidentes; una fila de texto libre no la reproduce."}
+      {"controlId": "op.exp.9", "parameterId": "P-01", "reason": "Es una lista cerrada que indica si ENSFácil lee su registro de incidentes; una fila de texto libre no la reproduce."},
+      {"controlId": "mp.com.3", "parameterId": "P-04", "reason": "Es el procedimiento de respuesta a un ataque activo, no la herramienta donde se registran los incidentes."}
     ]
   },
   {
@@ -125,7 +129,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.exp.8", "parameterId": "P-02", "reason": "Servidores que mide el control."},
       {"controlId": "mp.info.6", "parameterId": "P-04", "reason": "Máquinas cuyas copias mide el control."},
       {"controlId": "op.exp.1", "parameterId": "P-01", "reason": "Inventario propio de op.exp.1."},
-      {"controlId": "op.exp.1", "parameterId": "P-02", "reason": "Inventario propio de op.exp.1."}
+      {"controlId": "op.exp.1", "parameterId": "P-02", "reason": "Inventario propio de op.exp.1."},
+      {"controlId": "mp.eq.4", "parameterId": "P-01", "reason": "Inventario propio de mp.eq.4: dispositivos de red, casi todos sin agente."},
+      {"controlId": "mp.s.2", "parameterId": "P-01", "reason": "Aplicaciones web que mide el control."}
     ]
   },
   {
@@ -139,9 +145,12 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"name": "longitud_min", "label": "Longitud mínima (bits)", "type": "number", "required": false}
     ],
     "views": [
-      {"controlId": "op.exp.10", "parameterId": "P-03"}
+      {"controlId": "op.exp.10", "parameterId": "P-03"},
+      {"controlId": "mp.com.3", "parameterId": "P-02"}
     ],
-    "unmapped": []
+    "unmapped": [
+      {"controlId": "mp.s.1", "parameterId": "P-03", "reason": "Son los requisitos TLS del correo (versión, MTA-STS, dominios con TLS obligatorio), un texto y no la lista de algoritmos."}
+    ]
   },
   {
     "id": "retencion",
@@ -171,7 +180,11 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
     "views": [
       {"controlId": "op.acc.6", "parameterId": "P-02"}
     ],
-    "unmapped": []
+    "unmapped": [
+      {"controlId": "mp.com.4", "parameterId": "P-01", "reason": "Es el mapa de segmentos con su propósito y rango; la lista de zonas controladas no lo recoge."},
+      {"controlId": "mp.com.4", "parameterId": "P-02", "reason": "Es la matriz de flujos entre segmentos, otro dato."},
+      {"controlId": "mp.eq.4", "parameterId": "P-06", "reason": "Es la política de dispositivos personales e invitados, no una zona."}
+    ]
   },
   {
     "id": "canales_acceso_remoto",
@@ -191,7 +204,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.acc.6", "parameterId": "P-07", "columns": ["canal", "cifrado", "autoriza", "uso_constante"]},
       {"controlId": "op.acc.4", "parameterId": "P-04", "columns": ["canal", "puerto", "origen"]}
     ],
-    "unmapped": []
+    "unmapped": [
+      {"controlId": "mp.eq.3", "parameterId": "P-04", "reason": "Son los servicios accesibles desde los portátiles y su perfil, no los canales."}
+    ]
   },
   {
     "id": "productos_certificados",
@@ -205,10 +220,12 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"name": "vigencia", "label": "Vigente hasta (AAAA-MM-DD)", "type": "date", "required": false}
     ],
     "views": [
-      {"controlId": "op.nub.1", "parameterId": "P-04"}
+      {"controlId": "op.nub.1", "parameterId": "P-04"},
+      {"controlId": "mp.com.3", "parameterId": "P-08", "columns": ["servicio", "metodologia", "n_certificado", "vigencia"]}
     ],
     "unmapped": [
-      {"controlId": "op.exp.10", "parameterId": "P-09", "reason": "Es la conformidad de los cifradores con una guía CCN-STIC, no la certificación de un producto."}
+      {"controlId": "op.exp.10", "parameterId": "P-09", "reason": "Es la conformidad de los cifradores con una guía CCN-STIC, no la certificación de un producto."},
+      {"controlId": "mp.eq.4", "parameterId": "P-07", "reason": "Lleva la justificación de los dispositivos sin producto certificado, que este dato no recoge."}
     ]
   },
   {
@@ -221,7 +238,8 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.cont.3", "parameterId": "P-04"}
     ],
     "unmapped": [
-      {"controlId": "op.cont.3", "parameterId": "P-05", "reason": "Es el seguimiento de deficiencias, otro dato."}
+      {"controlId": "op.cont.3", "parameterId": "P-05", "reason": "Es el seguimiento de deficiencias, otro dato."},
+      {"controlId": "mp.s.2", "parameterId": "P-08", "reason": "Es el registro de auditorías web (fecha, modalidad, metodología, herramienta, hallazgos), no dónde se registran las pruebas de continuidad."}
     ]
   },
   {
@@ -236,9 +254,15 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"name": "vigencia", "label": "Vigente hasta", "type": "date", "required": true}
     ],
     "views": [
-      {"controlId": "op.cont.2", "parameterId": "P-05"}
+      {"controlId": "op.cont.2", "parameterId": "P-05"},
+      {"controlId": "mp.s.3", "parameterId": "P-07"}
     ],
-    "unmapped": []
+    "unmapped": [
+      {"controlId": "mp.s.1", "parameterId": "P-09", "reason": "Son campañas de concienciación con su alcance y participación, no la formación de cada persona."},
+      {"controlId": "mp.s.3", "parameterId": "P-06", "reason": "Son actividades de concienciación con su alcance, no la formación de cada persona."},
+      {"controlId": "mp.s.1", "parameterId": "P-08", "reason": "Es la normativa de uso del correo (documento y difusión), no formación."},
+      {"controlId": "mp.s.3", "parameterId": "P-01", "reason": "Es la normativa de navegación (documento y difusión), no formación."}
+    ]
   },
   {
     "id": "grupos_privilegiados",

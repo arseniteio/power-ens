@@ -4,7 +4,7 @@ import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../src/core/server';
 import { ENS_CONFIGURATION_INDEX } from '../../../common/constants';
 import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../../../common/agents/agent-inventory';
-import { ENSCatalog } from '../../../common/ens/catalog';
+import { ENSCatalog, isPendingMeasurement } from '../../../common/ens/catalog';
 import { defaultENSConfigurationTemplate } from '../../../common/ens/configuration/data/default-configuration';
 import { ensConfigurationRepository } from '../../../common/ens/configuration/repository';
 import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
@@ -746,6 +746,9 @@ export const createEvaluationService = ({
   // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a
   // machine's view of an organization control without a manager row. The read slot is kept until the engine
   // finishes: no more than `maxConcurrentReads` reads in memory.
+  // A control without collector reads nothing: no fact can be about it, and its one result needs none.
+  const readsNothing = (spec: RowSpec): boolean => isPendingMeasurement(ENSCatalog.find(entry => entry.id === spec.controlId));
+
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -759,8 +762,10 @@ export const createEvaluationService = ({
       throwIfCancelled(signal);
       const stats = newReadStats();
       const subject = `${spec.controlId}${spec.factsAgent ? ` en ${spec.factsAgent}` : ''}`;
-      const pruning = spec.factsAgent ? await pruningFor(clients, ctx, spec.controlId, spec.factsAgent, [ctx.now], stats, signal) : undefined;
-      const hits = await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${subject}`, signal);
+      const pruning = spec.factsAgent && !readsNothing(spec) ? await pruningFor(clients, ctx, spec.controlId, spec.factsAgent, [ctx.now], stats, signal) : undefined;
+      const hits = readsNothing(spec)
+        ? []
+        : await readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, spec.controlId, spec.factsAgent, pruning), stats, `los hechos de ${subject}`, signal);
       return evaluateRow(ctx, spec, hits, { searchMs: stats.searchMs, hits: stats.hits, pages: stats.pages }, {
         queueMs: reading - requested,
         pruned: Boolean(pruning),
@@ -1351,7 +1356,7 @@ export const createEvaluationService = ({
     const instants = [...series.plan.map(cut => cut.cutoff), ctx.now];
     const subject = `${need.spec.controlId}${need.spec.factsAgent ? ` en ${need.spec.factsAgent}` : ''}`;
     const signal = new CancelSignal();
-    const hits = await reads.use(async () => {
+    const hits = readsNothing(need.spec) ? [] : await reads.use(async () => {
       const pruning = need.spec.factsAgent ? await pruningFor(clients, ctx, need.spec.controlId, need.spec.factsAgent, instants, stats, signal) : undefined;
       return readFacts(ctx, clients.asCurrentUser, buildFactsQuery(ctx.filters, need.spec.controlId, need.spec.factsAgent, pruning), stats, `la serie de ${subject}`, signal);
     }, { background: true });
@@ -1661,6 +1666,19 @@ export const createEvaluationService = ({
             },
           };
         }
+      } else if (fallbackNeed && !isManagerAgentId(query.agentId) && isPendingMeasurement(ENSCatalog.find(entry => entry.id === controlId))) {
+        // A control without collector has one result, the same on every machine: no row of its own. The manager's
+        // view carries only what is measured on it.
+        const row = rowOf(fallbackNeed);
+        view = {
+          controlId,
+          result: row.result,
+          traceability: () => decompressTraceability(row.traceability),
+          traceabilityStored: row.traceabilityStored,
+          traceabilityTotal: row.traceabilityTotal,
+          rows: [],
+          pointAt: iso => pointOf(row, iso, fallbackNeed),
+        };
       } else {
         const decision = deriveForAgent(controlId, query.agentId, rowList.map(f => f.agentId), ctx.scope);
         let ofRow: RowNeed | undefined =

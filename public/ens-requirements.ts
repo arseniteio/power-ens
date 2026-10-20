@@ -364,4 +364,134 @@ export const ensRequirementsFile = {
     'Servicios cloud de seguridad conformes con op.pl.5 (R1) - Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].',
   'op.nub.1.r2.1':
     'Configuración según la guía CCN-STIC específica (R2) - La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.',
+  'mp.eq.2.1':
+    'Bloqueo por inactividad con nueva autenticación - El puesto de trabajo se bloqueará al cabo de un tiempo prudencial de inactividad, requiriendo una nueva autenticación del usuario para reanudar la actividad en curso.',
+  'mp.eq.2.r1.1':
+    'Cancelación de las sesiones abiertas tras un tiempo superior - Pasado un cierto tiempo, superior al anterior, se cancelarán las sesiones abiertas desde dicho puesto de trabajo.',
+  'mp.eq.3.1':
+    'Inventario de portátiles con responsable y control de custodia - Se llevará un inventario de dispositivos portátiles junto con una identificación de la persona responsable de cada uno de ellos y un control regular de que está positivamente bajo su control.',
+  'mp.eq.3.2':
+    'Procedimiento de aviso de pérdidas o sustracciones - Se establecerá un procedimiento operativo de seguridad para informar al servicio de gestión de incidentes de pérdidas o sustracciones.',
+  'mp.eq.3.3':
+    'Acceso remoto limitado a lo imprescindible y autorizado - Cuando un dispositivo portátil se conecte remotamente a través de redes que no están bajo el estricto control de la organización, el ámbito de operación del servidor limitará la información y los servicios accesibles a los mínimos imprescindibles, requiriendo autorización previa de los responsables de la información y los servicios afectados. Este punto es de aplicación a conexiones a través de internet y otras redes que no sean de confianza.',
+  'mp.eq.3.4':
+    'Sin claves de acceso remoto prescindibles en el portátil - Se evitará, en la medida de lo posible, que el dispositivo portátil contenga claves de acceso remoto a la organización que no sean imprescindibles. Se considerarán claves de acceso remoto aquellas que sean capaces de habilitar un acceso a otros equipos de la organización u otras de naturaleza análoga.',
+  'mp.eq.3.r1.1':
+    'Cifrado del disco con información de nivel MEDIO o superior - Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.',
+  'mp.eq.3.r2.1':
+    'Uso fuera de las instalaciones solo en entornos protegidos - El uso de dispositivos portátiles fuera de las instalaciones de la organización se restringirá a entornos protegidos, donde el acceso sea controlado y a salvo de hurtos y miradas indiscretas.',
+  'mp.eq.4.1':
+    'Configuración segura y flujos de entrada y salida controlados - Los dispositivos presentes en el sistema deberán contar con una configuración de seguridad adecuada de manera que se garantice el control del flujo definido de entrada y salida de la información.',
+  'mp.eq.4.2':
+    'Borrado del almacenamiento de los dispositivos de red - Los dispositivos presentes en la red que dispongan de algún tipo de almacenamiento temporal o permanente de información proporcionarán la funcionalidad necesaria para eliminar información de soportes de información. (Ver [mp.si.5]).',
+  'mp.eq.4.r1.1':
+    'Productos o servicios conformes con op.pl.5 - Se usarán, cuando sea posible, productos o servicios que cumplan lo establecido en [op.pl.5].',
+  'mp.eq.4.r2.1':
+    'Control de los dispositivos conectados a la red - Refuerzo R2 – Control de dispositivos conectados a la red: Se dispondrá de soluciones que permitan visualizar los dispositivos presentes en la red, controlar su conexión/desconexión a la misma y verificar su configuración de seguridad.',
+  'mp.com.1.1':
+    'Perímetro que separa la red interna y por el que pasa todo el tráfico - Se dispondrá de un sistema de protección perimetral que separe la red interna del exterior. Todo el tráfico deberá atravesar dicho sistema.',
+  'mp.com.1.2':
+    'Flujos a través del perímetro autorizados previamente - Todos los flujos de información a través del perímetro deben estar autorizados previamente.',
+  'mp.com.3.1':
+    'Autenticidad del otro extremo antes de intercambiar información - En comunicaciones con puntos exteriores al dominio propio de seguridad, se asegurará la autenticidad del otro extremo del canal de comunicación antes de intercambiar información. (Ver [op.acc.5]).',
+  'mp.com.3.2':
+    'Prevención de ataques activos con activación del tratamiento del incidente - Se prevendrán ataques activos garantizando que al ser detectados se activarán los procedimientos previstos de tratamiento del incidente. Se considerarán ataques activos: a) La alteración de la información en tránsito. b) La inyección de información espuria. c) El secuestro de la sesión por una tercera parte.',
+  'mp.com.3.3':
+    'Mecanismos de identificación y autenticación admitidos - Se aceptará cualquier mecanismo de identificación y autenticación de los previstos en el ordenamiento jurídico y en la normativa de aplicación.',
+  'mp.com.3.r1.1':
+    'Redes privadas virtuales cifradas fuera del dominio propio - Se emplearán redes privadas virtuales cifradas cuando la comunicación discurra por redes fuera del propio dominio de seguridad.',
+  'mp.com.3.r2.1':
+    'Algoritmos y parámetros autorizados por el CCN - Se emplearán algoritmos y parámetros autorizados por el CCN.',
+  'mp.com.3.r3.1':
+    'Dispositivos hardware para la red privada virtual - Se recomienda emplear dispositivos hardware en el establecimiento y utilización de la red privada virtual.',
+  'mp.com.3.r4.1':
+    'Productos certificados conforme a op.pl.5 - Se emplearán productos certificados conforme a lo establecido en [op.pl.5].',
+  'mp.com.3.r5.1':
+    'Cifradores conformes con la guía CCN-STIC - Refuerzo R5 – Cifradores: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.',
+  'mp.com.4.1':
+    'Tráfico segregado: cada equipo accede solo a lo que necesita - El tráfico por la red se segregará para que cada equipo solamente tenga acceso a la información que necesita.',
+  'mp.com.4.2':
+    'Comunicaciones inalámbricas en un segmento separado - Si se emplean comunicaciones inalámbricas, será en un segmento separado.',
+  'mp.com.4.r1.1':
+    'Segmentos implementados con VLAN - Los segmentos de red se implementarán por medio de redes de área local virtuales (Virtual Local Area Network, VLAN).',
+  'mp.com.4.r1.2':
+    'Subredes separadas de usuarios, servicios y administración - La red que conforma el sistema deberá segregarse en distintas subredes contemplando como mínimo: • Usuarios. • Servicios. • Administración.',
+  'mp.com.4.r2.1':
+    'Segmentos implementados con redes privadas virtuales - Los segmentos de red se implementarán por medio de redes privadas virtuales (Virtual Private Network, VPN).',
+  'mp.com.4.r3.1':
+    'Segmentos implementados con medios físicos separados - Los segmentos de red se implementarán con medios físicos separados.',
+  'mp.com.4.r4.1':
+    'Control de entrada de usuarios y de información en cada segmento - Control de entrada de los usuarios que llegan a cada segmento y control de entrada y salida de la información disponible en cada segmento.',
+  'mp.com.4.r4.2':
+    'Punto de interconexión asegurado, mantenido y monitorizado - El punto de interconexión estará particularmente asegurado, mantenido y monitorizado, (como en [mp.com.1]).',
+  'mp.sw.2.1':
+    'Criterios de aceptación cumplidos sin deteriorar otros componentes - Se comprobará que: a) Se cumplen los criterios de aceptación en materia de seguridad. b) No se deteriora la seguridad de otros componentes del servicio.',
+  'mp.sw.2.r1.1':
+    'Pruebas en un entorno aislado de preproducción - Las pruebas se realizarán en un entorno aislado (pre-producción).',
+  'mp.sw.2.r2.1':
+    'Auditoría del código fuente - Refuerzo R2 – Inspección de código fuente: Se realizará una auditoría de código fuente.',
+  'mp.s.1.1':
+    'Protección del cuerpo de los mensajes y de los anexos - La información distribuida por medio de correo electrónico se protegerá, tanto en el cuerpo de los mensajes como en los anexos.',
+  'mp.s.1.2':
+    'Protección del encaminamiento y del establecimiento de conexiones - Se protegerá la información de encaminamiento de mensajes y establecimiento de conexiones.',
+  'mp.s.1.3':
+    'Protección frente al correo no solicitado - Correo no solicitado, en su expresión inglesa «spam».',
+  'mp.s.1.4':
+    'Protección frente al código dañino - Código dañino, constituidos por virus, gusanos, troyanos, espías, u otros de naturaleza análoga.',
+  'mp.s.1.5':
+    'Protección frente al código móvil - Código móvil de tipo micro-aplicación, en su expresión inglesa «applet».',
+  'mp.s.1.6':
+    'Normas de uso: limitaciones a las comunicaciones privadas - Limitaciones al uso como soporte de comunicaciones privadas.',
+  'mp.s.1.7':
+    'Concienciación y formación sobre el uso del correo - Actividades de concienciación y formación relativas al uso del correo electrónico.',
+  'mp.s.2.1':
+    'Imposible acceder a la información obviando la autenticación - Cuando la información requiera control de acceso se garantizará la imposibilidad de acceder a la información obviando la autenticación, en particular, tomando medidas en los siguientes aspectos: a) Se evitará que el servidor ofrezca acceso a los documentos por vías alternativas al protocolo determinado. b) Se prevendrán ataques de manipulación del localizador uniforme de recursos (URL). c) Se prevendrán ataques de manipulación de fragmentos de información que se almacena en el disco duro del visitante de una página web a través de su navegador, a petición del servidor de la página, conocido en terminología inglesa como cookies. d) Se prevendrán ataques de inyección de código.',
+  'mp.s.2.2':
+    'Prevención del escalado de privilegios - Se prevendrán intentos de escalado de privilegios.',
+  'mp.s.2.3':
+    'Prevención del cross site scripting - Se prevendrán ataques de cross site scripting.',
+  'mp.s.2.r1.1':
+    'Auditorías de caja negra antes de producción - Se realizarán auditorías continuas de seguridad de «caja negra» sobre las aplicaciones web durante la fase de desarrollo y antes de la fase de producción.',
+  'mp.s.2.r1.2':
+    'Frecuencia de auditoría definida en el procedimiento - La frecuencia de estas auditorías de seguridad quedará definida en el procedimiento de auditoría.',
+  'mp.s.2.r2.1':
+    'Auditorías de caja blanca durante el desarrollo - Se realizarán auditorías de seguridad de «caja blanca» sobre las aplicaciones web durante la fase de desarrollo.',
+  'mp.s.2.r2.2':
+    'Metodologías y herramientas automáticas de detección - Se emplearán metodologías definidas y herramientas automáticas de detección de vulnerabilidades en la realización de las auditorías de seguridad sobre las aplicaciones web.',
+  'mp.s.2.r2.3':
+    'Resolución de las vulnerabilidades encontradas - Una vez finalizada una auditoría de seguridad, se analizarán los resultados y se solventarán las vulnerabilidades encontradas mediante los procedimientos definidos [op.exp.5].',
+  'mp.s.2.r3.1':
+    'Protección de proxies y cachés - Se prevendrán ataques de manipulación de programas o dispositivos que realizan una acción en representación de otros, conocidos en terminología inglesa como «proxies» y, sistemas especiales de almacenamiento de alta velocidad, conocidos en terminología inglesa como «cachés».',
+  'mp.s.3.1':
+    'Normativa de utilización de la navegación - Se establecerá una normativa de utilización, definiendo el uso que se autoriza y las limitaciones de uso personal. En particular, se concretará el uso permitido de conexiones cifradas.',
+  'mp.s.3.2':
+    'Concienciación regular sobre higiene en la navegación - Se llevarán a cabo regularmente actividades de concienciación sobre higiene en la navegación web, fomentando el uso seguro y alertando de usos incorrectos.',
+  'mp.s.3.3':
+    'Formación de los administradores en monitorización y respuesta - Se formará al personal encargado de la administración del sistema en monitorización del servicio y respuesta a incidentes.',
+  'mp.s.3.4':
+    'Protección de la resolución de nombres y de las conexiones - Se protegerá la información de resolución de direcciones web y de establecimiento de conexiones.',
+  'mp.s.3.5':
+    'Protección frente a problemas que llegan por la navegación - Se protegerá a la organización en general y al puesto de trabajo en particular frente a problemas que se materializan vía navegación web.',
+  'mp.s.3.6':
+    'Protección frente a código dañino y contenido activo - Se protegerá contra la actuación de programas dañinos tales como páginas activas, descargas de código ejecutable, etc., previniendo la exposición del sistema a vectores de ataque del tipo spyware, ransomware, etc.',
+  'mp.s.3.7':
+    'Política ejecutiva de control de cookies - Se establecerá una política ejecutiva de control de cookies, en particular, para evitar la contaminación entre uso personal y uso organizativo.',
+  'mp.s.3.r1.1':
+    'Registro del uso de la navegación con su retención - Se registrará el uso de la navegación web, estableciendo los elementos que se registran, el periodo de retención de estos registros y el uso que el organismo prevé hacer de ellos.',
+  'mp.s.3.r1.2':
+    'Inspección de canales cifrados con exclusiones declaradas - Se establecerá una función para la ruptura de canales cifrados a fin de inspeccionar su contenido, indicando qué se analiza, qué se registra, durante cuánto tiempo se retienen los registros y qué uso prevé hacer el organismo de estas inspecciones. Todo ello sin perjuicio de que se puedan autorizar accesos cifrados singulares a destinos de confianza.',
+  'mp.s.3.r1.3':
+    'Lista negra de destinos vetados - Se establecerá una lista negra de destinos vetados.',
+  'mp.s.3.r2.1':
+    'Lista blanca de destinos accesibles - Refuerzo R2 – Destinos autorizados: Se establecerá una lista blanca de destinos accesibles. Todo acceso fuera de los lugares señalados en la lista blanca estará vetado, salvo autorización singular expresa.',
+  'mp.s.4.1':
+    'Capacidad suficiente y con holgura para la carga prevista - Se planificará y dotará al sistema de capacidad suficiente para atender con holgura a la carga prevista.',
+  'mp.s.4.2':
+    'Tecnologías de prevención de ataques conocidos - Se desplegarán tecnologías para prevenir los ataques conocidos.',
+  'mp.s.4.r1.1':
+    'Detección y tratamiento de la denegación de servicio - Se establecerá un sistema de detección y tratamiento de ataques de denegación de servicio (DoS y DDoS).',
+  'mp.s.4.r1.2':
+    'Procedimientos de reacción con el proveedor de comunicaciones - Se establecerán procedimientos de reacción a los ataques, incluyendo la comunicación con el proveedor de comunicaciones.',
+  'mp.s.4.r2.1':
+    'Detección y bloqueo de ataques lanzados desde las propias instalaciones - Refuerzo R2 – Ataques propios: Se detectará y se evitará el lanzamiento de ataques desde las propias instalaciones perjudicando a terceros.',
 };

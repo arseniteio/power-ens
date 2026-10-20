@@ -54,6 +54,12 @@ import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } f
 import { MaturityHeadline, MaturityPanel } from '../../maturity/maturity-panel';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
+  ENS_PENDING_MEASUREMENT_LABEL,
+  describePendingMeasurement,
+  describeRequiredSource,
+  isPendingMeasurement,
+} from '../../../../common/ens/catalog/support/measurement-plan';
+import {
   ENSRetainedEvaluation,
   decideDetailView,
   describeComputedAt,
@@ -850,6 +856,21 @@ export const ControlDetailENS = ({
     </>
   ) : null;
 
+  // In the catalog without collector yet: its evidences have no instrument, so nothing is judged (the engine leaves it out of the index).
+  const pendingMeasurement = isPendingMeasurement(headerCatalog);
+  const pendingMeasurementNotice = pendingMeasurement && headerCatalog ? (
+    <>
+      <EuiCallOut color='primary' iconType='clock' title={`${ENS_PENDING_MEASUREMENT_LABEL}: ${control.id} es documental de momento`}>
+        <p>{describePendingMeasurement(headerCatalog)}</p>
+        <p>
+          Se puede configurar y declarar en la Declaración de Aplicabilidad. Cada evidencia indica la fuente de datos que
+          necesitará («Fuente necesaria»).
+        </p>
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+    </>
+  ) : null;
+
   // The control is not measured on this machine: neither 'no data' nor 'all compliant'.
   if (!complianceResult) {
     const catalog = getENSCatalogControl(control.id);
@@ -871,6 +892,7 @@ export const ControlDetailENS = ({
           <EuiSpacer size='m' />
           {validityNotice}
           {unconfiguredNotice}
+          {pendingMeasurementNotice}
           <EuiCallOut
             color='primary'
             iconType='iInCircle'
@@ -934,6 +956,7 @@ export const ControlDetailENS = ({
 
         {validityNotice}
         {unconfiguredNotice}
+        {pendingMeasurementNotice}
 
         <EuiText>
           <p>
@@ -1304,24 +1327,38 @@ export const ControlDetailENS = ({
             {
               field: 'title',
               name: 'Descripción',
-              render: (title: string) => (
-                <EuiText size='s'>
-                  {title} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
-                </EuiText>
-              ),
+              render: (title: string, item: (typeof evidenceStatusItems)[number]) => {
+                const requiredSource = describeRequiredSource(control.id, item.id);
+
+                return (
+                  <EuiText size='s'>
+                    {title} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+                    {requiredSource && (
+                      <EuiText size='xs' color='subdued'>
+                        Fuente necesaria: {requiredSource}
+                      </EuiText>
+                    )}
+                  </EuiText>
+                );
+              },
             },
             {
               field: 'status',
               name: 'Estado',
               width: '150px',
-              render: (status: string) => (
-                <EuiBadge
-                  color={getBadgeColor(status)}
-                  iconType={getStatusIcon(status)}
-                >
-                  {status}
-                </EuiBadge>
-              ),
+              render: (status: string) =>
+                pendingMeasurement ? (
+                  <EuiBadge color='hollow' iconType='clock'>
+                    {ENS_PENDING_MEASUREMENT_LABEL}
+                  </EuiBadge>
+                ) : (
+                  <EuiBadge
+                    color={getBadgeColor(status)}
+                    iconType={getStatusIcon(status)}
+                  >
+                    {status}
+                  </EuiBadge>
+                ),
             },
             {
               field: 'requirement',
@@ -1392,7 +1429,14 @@ export const ControlDetailENS = ({
 
             <EuiSpacer size='s' />
 
-            {openNonConformitiesCount === 0 ? (
+            {pendingMeasurement ? (
+              // Not a green «all clear»: nothing has been measured.
+              <EuiCallOut
+                title={`${ENS_PENDING_MEASUREMENT_LABEL}: nada que remediar hasta que exista el recolector`}
+                color='primary'
+                iconType='clock'
+              />
+            ) : openNonConformitiesCount === 0 ? (
               <EuiCallOut
                 title='Sin no conformidades abiertas'
                 color='success'
@@ -1530,7 +1574,9 @@ export const ControlDetailENS = ({
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
             <p>
-              {complianceResult.status === 'NO_APLICA'
+              {pendingMeasurement
+                ? `${control.id} no tiene medición todavía: no hay no conformidades que medir.`
+                : complianceResult.status === 'NO_APLICA'
                 ? `${control.id} no aplica en el nivel ${levelsText}: no hay no conformidades que medir.`
                 : 'Todo lo aplicable en este control se ha demostrado conforme.'}
             </p>

@@ -3,8 +3,52 @@ import {
 } from '../types';
 
 import {
+  mpCom1PolicyDefinition,
+} from './mp-com-1.policy';
+
+import {
+  mpCom3PolicyDefinition,
+} from './mp-com-3.policy';
+
+import {
+  mpCom4PolicyDefinition,
+} from './mp-com-4.policy';
+
+import {
+  mpEq2PolicyDefinition,
+} from './mp-eq-2.policy';
+
+import {
+  mpEq3PolicyDefinition,
+} from './mp-eq-3.policy';
+
+import {
+  mpEq4PolicyDefinition,
+} from './mp-eq-4.policy';
+
+import {
   mpInfo6PolicyDefinition,
 } from './mp-info-6.policy';
+
+import {
+  mpS1PolicyDefinition,
+} from './mp-s-1.policy';
+
+import {
+  mpS2PolicyDefinition,
+} from './mp-s-2.policy';
+
+import {
+  mpS3PolicyDefinition,
+} from './mp-s-3.policy';
+
+import {
+  mpS4PolicyDefinition,
+} from './mp-s-4.policy';
+
+import {
+  mpSw2PolicyDefinition,
+} from './mp-sw-2.policy';
 
 import {
   opAcc1PolicyDefinition,
@@ -96,7 +140,18 @@ import {
 
 const policyDefinitions:
   ENSPolicyDefinition[] = [
+    mpCom1PolicyDefinition,
+    mpCom3PolicyDefinition,
+    mpCom4PolicyDefinition,
+    mpEq2PolicyDefinition,
+    mpEq3PolicyDefinition,
+    mpEq4PolicyDefinition,
     mpInfo6PolicyDefinition,
+    mpS1PolicyDefinition,
+    mpS2PolicyDefinition,
+    mpS3PolicyDefinition,
+    mpS4PolicyDefinition,
+    mpSw2PolicyDefinition,
     opAcc1PolicyDefinition,
     opAcc2PolicyDefinition,
     opAcc3PolicyDefinition,

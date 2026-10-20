@@ -12,6 +12,8 @@ import {
 import { ENSControlForm, parameterAnchorId } from '../form-engine';
 import { applyENSControlParameterValues } from '../engine';
 import {
+  controlLevelIn,
+  getActiveENSConfiguration,
   updateActiveControlConfiguration,
   validateControlParameterValues,
 } from '../../../../common/ens/configuration/services';
@@ -145,6 +147,9 @@ export const ConfigurationSession = ({
     }));
   };
 
+  // The level this control is edited for: a choice the ENS admits only at some levels is offered and checked for it.
+  const editedLevel = controlLevelIn(getActiveENSConfiguration(), control.controlId);
+
   const handleSave = async () => {
     if (isSaving) {
       return;
@@ -154,7 +159,8 @@ export const ConfigurationSession = ({
     // Organisation data is checked and fixed in General, not here.
     const issues = validateControlParameterValues(
       draftControl,
-      values
+      values,
+      editedLevel
     ).filter(issue => !isOrganizationDataParameter(control.controlId, issue.parameterId));
 
     if (issues.length > 0) {
@@ -284,6 +290,7 @@ export const ConfigurationSession = ({
         values={values}
         onChange={handleParameterChange}
         onMatchModeChange={handleMatchModeChange}
+        level={editedLevel}
       />
 
       {secondaryParameters.length > 0 && (
@@ -310,6 +317,7 @@ export const ConfigurationSession = ({
               values={values}
               onChange={handleParameterChange}
               onMatchModeChange={handleMatchModeChange}
+              level={editedLevel}
             />
           </EuiAccordion>
         </>

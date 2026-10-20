@@ -42,6 +42,13 @@ The op.cont.2 runbook (`linux/op.cont.2`) is documentation only: there is
 nothing to collect on any machine, and the plugin judges it from the screen
 tables and their validity (`tests/controls-without-runbook.json`).
 
+The 11 documentary controls of the auditor's v2.0 package (mp.eq.2, mp.eq.3,
+mp.eq.4, mp.com.1, mp.com.3, mp.com.4, mp.sw.2, mp.s.1, mp.s.2, mp.s.3 and
+mp.s.4) have no runbook yet: nothing is installed on the manager or on the
+agents. They are configured on the screen, show «Sin medición todavía» and do
+not enter the index. Each one has a reserved rule ID band (111800–112899,
+[README](../../README.en.md#development)) for the runbook of its wave.
+
 Rules:
 
 - **On the manager**, run the 22 `install-manager.sh` of the **Linux**

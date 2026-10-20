@@ -226,6 +226,22 @@ const validateParameter = (
     errors.push(`${path}.options must be a string array.`);
   }
 
+  if (value.optionsByLevel !== undefined) {
+    const byLevel = value.optionsByLevel;
+    const all = isStringArray(value.options) ? value.options : [];
+    if (!isRecord(byLevel)) {
+      errors.push(`${path}.optionsByLevel must be an object.`);
+    } else {
+      Object.entries(byLevel).forEach(([level, options]) => {
+        if (!['BAJO', 'MEDIO', 'ALTO'].includes(level)) {
+          errors.push(`${path}.optionsByLevel.${level} is not a level.`);
+        } else if (!isStringArray(options) || options.some(option => !all.includes(option))) {
+          errors.push(`${path}.optionsByLevel.${level} must list options of \`options\`.`);
+        }
+      });
+    }
+  }
+
   validateParameterColumns(
     value.columns,
     path,

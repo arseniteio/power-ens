@@ -92,6 +92,8 @@ const AGENT_PLANE = [
 ];
 const MANAGER_ONLY = ['op.cont.2', 'op.cont.3', 'op.exp.7', 'op.exp.9', 'op.mon.1', 'op.mon.2', 'op.nub.1'];
 const DOUBLE_PLANE = ['op.exp.8', 'op.mon.3'];
+// The 11 without collector (1.4.0, DRAFT): default plane until their wave decides it.
+const WITHOUT_COLLECTOR = ['mp.eq.2', 'mp.eq.3', 'mp.eq.4', 'mp.com.1', 'mp.com.3', 'mp.com.4', 'mp.sw.2', 'mp.s.1', 'mp.s.2', 'mp.s.3', 'mp.s.4'];
 
 const AGENTS: ENSAgentScope[] = [
   { id: '001', name: 'wazuh-real', groups: ['default', 'ens'] },
@@ -182,8 +184,16 @@ check(
   })
 );
 check(
-  'the catalog is those 23',
-  ENSCatalog.length === AGENT_PLANE.length + MANAGER_ONLY.length + DOUBLE_PLANE.length
+  'the 11 without collector declare nothing either (default plane, DRAFT)',
+  WITHOUT_COLLECTOR.every(id => {
+    const control = ENSCatalog.find(c => c.id === id)!;
+
+    return control.status === 'DRAFT' && control.measurementPlanes === undefined;
+  })
+);
+check(
+  'the catalog is those 34',
+  ENSCatalog.length === AGENT_PLANE.length + MANAGER_ONLY.length + DOUBLE_PLANE.length + WITHOUT_COLLECTOR.length
 );
 
 section('1. The scope');
@@ -306,7 +316,7 @@ const rest = (): void => {
 
   check('consolidated · none of the 14 changes', changed.length === 0, changed.join(', '));
   check(
-    'consolidated · all 23 are there, in catalog order',
+    'consolidated · all 34 are there, in catalog order',
     fingerprint(ids(now.results)) === fingerprint(ENSCatalog.map(c => c.id)),
     ids(now.results).join(', ')
   );
@@ -347,8 +357,14 @@ const rest = (): void => {
     now.agents.find(a => a.agentId === '000')!.summary.totalControls === 9
   );
   check(
-    'an agent row\'s summary does not count the manager-only ones',
-    now.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 16)
+    'an agent row\'s summary does not count the manager-only ones nor the 11 without collector (no row of their own)',
+    now.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 16 && !a.results.some(r => WITHOUT_COLLECTOR.includes(r.control.id)))
+  );
+  // Pinned: the controls without collector change neither the machines' measured count nor the manager's.
+  check(
+    'measured per row: 16 of 16 on each machine, 7 of 9 on the manager',
+    JSON.stringify(now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])) === '[["000",7,9],["001",16,16],["002",16,16]]',
+    now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])
   );
 
   section('3. op.cont.2, op.cont.3, op.exp.7, op.exp.9, op.mon.1, op.mon.2 and op.nub.1: manager row; in an agent\'s view, its result');
@@ -402,7 +418,7 @@ const rest = (): void => {
     const vista = getENSComplianceState(LEVEL, ALL, '001', WITH_MANAGER, NOW);
 
     check(
-      'an agent\'s view · all 23 are there, in catalog order',
+      'an agent\'s view · all 34 are there, in catalog order',
       fingerprint(ids(vista.results)) === fingerprint(ENSCatalog.map(c => c.id)),
       ids(vista.results).join(', ')
     );
