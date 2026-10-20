@@ -93,8 +93,8 @@ export const createMaturityService = ({
   const loading = new Map<string, Promise<ENSMaturityInputs | undefined>>();
   // Each machine's first fact: read once a day per user, and again when a machine joins the scope.
   const firstFacts = new Map<string, { at: number; agents: string[]; firsts: Map<string, number> }>();
-  // A failed first-fact lookup is not repeated before its backoff (per user).
-  const firstFactFailures = new Map<string, { count: number; until: number }>();
+  // A failed first-fact lookup is not repeated before its backoff (per user); a new local day or «Reintentar» resets it.
+  const firstFactFailures = new Map<string, { day: string; count: number; until: number }>();
   const organisation = new Map<string, { state: string; fingerprint: string; complete: boolean; inputsAt: number; view: ENSMaturityOfView }>();
   const refreshing = new Map<string, Promise<void>>();
   const failures = new Map<string, { count: number; nextAt: number }>();
@@ -134,8 +134,9 @@ export const createMaturityService = ({
     const agents = ctx.scope.map(agent => agent.id);
     const cached = firstFacts.get(key);
     if (cached && clock() - cached.at < DAY_MS && agents.every(id => cached.agents.includes(id))) return firstFactsOfScope(cached.firsts, agents, zone);
+    const today = dayIn(ctx.now, zone);
     const failure = firstFactFailures.get(key);
-    if (failure && clock() < failure.until) return undefined;
+    if (failure && failure.day === today && clock() < failure.until) return undefined;
     try {
       const scopeFilters = buildViewFilters({ from: ctx.now.toISOString(), to: ctx.now.toISOString() }, ctx.scope).slice(1);
       const firsts = readMachinesResponse(
@@ -147,9 +148,9 @@ export const createMaturityService = ({
       return firstFactsOfScope(firsts, agents, zone);
     } catch (error: any) {
       if (stopped.aborted) throw error;
-      const count = (failure?.count || 0) + 1;
+      const count = failure?.day === today ? failure.count + 1 : 1;
       if (firstFactFailures.size > 200) firstFactFailures.clear();
-      firstFactFailures.set(key, { count, until: clock() + retryBackoffMs(count) });
+      firstFactFailures.set(key, { day: today, count, until: clock() + retryBackoffMs(count) });
       warnOnce(`first:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read each machine's first fact for maturity: ${error?.message || error}`);
       return undefined;
     }
@@ -209,11 +210,11 @@ export const createMaturityService = ({
     };
   };
 
-  // Screens: inputs from memory (even old) and a refresh behind when old; undefined until the first read finishes.
-  const peekInputs = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext): ENSMaturityInputs | undefined => {
+  // Screens: inputs from memory (even old) and a refresh behind when old (or forced); undefined until the first read.
+  const peekInputs = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, force = false): ENSMaturityInputs | undefined => {
     const key = inputsKey(ctx);
     const cached = inputs.get(key);
-    if ((!cached || clock() - cached.at >= inputsTtlMs) && !loading.has(key)) {
+    if ((force || !cached || clock() - cached.at >= inputsTtlMs) && !loading.has(key)) {
       const task = track(
         loadInputs(clients, ctx).then(
           value => {
@@ -374,8 +375,12 @@ export const createMaturityService = ({
     const version = ctx.maturityVersion || null;
     const query = normalizeQuery({ include: 'summary', controlId: run.query.controlId, timeZone: run.query.timeZone });
     const key = `${ctx.userKey}|${run.query.controlId || '*'}`;
-    if (options.retry) failures.delete(key);
-    const data = peekInputs(clients, ctx);
+    if (options.retry) {
+      failures.delete(key);
+      firstFactFailures.delete(ctx.userKey);
+    }
+    // «Reintentar» reads again inputs whose first-fact lookup failed, behind.
+    const data = peekInputs(clients, ctx, Boolean(options.retry && inputs.get(inputsKey(ctx))?.firstFactsRead === false));
     if (!run.query.agentId) {
       if (!data) return noView(version);
       const controls = compute(run, data);

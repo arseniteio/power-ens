@@ -402,6 +402,15 @@ const Z = { timeZone: 'Europe/Madrid' };
   maturityClock = 0;
   check('a failed first-fact lookup: the run fails, and a run right after does not repeat the lookup (cached for 30 min)', lookupsBefore === 1 && /could not read each machine's first fact\); nothing written/.test(warnings.slice(noLookupBefore).join(' ')), { lookupsBefore, log: warnings.slice(noLookupBefore) });
   check('...after 30 min it is tried again; failing again, it waits 1 h', lookupsAfter === 2 && lookups === 2, { lookupsAfter, lookups });
+  // A new local day resets the lookup's failures: tried at once, and its next wait is 30 min again (not 2 h).
+  clock = new Date('2026-10-21T12:00:00Z');
+  await noLookupJob.runOnce();
+  const lookupsNextDay = lookups;
+  maturityClock += 30 * 60e3;
+  await noLookupJob.runOnce();
+  maturityClock = 0;
+  clock = lateClock;
+  check('...a new local day tries the lookup at once and its backoff starts again at 30 min', lookupsNextDay === 3 && lookups === 4, { lookupsNextDay, lookups });
   // stop() during a failing run: no retry, and the log does not promise one.
   const stopping = setup({ failActivity: true });
   const stoppingTimers: { run: () => void; ms: number }[] = [];
@@ -631,6 +640,22 @@ const Z = { timeZone: 'Europe/Madrid' };
   const noFirstDetail = await noFirst.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
   const noFirstGates = noFirstDetail.body.data.maturity?.gates || [];
   check('first facts unreadable: the activity is still read (L1 and L2 pass) and the reason says machines count from the period start', noFirstGates.find((g: any) => g.id === 'L1.facts')?.passed && noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.passed && /no se pudo leer el primer hecho de cada máquina/.test(noFirstGates.find((g: any) => g.id === 'L2.recurrence')?.reason || ''), noFirstGates.slice(0, 2));
+  // «Reintentar» clears the remembered lookup failure and reads the inputs again, so the lookup is actually retried.
+  let noFirstLookups = 0;
+  const noFirstSearch = noFirst.internal.search;
+  noFirst.internal.search = async (req: any) => {
+    if (isFirstFactLookup(req)) noFirstLookups += 1;
+    return noFirstSearch(req);
+  };
+  noFirst.options.failFirstFacts = false;
+  maturityClock += 6 * 60e3;
+  await noFirst.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  const remembered = noFirstLookups;
+  await noFirst.ready({ include: 'control', controlId: 'op.exp.3', retryRefresh: '1', ...Z });
+  const retriedLookup = await noFirst.ready({ include: 'control', controlId: 'op.exp.3', ...Z });
+  maturityClock = 0;
+  const retriedL2 = retriedLookup.body.data.maturity?.gates.find((g: any) => g.id === 'L2.recurrence');
+  check('a remembered lookup failure is not repeated on the next input read, but «Reintentar» retries it and the note goes', remembered === 0 && noFirstLookups === 1 && retriedL2?.passed && !/no se pudo leer el primer hecho/.test(retriedL2?.reason || ''), { remembered, noFirstLookups, retriedL2 });
   // Any other failure of the accredited level: its own message, not the timeout one.
   const assessmentBody = { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null };
   const failingRoutes = (error: Error) => createMaturityHandlers({ logger, securityEnabled: true, maturity: { ...judging.maturity, accreditedFor: async () => Promise.reject(error) } as any, clock: () => clock });
