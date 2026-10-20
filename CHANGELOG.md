@@ -118,9 +118,11 @@ cada control junto al semáforo.
   calculado, y un uso multirrol es «Incidencia» solo si el motor tiene una no
   conformidad medida de ese requisito en esa máquina levantada por la evidencia
   que escucha el hecho (EV-06 de op.acc.1): el campo `estado` del agente no
-  cuenta. El servidor las agrupa con una agregación acotada (100
-  incidentes por tipo, los más recientes); no viajan eventos al navegador
-  (ENS-DASH-004, Francisco Caicedo).
+  cuenta. El servidor las agrupa con una agregación acotada (los 100
+  incidentes más recientes por tipo, solo de los tres tipos y de controles en
+  `ACTIVE`; si se alcanza el límite, el total se da como «al menos»); no viajan
+  eventos al navegador, y si esa lectura falla solo el recuadro de alertas lo
+  dice, el resto del panel se muestra (ENS-DASH-004, Francisco Caicedo).
 
 ### Corregido
 

@@ -24,4 +24,8 @@ export interface ImpactEventsModel {
   rows: ImpactEventRowModel[];
   // Alerts that passed the filters, shown or not (the panel shows the first rows).
   total: number;
+  // What is left out, in words (a lower bound when the read hit its limit).
+  summary?: string;
+  // The alerts could not be read; the rest of the panel stands.
+  error?: string;
 }

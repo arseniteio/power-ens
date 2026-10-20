@@ -153,7 +153,9 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('…and to the manager when it names none; not shown for a machine outside the scope', security.length === 2 && security.some((row: any) => row.agentId === '000') && !security.some((row: any) => row.agentId === '029'), security.map((r: any) => r.agentId));
   check('applicability: no row for NO_APLICA, DRAFT, a control without a row on that machine, or a machine outside the scope',
     !model.rows.some((row: any) => ['mp.info.6', 'mp.eq.2'].includes(row.controlId) || row.agentId === '028' || row.agentId === '099'), model.rows.map((r: any) => r.id));
-  check('five rows at most, the oldest out; the total counts the six that pass (and nothing else)', model.rows.length === 5 && model.total === 6 && !model.rows.some((row: any) => /ssh/.test(row.description)), [model.rows.length, model.total]);
+  check('five rows at most, the oldest out; the total counts the six that pass (and nothing else)', model.rows.length === 5 && model.total === 6 && model.summary === 'Se muestran 5 de 6.' && !model.rows.some((row: any) => /ssh/.test(row.description)), [model.rows.length, model.total, model.summary]);
+  const bounded5 = alerts.buildImpactEventsModel(events, whole, { scope, truncatedAt: 100 });
+  check('when the read hit its bound the total is «al menos» and says why', bounded5.summary === 'Se muestran 5 de al menos 6: solo se leen los 100 incidentes más recientes de cada tipo.', bounded5.summary);
   const view028 = buildComplianceState(of028, [agentRow('028', 'zimbraHldap', of028)]);
   const only028 = alerts.buildImpactEventsModel(events, { ...view028, results: [...of028, opExp7] }, { scope, agentId: '028' });
   check('machine view: the manager\'s alerts yes, another machine\'s security alert no', only028.rows.length === 1 && only028.rows[0].agentId === '000', only028.rows.map((r: any) => r.id));
@@ -205,6 +207,10 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const request = indexer.log.find((entry: any) => entry.body?.aggs?.collector_warning);
   const sizes = Object.values(request?.body?.aggs || {}).map((agg: any) => agg.aggs.incidents.multi_terms.size);
   check('one aggregation without documents, each type bounded', request?.body.size === 0 && sizes.length === 3 && sizes.every(size => size === OPERATIONAL_ALERTS_PER_TYPE), request?.body);
+  const topFilters = request?.body.query.bool.filter || [];
+  const eventFilter = topFilters.find((f: any) => f.terms?.['data.event'])?.terms['data.event'] || [];
+  const controlFilter = topFilters.find((f: any) => f.terms?.['data.ensfacil'])?.terms['data.ensfacil'] || [];
+  check('the bound is spent only on the three types and on ACTIVE controls', eventFilter.length === 3 && controlFilter.includes('op.exp.3') && controlFilter.includes('op.acc.1') && !controlFilter.includes('mp.eq.2'), { eventFilter, controlFilter });
   const run024 = await service.run(clients, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }));
   const panel024 = (buildEvaluationResponse(run024) as any).dashboard.impactEvents;
   check('machine view 024: as in memory with its facts and the manager\'s', JSON.stringify(panel024) === JSON.stringify(alerts.buildImpactEventsModel(reference(['000', '024']), run024.state, { scope: run024.ctx.scope, agentId: '024' })) && panel024.total > 0, panel024);
@@ -213,9 +219,32 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
     Array.from({ length: 130 }, (_, i) => hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'o', objeto: `obj${i}`, motivo: 'm' }, 1 + i / 10)),
     { clock: () => clock.getTime() }
   );
-  const bounded = readOperationalIncidents((await many.search(buildImpactEventsRequest([]))).body.aggregations);
+  const boundedRead = readOperationalIncidents((await many.search(buildImpactEventsRequest([]))).body.aggregations);
+  const bounded = boundedRead.incidents;
   const newest = bounded.map((incident: any) => incident.fields.objeto);
-  check('130 different incidents: the 100 most recent', bounded.length === OPERATIONAL_ALERTS_PER_TYPE && newest.includes('obj0') && newest.includes('obj99') && !newest.includes('obj100'), bounded.length);
+  check('130 different incidents: the 100 most recent, and the read says it was cut', bounded.length === OPERATIONAL_ALERTS_PER_TYPE && boundedRead.truncated && newest.includes('obj0') && newest.includes('obj99') && !newest.includes('obj100'), bounded.length);
+  const longOne = createFakeIndexer([hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'P', motivo: 'x'.repeat(2000) }, 1)], { clock: () => clock.getTime() });
+  const longRead = readOperationalIncidents((await longOne.search(buildImpactEventsRequest([]))).body.aggregations);
+  check('key values are cut on read (the cache holds no unbounded motive)', longRead.incidents[0]?.fields.motivo.length === 500 && !longRead.truncated, longRead.incidents[0]?.fields.motivo.length);
+
+  // A failing alerts read degrades only its panel, and is not cached.
+  let failing = true;
+  const flaky = createFakeIndexer([
+    ...docs,
+    monitor('024', 'wazuh-real', ['ens']),
+    monitor('028', 'zimbraHldap', ['ens']),
+    { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration, updatedAt: configuration.updatedAt } },
+  ], { clock: () => clock.getTime(), failShards: (body: any) => (failing && body?.aggs?.collector_warning ? 1 : 0) });
+  const warned: string[] = [];
+  const flakyService = createEvaluationService({ logger: { ...logger, warn: (m: string) => warned.push(m) }, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const flakyClients = { asCurrentUser: flaky, asInternalUser: flaky };
+  const down = buildEvaluationResponse(await flakyService.run(flakyClients, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
+  check('alerts read fails: the panel says so, the rest of the dashboard stands',
+    down.dashboard.impactEvents.error === 'No se han podido leer las alertas operativas.' && down.dashboard.impactEvents.rows.length === 0 && down.dashboard.findings && down.dashboard.compliance && warned.some(m => /operational alerts/.test(m)),
+    down.dashboard.impactEvents);
+  failing = false;
+  const up = buildEvaluationResponse(await flakyService.run(flakyClients, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
+  check('…and the next request reads again', !up.dashboard.impactEvents.error && up.dashboard.impactEvents.total > 0, up.dashboard.impactEvents);
 
   console.log('5. The panel lists them');
   h.reset();
@@ -231,6 +260,10 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   evaluations.dashboard = { data: { meta, dashboard: { ...buildENSDashboardModel(whole), impactEvents: alerts.buildImpactEventsModel([], whole, { scope }) } }, isLoading: false };
   screen = await h.render(EnsDashboardMain);
   check('without alerts it says so', /Sin alertas operativas en la ventana y el alcance de esta vista/.test(screen) && !/Se muestran/.test(screen));
+  h.reset();
+  evaluations.dashboard = { data: { meta, dashboard: { ...buildENSDashboardModel(whole), impactEvents: alerts.unreadOperationalAlertsModel() } }, isLoading: false };
+  screen = await h.render(EnsDashboardMain);
+  check('an unread panel says it could not read them, and the rest of the dashboard renders', /No se han podido leer las alertas operativas/.test(screen) && !/Sin alertas operativas en la ventana/.test(screen) && /REQUISITOS QUE REQUIEREN ATENCIÓN/.test(screen));
 
   if (failures.length) {
     console.log(`\n${failures.length} FAIL`);

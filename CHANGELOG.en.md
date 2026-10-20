@@ -116,9 +116,11 @@ traffic light.
   multi-role use is an «Incidencia» only if the engine holds a measured
   non-conformity of that requirement on that machine raised by the evidence
   that listens to the fact (EV-06 of op.acc.1): the agent's `estado` field does
-  not count. The server groups them with a bounded aggregation (100
-  incidents per type, the most recent); no events travel to the browser
-  (ENS-DASH-004, Francisco Caicedo).
+  not count. The server groups them with a bounded aggregation (the 100 most
+  recent incidents per type, only of the three types and of `ACTIVE` controls;
+  when the bound is hit the total is given as «al menos»); no events travel to
+  the browser, and if that read fails only the alerts box says so, the rest of
+  the panel is shown (ENS-DASH-004, Francisco Caicedo).
 
 ### Fixed
 

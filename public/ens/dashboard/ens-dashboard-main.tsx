@@ -881,7 +881,9 @@ export const EnsDashboardMain = () => {
           </div>
           
           {/* One row per incident: the same problem observed many times is one alert (ENS-DASH-004). */}
-          {dashboardModel.impactEvents.rows.length ? (
+          {dashboardModel.impactEvents.error ? (
+            <div style={{ color: '#BD271E', fontSize: 13, marginTop: 12 }}>{dashboardModel.impactEvents.error}</div>
+          ) : dashboardModel.impactEvents.rows.length ? (
             dashboardModel.impactEvents.rows.map(row => {
               const severity = alertSeverityPresentation(row.severity);
               return (
@@ -914,10 +916,8 @@ export const EnsDashboardMain = () => {
               Sin alertas operativas en la ventana y el alcance de esta vista.
             </div>
           )}
-          {dashboardModel.impactEvents.total > dashboardModel.impactEvents.rows.length && (
-            <div style={{ color: '#69707D', fontSize: 11 }}>
-              Se muestran {dashboardModel.impactEvents.rows.length} de {dashboardModel.impactEvents.total}.
-            </div>
+          {dashboardModel.impactEvents.summary && (
+            <div style={{ color: '#69707D', fontSize: 11 }}>{dashboardModel.impactEvents.summary}</div>
           )}
         </div>
       </div>

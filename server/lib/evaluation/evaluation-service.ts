@@ -26,8 +26,7 @@ import {
   listENSControlRowAgents,
   resultStatusStub,
 } from '../../../common/ens/core/control-partition';
-import { buildOperationalAlertsModel } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
-import type { OperationalIncident } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
+import { buildOperationalAlertsModel, unreadOperationalAlertsModel } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 import { normalizeWazuhAlerts } from '../../../common/ens/core/data-source/data-source-engine';
 import type { ENSNormalizedEvent } from '../../../common/ens/core/data-source/types';
 import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common/ens/core/evaluation/types';
@@ -67,6 +66,7 @@ import {
   buildFactsQuery,
   buildImpactEventsRequest,
   readOperationalIncidents,
+  OPERATIONAL_ALERTS_PER_TYPE,
   buildProbeRequest,
   buildStateFactKeepClause,
   buildStateFactLastSeenRequest,
@@ -77,7 +77,7 @@ import {
   readProbeResponse,
   resolveEvaluationWindow,
 } from './queries';
-import type { ENSEvaluationWindow, ENSProbeResult, ENSStateFactLastSeen } from './queries';
+import type { ENSEvaluationWindow, ENSProbeResult, ENSStateFactLastSeen, OperationalIncidentsRead } from './queries';
 import { overviewQueryFlags, perControlOfPoint, perControlOfResults } from './overview-fields';
 
 export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
@@ -405,8 +405,8 @@ export const createEvaluationService = ({
   // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
   // IANA zones arrive here).
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
-  // Operational alert incidents of each view (the aggregation); the model is built against each run's results.
-  const impacts = new EvaluationCache<OperationalIncident[]>(200, EVALUATION_TTL_MS, clockValue);
+  // Operational alert incidents of each view (the aggregation); the model is built against each run's results. Bounded by size too (8 MB).
+  const impacts = new EvaluationCache<OperationalIncidentsRead>(200, EVALUATION_TTL_MS, clockValue, 8 * 1024 * 1024, value => JSON.stringify(value).length);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
   const maturities = new EvaluationCache<{ records?: ENSMaturityRecords; version?: ENSMaturityVersion }>(4, 24 * 3600 * 1000, clockValue);
@@ -1413,14 +1413,24 @@ export const createEvaluationService = ({
 
   const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string, state: ENSComplianceState | undefined) => {
     const key = `i|${ctx.userKey}|${query.agentId || '*'}`;
-    let incidents = impacts.get(key, fingerprint);
-    if (!incidents) {
-      // The view's: the machine and the manager, or the whole scope.
-      const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'las alertas operativas');
-      incidents = readOperationalIncidents(body?.aggregations);
-      impacts.set(key, fingerprint, incidents);
+    let read = impacts.get(key, fingerprint);
+    if (!read) {
+      try {
+        // The view's: the machine and the manager, or the whole scope.
+        const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'las alertas operativas');
+        read = readOperationalIncidents(body?.aggregations);
+      } catch (error: any) {
+        // Only the alerts panel degrades, and the failure is not cached: the next request reads again.
+        logger.warn(`ENSFácil: could not read the operational alerts: ${error?.message || error}`);
+        return unreadOperationalAlertsModel();
+      }
+      impacts.set(key, fingerprint, read);
     }
-    return buildOperationalAlertsModel(incidents, state, { scope: ctx.scope, agentId: query.agentId });
+    return buildOperationalAlertsModel(read.incidents, state, {
+      scope: ctx.scope,
+      agentId: query.agentId,
+      ...(read.truncated ? { truncatedAt: OPERATIONAL_ALERTS_PER_TYPE } : {}),
+    });
   };
 
   interface UsedRow {

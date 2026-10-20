@@ -314,7 +314,17 @@ export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: strin
 
 // Operational SOC alerts of the panel (ENS-DASH-004): per type, one bucket per incident key over the window, newest first, at most `OPERATIONAL_ALERTS_PER_TYPE`, with its fact count and last timestamp (`multi_terms`, OpenSearch 2.1+; checked on wazuh-indexer 4.14.7).
 export const OPERATIONAL_ALERTS_PER_TYPE = 100;
+// Each shard proposes its 500 most recent incidents: counts are exact unless an incident falls outside one shard's 500.
+const OPERATIONAL_ALERTS_SHARD_SIZE = 500;
+// Key values are cut on read: the label shows 140 characters and the cache must not hold unbounded motives.
+export const OPERATIONAL_ALERT_FIELD_MAX = 500;
 const ALERT_KEY_MISSING = '__none__';
+
+// The read: the incidents, and whether some type had more than the bound (the total is then a lower bound).
+export interface OperationalIncidentsRead {
+  incidents: OperationalIncident[];
+  truncated: boolean;
+}
 
 export const buildImpactEventsRequest = (filters: unknown[]) => ({
   index: ENS_ALERTS_INDEX,
@@ -322,7 +332,12 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
     size: 0,
     query: {
       bool: {
-        filter: filters,
+        // Only the alert types and only ACTIVE controls: the bound is spent on what the panel can show.
+        filter: [
+          ...filters,
+          { terms: { 'data.event': Object.keys(OPERATIONAL_ALERT_KEY_FIELDS) } },
+          { terms: { 'data.ensfacil': ENSCatalog.filter(control => control.status === 'ACTIVE').map(control => control.id) } },
+        ],
         must_not: [
           ...['data.demo', 'data.synthetic', 'data.is_synthetic', 'data.isSynthetic'].map(field => ({
             // In Wazuh `data.*` is mapped `keyword` (checked in the lab): strings are compared, like
@@ -344,6 +359,7 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
               multi_terms: {
                 terms: [{ field: 'agent.id' }, ...fields.map(name => ({ field: `data.${name}`, missing: ALERT_KEY_MISSING }))],
                 size: OPERATIONAL_ALERTS_PER_TYPE,
+                shard_size: OPERATIONAL_ALERTS_SHARD_SIZE,
                 order: { last: 'desc' },
               },
               aggs: { last: { max: { field: '@timestamp' } } },
@@ -356,23 +372,26 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
 });
 
 // The incidents of that response, as `operationalIncidentsFromEvents` would group the same facts in memory.
-export const readOperationalIncidents = (aggregations: any): OperationalIncident[] =>
-  Object.entries(OPERATIONAL_ALERT_KEY_FIELDS).flatMap(([eventType, fields]) =>
+export const readOperationalIncidents = (aggregations: any): OperationalIncidentsRead => ({
+  incidents: Object.entries(OPERATIONAL_ALERT_KEY_FIELDS).flatMap(([eventType, fields]) =>
     (aggregations?.[eventType]?.incidents?.buckets || []).flatMap((bucket: any) => {
       const last = Number(bucket?.last?.value);
       const [agentId, ...values] = (Array.isArray(bucket?.key) ? bucket.key : []).map((value: unknown) => String(value ?? ''));
       if (!agentId || !Number.isFinite(last)) return [];
+      const valueOf = (i: number) => (values[i] === undefined || values[i] === ALERT_KEY_MISSING ? '' : values[i].slice(0, OPERATIONAL_ALERT_FIELD_MAX));
       return [
         {
           eventType,
           agentId,
-          fields: Object.fromEntries(fields.map((name, i) => [name, values[i] === undefined || values[i] === ALERT_KEY_MISSING ? '' : values[i]])),
+          fields: Object.fromEntries(fields.map((name, i) => [name, valueOf(i)])),
           count: Number(bucket.doc_count || 0),
           lastObserved: new Date(last).toISOString(),
         },
       ];
     })
-  );
+  ),
+  truncated: Object.keys(OPERATIONAL_ALERT_KEY_FIELDS).some(eventType => Number(aggregations?.[eventType]?.incidents?.sum_other_doc_count || 0) > 0),
+});
 
 // Facts up to the end of each day (for the event count of each series point).
 export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) => ({

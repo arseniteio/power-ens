@@ -51,7 +51,27 @@ export interface OperationalAlertsOptions {
   scope: ENSAgentScope[];
   // Machine view: only that machine and the manager, like the facts it reads.
   agentId?: string;
+  // The per-type bound when the read hit it: the total is then a lower bound.
+  truncatedAt?: number;
 }
+
+const ALERTS_TITLE = 'ALERTAS OPERATIVAS SOC';
+
+// The panel when the alerts could not be read: the rest of the dashboard is unaffected.
+export const unreadOperationalAlertsModel = (): ImpactEventsModel => ({
+  title: ALERTS_TITLE,
+  rows: [],
+  total: 0,
+  error: 'No se han podido leer las alertas operativas.',
+});
+
+// The line under the rows: how many are left out, and whether the read stopped at its bound.
+const summaryOf = (shown: number, total: number, truncatedAt?: number): string | undefined =>
+  truncatedAt
+    ? `Se muestran ${shown} de al menos ${total}: solo se leen los ${truncatedAt} incidentes más recientes de cada tipo.`
+    : total > shown
+    ? `Se muestran ${shown} de ${total}.`
+    : undefined;
 
 const text = (value: unknown): string =>
   value === undefined || value === null ? '' : String(Array.isArray(value) ? value[0] ?? '' : value);
@@ -187,14 +207,12 @@ export const buildOperationalAlertsModel = (
       a.id.localeCompare(b.id)
   );
 
-  return {
-    title: 'ALERTAS OPERATIVAS SOC',
-    rows: sorted.slice(0, OPERATIONAL_ALERT_ROWS).map(row => {
-      const countLabel = countLabelOf(row.eventType, row.count);
-      return countLabel ? { ...row, countLabel } : row;
-    }),
-    total: sorted.length,
-  };
+  const shown = sorted.slice(0, OPERATIONAL_ALERT_ROWS).map(row => {
+    const countLabel = countLabelOf(row.eventType, row.count);
+    return countLabel ? { ...row, countLabel } : row;
+  });
+  const summary = summaryOf(shown.length, sorted.length, options.truncatedAt);
+  return { title: ALERTS_TITLE, rows: shown, total: sorted.length, ...(summary ? { summary } : {}) };
 };
 
 // The same grouping the server does with its aggregation, over events already in memory (one count per fact, not per evidence split).
