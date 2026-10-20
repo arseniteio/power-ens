@@ -1,4 +1,3 @@
-import type { ENSMaturityConfiguration } from '../../maturity/types';
 import type { ENSAgentParameterValue, ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
 
 export type {
@@ -92,8 +91,7 @@ export interface ENSGlobalConfiguration {
   timezone: string;
   reportLanguage: 'es' | 'en';
   activePolicy: string;
-  // Default maturity target per category (1.4.0). Optional: an absent key (or category) means L2 BÁSICA, L3 MEDIA,
-  // L4 ALTA; never `null`. See `common/ens/maturity`.
+  // Maturity target per category (1.4.0); an absent key or category is the default (L2/L3/L4), never `null`.
   maturityTargets?: Partial<Record<ENSLevel, 0 | 1 | 2 | 3 | 4 | 5>>;
 }
 
@@ -194,9 +192,6 @@ export interface ENSConfigurationVersion {
   templates?: ENSCustomTemplate[];
   // Shared data asked once (1.4.0); each mapped control parameter is a view of its item. Absent: not migrated.
   organizationData?: ENSOrganizationData;
-  // What people record about each control's maturity (1.4.0), append-only. Written only by the maturity route:
-  // the configuration save always keeps the stored one. See `common/ens/maturity/types.ts`.
-  maturity?: ENSMaturityConfiguration;
 }
 
 export interface ENSOrganizationData {

@@ -1,6 +1,4 @@
-// What people record about a control's maturity: reading it from the configuration (tolerant: a malformed entry
-// is skipped, never an error that stops the environment) and validating a new entry (strict: the save route and
-// the screen use the same rules, so the browser never sends what the server refuses).
+// Maturity records: tolerant reading (a malformed entry is skipped) and strict validation shared by route and screen.
 import { isUsableLink } from '../configuration/services/attestation-service';
 import type { ENSConfigurationVersion, ENSLevel } from '../configuration/types';
 import type {
@@ -11,6 +9,7 @@ import type {
   ENSMaturityIndicators,
   ENSMaturityLevel,
   ENSMaturityRecordKind,
+  ENSMaturityRecords,
   ENSMaturityReview,
   ENSMaturityReviewResult,
   ENSMaturityTargets,
@@ -38,7 +37,12 @@ export const ENS_MATURITY_REVIEW_RESULTS: Record<ENSMaturityReviewResult, string
   CONFORME: 'Conforme',
   CON_DESVIACIONES: 'Con desviaciones',
   NO_CONFORME: 'No conforme',
+  DESVIACION_EN_TRATAMIENTO: 'Desviación en tratamiento',
 };
+
+// Own keys only: `toString` or `constructor` are not labels.
+export const ownLabel = (labels: Record<string, string>, key: unknown): string | undefined =>
+  typeof key === 'string' && Object.prototype.hasOwnProperty.call(labels, key) ? labels[key] : undefined;
 
 export const ENS_MATURITY_FEEDBACK_SOURCES: Record<ENSMaturityFeedbackSource, string> = {
   'op.exp.9.3': 'Lección aprendida (op.exp.9.3)',
@@ -70,13 +74,11 @@ const isStamped = (entry: any): boolean =>
   isRecord(entry) && typeof entry.recordedAt === 'string' && typeof entry.recordedBy === 'string';
 
 // The control's record as stored, with only well-formed entries, oldest first.
-export const readControlMaturityRecord = (
-  configuration: Partial<ENSConfigurationVersion> | undefined,
-  controlId: string
-): ENSControlMaturityRecord => {
-  const stored = (configuration as any)?.maturity?.controls?.[controlId];
+export const readControlMaturityRecord = (records: Partial<ENSMaturityRecords> | undefined, controlId: string): ENSControlMaturityRecord => {
+  const controls = isRecord(records) && isRecord(records.controls) ? records.controls : {};
+  const stored: any = Object.prototype.hasOwnProperty.call(controls, controlId) ? controls[controlId] : undefined;
   const list = (key: keyof ENSControlMaturityRecord, keep: (entry: any) => boolean): any[] =>
-    isRecord(stored) && Array.isArray(stored[key]) ? stored[key].filter((entry: unknown) => isStamped(entry) && keep(entry)) : [];
+    isRecord(stored) && Array.isArray(stored[key]) ? (stored[key] as unknown[]).filter((entry: unknown) => isStamped(entry) && keep(entry)) : [];
   return {
     attestations: list('attestations', entry => typeof entry.reference === 'string'),
     reviews: list('reviews', entry => typeof entry.date === 'string'),
@@ -176,8 +178,7 @@ export type ENSMaturityEntryInput =
   | Unstamped<ENSMaturityIndicators>
   | Unstamped<ENSMaturityFeedback>;
 
-// Validates and normalises what a person enters. `accredited` is the level the evidence accredits now (unknown:
-// undefined); the assessment needs a justification when it goes above it or when it cannot be known.
+// Validates a person's entry; above `accredited` (or with it unknown) an assessment needs a justification.
 export const validateMaturityEntry = (
   kind: ENSMaturityRecordKind,
   value: unknown,
@@ -212,8 +213,10 @@ export const validateMaturityEntry = (
       result,
       actions: c.optionalText('actions', 'Acciones', LONG) || '',
     };
-    if (!(result in ENS_MATURITY_REVIEW_RESULTS)) c.errors.push('Resultado: Conforme, Con desviaciones o No conforme.');
-    if (result !== 'CONFORME' && !entry.actions) c.errors.push('Acciones: obligatorias si la revisión no es conforme.');
+    if (!ownLabel(ENS_MATURITY_REVIEW_RESULTS, result)) c.errors.push('Resultado: Conforme, Con desviaciones, No conforme o Desviación en tratamiento.');
+    if ((result === 'CON_DESVIACIONES' || result === 'NO_CONFORME') && !entry.actions) {
+      c.errors.push('Acciones: obligatorias si la revisión tiene desviaciones o no es conforme.');
+    }
     return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
   }
 
@@ -262,7 +265,7 @@ export const validateMaturityEntry = (
     const procedureVersion = c.optionalText('procedureVersion', 'Versión del procedimiento', 50);
     if (closedAt) entry.closedAt = closedAt;
     if (procedureVersion) entry.procedureVersion = procedureVersion;
-    if (!(source in ENS_MATURITY_FEEDBACK_SOURCES)) c.errors.push('Origen: uno de la lista.');
+    if (!ownLabel(ENS_MATURITY_FEEDBACK_SOURCES, source)) c.errors.push('Origen: uno de la lista.');
     if (closedAt && entry.openedAt && closedAt < entry.openedAt) c.errors.push('Fecha de cierre: no puede ser anterior a la apertura.');
     if (procedureVersion && !closedAt) c.errors.push('Versión del procedimiento: solo al cerrar.');
     return c.errors.length ? { errors: c.errors } : { entry, errors: [] };
@@ -271,22 +274,18 @@ export const validateMaturityEntry = (
   return { errors: [`Tipo de registro desconocido: ${String(kind)}.`] };
 };
 
-// The configuration with one more entry in the control's list (nothing is replaced or removed).
-export const appendMaturityEntry = <T extends Partial<ENSConfigurationVersion>>(
-  configuration: T,
+// The records with one more entry in the control's list (nothing is replaced or removed).
+export const appendMaturityEntry = (
+  records: Partial<ENSMaturityRecords> | undefined,
   controlId: string,
   kind: ENSMaturityRecordKind,
   entry: Record<string, unknown>
-): T => {
-  const maturity = isRecord((configuration as any).maturity) ? (configuration as any).maturity : {};
-  const controls = isRecord(maturity.controls) ? maturity.controls : {};
+): ENSMaturityRecords => {
+  const controls = isRecord(records) && isRecord(records.controls) ? records.controls : {};
   const record = isRecord(controls[controlId]) ? controls[controlId] : {};
   const key = RECORD_LIST_KEYS[kind];
-  const list = Array.isArray(record[key]) ? record[key] : [];
-  return {
-    ...configuration,
-    maturity: { ...maturity, controls: { ...controls, [controlId]: { ...record, [key]: [...list, entry] } } },
-  };
+  const list = Array.isArray((record as any)[key]) ? (record as any)[key] : [];
+  return { ...(records as object), controls: { ...controls, [controlId]: { ...record, [key]: [...list, entry] } } };
 };
 
 // One line for the audit trail and the history.
@@ -295,7 +294,7 @@ export const describeMaturityEntry = (controlId: string, kind: ENSMaturityRecord
     case 'attestation':
       return `Madurez de ${controlId}: procedimiento ${entry.reference} versión ${entry.version}.`;
     case 'review':
-      return `Madurez de ${controlId}: revisión del ${entry.date} (${ENS_MATURITY_REVIEW_RESULTS[entry.result as ENSMaturityReviewResult] || entry.result}).`;
+      return `Madurez de ${controlId}: revisión del ${entry.date} (${ownLabel(ENS_MATURITY_REVIEW_RESULTS, entry.result) || entry.result}).`;
     case 'assessment':
       return `Madurez de ${controlId}: nivel valorado L${entry.level}${entry.target !== undefined ? `, objetivo L${entry.target}` : ''}.`;
     case 'indicators':

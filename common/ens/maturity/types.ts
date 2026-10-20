@@ -1,17 +1,11 @@
-// Maturity of a control (CMM, Annex II section 6 of RD 311/2022): the normative assessment, reported NEXT to the
-// traffic light and the percentage (operational indicators), never mixed with them.
-// - Accredited level: computed from the evidence, the highest level whose gates (and those below) all pass.
-// - Assessed level: declared by a person, who confirms or adjusts the accredited one. It is the level the report
-//   carries; above the accredited one it needs a justification and the report marks it.
-// Everything a person records is kept append-only in `configuration.maturity` (organisation level, not per agent).
+// CMM maturity per control (Annex II s.6): accredited by the evidence, assessed by a person, next to the traffic light.
 import type { ENSLevel } from '../configuration/types';
 
 export type ENSMaturityLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
 export const ENS_MATURITY_LEVELS: ENSMaturityLevel[] = [0, 1, 2, 3, 4, 5];
 
-// Where a gate's datum comes from: A automatic (facts and engine results), D declared on screen, Doc documentary
-// (reference, link, date and owner, with validity).
+// Origin of a gate's datum: A automatic, D declared on screen, Doc documentary (reference, link, date, owner, validity).
 export type ENSMaturityGateOrigin = 'A' | 'D' | 'Doc' | 'D+A' | 'Doc+D';
 
 export type ENSMaturityGateId =
@@ -54,7 +48,7 @@ export interface ENSProcedureAttestation extends ENSMaturityStamp {
   owner: string;
 }
 
-export type ENSMaturityReviewResult = 'CONFORME' | 'CON_DESVIACIONES' | 'NO_CONFORME';
+export type ENSMaturityReviewResult = 'CONFORME' | 'CON_DESVIACIONES' | 'NO_CONFORME' | 'DESVIACION_EN_TRATAMIENTO';
 
 export interface ENSMaturityReview extends ENSMaturityStamp {
   date: string;
@@ -70,8 +64,9 @@ export interface ENSMaturityAssessment extends ENSMaturityStamp {
   reviewer: string;
   date: string;
   justification?: string;
-  // Accredited level when it was recorded, computed by the server (absent if it could not be computed).
+  // Accredited level and gates when it was recorded, computed by the server (absent if it could not be computed).
   accredited?: ENSMaturityLevel;
+  accreditedGates?: Pick<ENSMaturityGate, 'id' | 'level' | 'passed' | 'reason'>[];
 }
 
 // Indicators of the control (L4): the score threshold watched and how often it is reviewed.
@@ -104,9 +99,15 @@ export interface ENSControlMaturityRecord {
   feedback: ENSMaturityFeedback[];
 }
 
-// `configuration.maturity`. Absent: nothing recorded yet.
-export interface ENSMaturityConfiguration {
+// The maturity document (`wazuh-ens-configuration/_doc/maturity`). Absent: nothing recorded yet.
+export interface ENSMaturityRecords {
   controls: Record<string, Partial<ENSControlMaturityRecord>>;
+}
+
+// Index version of the maturity document, sent back with each record (null: there is none yet).
+export interface ENSMaturityVersion {
+  seqNo: number;
+  primaryTerm: number;
 }
 
 // Default target per category, editable in General (`global.maturityTargets`).
@@ -125,8 +126,10 @@ export interface ENSControlMaturity {
   targetSource: 'CATEGORY' | 'ASSESSMENT';
   // Level the control is applied with (category or its dimensions): it picks the default target.
   applicableLevel: ENSLevel;
-  // Assessed above what the evidence accredits today: the report marks it with the justification.
+  // Assessed above the level the evidence accredited when it was recorded: marked with the justification.
   aboveAccredited: boolean;
+  // The evidence accredits less today than when it was assessed, and less than the assessed level: review it.
+  accreditedDropped: boolean;
   gates: ENSMaturityGate[];
   attestation?: ENSProcedureAttestation;
   attestations: number;
@@ -144,7 +147,7 @@ export type ENSControlMaturitySummary = Pick<
   'controlId' | 'measured' | 'applicable' | 'accredited' | 'target' | 'aboveAccredited'
 > & { assessed?: ENSMaturityLevel };
 
-// Controls per level; `none` counts those without that level (not measured, or not assessed).
+// Controls per level, plus `notMeasured` (accredited) and `notAssessed` (assessed).
 export interface ENSMaturityDistribution {
   accredited: Record<string, number>;
   assessed: Record<string, number>;

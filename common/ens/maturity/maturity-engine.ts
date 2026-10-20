@@ -1,15 +1,10 @@
-// The level the evidence accredits: the highest level whose gates, and those of every level below, all pass
-// (CMM levels are cumulative). Each gate says why it passes or fails. The traffic light is not an input: a red or a
-// grey never forces L0; only what was not collected limits what the evidence can accredit (L2 and above).
-// Pure: the server gives it the result, the days with facts, the snapshots and the records; the screens and the
-// tests call it the same way. Recurrence and continuity are asked of every machine that measures the control: one
-// that stopped reporting (agent down, collector without heartbeat) holds the control below L2.
+// Accredited level: the highest whose gates and those below all pass; red or grey never force L0 (pure, explained).
 import type { ENSControlDefinition } from '../catalog/types';
 import type { ENSGlobalConfiguration, ENSLevel } from '../configuration/types';
 import type { ENSComplianceResult } from '../core/evaluation/types';
 import { resolveControlLevel } from '../core/control-level';
 import { isUsableLink } from '../configuration/services/attestation-service';
-import { ENS_DEFAULT_REVIEW_PERIOD_DAYS, ENS_MATURITY_FEEDBACK_SOURCES } from './maturity-records';
+import { ENS_DEFAULT_REVIEW_PERIOD_DAYS, ENS_MATURITY_FEEDBACK_SOURCES, ownLabel } from './maturity-records';
 import type {
   ENSControlMaturity,
   ENSControlMaturityRecord,
@@ -20,26 +15,40 @@ import type {
   ENSMaturityGate,
   ENSMaturityLevel,
   ENSMaturityTargets,
+  ENSProcedureAttestation,
 } from './types';
 
-// Every collector runs at least daily (a control without a heartbeat for 24 h is judged without data), so the
-// period of a control is one day.
-export const ENS_MATURITY_PERIOD_DAYS = 1;
-// L2: facts in each of the last N whole days.
+// Facts read for L1-L3 (organisation-wide, independent of the screen window); shorter if the facts are kept less.
+export const ENS_MATURITY_PERIOD_DAYS = 30;
+// L2: facts in each of the last N whole days (every collector runs at least daily).
 export const ENS_MATURITY_RECURRENT_DAYS = 7;
-// L5: the trend is read over the last 180 days and needs at least 90 days and 10 snapshots.
+// L5: trend over the last 180 days, with at least 90 days and 10 snapshots.
 export const ENS_MATURITY_TREND_WINDOW_DAYS = 180;
 export const ENS_MATURITY_TREND_MIN_SPAN_DAYS = 90;
 export const ENS_MATURITY_TREND_MIN_POINTS = 10;
 
 const DAY_MS = 86400e3;
 
-export interface ENSMaturityActivity {
-  // Days (YYYY-MM-DD in `timeZone`) with at least one fact of the control in the window, on any machine.
+export interface ENSMaturityMachineActivity {
+  agentId: string;
+  agentName?: string;
   days: string[];
-  // The machines that measure the control and their days: recurrence and continuity are required of each one
-  // (a machine that stopped reporting is not hidden by the others). Absent: only `days` is read.
-  machines?: { agentId: string; agentName?: string; days: string[] }[];
+  // First day the machine sent any ENS fact in the period: days before it are not expected of it.
+  since?: string;
+}
+
+export interface ENSMaturityActivity {
+  // Days (YYYY-MM-DD) with at least one fact of the control in the period, on any machine.
+  days: string[];
+  // Each machine that measures the control: recurrence and continuity are asked of every one.
+  machines?: ENSMaturityMachineActivity[];
+}
+
+// The maturity's own period: `limited` when the facts kept start after the 30 days.
+export interface ENSMaturityPeriod {
+  from: string;
+  to: string;
+  limited?: boolean;
 }
 
 export type ENSMaturityResultInput = Pick<
@@ -56,14 +65,14 @@ export type ENSMaturityResultInput = Pick<
 >;
 
 export interface ENSMaturityInput {
-  control: Pick<ENSControlDefinition, 'id' | 'status' | 'levelDimension'>;
-  // The organisation's result (consolidated over the scope); undefined while it is computed.
+  control: Pick<ENSControlDefinition, 'id' | 'status' | 'levelDimension'> & Partial<Pick<ENSControlDefinition, 'requirements'>>;
+  // The organisation's result (consolidated over the scope); undefined for a control without one.
   result?: ENSMaturityResultInput;
   // The control is in the active configuration.
   configured: boolean;
   // undefined: it could not be read.
   activity?: ENSMaturityActivity;
-  window: { from: string; to: string };
+  period: ENSMaturityPeriod;
   timeZone: string;
   record: ENSControlMaturityRecord;
   targets: ENSMaturityTargets;
@@ -76,32 +85,36 @@ export interface ENSMaturityInput {
 
 // --- days -----------------------------------------------------------------------------------------------------
 
-// The zone that decides what a day is: the configuration's, or UTC if it is not an IANA zone.
-export const maturityTimeZone = (timeZone?: string): string => {
-  try {
-    if (timeZone) {
-      new Intl.DateTimeFormat('en-CA', { timeZone });
-      return timeZone;
+// One formatter per zone: building one per call costs ~40 µs and the series and the activity call it thousands of times.
+const formatters = new Map<string, Intl.DateTimeFormat | null>();
+
+const formatterOf = (timeZone?: string): Intl.DateTimeFormat | null => {
+  const zone = timeZone || 'UTC';
+  if (!formatters.has(zone)) {
+    try {
+      formatters.set(zone, new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }));
+    } catch {
+      formatters.set(zone, null);
     }
-  } catch {
-    // Not an IANA zone: UTC.
   }
-  return 'UTC';
+  return formatters.get(zone) || null;
 };
 
+// The zone that decides what a day is: the configuration's, or UTC if it is not an IANA zone.
+export const maturityTimeZone = (timeZone?: string): string => (timeZone && formatterOf(timeZone) ? timeZone : 'UTC');
+
 // The calendar day of an instant in a zone, YYYY-MM-DD.
-export const dayIn = (date: Date, timeZone?: string): string =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: maturityTimeZone(timeZone), year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+export const dayIn = (date: Date, timeZone?: string): string => (formatterOf(maturityTimeZone(timeZone)) as Intl.DateTimeFormat).format(date);
 
 export const addDays = (day: string, days: number): string => new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
 const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
-// Whole days of the window: those after the (partial) first day and before today.
-export const wholeWindowDays = (window: { from: string }, now: Date, timeZone?: string): string[] => {
+// Whole days of the period: those after its (partial) first day and before today.
+export const wholePeriodDays = (period: { from: string }, now: Date, timeZone?: string): string[] => {
   const today = dayIn(now, timeZone);
   const days: string[] = [];
-  for (let day = addDays(dayIn(new Date(window.from), timeZone), 1); day < today; day = addDays(day, 1)) days.push(day);
+  for (let day = addDays(dayIn(new Date(period.from), timeZone), 1); day < today; day = addDays(day, 1)) days.push(day);
   return days;
 };
 
@@ -119,26 +132,38 @@ const gate = (
   reason: string
 ): ENSMaturityGate => ({ id, level, origin, label, passed, reason });
 
-// A grey control (nothing could be measured) cannot accredit recurrence or continuity from the evidence.
-const greyReason = (result?: ENSMaturityResultInput): string | undefined =>
-  result?.status === 'NO_EVALUABLE' ? 'el control no se ha podido medir (gris)' : undefined;
+// Only a grey by collection (nothing arrived, or a stale collector) caps the control at L1; a grey by configuration does not.
+const greyByCollection = (result?: ENSMaturityResultInput): boolean =>
+  result?.status === 'NO_EVALUABLE' &&
+  (result.nonConformities || []).some(nonConformity => nonConformity.origin === 'NO_EVIDENCIADA' && nonConformity.cause === 'COLLECTION');
 
-// Each machine (or the whole set when none is given) with the days it lacks among `expected`.
-const missingByMachine = (activity: ENSMaturityActivity, expected: string[]): { name: string; missing: string[] }[] => {
-  const machines = activity.machines?.length ? activity.machines : [{ agentId: '', agentName: '', days: activity.days }];
+// Each machine (or the whole set) with the expected days it lacks; days before a machine's first fact are not expected.
+const missingByMachine = (activity: ENSMaturityActivity, expected: string[]): { name: string; since?: string; missing: string[]; expected: number }[] => {
+  const machines: ENSMaturityMachineActivity[] = activity.machines?.length ? activity.machines : [{ agentId: '', days: activity.days }];
   return machines
     .map(machine => {
       const days = new Set(machine.days);
-      return { name: machine.agentName || machine.agentId, missing: expected.filter(day => !days.has(day)) };
+      const own = machine.since ? expected.filter(day => day >= (machine.since as string)) : expected;
+      const startsLater = Boolean(machine.since && expected.length && machine.since > expected[0]);
+      return { name: machine.agentName || machine.agentId, since: startsLater ? machine.since : undefined, missing: own.filter(day => !days.has(day)), expected: own.length };
     })
     .filter(machine => machine.missing.length);
 };
 
-const describeMissing = (gaps: { name: string; missing: string[] }[], total: number): string =>
+const describeMissing = (gaps: { name: string; since?: string; missing: string[]; expected: number }[]): string =>
   gaps
     .slice(0, 3)
-    .map(gap => `${gap.name ? `${gap.name}: ` : ''}${gap.missing.length} de ${total} días sin hechos (${listDays(gap.missing)})`)
+    .map(gap => `${gap.name ? `${gap.name}: ` : ''}${gap.missing.length} de ${gap.expected} días sin hechos (${listDays(gap.missing)})${gap.since ? `, en el alcance desde el ${gap.since}` : ''}`)
     .join('; ') + (gaps.length > 3 ? `; y ${gaps.length - 3} máquinas más` : '');
+
+// Machines that entered the scope during the period, to say so in a passing reason.
+const describeLateMachines = (activity: ENSMaturityActivity, expected: string[]): string => {
+  const late = (activity.machines || []).filter(machine => machine.since && expected.length && machine.since > expected[0]);
+  return late.length ? `; ${late.map(machine => `${machine.agentName || machine.agentId} desde el ${machine.since}`).join(', ')}` : '';
+};
+
+const periodNote = (period: ENSMaturityPeriod, whole: string[]): string =>
+  period.limited ? ` (los hechos se conservan ${whole.length + 1} días, menos que los ${ENS_MATURITY_PERIOD_DAYS} del periodo)` : '';
 
 export const describeTrend = (
   snapshots: Pick<ENSControlSnapshot, 'date' | 'score'>[],
@@ -176,6 +201,12 @@ export const currentFeedback = (feedback: ENSMaturityFeedback[]): ENSMaturityFee
   return Array.from(byReference.values());
 };
 
+// The procedure in force: the latest approval (ties: the latest recorded), not the last one typed in.
+export const currentAttestation = (attestations: ENSProcedureAttestation[]): ENSProcedureAttestation | undefined =>
+  [...attestations]
+    .sort((a, b) => String(a.approvedAt).localeCompare(String(b.approvedAt)) || String(a.recordedAt).localeCompare(String(b.recordedAt)))
+    .pop();
+
 const feedbackGate = (record: ENSControlMaturityRecord, now: Date, timeZone: string): ENSMaturityGate => {
   const label = 'Realimentación cerrada con cambio de procedimiento';
   const today = dayIn(now, timeZone);
@@ -193,7 +224,7 @@ const feedbackGate = (record: ENSControlMaturityRecord, now: Date, timeZone: str
       'Doc+D',
       label,
       true,
-      `${proven.reference} (${ENS_MATURITY_FEEDBACK_SOURCES[proven.source] || proven.source}) cerrada el ${proven.closedAt} con el procedimiento versión ${proven.procedureVersion}.`
+      `${proven.reference} (${ownLabel(ENS_MATURITY_FEEDBACK_SOURCES, proven.source) || proven.source}) cerrada el ${proven.closedAt} con el procedimiento versión ${proven.procedureVersion}.`
     );
   }
   const withoutVersion = closed.filter(entry => !entry.procedureVersion);
@@ -222,12 +253,12 @@ const ATTESTATION_FIELDS: Record<string, string> = {
 
 const procedureGate = (record: ENSControlMaturityRecord, now: Date, timeZone: string): ENSMaturityGate => {
   const label = 'Procedimiento documentado y difundido';
-  const current = record.attestations[record.attestations.length - 1];
+  const current = currentAttestation(record.attestations);
   if (!current) return gate('L3.procedure', 3, 'Doc', label, false, 'Sin procedimiento registrado.');
   const today = dayIn(now, timeZone);
   const missing = Object.entries(ATTESTATION_FIELDS)
     .filter(([field]) => !String((current as any)[field] || '').trim())
-    .map(([, label]) => label);
+    .map(([, name]) => name);
   const name = `${current.reference} versión ${current.version}`;
   if (missing.length) return gate('L3.procedure', 3, 'Doc', label, false, `${name} incompleto: falta ${missing.join(', ')}.`);
   if (!isUsableLink(current.link)) return gate('L3.procedure', 3, 'Doc', label, false, `${name} sin enlace utilizable.`);
@@ -243,44 +274,68 @@ const procedureGate = (record: ENSControlMaturityRecord, now: Date, timeZone: st
   );
 };
 
+// L4 threshold: declared and, if the latest snapshot is below it, a review on or after the deviation began that treats it.
+const thresholdGate = (input: ENSMaturityInput, timeZone: string): ENSMaturityGate => {
+  const label = 'Umbral definido y vigilado';
+  const { record } = input;
+  const indicators = record.indicators[record.indicators.length - 1];
+  if (!indicators) return gate('L4.threshold', 4, 'D+A', label, false, 'Sin umbral declarado para el control.');
+  const today = dayIn(input.now, timeZone);
+  const scored = input.snapshots
+    .filter(snapshot => typeof snapshot.score === 'number' && snapshot.date < today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const latest = scored[scored.length - 1];
+  if (!latest || (latest.score as number) >= indicators.minScore) {
+    const current = latest ? `última instantánea ${latest.score} % (${latest.date})` : typeof input.result?.score === 'number' ? `sin instantáneas; puntuación actual ${input.result.score} %` : 'sin instantáneas ni puntuación';
+    return gate('L4.threshold', 4, 'D+A', label, true, `Umbral ${indicators.minScore} %; ${current}: dentro del umbral.`);
+  }
+  let start = scored.length - 1;
+  while (start > 0 && (scored[start - 1].score as number) < indicators.minScore) start -= 1;
+  const since = scored[start].date;
+  const deviation = `Desviación desde el ${since}: última instantánea ${latest.score} % por debajo del umbral ${indicators.minScore} %`;
+  const treated = record.reviews
+    .filter(review => review.date >= since && review.date <= today && (review.result === 'DESVIACION_EN_TRATAMIENTO' || Boolean(String(review.actions || '').trim())))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .pop();
+  return treated
+    ? gate('L4.threshold', 4, 'D+A', label, true, `${deviation}; tratada en la revisión del ${treated.date} de ${treated.reviewer}.`)
+    : gate('L4.threshold', 4, 'D+A', label, false, `${deviation}; ninguna revisión desde entonces la trata (acciones o «Desviación en tratamiento»).`);
+};
+
 export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[] => {
-  const { result, activity, record, now } = input;
+  const { result, activity, record, now, period } = input;
   const timeZone = maturityTimeZone(input.timeZone);
   const days = new Set(activity?.days || []);
-  const whole = wholeWindowDays(input.window, now, timeZone);
-  const gap = greyReason(result);
+  const whole = wholePeriodDays(period, now, timeZone);
+  const grey = greyByCollection(result);
+  const note = periodNote(period, whole);
   const gates: ENSMaturityGate[] = [];
 
   // L1: something of the control in the period.
+  const factsLabel = 'Hechos del control en el periodo';
   gates.push(
     !activity
-      ? gate('L1.facts', 1, 'A', 'Hechos del control en el periodo', false, 'No se pudo leer la actividad del control.')
+      ? gate('L1.facts', 1, 'A', factsLabel, false, 'No se pudo leer la actividad del control.')
       : days.size
-      ? gate('L1.facts', 1, 'A', 'Hechos del control en el periodo', true, `Hechos en ${days.size} días de la ventana; el último, el ${Array.from(days).sort().pop()}.`)
-      : gate('L1.facts', 1, 'A', 'Hechos del control en el periodo', false, 'Ningún hecho del control en la ventana de evaluación.')
+      ? gate('L1.facts', 1, 'A', factsLabel, true, `Hechos en ${days.size} días de los últimos ${ENS_MATURITY_PERIOD_DAYS}; el último, el ${Array.from(days).sort().pop()}${note}.`)
+      : gate('L1.facts', 1, 'A', factsLabel, false, `Ningún hecho del control en los últimos ${ENS_MATURITY_PERIOD_DAYS} días${note}.`)
   );
 
-  // L2: recurrent facts over the last days (daily period).
+  // L2: recurrent facts over the last days, on every machine.
   const recentDays = whole.slice(-ENS_MATURITY_RECURRENT_DAYS);
   const recentMissing = activity ? missingByMachine(activity, recentDays) : [];
   const recurrenceLabel = 'Hechos recurrentes sin huecos';
+  const several = activity?.machines && activity.machines.length > 1 ? ` en las ${activity.machines.length} máquinas` : '';
   gates.push(
     !activity
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'No se pudo leer la actividad del control.')
-      : gap
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `${capitalize(gap)}: lo que no se mide no acredita L2 ni superior.`)
+      : grey
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'El control está en gris por falta de recogida: lo que no se recoge no acredita L2 ni superior.')
       : recentDays.length < 2
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'La ventana de evaluación no tiene días completos suficientes (hacen falta 2 o más).')
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `No hay días completos suficientes (hacen falta 2 o más)${note}.`)
       : recentMissing.length
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `Últimos ${recentDays.length} días: ${describeMissing(recentMissing, recentDays.length)}.`)
-      : gate(
-          'L2.recurrence',
-          2,
-          'A',
-          recurrenceLabel,
-          true,
-          `Hechos todos los días de los últimos ${recentDays.length} días${activity.machines && activity.machines.length > 1 ? ` en las ${activity.machines.length} máquinas` : ''} (periodicidad diaria).`
-        )
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `Últimos ${recentDays.length} días: ${describeMissing(recentMissing)}.`)
+      : gate('L2.recurrence', 2, 'A', recurrenceLabel, true, `Hechos todos los días de los últimos ${recentDays.length} días${several} (periodicidad diaria)${describeLateMachines(activity, recentDays)}.`)
   );
 
   // L3: parameters, procedure and continuity.
@@ -312,14 +367,14 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
   gates.push(
     !activity
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'No se pudo leer la actividad del control.')
-      : gap
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${capitalize(gap)}.`)
+      : grey
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'El control está en gris por falta de recogida.')
       : !whole.length
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'La ventana de evaluación no tiene días completos.')
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `No hay días completos en el periodo${note}.`)
       : gapDays.length
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${describeMissing(gapDays, whole.length)}.`)
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${describeMissing(gapDays)}${note}.`)
       : !result || !result.applicableRequirements
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'Sin requisitos aplicables medidos.')
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'Sin requisitos aplicables medidos en la evaluación actual.')
       : result.measuredRequirements < result.applicableRequirements
       ? gate(
           'L3.continuity',
@@ -327,7 +382,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
           'A',
           continuityLabel,
           false,
-          `${result.measuredRequirements} de ${result.applicableRequirements} requisitos evidenciados${unmeasured.length ? `; sin evidencia: ${listDays(unmeasured)}` : ''}.`
+          `En la evaluación actual, ${result.measuredRequirements} de ${result.applicableRequirements} requisitos evidenciados${unmeasured.length ? `; sin evidencia: ${listDays(unmeasured)}` : ''}.`
         )
       : gate(
           'L3.continuity',
@@ -335,40 +390,27 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
           'A',
           continuityLabel,
           true,
-          `Hechos los ${whole.length} días de la ventana${activity.machines && activity.machines.length > 1 ? ` en las ${activity.machines.length} máquinas` : ''} y los ${result.applicableRequirements} requisitos aplicables evidenciados.`
+          `Hechos los ${whole.length} días completos del periodo${several}${describeLateMachines(activity, whole)}${note} y los ${result.applicableRequirements} requisitos aplicables evidenciados en la evaluación actual.`
         )
   );
 
-  // L4: indicator threshold and periodic reviews.
+  // L4: threshold watched and periodic reviews.
+  gates.push(thresholdGate(input, timeZone));
   const indicators = record.indicators[record.indicators.length - 1];
-  const score = result?.score;
-  gates.push(
-    !indicators
-      ? gate('L4.threshold', 4, 'D+A', 'Umbral definido y vigilado', false, 'Sin umbral declarado para el control.')
-      : gate(
-          'L4.threshold',
-          4,
-          'D+A',
-          'Umbral definido y vigilado',
-          true,
-          `Umbral ${indicators.minScore} %; puntuación actual ${typeof score === 'number' ? `${score} %` : 'sin puntuación'}${
-            typeof score === 'number' ? (score >= indicators.minScore ? ' (dentro del umbral)' : ' (desviación: por debajo del umbral)') : ''
-          }.`
-        )
-  );
-  const period = indicators?.reviewPeriodDays || ENS_DEFAULT_REVIEW_PERIOD_DAYS;
+  const reviewPeriod = indicators?.reviewPeriodDays || ENS_DEFAULT_REVIEW_PERIOD_DAYS;
   const today = dayIn(now, timeZone);
   const lastReview = record.reviews
     .filter(review => review.date <= today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .pop();
   const reviewAge = lastReview ? daysBetween(lastReview.date, today) : undefined;
+  const reviewsLabel = 'Revisiones periódicas registradas';
   gates.push(
     !lastReview
-      ? gate('L4.reviews', 4, 'D+A', 'Revisiones periódicas registradas', false, `Sin revisiones registradas (periodicidad ${period} días).`)
-      : (reviewAge as number) > period
-      ? gate('L4.reviews', 4, 'D+A', 'Revisiones periódicas registradas', false, `Última revisión el ${lastReview.date} (hace ${reviewAge} días): fuera de la periodicidad de ${period} días.`)
-      : gate('L4.reviews', 4, 'D+A', 'Revisiones periódicas registradas', true, `Última revisión el ${lastReview.date} por ${lastReview.reviewer} (hace ${reviewAge} días; periodicidad ${period} días).`)
+      ? gate('L4.reviews', 4, 'D+A', reviewsLabel, false, `Sin revisiones registradas (periodicidad ${reviewPeriod} días).`)
+      : (reviewAge as number) > reviewPeriod
+      ? gate('L4.reviews', 4, 'D+A', reviewsLabel, false, `Última revisión el ${lastReview.date} (hace ${reviewAge} días): fuera de la periodicidad de ${reviewPeriod} días.`)
+      : gate('L4.reviews', 4, 'D+A', reviewsLabel, true, `Última revisión el ${lastReview.date} por ${lastReview.reviewer} (hace ${reviewAge} días; periodicidad ${reviewPeriod} días).`)
   );
 
   // L5: improving trend over the persisted snapshots and feedback.
@@ -378,8 +420,6 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
 
   return gates;
 };
-
-const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
 // Highest level whose gates, and those of the levels below, all pass.
 export const accreditedLevelOf = (gates: ENSMaturityGate[]): ENSMaturityLevel => {
@@ -392,16 +432,24 @@ export const accreditedLevelOf = (gates: ENSMaturityGate[]): ENSMaturityLevel =>
   return level;
 };
 
+// A control in draft is applicable only if one of its requirements applies at the level it is applied with.
+const draftApplies = (input: ENSMaturityInput, applicableLevel: ENSLevel): boolean =>
+  !input.control.requirements || input.control.requirements.some(requirement => (requirement.applicability?.levels || []).includes(applicableLevel));
+
 export const computeControlMaturity = (input: ENSMaturityInput): ENSControlMaturity => {
   const { control, record } = input;
   const applicableLevel = resolveControlLevel(control, input.ensLevel, input.global);
   const assessed = record.assessments[record.assessments.length - 1];
   const target = assessed?.target !== undefined ? assessed.target : input.targets[applicableLevel];
   const measured = control.status === 'ACTIVE';
-  const applicable = !measured || !input.result || input.result.status !== 'NO_APLICA';
+  const applicable = measured ? !input.result || input.result.status !== 'NO_APLICA' : draftApplies(input, applicableLevel);
   const gates = measured && applicable ? computeMaturityGates(input) : [];
   const accredited = measured && applicable ? accreditedLevelOf(gates) : undefined;
   const reviews = [...record.reviews].sort((a, b) => a.date.localeCompare(b.date));
+  // Judged against the level stored when it was recorded; unknown then, any level above L0 needed a justification.
+  const aboveAccredited = Boolean(assessed) && assessed!.level > (assessed!.accredited ?? 0);
+  const accreditedDropped =
+    Boolean(assessed) && accredited !== undefined && assessed!.accredited !== undefined && accredited < assessed!.accredited && assessed!.level > accredited;
 
   return {
     controlId: control.id,
@@ -412,9 +460,10 @@ export const computeControlMaturity = (input: ENSMaturityInput): ENSControlMatur
     target,
     targetSource: assessed?.target !== undefined ? 'ASSESSMENT' : 'CATEGORY',
     applicableLevel,
-    aboveAccredited: Boolean(assessed) && assessed!.level > (accredited ?? 0),
+    aboveAccredited,
+    accreditedDropped,
     gates,
-    attestation: record.attestations[record.attestations.length - 1],
+    attestation: currentAttestation(record.attestations),
     attestations: record.attestations.length,
     lastReview: reviews[reviews.length - 1],
     reviews: record.reviews.length,
@@ -435,12 +484,12 @@ export const summarizeControlMaturity = (maturity: ENSControlMaturity): ENSContr
   aboveAccredited: maturity.aboveAccredited,
 });
 
-// How many controls are at each level: accredited (or «sin medición») and assessed (or «sin valorar»).
+// How many applicable controls are at each level, accredited and assessed, and how many are below their target.
 export const summarizeMaturityDistribution = (list: ENSControlMaturitySummary[]): ENSMaturityDistribution => {
   const empty = () => ({ L0: 0, L1: 0, L2: 0, L3: 0, L4: 0, L5: 0 } as Record<string, number>);
   const distribution: ENSMaturityDistribution = {
-    accredited: { ...empty(), sinMedicion: 0 },
-    assessed: { ...empty(), sinValorar: 0 },
+    accredited: { ...empty(), notMeasured: 0 },
+    assessed: { ...empty(), notAssessed: 0 },
     belowTarget: 0,
     applicable: 0,
   };
@@ -448,9 +497,9 @@ export const summarizeMaturityDistribution = (list: ENSControlMaturitySummary[])
     .filter(entry => entry.applicable)
     .forEach(entry => {
       distribution.applicable += 1;
-      if (entry.accredited === undefined) distribution.accredited.sinMedicion += 1;
+      if (entry.accredited === undefined) distribution.accredited.notMeasured += 1;
       else distribution.accredited[`L${entry.accredited}`] += 1;
-      if (entry.assessed === undefined) distribution.assessed.sinValorar += 1;
+      if (entry.assessed === undefined) distribution.assessed.notAssessed += 1;
       else distribution.assessed[`L${entry.assessed}`] += 1;
       const level = entry.assessed ?? entry.accredited;
       if (level !== undefined && level < entry.target) distribution.belowTarget += 1;
@@ -464,4 +513,21 @@ export const describeMaturityHeadline = (maturity: Pick<ENSControlMaturity, 'mea
   const assessed = maturity.assessed ? `L${maturity.assessed.level}` : 'sin valorar';
   const accredited = maturity.measured ? `acreditado L${maturity.accredited ?? 0}` : 'sin medición todavía';
   return `Madurez: ${assessed} (${accredited}, objetivo L${maturity.target})`;
+};
+
+// The assessment lines of the panel and the report: who and when, always; then the mark against the level stored then.
+export const describeAssessment = (maturity: ENSControlMaturity): { line?: string; mark?: string; dropped?: string } => {
+  const assessed = maturity.assessed;
+  if (!assessed) return {};
+  const target = assessed.target !== undefined ? `, objetivo L${assessed.target}` : '';
+  const line = `Valorado L${assessed.level}${target} por ${assessed.reviewer} el ${assessed.date}${assessed.justification ? `. Justificación: ${assessed.justification}` : ''}.`;
+  const mark = maturity.aboveAccredited
+    ? assessed.accredited === undefined
+      ? `Valorado sin nivel acreditado calculado al registrarlo (L${assessed.level}).`
+      : `Valorado por encima de lo acreditado al registrarlo (L${assessed.level} frente a L${assessed.accredited}).`
+    : undefined;
+  const dropped = maturity.accreditedDropped
+    ? `La evidencia acreditaba L${assessed.accredited} al valorarlo (${assessed.date}); hoy acredita L${maturity.accredited}: revisar la valoración.`
+    : undefined;
+  return { line, mark, dropped };
 };

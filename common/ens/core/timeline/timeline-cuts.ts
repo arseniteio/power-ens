@@ -73,17 +73,29 @@ const localCalendar: ENSTimelineCalendar = {
   label: labelOf,
 };
 
+// One formatter per zone: a summary request called this tens of thousands of times, each building a new one.
+const zonedFormatters = new Map<string, Intl.DateTimeFormat>();
+
+const zonedFormatter = (timeZone: string): Intl.DateTimeFormat => {
+  let formatter = zonedFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    zonedFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+};
+
 const zonedParts = (date: Date, timeZone: string) => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(date);
+  const parts = zonedFormatter(timeZone).formatToParts(date);
   const value = (type: string) => Number(parts.find(p => p.type === type)?.value);
 
   return {
