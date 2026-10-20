@@ -147,7 +147,8 @@ const toRow = (
       nonConformity =>
         nonConformity.requirementId === requirementId &&
         nonConformity.origin === 'MEDIDA' &&
-        (nonConformity.evidenceIds?.length ? nonConformity.evidenceIds : [nonConformity.evidenceId]).some(id => listening.includes(id))
+        // `evidenceIds` lists the evidences that failed; `evidenceId` is only the card's anchor and proves nothing.
+        (nonConformity.evidenceIds || []).some(id => listening.includes(id))
     );
     if (!requirementId || !judged) return undefined;
     severity = 'error';

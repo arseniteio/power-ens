@@ -144,6 +144,9 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const multi = model.rows.filter((row: any) => row.eventType === 'multi_role_usage');
   check('multi_role_usage: an INCIDENCIA where the engine holds a measured EV-06 non-conformity (024), whatever the agent says; nothing on 028 (EV-03 measured, EV-06 unevidenced)',
     multi.length === 1 && multi[0].agentId === '024' && multi[0].severity === 'error' && /jgomez/.test(multi[0].description), multi);
+  const anchorOnly = [applicable('op.acc.1', [requirement('op.acc.1.2', 'NO_CUMPLE')], [{ ...nc('op.acc.1.2', 'MEDIDA', 'EV-06'), evidenceIds: [] }])];
+  const anchorModel = alerts.buildImpactEventsModel(events, buildComplianceState(anchorOnly, [agentRow('024', 'wazuh-real', anchorOnly)]), { scope });
+  check('multi_role_usage: EV-06 only as the non-conformity\'s anchor (not among its failing evidences) is not enough', !anchorModel.rows.some((row: any) => row.eventType === 'multi_role_usage'), anchorModel.rows.map((r: any) => r.id));
   check('the engine\'s alert goes first', model.rows[0].eventType === 'multi_role_usage', model.rows.map((r: any) => r.id));
   const security = model.rows.filter((row: any) => row.eventType === 'security_alert_observed');
   const on024 = security.find((row: any) => row.agentId === '024');
