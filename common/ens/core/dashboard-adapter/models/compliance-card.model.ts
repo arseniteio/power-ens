@@ -12,7 +12,7 @@ export interface ComplianceCardModel {
   noEvaluable: number;
   noAplica: number;
   // Controls in the catalog without collector (`DRAFT`): neither measured nor «no aplica» by level.
-  sinMedicion: number;
+  notMeasured: number;
   lastEvaluation: string;
   description: string;
 }

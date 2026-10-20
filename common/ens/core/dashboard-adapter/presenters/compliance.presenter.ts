@@ -17,7 +17,7 @@ export const buildComplianceCardModel = (
     noCumple: complianceState.controlSummary.noCumple || 0,
     noEvaluable: complianceState.controlSummary.noEvaluable || 0,
     noAplica: Math.max(0, (complianceState.controlSummary.noAplica || 0) - pending),
-    sinMedicion: pending,
+    notMeasured: pending,
     lastEvaluation: complianceState.evaluatedAt,
     description: 'Cumplimiento global basado en controles ENS evaluados.',
   };

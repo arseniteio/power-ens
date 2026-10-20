@@ -5,8 +5,8 @@ export interface RequirementsSummaryModel {
   noCumple: number;
   noAplica: number;
   // Requirements of the controls without collector, apart from those that do not apply at the level.
-  sinMedicion: number;
-  sinMedicionPercent: number;
+  notMeasured: number;
+  notMeasuredPercent: number;
   noEvaluable: number;
   score: number;
   cumplePercent: number;

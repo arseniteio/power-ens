@@ -478,10 +478,10 @@ section('6c. A control without collector accuses nobody, not even of missing par
 
     check(
       `${level} · dashboard: the eleven are «Sin medición todavía», apart from «No aplicables»`,
-      dashboard.compliance.sinMedicion === 11 &&
+      dashboard.compliance.notMeasured === 11 &&
         dashboard.compliance.noAplica === state.controlSummary.noAplica - 11 &&
-        dashboard.requirementsSummary.sinMedicion === ofPlanned.reduce((n, result) => n + result.requirements.length, 0),
-      [dashboard.compliance.sinMedicion, dashboard.compliance.noAplica, dashboard.requirementsSummary.sinMedicion]
+        dashboard.requirementsSummary.notMeasured === ofPlanned.reduce((n, result) => n + result.requirements.length, 0),
+      [dashboard.compliance.notMeasured, dashboard.compliance.noAplica, dashboard.requirementsSummary.notMeasured]
     );
   }
 
