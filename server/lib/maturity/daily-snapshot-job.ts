@@ -167,6 +167,8 @@ export const createDailySnapshotJob = ({
     },
     stop: () => {
       stopped = true;
+      // The pending retry is cancelled with its timer: a later start() can schedule a new one.
+      retryScheduled = false;
       handles.forEach(handle => timers.clear(handle));
       handles.clear();
     },
