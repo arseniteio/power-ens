@@ -196,14 +196,19 @@ export const MaturityPanel = ({
   controlId,
   maturity,
   version,
+  pending,
   error,
   onRecorded,
+  onRetry,
 }: {
   controlId: string;
   maturity?: ENSControlMaturity;
   version?: ENSMaturityVersion | null;
+  // The maturity shown is being recomputed (a record, new facts): nothing is recorded over it until it arrives.
+  pending?: boolean;
   error?: string;
   onRecorded: () => void;
+  onRetry?: () => void;
 }) => {
   const [form, setForm] = useState<ENSMaturityRecordKind | undefined>(undefined);
   const assessment = maturity ? describeAssessment(maturity) : {};
@@ -234,7 +239,23 @@ export const MaturityPanel = ({
       <EuiSpacer size='s' />
 
       {error && (
-        <EuiCallOut color='warning' iconType='alert' size='s' title={error} />
+        <>
+          <EuiCallOut color='warning' iconType='alert' size='s' title={error}>
+            {onRetry && (
+              <EuiButton size='s' iconType='refresh' onClick={onRetry}>
+                Reintentar
+              </EuiButton>
+            )}
+          </EuiCallOut>
+          <EuiSpacer size='s' />
+        </>
+      )}
+
+      {pending && maturity && (
+        <>
+          <EuiCallOut color='primary' iconType='clock' size='s' title='Actualizando la madurez…' />
+          <EuiSpacer size='s' />
+        </>
       )}
 
       {maturity && !maturity.applicable && (

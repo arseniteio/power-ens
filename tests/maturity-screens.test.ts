@@ -156,6 +156,18 @@ http.setENSConfigurationHttp(() => ({
   p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('DRAFT: «Sin medición todavía», and «Valorar» still there', /sin medición todavía/.test(p) && /Sin medición todavía/.test(p) && Boolean(h.find('EuiButton', /^Valorar$/)));
 
+  h.reset();
+  evaluations.control = { data: { meta: { ...meta, maturityPending: true }, result: result(), maturity, agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
+  check('pending after a record: the old maturity with «Actualizando la madurez…» and «Valorar» disabled (no version)', /Actualizando la madurez…/.test(p) && h.find('EuiButton', /^Valorar$/)?.props.isDisabled === true);
+  h.reset();
+  const retriesBefore = retries;
+  evaluations.control = { data: { meta, result: result(), maturityError: 'No se ha podido calcular la madurez.', agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };
+  p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
+  check('retries spent: «No se ha podido calcular la madurez» and «Madurez: no disponible»', /No se ha podido calcular la madurez/.test(p) && /Madurez: no disponible/.test(p));
+  await h.click(/^Reintentar$/);
+  check('...with «Reintentar», which asks again', retries === retriesBefore + 1);
+
   console.log('4. Overview and panel: per control and the distribution');
   h.reset();
   const list = { controls: [engine.summarizeControlMaturity(maturity), engine.summarizeControlMaturity(above)].map((entry: any, i: number) => ({ ...entry, controlId: i ? 'op.acc.2' : 'op.acc.1' })) };

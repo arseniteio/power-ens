@@ -1285,8 +1285,10 @@ export const ControlDetailENS = ({
           controlId={control.id}
           maturity={data?.maturity}
           version={data?.maturityVersion}
+          pending={Boolean(data?.meta?.maturityPending)}
           error={data?.maturityError}
           onRecorded={evaluation.retry}
+          onRetry={evaluation.retry}
         />
 
         <EuiSpacer size='l' />
