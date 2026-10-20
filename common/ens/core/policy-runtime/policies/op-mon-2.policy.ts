@@ -894,6 +894,8 @@ interface Incident {
   datosPersonales: 'si' | 'no' | '-';
   aepd: boolean;
   ccnCert?: number;
+  // When the incident started (optional column fecha_ocurrencia): the base of the detection time.
+  ocurrencia?: number;
 }
 
 const READS_INCIDENTS = (context: ENSPolicyContext, now: number): LogRow | Measurement =>
@@ -948,6 +950,13 @@ const incidentsOf = (reg: LogRow): Incident[] => {
 
     if (ccn !== undefined) {
       actual.ccnCert = Math.min(actual.ccnCert ?? ccn, ccn);
+    }
+
+    // Registers without the column (13 columns) send no field: the incident has no occurrence date.
+    const occurred = isEmptyField(factField(e, 'fecha_ocurrencia')) ? undefined : parseInstant(factField(e, 'fecha_ocurrencia'));
+
+    if (occurred !== undefined) {
+      actual.ocurrencia = Math.min(actual.ocurrencia ?? occurred, occurred);
     }
 
     byId.set(id, actual);
@@ -1324,6 +1333,60 @@ const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: nu
 };
 
 
+// Art. 32 report: the incidents of the register as JSON (the report window is applied by the report), or why not.
+const art32Incidents = (context: ENSPolicyContext, now: number): string => {
+  const reg = READS_INCIDENTS(context, now);
+
+  if (isMeasurement(reg)) {
+    return JSON.stringify({ motivo: reg.motivo, incidentes: [] });
+  }
+
+  const at = (t?: number): string | undefined => (t === undefined ? undefined : iso(t));
+
+  return JSON.stringify({
+    leido: iso(reg.t),
+    descartadas: reg.descartadas,
+    incidentes: incidentsOf(reg).map(i => ({
+      id: i.id,
+      severidad: i.severidad || undefined,
+      clasificacion: i.clasificacion,
+      apertura: at(i.apertura),
+      primera: iso(i.primera),
+      contencion: at(i.contencion),
+      cierre: at(i.cierre),
+      ocurrencia: at(i.ocurrencia),
+      ccnCert: at(i.ccnCert),
+      aepd: i.aepd,
+      datosPersonales: i.datosPersonales,
+    })),
+  });
+};
+
+// Art. 32 report: the cycles of the register as JSON, oldest first, or why not.
+const art32Cycles = (context: ENSPolicyContext, now: number): string => {
+  const reg = READS_CYCLES(context, now, 'EV-02');
+
+  if (isMeasurement(reg)) {
+    return JSON.stringify({ motivo: reg.motivo, ciclos: [] });
+  }
+
+  return JSON.stringify({
+    leido: iso(reg.t),
+    ciclos: cyclesOf(reg).ciclos.map(c => ({
+      periodo: c.periodo,
+      fecha: iso(c.fecha),
+      implantacion: c.implantacion,
+      horasInternas: c.horasInternas,
+      horasExternas: c.horasExternas,
+      presupuesto: c.presupuesto,
+      validadoPor: isEmptyField(c.validadoPor) ? undefined : c.validadoPor,
+      referencia: isEmptyField(c.referencia) ? undefined : c.referencia,
+      linea: c.linea,
+    })),
+  });
+};
+
+
 interface Technician {
   requisito: string;
   evidencias: string[];
@@ -1466,6 +1529,22 @@ const evaluate = (context: ENSPolicyContext): ENSPolicyEvaluatorResult => {
       evidenceIds: ['EV-03'],
       eventIds: [],
       description: 'Indicadores de la gestión de incidentes de los últimos 365 días, para el informe anual del art. 32.',
+    },
+    {
+      name: 'informe_art32_incidentes',
+      value: art32Incidents(context, now),
+      parameterIds: [],
+      evidenceIds: ['EV-03'],
+      eventIds: [],
+      description: 'Incidentes del registro de op.exp.7 agrupados por fases (JSON), para el informe anual del art. 32.',
+    },
+    {
+      name: 'informe_art32_ciclos',
+      value: art32Cycles(context, now),
+      parameterIds: ['P-04', 'P-05'],
+      evidenceIds: ['EV-02', 'EV-06'],
+      eventIds: [],
+      description: 'Ciclos del registro de ciclos de métricas (JSON), para el informe anual del art. 32.',
     },
   ];
 
