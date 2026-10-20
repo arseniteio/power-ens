@@ -1865,8 +1865,17 @@ export const createEvaluationService = ({
     return !w.rows && !w.series && !w.reads && !w.engine;
   };
 
+  // The active configuration and the maturity document's version, without reading facts (a frozen report needs no more).
+  const settings = async (clients: ENSEvaluationClients) => {
+    const stamps = await readConfigurationStamps(clients.asInternalUser);
+    const { configuration } = await loadConfiguration(clients, stamps.configuration || 'default');
+    const maturity = await loadMaturityRecords(clients, stamps.maturity);
+    return { configuration, maturityVersion: maturity.version };
+  };
+
   return {
     loadContext,
+    settings,
     run,
     viewFingerprint,
     rows,

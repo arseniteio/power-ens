@@ -102,8 +102,10 @@ export const consolidated = (row: ENSComplianceResult): ENSComplianceResult => (
   },
 });
 
-export const configuration = (global: Record<string, unknown> = {}) => {
+export const configuration = (global: Record<string, unknown> = {}, closing = '03-31') => {
   const value = clone(defaultENSConfigurationTemplate);
+  // op.mon.2 P-02 with its annual closing: the server reads it from the configuration for frozen reports.
+  value.controls.find((control: any) => control.controlId === 'op.mon.2').parameters.find((p: any) => p.id === 'P-02').value = [`trimestral | 15 | ${closing}`];
   Object.assign(value.global, {
     clientName: 'Ayuntamiento de Ejemplo',
     organization: 'Servicio de Informática',

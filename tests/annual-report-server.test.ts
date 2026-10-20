@@ -86,7 +86,15 @@ const runFor = () => {
   };
 };
 const maturityMap = () => new Map([['op.acc.1', { ...opAcc1Maturity }], ['mp.eq.2', mpEq2Maturity]]);
-const evaluation: any = { run: async () => runFor() };
+const evaluations = { runs: 0, fail: false };
+const evaluation: any = {
+  run: async () => {
+    evaluations.runs += 1;
+    if (evaluations.fail) throw Object.assign(new Error('indexer timeout'), { statusCode: 504 });
+    return runFor();
+  },
+  settings: async () => ({ configuration: configuration(), maturityVersion: { seqNo: 7, primaryTerm: 1 } }),
+};
 const maturity: any = { forReport: async () => maturityMap() };
 const warnings: string[] = [];
 const logger: any = { info() {}, warn(message: string) { warnings.push(message); }, debug() {}, error() {} };
@@ -167,6 +175,12 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
   check('period 2026 comes frozen, revision 1', read2026.status === 200 && read2026.body.data.frozen?.revision === 1);
   check('its data set is exactly the stored one although records changed since', JSON.stringify(read2026.body.data.report) === JSON.stringify(first.report));
   check('the frozen periods are listed', read2026.body.data.periods.map((p: any) => p.period).join() === '2026');
+  const runsBefore = evaluations.runs;
+  evaluations.fail = true;
+  const frozenWhileDown = await get(READER, { period: '2026' });
+  check('a frozen report is served without any evaluation, even with the indexer failing it', frozenWhileDown.status === 200 && frozenWhileDown.body.data.frozen?.revision === 1 && evaluations.runs === runsBefore && frozenWhileDown.body.data.maturityVersion?.seqNo === 7, frozenWhileDown);
+  check('the open period still needs the evaluation (and says why it failed)', (await get(READER)).status === 500 && evaluations.runs === runsBefore + 1);
+  evaluations.fail = false;
   const noPermission = await get(READER, { period: '2026' }, true);
   check('without read permission on the snapshots: computed now, and it says why', noPermission.status === 200 && !noPermission.body.data.frozen && /wazuh-ens-snapshots/.test(noPermission.body.data.freezeError));
 

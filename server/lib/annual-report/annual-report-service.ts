@@ -3,7 +3,8 @@
 import type { Logger } from '../../../../../src/core/server';
 import { ENSFACIL_PLUGIN_VERSION } from '../../../common/constants';
 import { annualPeriodBounds, annualPeriodOfDay, isAnnualPeriod, lastClosedAnnualPeriod } from '../../../common/ens/annual-report/annual-period';
-import { annualClosingOf, buildAnnualReport } from '../../../common/ens/annual-report/annual-report';
+import { annualClosingOf, annualClosingOfConfiguration, buildAnnualReport } from '../../../common/ens/annual-report/annual-report';
+import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import type { ENSAnnualFreeze, ENSAnnualFreezeEntry, ENSAnnualReport, ENSAnnualReportResponse } from '../../../common/ens/annual-report/annual-report-types';
 import { ENS_ANNUAL_REPORT_CONTROL } from '../../../common/ens/annual-report/declared-measures';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
@@ -48,13 +49,20 @@ const resultsOf = (run: RunOutput): ENSComplianceResult[] =>
 const managerRowsOf = (run: RunOutput): Partial<Record<string, ENSComplianceResult>> =>
   Object.fromEntries(ROW_CONTROLS.map(id => [id, run.views.get(id)?.rows.find(row => row.agentId === MANAGER)?.result]));
 
-const calendarOf = (run: RunOutput) => {
-  const timeZone = configuredTimeZone(run.ctx.configuration.global.timezone);
-  const opMon2 = managerRowsOf(run)[ENS_ANNUAL_REPORT_CONTROL] || run.views.get(ENS_ANNUAL_REPORT_CONTROL)?.result;
-  const { closing } = annualClosingOf(opMon2);
-  const today = dayIn(run.ctx.now, timeZone);
+const calendarFor = (timeZone: string, closing: string, now: Date) => {
+  const today = dayIn(now, timeZone);
   return { timeZone, closing, today, current: annualPeriodOfDay(today, closing), lastClosed: lastClosedAnnualPeriod(today, closing) };
 };
+
+// The calendar of an evaluation: its op.mon.2 row decides the closing.
+const calendarOf = (run: RunOutput) => {
+  const opMon2 = managerRowsOf(run)[ENS_ANNUAL_REPORT_CONTROL] || run.views.get(ENS_ANNUAL_REPORT_CONTROL)?.result;
+  return calendarFor(configuredTimeZone(run.ctx.configuration.global.timezone), annualClosingOf(opMon2).closing, run.ctx.now);
+};
+
+// The same calendar from the configuration alone (reading a frozen report evaluates nothing).
+const calendarOfConfiguration = (configuration: ENSConfigurationVersion, now: Date) =>
+  calendarFor(configuredTimeZone(configuration.global.timezone), annualClosingOfConfiguration(configuration).closing, now);
 
 export const createAnnualReportService = ({
   logger,
@@ -83,12 +91,12 @@ export const createAnnualReportService = ({
 
   const organisationRun = (clients: ENSEvaluationClients) => evaluation.run(clients, normalizeQuery({ include: 'results' }), { allowStale: true });
 
-  // A period's data set as the user sees it: the frozen one if there is, else computed now.
+  // A period's data set: the frozen one as stored (no evaluation at all), else computed now.
   const read = async (clients: ENSEvaluationClients, query: { period?: string; revision?: number }): Promise<ENSAnnualReportResponse> => {
     if (query.period !== undefined && !isAnnualPeriod(query.period)) throw new ENSBadRequestError('«period» es un año (AAAA).');
     if (query.revision !== undefined && !(Number.isInteger(query.revision) && query.revision >= 1)) throw new ENSBadRequestError('«revision» es un número de 1 en adelante.');
-    const run = await organisationRun(clients);
-    const calendar = calendarOf(run);
+    const settings = await evaluation.settings(clients);
+    const calendar = calendarOfConfiguration(settings.configuration, clock());
     const period = query.period || calendar.current;
     if (period > calendar.current) throw new ENSBadRequestError(`El periodo ${period} todavía no ha empezado.`);
     const bounds = annualPeriodBounds(period, calendar.closing);
@@ -99,7 +107,7 @@ export const createAnnualReportService = ({
       closing: calendar.closing,
       periodFrom: bounds.from,
       periodTo: bounds.to,
-      maturityVersion: run.ctx.maturityVersion || null,
+      maturityVersion: settings.maturityVersion || null,
     };
     let periods: ENSAnnualReportResponse['periods'] = [];
     let freezeError: string | undefined;
@@ -129,9 +137,10 @@ export const createAnnualReportService = ({
         report: freeze.report,
       };
     }
+    const run = await organisationRun(clients);
     if (run.meta.pending) return { ...base, periods, pending: true, ...(freezeError ? { freezeError } : {}) };
     const controls = await maturity.forReport(clients, run);
-    return { ...base, periods, report: build(run, controls, period), ...(freezeError ? { freezeError } : {}) };
+    return { ...base, maturityVersion: run.ctx.maturityVersion || null, periods, report: build(run, controls, period), ...(freezeError ? { freezeError } : {}) };
   };
 
   const entryFor = (by: string, revision: number, reason?: string): ENSAnnualFreezeEntry => ({

@@ -1,5 +1,6 @@
 // Builds the art. 32 data set from the organisation results, the maturity, the declared entries and the registers.
 import { ENSCatalog } from '../catalog';
+import { resolveControlConfigurationForAgent } from '../configuration/agents/configuration-resolver';
 import { toParameterTableRows, toTableRowCells } from '../configuration/services/parameter-value-validator';
 import type { ENSConfigurationVersion, ENSLevel } from '../configuration/types';
 import {
@@ -94,8 +95,11 @@ const readJsonVariable = (result: ENSComplianceResult | undefined, name: string)
 };
 
 // Rows of a table parameter as the engine applied it.
-const parameterRows = (result: ENSComplianceResult | undefined, id: string, columns: string[]): Record<string, string>[] => {
-  const value = (result?.parameters || []).find(parameter => parameter.id === id)?.value;
+const parameterRows = (result: ENSComplianceResult | undefined, id: string, columns: string[]): Record<string, string>[] =>
+  rowsOf(result?.parameters, id, columns);
+
+const rowsOf = (parameters: { id: string; value?: unknown }[] | undefined, id: string, columns: string[]): Record<string, string>[] => {
+  const value = (parameters || []).find(parameter => parameter.id === id)?.value;
   if (value === undefined || value === null) return [];
   return toParameterTableRows(value as Parameters<typeof toParameterTableRows>[0])
     .map(row => toTableRowCells(row))
@@ -103,11 +107,19 @@ const parameterRows = (result: ENSComplianceResult | undefined, id: string, colu
     .map(cells => Object.fromEntries(columns.map((column, i) => [column, (cells[i] || '').trim()])));
 };
 
-// Closing day of the report: op.mon.2 P-02 `cierre_anual`, else 12-31.
-export const annualClosingOf = (opMon2?: ENSComplianceResult): { closing: string; declared: boolean } => {
-  const declared = parameterRows(opMon2, 'P-02', ['periodicidad', 'margen_dias', 'cierre_anual'])[0]?.cierre_anual;
+const closingOfRows = (rows: Record<string, string>[]): { closing: string; declared: boolean } => {
+  const declared = rows[0]?.cierre_anual;
   return isAnnualClosing(declared) ? { closing: declared, declared: true } : { closing: ENS_DEFAULT_ANNUAL_CLOSING, declared: false };
 };
+
+const P02_COLUMNS = ['periodicidad', 'margen_dias', 'cierre_anual'];
+
+// Closing day of the report: op.mon.2 P-02 `cierre_anual` as the engine applied it, else 12-31.
+export const annualClosingOf = (opMon2?: ENSComplianceResult): { closing: string; declared: boolean } => closingOfRows(parameterRows(opMon2, 'P-02', P02_COLUMNS));
+
+// The same closing read from the configuration (the manager's op.mon.2), with no evaluation.
+export const annualClosingOfConfiguration = (configuration: ENSConfigurationVersion): { closing: string; declared: boolean } =>
+  closingOfRows(rowsOf(resolveControlConfigurationForAgent(configuration, ENS_ANNUAL_REPORT_CONTROL, '000')?.parameters, 'P-02', P02_COLUMNS));
 
 // Rows of the Statement of Applicability (op.mon.2 P-01) by measure; the last row of a measure wins.
 const statementOfApplicability = (opMon2?: ENSComplianceResult): Map<string, { applies?: boolean; raw: string; level: string }> => {
