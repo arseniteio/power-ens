@@ -26,8 +26,8 @@ import {
   listENSControlRowAgents,
   resultStatusStub,
 } from '../../../common/ens/core/control-partition';
-import { buildImpactEventsModelFromCounts } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
-import type { ImpactEventsModel } from '../../../common/ens/core/dashboard-adapter/models/impact-events.model';
+import { buildOperationalAlertsModel } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
+import type { OperationalIncident } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 import { normalizeWazuhAlerts } from '../../../common/ens/core/data-source/data-source-engine';
 import type { ENSNormalizedEvent } from '../../../common/ens/core/data-source/types';
 import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common/ens/core/evaluation/types';
@@ -66,6 +66,7 @@ import {
   STREAM_SORT,
   buildFactsQuery,
   buildImpactEventsRequest,
+  readOperationalIncidents,
   buildProbeRequest,
   buildStateFactKeepClause,
   buildStateFactLastSeenRequest,
@@ -404,7 +405,8 @@ export const createEvaluationService = ({
   // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
   // IANA zones arrive here).
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
-  const impacts = new EvaluationCache<ImpactEventsModel>(200, EVALUATION_TTL_MS, clockValue);
+  // Operational alert incidents of each view (the aggregation); the model is built against each run's results.
+  const impacts = new EvaluationCache<OperationalIncident[]>(200, EVALUATION_TTL_MS, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
   const maturities = new EvaluationCache<{ records?: ENSMaturityRecords; version?: ENSMaturityVersion }>(4, 24 * 3600 * 1000, clockValue);
@@ -1409,17 +1411,16 @@ export const createEvaluationService = ({
     return cuts.map(cut => days.filter((d: any) => d.at <= cut.cutoff.getTime()).reduce((s: number, d: any) => s + d.n, 0));
   };
 
-  const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string) => {
+  const impactEvents = async (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, query: ENSEvaluationQuery, fingerprint: string, state: ENSComplianceState | undefined) => {
     const key = `i|${ctx.userKey}|${query.agentId || '*'}`;
-    const savedValue = impacts.get(key, fingerprint);
-    if (savedValue) return savedValue;
-    // The view's: the machine and the manager, or the whole scope.
-    const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'los eventos operativos');
-    const model = buildImpactEventsModelFromCounts(
-      Object.fromEntries((body?.aggregations?.types?.buckets || []).map((b: any) => [String(b.key), Number(b.doc_count || 0)]))
-    );
-    impacts.set(key, fingerprint, model);
-    return model;
+    let incidents = impacts.get(key, fingerprint);
+    if (!incidents) {
+      // The view's: the machine and the manager, or the whole scope.
+      const body = await searchComplete(clients.asCurrentUser, { ...buildImpactEventsRequest(viewFilters(ctx, query.agentId)), index: ctx.factsIndex }, 'las alertas operativas');
+      incidents = readOperationalIncidents(body?.aggregations);
+      impacts.set(key, fingerprint, incidents);
+    }
+    return buildOperationalAlertsModel(incidents, state, { scope: ctx.scope, agentId: query.agentId });
   };
 
   interface UsedRow {
@@ -1804,7 +1805,7 @@ export const createEvaluationService = ({
 
     const refreshing = used.some(u => u.stale);
     const fingerprint = viewFingerprint(ctx, query);
-    const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint) : undefined;
+    const impact = query.include === 'dashboard' && !pendings.length ? await impactEvents(clients, ctx, query, fingerprint, state) : undefined;
     const computed = used.filter(u => u.computed);
     // A refresh error is reported while no other attempt is in progress (a new attempt clears it; if it also
     // fails it is noted with its time).

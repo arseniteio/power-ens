@@ -19,6 +19,8 @@ import {
 } from '../../../common/ens/core/evidence/state-facts';
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
 import { ENS_CROSS_CONTROL_EVENT_TYPES, ENS_CROSS_CONTROL_HEARTBEAT } from '../../../common/ens/core/control-partition';
+import { OPERATIONAL_ALERT_KEY_FIELDS } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
+import type { OperationalIncident } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 
 // The only fields the engine reads of each fact (`normalizeWazuhAlert`); no `raw`.
 export const ENGINE_SOURCE_FIELDS = [
@@ -310,8 +312,10 @@ export const buildCollectorRunsQuery = (viewFilters: unknown[], controlId: strin
   },
 });
 
-// Operational events of the panel (backups, restores...): facts per type in the view. Grouped by `data.event`;
-// the type is compared in lowercase, like the presenter.
+// Operational SOC alerts of the panel (ENS-DASH-004): per type, one bucket per incident key over the window, newest first, at most `OPERATIONAL_ALERTS_PER_TYPE`, with its fact count and last timestamp (`multi_terms`, OpenSearch 2.1+; checked on wazuh-indexer 4.14.7).
+export const OPERATIONAL_ALERTS_PER_TYPE = 100;
+const ALERT_KEY_MISSING = '__none__';
+
 export const buildImpactEventsRequest = (filters: unknown[]) => ({
   index: ENS_ALERTS_INDEX,
   body: {
@@ -330,9 +334,45 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
         ],
       },
     },
-    aggs: { types: { terms: { field: 'data.event', size: 2000 } } },
+    aggs: Object.fromEntries(
+      Object.entries(OPERATIONAL_ALERT_KEY_FIELDS).map(([eventType, fields]) => [
+        eventType,
+        {
+          filter: { term: { 'data.event': eventType } },
+          aggs: {
+            incidents: {
+              multi_terms: {
+                terms: [{ field: 'agent.id' }, ...fields.map(name => ({ field: `data.${name}`, missing: ALERT_KEY_MISSING }))],
+                size: OPERATIONAL_ALERTS_PER_TYPE,
+                order: { last: 'desc' },
+              },
+              aggs: { last: { max: { field: '@timestamp' } } },
+            },
+          },
+        },
+      ])
+    ),
   },
 });
+
+// The incidents of that response, as `operationalIncidentsFromEvents` would group the same facts in memory.
+export const readOperationalIncidents = (aggregations: any): OperationalIncident[] =>
+  Object.entries(OPERATIONAL_ALERT_KEY_FIELDS).flatMap(([eventType, fields]) =>
+    (aggregations?.[eventType]?.incidents?.buckets || []).flatMap((bucket: any) => {
+      const last = Number(bucket?.last?.value);
+      const [agentId, ...values] = (Array.isArray(bucket?.key) ? bucket.key : []).map((value: unknown) => String(value ?? ''));
+      if (!agentId || !Number.isFinite(last)) return [];
+      return [
+        {
+          eventType,
+          agentId,
+          fields: Object.fromEntries(fields.map((name, i) => [name, values[i] === undefined || values[i] === ALERT_KEY_MISSING ? '' : values[i]])),
+          count: Number(bucket.doc_count || 0),
+          lastObserved: new Date(last).toISOString(),
+        },
+      ];
+    })
+  );
 
 // Facts up to the end of each day (for the event count of each series point).
 export const buildDailyCountsRequest = (filters: unknown[], timeZone?: string) => ({

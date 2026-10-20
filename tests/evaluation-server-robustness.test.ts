@@ -166,12 +166,14 @@ const reference = () => {
   while (third.tasks.size) await wait(5);
   check('the browser leaves and nobody else waits: it is cancelled', end === 499 && third.rows.size < 23, [end, third.rows.size]);
 
-  const panel024 = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }))) as any;
+  const run024 = await service.run(clients2, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }));
+  const panel024 = buildEvaluationResponse(run024) as any;
   const ref3 = reference();
-  const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'));
-  check('«eventos con impacto» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
-  const panelAll = buildEvaluationResponse(await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
-  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos)));
+  const expectedItems = buildImpactEventsModel(ref3.eventos.filter(e => e.agentId === '024' || e.agentId === '000'), run024.state, { scope: run024.ctx.scope, agentId: '024' });
+  check('«alertas operativas» of 024: only those of 024 and the manager', same(panel024.dashboard.impactEvents, expectedItems) && !JSON.stringify(panel024.dashboard.impactEvents).includes('backup_error'), panel024.dashboard.impactEvents);
+  const runAll = await service.run(clients2, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }));
+  const panelAll = buildEvaluationResponse(runAll) as any;
+  check('and those of the whole scope in the whole view', same(panelAll.dashboard.impactEvents, buildImpactEventsModel(ref3.eventos, runAll.state, { scope: runAll.ctx.scope })));
 
   const hs = createEvaluationHandlers({ logger, securityEnabled: true, service: service });
   const p1: any = await hs.traceability(context, { query: { controlId: 'op.acc.3', agentId: '024', from: '100', size: '50', timeZone: 'UTC' } }, response);

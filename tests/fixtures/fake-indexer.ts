@@ -180,6 +180,34 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
         sum_other_doc_count: all.slice(def.terms.size ?? 10).reduce((n, [, ds]) => n + ds.length, 0),
         buckets: buckets.map(([key, ds]) => ({ key, doc_count: ds.length, ...aggregate(ds, def.aggs) })),
       };
+    } else if (def.multi_terms) {
+      // One bucket per combination (first value of each field, or its `missing`); ordered by `_count`, `_key` or a sub-aggregation.
+      const groups = new Map<string, { key: string[]; docs: FakeDoc[] }>();
+      for (const d of docs) {
+        const key: string[] = [];
+        for (const t of def.multi_terms.terms) {
+          const values = valuesOf(d._source, t.field);
+          if (values.length) key.push(String(values[0]));
+          else if (t.missing !== undefined) key.push(String(t.missing));
+          else break;
+        }
+        if (key.length < def.multi_terms.terms.length) continue;
+        const k = JSON.stringify(key);
+        const g = groups.get(k);
+        if (g) g.docs.push(d);
+        else groups.set(k, { key, docs: [d] });
+      }
+      const [by, direction]: [string, string] = Object.entries<any>(def.multi_terms.order || { _count: 'desc' })[0];
+      const valueOf = (b: any) => (by === '_count' ? b.doc_count : by === '_key' ? b.key_as_string : b[by]?.value ?? null);
+      const all = [...groups.values()]
+        .map(g => ({ key: g.key, key_as_string: g.key.join('|'), doc_count: g.docs.length, ...aggregate(g.docs, def.aggs) }))
+        .sort((a, b) => compare(valueOf(a), valueOf(b), direction === 'desc') || (a.key_as_string < b.key_as_string ? -1 : 1));
+      const size = def.multi_terms.size ?? 10;
+      output[name] = {
+        doc_count_error_upper_bound: 0,
+        sum_other_doc_count: all.slice(size).reduce((n, b) => n + b.doc_count, 0),
+        buckets: all.slice(0, size),
+      };
     } else if (def.value_count) {
       output[name] = { value: docs.reduce((n, d) => n + valuesOf(d._source, def.value_count.field).length, 0) };
     } else if (def.top_hits) {

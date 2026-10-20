@@ -1,251 +1,221 @@
+// Operational SOC alerts of the panel (ENS-DASH-004, Francisco Caicedo): one row per incident, shown only where the engine's result makes it applicable; a multi-role row is rated by the engine's non-conformity, never by the agent's `estado`.
+import { getENSCatalogControl } from '../../../catalog';
 import { ENSNormalizedEvent } from '../../data-source/types';
+import { ENSComplianceState } from '../../compliance-state/types';
+import { getEvidenceDefinitions } from '../../evidence/registry';
+import type { ENSComplianceResult } from '../../evaluation/types';
+import type { ENSAgentScope } from '../../scope/types';
 import {
+  ENS_MANAGER_AGENT_ID,
+  isControlMeasuredOnAgent,
+  isControlMeasuredOnPlane,
+} from '../../scope/measurement-planes';
+import {
+  ImpactEventRowModel,
   ImpactEventSeverity,
   ImpactEventsModel,
 } from '../models/impact-events.model';
 
-type ImpactMetadata = {
-  label: string;
-  description: string;
-  severity: ImpactEventSeverity;
+// Alert types and the `data.*` fields of their incident key besides `agent.id`; `primera` is left out because op.exp.7 emits one fact per rule, system and hour.
+export const OPERATIONAL_ALERT_KEY_FIELDS: Record<string, string[]> = {
+  collector_warning: ['ensfacil', 'origen', 'objeto', 'motivo'],
+  security_alert_observed: ['ensfacil', 'agente_id', 'sistema', 'regla'],
+  multi_role_usage: ['ensfacil', 'requisito', 'usuario', 'motivo'],
 };
 
-// An alias map (`backup_success` -> `backup_ok`, `restore_success` -> `restore_ok`) used to translate by hand names no rule emits. Removed with those catalog names: an alias in the presenter hides the mismatch on screen and leaves it intact in the engine, where the traffic light is decided.
-const metadata: Record<string, ImpactMetadata> = {
-  backup_ok: {
-    label: 'Copias realizadas correctamente',
-    description: 'Se han detectado copias de seguridad válidas.',
-    severity: 'success',
-  },
-  backup_missing: {
-    label: 'Copias de seguridad ausentes',
-    description: 'No se ha detectado una copia válida dentro del periodo esperado.',
-    severity: 'error',
-  },
-  backup_error: {
-    label: 'Errores de copia',
-    description: 'Se han detectado errores durante procesos de copia.',
-    severity: 'error',
-  },
-  backup_warning: {
-    label: 'Advertencias de copia',
-    description: 'Se han detectado advertencias durante procesos de copia.',
-    severity: 'warning',
-  },
-  backup_timeout: {
-    label: 'Tiempos de espera de copia',
-    description: 'Se han detectado procesos de copia que excedieron el tiempo permitido.',
-    severity: 'error',
-  },
-  backup_disk_full: {
-    label: 'Espacio insuficiente',
-    description: 'Se ha detectado falta de espacio durante una copia.',
-    severity: 'error',
-  },
-  backup_network_error: {
-    label: 'Errores de red en copias',
-    description: 'Se han detectado errores de conectividad durante una copia.',
-    severity: 'error',
-  },
-  restore_ok: {
-    label: 'Restauraciones validadas',
-    description: 'Se han detectado restauraciones verificadas correctamente.',
-    severity: 'success',
-  },
-  restore_missing: {
-    label: 'Pruebas de restauración ausentes',
-    description: 'No se ha detectado una prueba de restauración válida.',
-    severity: 'error',
-  },
-  restore_error: {
-    label: 'Errores de restauración',
-    description: 'Se han detectado fallos durante una restauración.',
-    severity: 'error',
-  },
-  retention_configured: {
-    label: 'Retención configurada',
-    description: 'Se ha detectado una configuración de retención verificable.',
-    severity: 'success',
-  },
-  backup_modified: {
-    label: 'Configuración de copia modificada',
-    description: 'Se ha detectado un cambio en la configuración o repositorio de copias.',
-    severity: 'warning',
-  },
-  backup_deleted: {
-    label: 'Copias eliminadas',
-    description: 'Se ha detectado eliminación de contenido del repositorio de copias.',
-    severity: 'error',
-  },
-  backup_ransomware: {
-    label: 'Actividad anómala en copias',
-    description: 'Se ha detectado actividad compatible con alteración masiva o ransomware.',
-    severity: 'error',
-  },
-  encfp_changed: {
-    label: 'Fingerprint de cifrado modificado',
-    description: 'Se ha detectado un cambio en el fingerprint de cifrado.',
-    severity: 'error',
-  },
-  authorized_access: {
-    label: 'Accesos autorizados',
-    description: 'Se han detectado accesos autorizados al repositorio.',
-    severity: 'success',
-  },
-  unauthorized_access: {
-    label: 'Accesos no autorizados',
-    description: 'Se han detectado accesos no autorizados al repositorio.',
-    severity: 'error',
-  },
-  offsite_success: {
-    label: 'Copias alternativas correctas',
-    description: 'Se ha detectado una copia válida en ubicación alternativa.',
-    severity: 'success',
-  },
-  offsite_missing: {
-    label: 'Copia alternativa ausente',
-    description: 'No se ha detectado la copia alternativa requerida.',
-    severity: 'error',
-  },
-  offsite_error: {
-    label: 'Error en copia alternativa',
-    description: 'Se ha detectado un error en la copia alternativa.',
-    severity: 'error',
-  },
-  decoder_ok: {
-    label: 'Logs interpretados correctamente',
-    description: 'Los logs de copia han sido interpretados correctamente.',
-    severity: 'success',
-  },
+// Rows the panel shows.
+export const OPERATIONAL_ALERT_ROWS = 5;
+
+const FIXED_LABEL: Record<string, string> = {
+  collector_warning: 'Advertencia del recolector ENS.',
+  security_alert_observed: 'Alerta de seguridad observada por Wazuh.',
+  multi_role_usage: 'Uso de identificadores sin separación de privilegios.',
 };
 
-const canonicalEventKey = (
-  event: ENSNormalizedEvent
-): string => {
-  const separatorIndex =
-    event.id.indexOf('#');
+const SEVERITY_ORDER: Record<ImpactEventSeverity, number> = { error: 0, warning: 1, success: 2, info: 3 };
 
-  const eventId =
-    separatorIndex >= 0
-      ? event.id.slice(0, separatorIndex)
-      : event.id;
+const MAX_LABEL = 140;
 
-  return `${eventId}|${event.timestamp}`;
+// One group of facts with the same key on the same emitting agent: a server bucket or its in-memory equivalent.
+export interface OperationalIncident {
+  eventType: string;
+  agentId: string;
+  // Key fields; '' when absent.
+  fields: Record<string, string>;
+  count: number;
+  lastObserved: string;
+}
+
+export interface OperationalAlertsOptions {
+  // The ENS scope of the view: only its machines are shown.
+  scope: ENSAgentScope[];
+  // Machine view: only that machine and the manager, like the facts it reads.
+  agentId?: string;
+}
+
+const text = (value: unknown): string =>
+  value === undefined || value === null ? '' : String(Array.isArray(value) ? value[0] ?? '' : value);
+
+// The agent's own motive, cut to 140 characters, or the type's fixed text.
+const labelOf = (incident: OperationalIncident): string => {
+  const reason = (incident.fields.motivo || '').trim();
+  if (!reason) return FIXED_LABEL[incident.eventType] || 'Acontecimiento operativo ENS.';
+  return reason.length > MAX_LABEL ? `${reason.slice(0, MAX_LABEL - 3)}...` : reason;
 };
 
-const operationalEventType = (
-  event: ENSNormalizedEvent
-): string | undefined => {
-  const eventType = String(
-    event.eventType || ''
-  )
-    .trim()
-    .toLowerCase();
-
-  return metadata[eventType]
-    ? eventType
-    : undefined;
+const detailOf = (incident: OperationalIncident): string => {
+  const f = (name: string) => (incident.fields[name] || '').trim();
+  const parts =
+    incident.eventType === 'multi_role_usage'
+      ? [f('usuario') && `Cuenta ${f('usuario')}`, f('requisito') && `requisito ${f('requisito')}`]
+      : incident.eventType === 'security_alert_observed'
+      ? [f('regla') && `Regla ${f('regla')}`, f('sistema') && `en ${f('sistema')}`]
+      : [f('origen'), f('objeto')];
+  return parts.filter(Boolean).join(' · ') || incident.eventType;
 };
 
-// Operational events are counted once per fact (not repeating what the normalizer splits per evidence). Accumulated apart so the server, which reads facts control by control, counts the same as a pass over all: `add` with each control's and `build` at the end.
-export const createImpactEventsAccumulator = () => {
-  const uniqueEvents =
-    new Map<string, string>();
+// The engine's result that judges that control for that machine: its own row or, for a control measured on the manager, the view's result.
+const controlResultFor = (
+  state: ENSComplianceState,
+  controlId: string,
+  agentId: string
+): ENSComplianceResult | undefined => {
+  const control = getENSCatalogControl(controlId);
+  // A control that is not ACTIVE produces nothing to attend to.
+  if (!control || control.status !== 'ACTIVE') return undefined;
+  const own = state.agents
+    .find(agent => agent.agentId === agentId)
+    ?.results.find(result => result.control.id === controlId);
+  if (own) return own;
+  const judgedOnManager =
+    isControlMeasuredOnPlane(control, 'manager') &&
+    (agentId === ENS_MANAGER_AGENT_ID || !isControlMeasuredOnAgent(control, agentId));
+  return judgedOnManager ? state.results.find(result => result.control.id === controlId) : undefined;
+};
 
-  const add = (events: ENSNormalizedEvent[] = []): void => {
-    events.forEach(event => {
-      if (event.isSynthetic) {
-        return;
-      }
+const toRow = (
+  incident: OperationalIncident,
+  state: ENSComplianceState,
+  options: OperationalAlertsOptions
+): ImpactEventRowModel | undefined => {
+  const f = (name: string) => (incident.fields[name] || '').trim();
+  const controlId = f('ensfacil');
+  // A security alert names the machine it happened on (`agente_id` and `sistema`); the rest belong to the emitter.
+  const attributed = incident.eventType === 'security_alert_observed' && Boolean(f('agente_id') && f('sistema'));
+  const agentId = attributed ? f('agente_id') : incident.agentId.trim();
+  if (!controlId || !agentId) return undefined;
 
-      const eventType =
-        operationalEventType(event);
+  const scopeAgent = options.scope.find(agent => agent.id === agentId);
+  if (!scopeAgent) return undefined;
+  if (options.agentId && agentId !== options.agentId && agentId !== ENS_MANAGER_AGENT_ID) return undefined;
 
-      if (!eventType) {
-        return;
-      }
+  const result = controlResultFor(state, controlId, agentId);
+  if (!result) return undefined;
 
-      const eventKey =
-        canonicalEventKey(event);
-
-      if (!uniqueEvents.has(eventKey)) {
-        uniqueEvents.set(
-          eventKey,
-          eventType
-        );
-      }
-    });
-  };
-
-  // Key -> type pairs already counted, to store per control and add again without the events.
-  const entries = (): [string, string][] => Array.from(uniqueEvents.entries());
-
-  const addEntries = (pairs: [string, string][] = []): void => {
-    pairs.forEach(([eventKey, eventType]) => {
-      if (!uniqueEvents.has(eventKey)) {
-        uniqueEvents.set(eventKey, eventType);
-      }
-    });
-  };
-
-  const build = (): ImpactEventsModel =>
-    buildImpactEventsModelFromCounts(
-      Array.from(uniqueEvents.values()).reduce<Record<string, number>>(
-        (acc, eventType) => {
-          acc[eventType] = (acc[eventType] || 0) + 1;
-
-          return acc;
-        },
-        {}
-      )
+  const requirementId = f('requisito');
+  let severity: ImpactEventSeverity;
+  if (incident.eventType === 'multi_role_usage') {
+    // The engine judges: an error only if it holds a measured non-conformity of that requirement on that machine, raised by an evidence that listens to this fact (EV-06 on op.acc.1).
+    const listening = getEvidenceDefinitions(controlId)
+      .filter(evidence => evidence.expectedEventTypes.includes(incident.eventType))
+      .map(evidence => evidence.id);
+    const judged = (result.nonConformities || []).some(
+      nonConformity =>
+        nonConformity.requirementId === requirementId &&
+        nonConformity.origin === 'MEDIDA' &&
+        (nonConformity.evidenceIds?.length ? nonConformity.evidenceIds : [nonConformity.evidenceId]).some(id => listening.includes(id))
     );
+    if (!requirementId || !judged) return undefined;
+    severity = 'error';
+  } else {
+    // Only where the control has an applicable requirement (that one, if the fact names it).
+    const applicable = requirementId
+      ? result.requirements.some(requirement => requirement.id === requirementId && requirement.status !== 'NO_APLICA')
+      : result.requirements.some(requirement => requirement.status !== 'NO_APLICA');
+    if (!applicable) return undefined;
+    severity = 'warning';
+  }
 
-  return { add, addEntries, entries, build };
-};
-
-// The model from how many facts of each type exist. The server counts with a `data.event` aggregation (lowercase without spaces, as `operationalEventType`); types that are not operational events are ignored.
-export const buildImpactEventsModelFromCounts = (
-  counts: Record<string, number>
-): ImpactEventsModel => {
-  const grouped: Record<string, number> = {};
-
-  Object.entries(counts).forEach(([rawType, count]) => {
-    const eventType = String(rawType || '').trim().toLowerCase();
-
-    if (metadata[eventType] && count > 0) {
-      grouped[eventType] = (grouped[eventType] || 0) + count;
-    }
-  });
-
-  const maxCount = Math.max(...Object.values(grouped), 1);
-
-  const rows = Object.entries(grouped)
-    .map(([eventType, count]) => ({
-      id: eventType,
-      label: metadata[eventType].label,
-      description: metadata[eventType].description,
-      severity: metadata[eventType].severity,
-      count,
-      percent: Math.round((count * 100) / maxCount),
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  const key = [incident.eventType, agentId, controlId, ...OPERATIONAL_ALERT_KEY_FIELDS[incident.eventType]
+    .filter(name => name !== 'ensfacil' && name !== 'agente_id' && name !== 'sistema')
+    .map(f)].join('|');
 
   return {
-    title: 'EVENTOS OPERATIVOS ENS RELEVANTES',
-    rows,
+    id: key,
+    eventType: incident.eventType,
+    label: labelOf(incident),
+    description: detailOf(incident),
+    severity,
+    count: incident.count,
+    controlId,
+    agentId,
+    agentName: scopeAgent.name || (attributed ? f('sistema') : undefined),
+    lastObserved: incident.lastObserved,
   };
 };
 
-// The types that count as an operational event.
-export const IMPACT_EVENT_TYPES = (): string[] => Object.keys(metadata);
+// The panel model from the incidents of the window: filtered against the engine's results, merged by incident key, most severe and most recent first.
+export const buildOperationalAlertsModel = (
+  incidents: OperationalIncident[],
+  state: ENSComplianceState | undefined,
+  options: OperationalAlertsOptions
+): ImpactEventsModel => {
+  const rows = new Map<string, ImpactEventRowModel>();
+  if (state) {
+    incidents.forEach(incident => {
+      if (!OPERATIONAL_ALERT_KEY_FIELDS[incident.eventType]) return;
+      const row = toRow(incident, state, options);
+      if (!row) return;
+      const previous = rows.get(row.id);
+      if (!previous) {
+        rows.set(row.id, row);
+        return;
+      }
+      const newer = row.lastObserved > previous.lastObserved ? row : previous;
+      rows.set(row.id, { ...newer, count: previous.count + row.count });
+    });
+  }
+
+  const sorted = Array.from(rows.values()).sort(
+    (a, b) =>
+      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
+      b.lastObserved.localeCompare(a.lastObserved) ||
+      a.id.localeCompare(b.id)
+  );
+
+  return {
+    title: 'ALERTAS OPERATIVAS SOC',
+    rows: sorted.slice(0, OPERATIONAL_ALERT_ROWS),
+    total: sorted.length,
+  };
+};
+
+// The same grouping the server does with its aggregation, over events already in memory (one count per fact, not per evidence split).
+export const operationalIncidentsFromEvents = (events: ENSNormalizedEvent[] = []): OperationalIncident[] => {
+  const groups = new Map<string, { incident: OperationalIncident; facts: Set<string>; last: number }>();
+  events.forEach(event => {
+    const fields = OPERATIONAL_ALERT_KEY_FIELDS[event.eventType];
+    const time = Date.parse(event.timestamp);
+    if (!fields || event.isSynthetic || !event.agentId || !Number.isFinite(time)) return;
+    const values = Object.fromEntries(fields.map(name => [name, text(event.attributes?.[name])]));
+    const key = JSON.stringify([event.eventType, event.agentId, ...fields.map(name => values[name])]);
+    let group = groups.get(key);
+    if (!group) {
+      group = { incident: { eventType: event.eventType, agentId: event.agentId, fields: values, count: 0, lastObserved: '' }, facts: new Set(), last: time };
+      groups.set(key, group);
+    }
+    group.facts.add(event.id.split('#')[0]);
+    group.last = Math.max(group.last, time);
+  });
+  return Array.from(groups.values()).map(group => ({
+    ...group.incident,
+    count: group.facts.size,
+    lastObserved: new Date(group.last).toISOString(),
+  }));
+};
 
 export const buildImpactEventsModel = (
-  events: ENSNormalizedEvent[] = []
-): ImpactEventsModel => {
-  const accumulator = createImpactEventsAccumulator();
-
-  accumulator.add(events);
-
-  return accumulator.build();
-};
+  events: ENSNormalizedEvent[] = [],
+  state?: ENSComplianceState,
+  options: OperationalAlertsOptions = { scope: [] }
+): ImpactEventsModel => buildOperationalAlertsModel(operationalIncidentsFromEvents(events), state, options);

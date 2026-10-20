@@ -1,5 +1,6 @@
 import { ENSComplianceState } from '../compliance-state/types';
 import { ENSNormalizedEvent } from '../data-source/types';
+import type { ENSAgentScope } from '../scope/types';
 // `import type`, NOT a normal import: importing `ENSComplianceTimelinePoint` as a value loads `compliance-timeline` at runtime, which imports the whole ENGINE, and the `ens-engine` cycle returns (TDZ) that blanks the dashboard.
 import type { ENSComplianceTimelinePoint } from '../timeline/compliance-timeline';
 import {
@@ -18,7 +19,9 @@ import {
 export const buildENSDashboardModel = (
   complianceState: ENSComplianceState,
   events: ENSNormalizedEvent[] = [],
-  timeline: ENSComplianceTimelinePoint[] = []
+  timeline: ENSComplianceTimelinePoint[] = [],
+  // The view's ENS scope: operational alerts only show its machines. The server builds them from aggregations and replaces them.
+  scopeAgents: ENSAgentScope[] = []
 ) => ({
 
   compliance: buildComplianceCardModel(complianceState),
@@ -27,7 +30,7 @@ export const buildENSDashboardModel = (
   familyCompliance: buildFamilyComplianceModel(complianceState),
   requirementFindings: buildRequirementFindingsModel(complianceState),
   levelSummary: buildLevelSummaryModel(complianceState),
-  impactEvents: buildImpactEventsModel(events),
+  impactEvents: buildImpactEventsModel(events, complianceState, { scope: scopeAgents }),
   evolution: buildEvolutionModel(
     complianceState,
     timeline

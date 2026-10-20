@@ -105,6 +105,19 @@ traffic light.
   unclassified. The four figures are exclusive and add up to the total;
   controls that are not `ACTIVE` do not count (ENS-DASH-002, Francisco
   Caicedo).
+- Panel: «Eventos operativos ENS relevantes» becomes «Alertas operativas
+  SOC»: collector warnings (`collector_warning`), security alerts
+  (`security_alert_observed`, on the machine named by `agente_id` and
+  `sistema`) and multi-role use (`multi_role_usage`), each with its control,
+  machine, last observation and how many times it was observed. The same
+  problem observed many times is one alert. Only machines in the scope and
+  controls applicable to that machine by the computed result are shown, and a
+  multi-role use is an «Incidencia» only if the engine holds a measured
+  non-conformity of that requirement on that machine raised by the evidence
+  that listens to the fact (EV-06 of op.acc.1): the agent's `estado` field does
+  not count. The server groups them with a bounded aggregation (100
+  incidents per type, the most recent); no events travel to the browser
+  (ENS-DASH-004, Francisco Caicedo).
 
 ### Fixed
 
