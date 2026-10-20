@@ -300,6 +300,10 @@ Expected result: `{"acknowledged":true}` and, from the second command, `green op
 
 From 1.4.0, the data several controls ask for is declared only once in Configuración > General > «Datos de la organización». When updating from 1.3.0, each item whose controls have the same value moves to that section and is saved with the next change; a control without value takes the others' value and the notice says so («Se ha completado …»); items with different values between controls appear in «Valores distintos entre controles» and each control keeps its value until «Elegir este valor» is pressed ([Configuration by controls and templates, section 7.1](09-configuration-by-system.en.md#71-organisation-data)). Before that, back up the document (section 5).
 
+When updating to 1.4.0, run `sudo bash config/create-admin-role.sh` again (without `--mapear`: existing mappings are kept) so the `ensfacil_admin` role gets the read on `wazuh-ens-snapshots` that maturity uses ([Maturity assessment, section 10.2](10-maturity-assessment.en.md#102-who-reads-it)).
+
+Expected result: the script ends without error and `GET _plugins/_security/api/roles/ensfacil_admin` shows `wazuh-ens-snapshots` under `index_permissions` with `read`.
+
 From 1.3.0, the Configuration screen has three tabs, «Controles», «Agentes» and «General». When updating:
 
 - from 1.2.0, the document is converted when it loads: the templates applied to each agent become the template assigned in each control, without changing any value, and the conversion is written with the next save or with «Guardar la conversión» ([Configuration by controls and templates, section 8](09-configuration-by-system.en.md#8-conversion-of-a-120-configuration)); before that, back up the document (section 5);

@@ -300,6 +300,10 @@ Resultado esperado: `{"acknowledged":true}` y, en la segunda orden, `green open 
 
 Desde la 1.4.0, los datos que piden varios controles se declaran una sola vez en Configuración > General > «Datos de la organización». Al actualizar desde la 1.3.0, cada dato cuyos controles tienen el mismo valor pasa a ese apartado y se guarda con el próximo cambio; un control sin valor toma el de los demás y el aviso lo indica («Se ha completado …»); los datos con valores distintos entre controles aparecen en «Valores distintos entre controles» y cada control sigue con su valor hasta pulsar «Elegir este valor» ([Configuración por controles y plantillas, apartado 7.1](09-configuration-by-system.md#71-datos-de-la-organización)). Antes, guardar una copia del documento (apartado 5).
 
+Al actualizar a la 1.4.0, volver a ejecutar `sudo bash config/create-admin-role.sh` (sin `--mapear`: las asignaciones existentes se conservan) para que el rol `ensfacil_admin` reciba la lectura de `wazuh-ens-snapshots` que usa la madurez ([Valoración de la madurez, apartado 10.2](10-maturity-assessment.md#102-quién-la-lee)).
+
+Resultado esperado: el script termina sin error y `GET _plugins/_security/api/roles/ensfacil_admin` muestra `wazuh-ens-snapshots` en `index_permissions` con `read`.
+
 Desde la 1.3.0, la pantalla de Configuración tiene tres pestañas, «Controles», «Agentes» y «General». Al actualizar:
 
 - desde la 1.2.0, el documento se convierte al cargarlo: las plantillas aplicadas a cada agente pasan a ser la plantilla asignada en cada control, sin cambiar ningún valor, y la conversión se escribe con el próximo guardado o con «Guardar la conversión» ([Configuración por controles y plantillas, apartado 8](09-configuration-by-system.md#8-conversión-de-una-configuración-de-la-120)); antes, guardar una copia del documento (apartado 5);
