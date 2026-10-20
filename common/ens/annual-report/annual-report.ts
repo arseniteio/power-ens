@@ -22,6 +22,7 @@ import type { ENSAnnexMeasure } from './annex-ii-measures';
 import { annualPeriodBounds, annualPeriodInstants, annualPeriodOfDay, ENS_DEFAULT_ANNUAL_CLOSING, isAnnualClosing } from './annual-period';
 import { ENS_ANNUAL_REPORT_SCHEMA } from './annual-report-types';
 import type { ENSAnnualDatum, ENSAnnualFreezeEntry, ENSAnnualMeasure, ENSAnnualReport, ENSAnnualSource, ENSAnnualValue } from './annual-report-types';
+import { ART32_MAX_INCIDENTS, ART32_REGISTER_WINDOW_DAYS } from '../core/policy-runtime/policies/op-mon-2.policy';
 import { ENS_ANNUAL_REPORT_CONTROL, measureEngine } from './declared-measures';
 import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from './implementation-degree';
 
@@ -44,6 +45,8 @@ export interface ENSAnnualReportInput {
   period?: string;
   pluginVersion: string;
   freeze?: ENSAnnualFreezeEntry;
+  // The incidents of the period read on the server (`incident-source.ts`), used instead of op.mon.2's live variable.
+  periodIncidents?: Record<string, unknown>;
 }
 
 const round = (n: number): number => Math.round(n * 10) / 10;
@@ -432,12 +435,23 @@ const hours = (values: number[]): number | null => {
   return value === undefined ? null : round(value / HOUR_MS);
 };
 
+// Whether the live variable's 500 cap cut incidents that open inside the window (then it cannot be used for it).
+export const liveIncidentsCutInto = (opMon2: ENSComplianceResult | undefined, fromMs: number): boolean => {
+  const register = readJsonVariable(opMon2, 'informe_art32_incidentes');
+  if (!register?.recortados || !Array.isArray(register.incidentes)) return false;
+  const first = register.incidentes[0];
+  const opened = ms(first?.apertura) ?? ms(first?.primera);
+  return opened === undefined || opened > fromMs;
+};
+
 const incidentsOf = (
   opMon2: ENSComplianceResult | undefined,
   opExp7: ENSComplianceResult | undefined,
-  window: { fromMs: number; toMs: number; label: string }
+  window: { fromMs: number; toMs: number; label: string },
+  // The period's incidents read on the server (freezes, closed periods); without them, the live variable.
+  periodIncidents?: Record<string, any>
 ): ENSAnnualDatum[] => {
-  const register = readJsonVariable(opMon2, 'informe_art32_incidentes');
+  const register = periodIncidents || readJsonVariable(opMon2, 'informe_art32_incidentes');
   const reconciliation = readJsonVariable(opExp7, 'informe_art32_conciliacion');
   const detection = readJsonVariable(opExp7, 'informe_art32_deteccion');
   const data: ENSAnnualDatum[] = [
@@ -446,15 +460,23 @@ const incidentsOf = (
   ];
   const source = 'INCIDENT_REGISTER';
   const where = (n: number) =>
-    `registro de incidentes de op.exp.7 reemitido por op.mon.2 (leído el ${register?.leido || '—'}), ${n} incidente(s) abiertos en el periodo`;
+    `registro de incidentes de op.exp.7 reemitido por op.mon.2 (leído el ${register?.leido || '—'}${periodIncidents ? ', todas las filas del periodo' : ''}), ${n} incidente(s) abiertos en el periodo`;
 
-  // op.mon.2 publishes the incidents since the previous period started: an older period is complete only frozen.
-  const coveredFrom = ms(register?.desde);
+  // Never a figure from an incomplete list: over the limit, a start the source does not cover, or the live cap.
+  const publishedFrom = ms(register?.desde);
+  const reemittedFrom = ms(register?.cubreDesde);
+  const cut = !periodIncidents && Boolean(register?.recortados) && liveIncidentsCutInto(opMon2, window.fromMs);
   const unavailable =
-    !register || !Array.isArray(register.incidentes) || register.motivo
+    register?.excedido !== undefined
+      ? `no disponible: el periodo tiene más de ${register.limite} incidentes (${register.excedido}); el informe no publica cifras de incidentes de un periodo así`
+      : !register || !Array.isArray(register.incidentes) || register.motivo
       ? register?.motivo || 'op.mon.2 no ha leído el registro de incidentes'
-      : coveredFrom !== undefined && window.fromMs < coveredFrom
-      ? `no disponible para este periodo: op.mon.2 publica los incidentes abiertos desde el ${String(register.desde).slice(0, 10)}; un periodo anterior solo está completo en su congelado`
+      : reemittedFrom !== undefined && window.fromMs < reemittedFrom
+      ? `no disponible para este periodo: op.mon.2 reemite los incidentes de los ${ART32_REGISTER_WINDOW_DAYS} días anteriores a su lectura (desde el ${String(register.cubreDesde).slice(0, 10)}) y el periodo empieza antes; solo su congelado tiene las cifras completas`
+      : publishedFrom !== undefined && window.fromMs < publishedFrom
+      ? `no disponible para este periodo: op.mon.2 publica en vivo los incidentes abiertos desde el ${String(register.desde).slice(0, 10)}; un periodo anterior solo está completo en su congelado`
+      : cut
+      ? `incompleto: op.mon.2 publica en vivo como mucho ${ART32_MAX_INCIDENTS} incidentes (${register.recortados} sin publicar) y el corte cae dentro del periodo`
       : undefined;
   if (unavailable) {
     ['total', 'mttd_hours', 'mttd_lower_bound_hours', 'mttc_hours', 'mttr_hours', 'notified_ccn_cert', 'with_personal_data', 'notified_aepd'].forEach(id =>
@@ -467,7 +489,7 @@ const incidentsOf = (
       const t = opened(i);
       return t !== undefined && t >= window.fromMs && t < window.toMs;
     });
-    const trace = `${where(ofPeriod.length)}${register.recortados ? `; solo los ${register.incidentes.length} más recientes (${register.recortados} sin publicar)` : ''}`;
+    const trace = `${where(ofPeriod.length)}${register.futuros ? `; ${register.futuros} incidente(s) con fecha posterior a la lectura no cuentan` : ''}`;
     data.push(datum('incidents.total', ofPeriod.length, source, trace, { unit: 'n' }));
     countBy(ofPeriod.map(i => i.clasificacion || 'sin clasificar')).forEach(([type, n]) =>
       data.push(datum('incidents.by_type', n, source, `${trace}; columna clasificacion`, { key: type, unit: 'n' }))
@@ -734,7 +756,7 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
     implementation: implementationOf(measures, statement.applicable, input.results, statement.repeated),
     maturity: maturityOf(measures),
     measures,
-    incidents: incidentsOf(opMon2, opExp7, window),
+    incidents: incidentsOf(opMon2, opExp7, window, input.periodIncidents),
     resources: resourcesOf(opMon2, input.records, period, window),
     measurement: measurementOf(opMon2, input.results, window),
   };

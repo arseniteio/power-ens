@@ -1358,15 +1358,61 @@ const reportIndicators = (context: ENSPolicyContext, now: number, daysWindow: nu
 };
 
 
-// The art. 32 data carry the incidents opened since the previous report period started, at most this many.
+// The live art. 32 variable carries the incidents opened since the previous report period started, at most this many.
 export const ART32_MAX_INCIDENTS = 500;
+// Days the collector re-emits (OPMON2_WINDOW_DAYS of the runbook): a period that starts earlier is not covered.
+export const ART32_REGISTER_WINDOW_DAYS = 400;
 
-// Art. 32 report: the incidents of the current and the previous report period as JSON (bounded), or why not.
-const art32Incidents = (context: ENSPolicyContext, now: number): string => {
+// One report period read on the server for a freeze or a closed period: all its incidents, up to `limit`.
+export interface ENSArt32IncidentsRange {
+  fromMs: number;
+  toMs: number;
+  limit: number;
+}
+
+const art32Incident = (i: Incident) => {
+  const at = (t?: number): string | undefined => (t === undefined ? undefined : iso(t));
+
+  return {
+    id: i.id,
+    severidad: i.severidad || undefined,
+    clasificacion: i.clasificacion,
+    apertura: at(i.apertura),
+    ...(i.apertura === undefined ? { primera: iso(i.primera) } : {}),
+    contencion: at(i.contencion),
+    cierre: at(i.cierre),
+    ocurrencia: at(i.ocurrencia),
+    ...(i.ccnCert !== undefined ? { ccn: true } : {}),
+    ...(i.aepd ? { aepd: true } : {}),
+    ...(i.datosPersonales !== 'no' ? { datosPersonales: i.datosPersonales } : {}),
+  };
+};
+
+// Art. 32 incidents: live (since the previous period, at most 500) or one period's (all, up to `limit`), or why not.
+// A row dated after the read never counts and never uses up a limit.
+export const art32IncidentsData = (context: ENSPolicyContext, now: number, range?: ENSArt32IncidentsRange): Record<string, unknown> => {
   const reg = READS_INCIDENTS(context, now);
 
   if (isMeasurement(reg)) {
-    return JSON.stringify({ motivo: reg.motivo, incidentes: [] });
+    return { motivo: reg.motivo, incidentes: [] };
+  }
+
+  const openedAt = (i: Incident) => i.apertura ?? i.primera;
+  const all = incidentsOf(reg);
+  const present = all.filter(i => openedAt(i) <= reg.t + FUTURE_TOLERANCE_MS);
+  const base = {
+    leido: iso(reg.t),
+    cubreDesde: iso(reg.t - ART32_REGISTER_WINDOW_DAYS * DAY_MS),
+    descartadas: reg.descartadas,
+    ...(present.length < all.length ? { futuros: all.length - present.length } : {}),
+  };
+
+  if (range) {
+    const ofPeriod = present.filter(i => openedAt(i) >= range.fromMs && openedAt(i) < range.toMs);
+
+    return ofPeriod.length > range.limit
+      ? { ...base, desde: iso(range.fromMs), excedido: ofPeriod.length, limite: range.limit, incidentes: [] }
+      : { ...base, desde: iso(range.fromMs), incidentes: ofPeriod.map(art32Incident) };
   }
 
   const per = periodicity(context);
@@ -1374,30 +1420,18 @@ const art32Incidents = (context: ENSPolicyContext, now: number): string => {
   const previous = String(Number(annualPeriodOfDay(date(now), closing)) - 1);
   // One day of margin: the report cuts the period at local midnight.
   const since = Date.parse(`${annualPeriodBounds(previous, closing).from}T00:00:00Z`) - DAY_MS;
-  const opened = incidentsOf(reg).filter(i => (i.apertura ?? i.primera) >= since);
+  const opened = present.filter(i => openedAt(i) >= since);
   const kept = opened.slice(-ART32_MAX_INCIDENTS);
-  const at = (t?: number): string | undefined => (t === undefined ? undefined : iso(t));
 
-  return JSON.stringify({
-    leido: iso(reg.t),
+  return {
+    ...base,
     desde: iso(since),
-    descartadas: reg.descartadas,
     ...(kept.length < opened.length ? { recortados: opened.length - kept.length } : {}),
-    incidentes: kept.map(i => ({
-      id: i.id,
-      severidad: i.severidad || undefined,
-      clasificacion: i.clasificacion,
-      apertura: at(i.apertura),
-      ...(i.apertura === undefined ? { primera: iso(i.primera) } : {}),
-      contencion: at(i.contencion),
-      cierre: at(i.cierre),
-      ocurrencia: at(i.ocurrencia),
-      ...(i.ccnCert !== undefined ? { ccn: true } : {}),
-      ...(i.aepd ? { aepd: true } : {}),
-      ...(i.datosPersonales !== 'no' ? { datosPersonales: i.datosPersonales } : {}),
-    })),
-  });
+    incidentes: kept.map(art32Incident),
+  };
 };
+
+const art32Incidents = (context: ENSPolicyContext, now: number): string => JSON.stringify(art32IncidentsData(context, now));
 
 // Art. 32 report: the cycles of the register as JSON, oldest first, or why not.
 const art32Cycles = (context: ENSPolicyContext, now: number): string => {

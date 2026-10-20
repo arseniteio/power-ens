@@ -1,8 +1,9 @@
 // Art. 32 on the server: a period's data set (frozen, or computed now) and its freeze (daily job, or administrator).
 import type { Logger } from '../../../../../src/core/server';
 import { ENSFACIL_PLUGIN_VERSION } from '../../../common/constants';
-import { annualPeriodBounds, annualPeriodOfDay, isAnnualPeriod, lastClosedAnnualPeriod } from '../../../common/ens/annual-report/annual-period';
-import { annualClosingOf, annualClosingOfConfiguration, buildAnnualReport } from '../../../common/ens/annual-report/annual-report';
+import { annualPeriodBounds, annualPeriodInstants, annualPeriodOfDay, isAnnualPeriod, lastClosedAnnualPeriod } from '../../../common/ens/annual-report/annual-period';
+import { annualClosingOf, annualClosingOfConfiguration, buildAnnualReport, liveIncidentsCutInto } from '../../../common/ens/annual-report/annual-report';
+import { readPeriodIncidents } from './incident-source';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import type { ENSAnnualFreeze, ENSAnnualFreezeEntry, ENSAnnualReport, ENSAnnualReportResponse } from '../../../common/ens/annual-report/annual-report-types';
 import { ENS_ANNUAL_REPORT_CONTROL } from '../../../common/ens/annual-report/declared-measures';
@@ -74,7 +75,13 @@ export const createAnnualReportService = ({
   maturity: ENSMaturityService;
   clock?: () => Date;
 }) => {
-  const build = (run: RunOutput, controls: Map<string, ENSControlMaturity>, period: string, freeze?: ENSAnnualFreezeEntry): ENSAnnualReport =>
+  const build = (
+    run: RunOutput,
+    controls: Map<string, ENSControlMaturity>,
+    period: string,
+    freeze?: ENSAnnualFreezeEntry,
+    periodIncidents?: Record<string, unknown>
+  ): ENSAnnualReport =>
     buildAnnualReport({
       configuration: run.ctx.configuration,
       results: resultsOf(run),
@@ -86,7 +93,22 @@ export const createAnnualReportService = ({
       period,
       pluginVersion: ENSFACIL_PLUGIN_VERSION,
       freeze,
+      periodIncidents,
     });
+
+  // A closed period (or one the live 500 cap cuts into) takes its incidents from the server, all of them up to the limit.
+  const periodIncidentsFor = async (client: any, run: RunOutput, period: string): Promise<Record<string, unknown> | undefined> => {
+    const calendar = calendarOf(run);
+    const { fromMs, toMs } = annualPeriodInstants(period, calendar.closing, calendar.timeZone);
+    const opMon2 = managerRowsOf(run)[ENS_ANNUAL_REPORT_CONTROL] || run.views.get(ENS_ANNUAL_REPORT_CONTROL)?.result;
+    if (period > calendar.lastClosed && !liveIncidentsCutInto(opMon2, fromMs)) return undefined;
+    try {
+      return await readPeriodIncidents(client, run.ctx.configuration, run.ctx.now, { fromMs, toMs: Math.min(toMs, run.ctx.now.getTime()) });
+    } catch (error: any) {
+      logger.warn(`ENSFácil: could not read the incidents of period ${period}: ${error?.message || error}`);
+      return { motivo: 'no se han podido leer en el indexador los incidentes del periodo; el detalle está en el log del dashboard', incidentes: [] };
+    }
+  };
 
   const organisationRun = (clients: ENSEvaluationClients) => evaluation.run(clients, normalizeQuery({ include: 'results' }), { allowStale: true });
 
@@ -139,7 +161,8 @@ export const createAnnualReportService = ({
     const run = await organisationRun(clients);
     if (run.meta.pending) return { ...base, periods, pending: true, ...(freezeError ? { freezeError } : {}) };
     const controls = await maturity.forReport(clients, run);
-    return { ...base, maturityVersion: run.ctx.maturityVersion || null, periods, report: build(run, controls, period), ...(freezeError ? { freezeError } : {}) };
+    const incidents = await periodIncidentsFor(clients.asCurrentUser, run, period);
+    return { ...base, maturityVersion: run.ctx.maturityVersion || null, periods, report: build(run, controls, period, undefined, incidents), ...(freezeError ? { freezeError } : {}) };
   };
 
   const entryFor = (by: string, revision: number, reason?: string): ENSAnnualFreezeEntry => ({
@@ -190,7 +213,14 @@ export const createAnnualReportService = ({
       );
     }
     const entry = entryFor(request.by, (currentRevision || 0) + 1, reason);
-    const report = build(run, controls, request.period, entry);
+    const report = build(run, controls, request.period, entry, await periodIncidentsFor(clients.asCurrentUser, run, request.period));
+    // A regeneration never replaces real incident figures with none: the current freeze stays.
+    const totalOf = (data: ENSAnnualReport) => data.incidents.find(datum => datum.id === 'incidents.total');
+    if (current && totalOf(current.freeze.report)?.value !== null && totalOf(current.freeze.report) && totalOf(report)?.value === null) {
+      throw new ENSBadRequestError(
+        `No se regenera el periodo ${request.period}: los incidentes ya no se pueden recalcular (${totalOf(report)?.trace}). El congelado vigente (revisión ${currentRevision}) se conserva.`
+      );
+    }
     if (current) {
       const { freeze } = current;
       const previous = { revision: freeze.revision, frozenAt: freeze.frozenAt, frozenBy: freeze.frozenBy, ...(freeze.reason ? { reason: freeze.reason } : {}) };
@@ -215,7 +245,8 @@ export const createAnnualReportService = ({
     if (addDays(to, ENS_AUTO_FREEZE_DAYS) < calendar.today) return { period, result: 'late' };
     if (await readAnnualFreeze(client, period)) return { period, result: 'exists' };
     const entry = entryFor(by, 1);
-    const result = await createAnnualFreeze(client, logger, documentOf(period, entry, build(run, controls, period, entry), []));
+    const incidents = await periodIncidentsFor(client, run, period);
+    const result = await createAnnualFreeze(client, logger, documentOf(period, entry, build(run, controls, period, entry, incidents), []));
     if (result === 'created') logger.info(`ENSFácil: annual report ${period} frozen by the daily job`);
     return { period, result };
   };

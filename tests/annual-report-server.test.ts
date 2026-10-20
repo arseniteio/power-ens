@@ -1,10 +1,12 @@
 /** Art. 32 on the server: read live or frozen, roles, the job's freeze (once), explicit regeneration with history. */
 import { createAnnualReportService } from '../server/lib/annual-report/annual-report-service';
+import { readPeriodIncidents } from '../server/lib/annual-report/incident-source';
+import { buildAnnualReport } from '../common/ens/annual-report/annual-report';
 import { createAnnualReportHandlers, ENS_ANNUAL_FREEZE_ROLE_MESSAGE } from '../server/lib/annual-report-handlers';
 import { annualFreezeId, annualFreezeRevisionId } from '../server/lib/annual-report/annual-freeze-storage';
 import { purgeSnapshots, readSnapshots, writeSnapshots } from '../server/lib/maturity/snapshot-storage';
 import { createDailySnapshotJob, ENS_SNAPSHOT_JOB_USER } from '../server/lib/maturity/daily-snapshot-job';
-import { matchesQuery, pickSource } from './fixtures/fake-indexer';
+import { createFakeIndexer, FakeDoc, matchesQuery, pickSource } from './fixtures/fake-indexer';
 import { configuration, consolidated, mpEq2Maturity, opAcc1Maturity, opExp7Row, opMon2Row, records, result } from './fixtures/annual-report-fixture';
 
 declare const process: { exit(code: number): void };
@@ -16,13 +18,15 @@ const check = (name: string, ok: boolean, detail: unknown = '') => {
 const section = (title: string) => console.log(`\n${title}`);
 
 // The plugin's snapshots index: ids, `create`, `if_seq_no`, `_source` filters and delete by query.
-const createStore = () => {
+const createStore = (alerts?: ReturnType<typeof createFakeIndexer>) => {
   const store = new Map<string, { index: string; source: any; seqNo: number }>();
   let sequence = 0;
   const client: any = {
     store,
     indices: { exists: async () => ({ body: true }), create: async () => ({ body: {} }), putIndexTemplate: async () => ({ body: {} }) },
     search: async (request: any) => {
+      // The facts index (wazuh-alerts-*): the fake indexer, when the test gives one.
+      if (alerts && String(request.index || '').startsWith('wazuh-alerts')) return alerts.search(request);
       const hits = [...store.entries()]
         .filter(([, doc]) => doc.index === request.index)
         .map(([id, doc]) => ({ _id: id, _index: doc.index, _source: doc.source, seqNo: doc.seqNo }))
@@ -122,6 +126,20 @@ const context = (internal: any, user: any, refuseSnapshots = false) => ({
   },
 });
 const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
+// The data set of a run as the service builds it (configuration, results, manager rows), optionally with read incidents.
+const buildAnnualReportForTest = (run: any, period: string, periodIncidents?: Record<string, unknown>) =>
+  buildAnnualReport({
+    configuration: run.ctx.configuration,
+    results: run.state.results,
+    managerRows: Object.fromEntries(['op.mon.2', 'op.exp.7'].map(id => [id, run.views.get(id)?.rows[0]?.result])),
+    maturity: maturityMap(),
+    records: run.ctx.maturityRecords,
+    now: run.ctx.now,
+    timeZone: 'Europe/Madrid',
+    period,
+    pluginVersion: '1.4.0',
+    periodIncidents,
+  });
 const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: string) => id.startsWith('annual_freeze')).sort();
 
 (async () => {
@@ -203,6 +221,71 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
   check('the snapshot reads never return a freeze', snapshots.length === 1 && snapshots[0].controlId === 'op.acc.1');
   await purgeSnapshots(internal, '2027-01-01');
   check('the purge of old snapshots keeps every freeze', freezeIds(internal).length === 2 && !internal.store.has('op.acc.1|2026-10-19'));
+
+  section('600 incidents in the period that has just closed: the freeze counts them all (the live variable keeps 500)');
+  {
+    // op.mon.2's last read on 2026-01-10: 600 incidents opened in 2025, one in 2024, and 5 rows dated in 2027 (a typo).
+    const readAt = '2026-01-10T00:05:00Z';
+    let n = 0;
+    const factDoc = (data: Record<string, unknown>): FakeDoc => ({
+      _id: `f${(n += 1)}`,
+      _index: 'wazuh-alerts-4.x-2026.01.10',
+      _source: { '@timestamp': readAt, timestamp: readAt, id: `1768003500.${n}`, agent: { id: '000', name: 'Wazuh-4' }, rule: { id: '111304', groups: ['ENS'] }, data: Object.fromEntries(Object.entries({ ensfacil: 'op.mon.2', evidence_id: 'EV-03', ...data }).map(([k, v]) => [k, String(v)])) },
+    });
+    const day = (i: number) => new Date(Date.parse('2025-01-01T08:00:00Z') + Math.floor((i * 364) / 600) * 86400e3).toISOString();
+    const rows: FakeDoc[] = [];
+    for (let i = 0; i < 600; i += 1) rows.push(factDoc({ event: 'incident_registered', incidente_id: `INC-${i}`, fase: 'inicial', fecha: day(i), severidad: 'media', clasificacion: 'phishing', datos_personales: 'no', notificacion_ccn_cert: '-', notificado_a: '-', linea: i + 2 }));
+    rows.push(factDoc({ event: 'incident_registered', incidente_id: 'INC-2024', fase: 'inicial', fecha: '2024-12-20T08:00:00Z', severidad: 'media', clasificacion: 'phishing', datos_personales: 'no', linea: 700 }));
+    for (let i = 0; i < 5; i += 1) rows.push(factDoc({ event: 'incident_registered', incidente_id: `INC-FUT-${i}`, fase: 'inicial', fecha: '2027-03-01T08:00:00Z', severidad: 'alta', clasificacion: 'phishing', datos_personales: 'no', linea: 800 + i }));
+    const read = factDoc({ event: 'incident_register_read', fichero: '/etc/ensfacil/incident-register.tsv', presente: 'si', legible: 'si', formato: 'ok', filas_validas: rows.length, filas_descartadas: 0, filas_emitidas: rows.length });
+    const facts = createFakeIndexer([read, ...rows], { clock: () => Date.parse('2026-01-10T01:30:00Z') });
+    const freezeStore = createStore(facts);
+    const now = new Date('2026-01-10T01:30:00Z');
+    // The live variable as op.mon.2 publishes it: the 500 newest (the oldest 100 of 2025 cut).
+    const live = { leido: readAt, desde: '2024-12-31T00:00:00Z', cubreDesde: '2024-12-06T00:05:00Z', descartadas: 0, recortados: 100, incidentes: Array.from({ length: 500 }, (_, k) => ({ id: `INC-${k + 100}`, severidad: 'media', clasificacion: 'phishing', apertura: day(k + 100) })) };
+    const run12 = () => {
+      const rowsOf: Record<string, any> = { 'op.mon.2': opMon2Row('12-31', { incidents: live }), 'op.exp.7': opExp7Row() };
+      const results = [result('op.acc.1', 'PARCIAL', 80), consolidated(rowsOf['op.mon.2']), consolidated(rowsOf['op.exp.7'])];
+      return {
+        ctx: { now, configuration: configuration({}, '12-31'), maturityRecords: records(), maturityVersion: { seqNo: 3, primaryTerm: 1 } },
+        meta: {},
+        state: { results },
+        views: new Map(results.map(entry => [entry.control.id, { result: entry, rows: rowsOf[entry.control.id] ? [{ agentId: '000', result: rowsOf[entry.control.id] }] : [] }])),
+      };
+    };
+    const service12 = createAnnualReportService({ logger, evaluation: { run: async () => run12(), settings: async () => ({ configuration: configuration({}, '12-31'), maturityVersion: null }) } as any, maturity, clock: () => now });
+    const frozen = await service12.freezeIfDue(freezeStore, run12() as any, maturityMap(), ENS_SNAPSHOT_JOB_USER);
+    const report = freezeStore.store.get(annualFreezeId('2025'))?.source.report;
+    const total = report?.incidents.find((d: any) => d.id === 'incidents.total');
+    check('the job freezes 2025 with its 600 incidents read on the server (not the 500 of the live variable)', frozen.result === 'created' && total?.value === 600 && /todas las filas del periodo/.test(total.trace), total);
+    check('the 2024 incident and the 5 dated in 2027 do not count, and the trace says so', report?.incidents.find((d: any) => d.id === 'incidents.by_severity' && d.key === 'alta')?.value === 0 && /5 incidente\(s\) con fecha posterior a la lectura no cuentan/.test(total?.trace || ''), total?.trace);
+    const liveOnly = buildAnnualReportForTest(run12(), '2025');
+    check('built from the capped live variable alone, the period is «incompleto», never 500', liveOnly.incidents.find((d: any) => d.id === 'incidents.total').value === null && /incompleto: op\.mon\.2 publica en vivo como mucho 500/.test(liveOnly.incidents.find((d: any) => d.id === 'incidents.total').trace));
+    const limited = await readPeriodIncidents(facts, configuration({}, '12-31'), now, { fromMs: Date.parse('2024-12-31T23:00:00Z'), toMs: Date.parse('2025-12-31T23:00:00Z') }, 599);
+    check('over the limit: no list, the count and the limit', limited.excedido === 600 && limited.limite === 599 && Array.isArray(limited.incidentes) && (limited.incidentes as any[]).length === 0, limited);
+    // «Regenerar» when the source no longer has the incidents: refused, the freeze with its 600 stays.
+    const before = JSON.stringify(freezeStore.store.get(annualFreezeId('2025')).source);
+    const blind = {
+      ...freezeStore,
+      search: async (request: any) =>
+        String(request.index || '').startsWith('wazuh-alerts') ? { body: { _shards: { total: 1, successful: 1, failed: 0 }, hits: { hits: [] } } } : freezeStore.search(request),
+    };
+    let refusal: any;
+    try {
+      await service12.freezeOnRequest({ asCurrentUser: blind, asInternalUser: freezeStore }, { period: '2025', reason: 'Corrección', by: 'rsis', expectedRevision: 1 });
+    } catch (error) {
+      refusal = error;
+    }
+    check(
+      'a regeneration that would lose the incident figures is refused and says why; the freeze stays',
+      refusal?.statusCode === 400 && /No se regenera el periodo 2025: los incidentes ya no se pueden recalcular/.test(refusal.message) && /revisión 1\) se conserva/.test(refusal.message) && JSON.stringify(freezeStore.store.get(annualFreezeId('2025')).source) === before,
+      refusal?.message
+    );
+    const regenerated = await service12.freezeOnRequest({ asCurrentUser: freezeStore, asInternalUser: freezeStore }, { period: '2025', reason: 'Corrección', by: 'rsis', expectedRevision: 1 });
+    check('with the source present the regeneration goes through, with the 600', regenerated.frozen.revision === 2 && regenerated.report.incidents.find((d: any) => d.id === 'incidents.total').value === 600);
+    const overLimit = buildAnnualReportForTest(run12(), '2025', limited);
+    check('...and the report says «el periodo tiene más de N incidentes», with no figure', overLimit.incidents.find((d: any) => d.id === 'incidents.total').value === null && /el periodo tiene más de 599 incidentes \(600\)/.test(overLimit.incidents.find((d: any) => d.id === 'incidents.total').trace));
+  }
 
   section('The daily job: the freeze after the snapshot, never failing it');
   let called: any;

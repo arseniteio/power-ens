@@ -896,11 +896,12 @@ section('9. The report: implementation and greys with the result of all controls
   {
     // The art. 32 data carry only the incidents since the previous report period started (12-31 closing: 2025), compact.
     const old = phase(COMPLETE, 9, 'INC-2024-001', 'inicial', '2024-06-01T08:00:00Z');
-    const withOld = (evaluate(withIncidents([...INCIDENTS(COMPLETE), old])).motor() as ENSComplianceResult).policyRuntime!.runtimeVariables;
+    const future = phase(COMPLETE, 10, 'INC-2027-001', 'inicial', '2027-02-01T08:00:00Z');
+    const withOld = (evaluate(withIncidents([...INCIDENTS(COMPLETE), old, future])).motor() as ENSComplianceResult).policyRuntime!.runtimeVariables;
     const art32 = JSON.parse(String(withOld.find(v => v.name === 'informe_art32_incidentes')!.value));
     check(
-      'art. 32 incidents: since the start of the previous period, without the 2024 one',
-      /^2024-12-31/.test(art32.desde) && art32.incidentes.map((i: any) => i.id).join() === 'INC-2026-014,INC-2026-015' && !art32.recortados,
+      'art. 32 incidents: since the start of the previous period, without the 2024 one nor the one dated in 2027',
+      /^2024-12-31/.test(art32.desde) && art32.incidentes.map((i: any) => i.id).join() === 'INC-2026-014,INC-2026-015' && !art32.recortados && art32.futuros === 1 && /^2025-09/.test(art32.cubreDesde),
       art32
     );
     check('...compact: no repeated first date, booleans only when true', art32.incidentes.every((i: any) => !('primera' in i)) && art32.incidentes[0].ccn === true && !('aepd' in art32.incidentes[0]) && art32.incidentes[1].aepd === true, art32.incidentes);
