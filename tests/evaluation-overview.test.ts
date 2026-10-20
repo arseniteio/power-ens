@@ -144,7 +144,8 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     const wait = (ms: number) => new Promise(ready => setTimeout(ready, ms));
     const lento = { ...index, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return index.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 300 });
+    // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 300 ms.
+    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 100 });
     const t0 = Date.now();
     const first = buildEvaluationResponse(await s5.run(cl, { include: 'overview', timeZone: 'UTC' })) as any;
     const pending = first.meta.pending?.controls || [];

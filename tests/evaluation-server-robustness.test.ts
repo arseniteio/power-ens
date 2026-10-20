@@ -225,7 +225,8 @@ const reference = () => {
   {
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return searchIndex.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600 });
+    // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 600 ms.
+    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 150 });
     const signal = new CancelSignal();
     const t0 = Date.now();
     const first = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, signal: signal });
