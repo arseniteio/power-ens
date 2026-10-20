@@ -50,7 +50,7 @@ Rules:
 - Red and grey do not set L0. Only a grey caused by collection (no collector data, or a stopped collector) holds the control at L1. A grey caused by configuration or by the catalog can accredit L2 if the facts recur, as the auditor's table provides; L3 then fails on the parameters or the requirements without evidence.
 - A machine that stops sending data prevents L2 even if the others report: the reason names the machine and the days without facts.
 - An evidence that never arrives while the collector reports daily does not prevent L2: it prevents L3 (requirements without evidence).
-- A control in draft (`DRAFT`) shows «Sin medición todavía» and has no accredited level. Its assessed level can still be recorded.
+- A control in draft (`DRAFT`, the 11 waiting for a collector) shows «Sin medición todavía» and has no accredited level. Its assessed level can still be recorded; above L0 it needs a justification and is marked «sin medición todavía: se apoya solo en la justificación». It counts as applicable only if one of its requirements applies at the level the control is applied with.
 - A control that does not apply at the ENS level (every requirement above it) shows «no aplica en este nivel» and is left out of the distribution.
 - The first time a view opens, maturity appears a few seconds after the result («Madurez: calculando…»), like the daily series: reading it never delays the evaluation.
 
@@ -163,7 +163,7 @@ The `wazuh-ens-snapshots` index keeps one snapshot per control and day: status, 
 
 - **The server's daily task**, with the dashboard's internal user: 10 minutes after start and then every hour it checks whether the day already has its snapshot; if not, it runs a complete evaluation of the whole organisation (its own, without touching the users' memory), waits for it to finish and writes the day. On Wazuh the internal user has the built-in `manage_wazuh_index` role (read, write, delete and manage on `wazuh-*`), which is enough to create the index, write and purge. If the indexer refuses a call, the dashboard log warns once and the task stops.
 - **An administrator's views** (`ensfacil_admin` or `all_access`) of the whole organisation (overview, panel, control list or a control's detail), when the result is complete and current.
-- The id is `<control>|<YYYY-MM-DD>`, with the day in the time zone of Configuration > General: writing again the same day replaces that day's document, never duplicates it.
+- One for each catalog control, including those in draft (they carry their assessed level). The id is `<control>|<YYYY-MM-DD>`, with the day in the time zone of Configuration > General: writing again the same day replaces that day's document, never duplicates it.
 - Retention: 1095 days (three years). Older ones are deleted on the first write of each day; if the deletion fails, it is retried with the next write.
 
 ### 10.2 Who reads it

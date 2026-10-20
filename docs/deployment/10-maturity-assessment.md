@@ -50,7 +50,7 @@ Reglas:
 - El rojo y el gris no fijan L0. Solo un gris por falta de recogida (sin datos del recolector o recolector parado) deja el control en L1. Un gris por configuración o por catálogo puede acreditar L2 si los hechos son recurrentes, como prevé la tabla del auditor; L3 no se cumple por los parámetros o los requisitos sin evidencia.
 - Una máquina que deja de enviar datos impide L2 aunque las demás informen: el motivo nombra la máquina y los días sin hechos.
 - Una evidencia que no llega mientras el recolector informa a diario no impide L2: impide L3 (requisitos sin evidencia).
-- Un control en borrador (`DRAFT`) muestra «Sin medición todavía» y no tiene nivel acreditado. Se puede registrar su nivel valorado.
+- Un control en borrador (`DRAFT`, los 11 que esperan recolector) muestra «Sin medición todavía» y no tiene nivel acreditado. Se puede registrar su nivel valorado; por encima de L0 necesita justificación y se marca «sin medición todavía: se apoya solo en la justificación». Cuenta como aplicable solo si alguno de sus requisitos aplica al nivel con que se aplica el control.
 - Un control que no aplica en el nivel ENS (todos sus requisitos fuera del nivel) muestra «no aplica en este nivel» y queda fuera de la distribución.
 - La primera vez que se abre una vista, la madurez aparece unos segundos después del resultado («Madurez: calculando…»), como la serie diaria: su lectura nunca retrasa la evaluación.
 
@@ -163,7 +163,7 @@ El índice `wazuh-ens-snapshots` guarda una instantánea por control y día: est
 
 - **La tarea diaria del servidor**, con el usuario interno del dashboard: 10 minutos después de arrancar y después cada hora comprueba si el día ya tiene instantánea; si no, hace una evaluación completa de toda la organización (propia, sin tocar la memoria de los usuarios), espera a que termine y escribe el día. En Wazuh, el usuario interno tiene el rol de serie `manage_wazuh_index` (lectura, escritura, borrado y gestión en `wazuh-*`), que basta para crear el índice, escribir y purgar. Si el indexador rechaza una llamada, el log del dashboard lo avisa una vez y la tarea se detiene.
 - **Las vistas de un administrador** (`ensfacil_admin` o `all_access`) de toda la organización (Vista general, panel, lista de controles o detalle de un control), cuando el resultado está completo y al día.
-- El identificador es `<control>|<AAAA-MM-DD>`, con el día en la zona horaria de Configuración > General: repetir el mismo día sustituye el documento del día, nunca lo duplica.
+- Una por cada control del catálogo, también los que están en borrador (llevan su nivel valorado). El identificador es `<control>|<AAAA-MM-DD>`, con el día en la zona horaria de Configuración > General: repetir el mismo día sustituye el documento del día, nunca lo duplica.
 - Retención: 1095 días (tres años). Las más antiguas se borran con la primera escritura de cada día; si el borrado falla, se reintenta con la siguiente escritura.
 
 ### 10.2 Quién la lee
