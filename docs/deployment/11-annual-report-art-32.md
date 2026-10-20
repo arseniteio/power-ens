@@ -68,7 +68,7 @@ La tarea diaria del servidor (02:30, hora de la zona configurada), tras escribir
 - solo si el cierre fue hace 31 días o menos; pasado ese plazo, el periodo se congela únicamente a petición (apartado 6.2);
 - con el usuario interno del dashboard, nunca con el de quien mira;
 - una sola vez: el documento se crea con `create` y una segunda pasada, o un segundo dashboard, no escribe nada;
-- un fallo no impide las instantáneas del día y se reintenta con la pasada del día siguiente.
+- un fallo no impide las instantáneas del día y se reintenta con la pasada del día siguiente; si no se pueden leer los incidentes del periodo en el indexador, no se congela nada y también se reintenta.
 
 El documento es `annual_freeze|<periodo>` en el índice `wazuh-ens-snapshots`, con la revisión 1, el instante, el autor (`ENSFácil (tarea diaria)`) y el conjunto completo. No tiene campo `date`: las lecturas de instantáneas, la comprobación de la tarea diaria y la purga de instantáneas de más de 1095 días no lo tocan.
 
@@ -87,12 +87,13 @@ Reglas:
 - el servidor comprueba el rol (`ensfacil_admin` o `all_access`) y escribe con el usuario interno;
 - la petición lleva la revisión leída (`expectedRevision`, nulo si no había ninguna); si otro la ha cambiado, devuelve 409;
 - las cifras son las del momento de la petición, no las del cierre: un congelado tardío lo indica con `header.frozen_at` posterior a `header.period_end`;
-- no se regenera un periodo cuyos incidentes ya no se pueden recalcular (por ejemplo, un periodo que op.mon.2 ya no reemite): la petición se rechaza con el motivo y el congelado vigente se conserva;
+- solo se regenera mientras op.mon.2 reenvía los incidentes del periodo: los reenvía durante 400 días, así que el plazo acaba unos 35 días después del cierre. Pasado ese plazo, «Regenerar» aparece desactivado y su ayuda emergente da el motivo; el congelado vigente se conserva. Entre unos 30 y 35 días después del cierre, una regeneración deja sin dato el porcentaje de alertas que acaban en incidente (la conciliación de op.exp.7 ya no toca el periodo); la revisión anterior lo conserva;
+- si no se pueden leer los incidentes del periodo en el indexador, la petición responde «No se han podido leer los incidentes del periodo; volver a intentarlo.» y no se guarda nada;
 - la revisión anterior se conserva entera en `annual_freeze|<periodo>|r<N>`; se lee y se exporta eligiéndola en «Revisión» (o con `?revision=N` en la API, apartado 10); «Regenerar» actúa siempre sobre la vigente.
 
 ### 6.3 Si cambia el cierre anual
 
-Un periodo congelado conserva las fechas de su cabecera (`header.period_start` y `header.period_end`): el panel y la lista de periodos las muestran aunque `cierre_anual` haya cambiado después, con el aviso «Congelado con otro cierre». Si con el cierre nuevo la misma clave de periodo está en curso (por ejemplo, de 03-31 a 12-31, el «2026»), el periodo en curso se calcula en el momento y el congelado del cierre anterior se deja aparte con un aviso; se sigue leyendo por la API con `?period=AAAA&revision=N`.
+Un periodo congelado conserva las fechas de su cabecera (`header.period_start` y `header.period_end`): el panel y la lista de periodos las muestran aunque `cierre_anual` haya cambiado después, con el aviso «Congelado con otro cierre». Si con el cierre nuevo la misma clave de periodo está en curso (por ejemplo, de 03-31 a 12-31, el «2026»), el periodo en curso se calcula en el momento y el congelado del cierre anterior se deja aparte con un aviso; se sigue leyendo por la API con `?period=AAAA&revision=N`. «Regenerar» un congelado de otro cierre lo recalcula con el cierre actual: la revisión nueva cubre las fechas que indica el aviso, no las del congelado.
 
 ### 6.4 Reproducibilidad
 

@@ -68,7 +68,7 @@ The server's daily job (02:30, local time of the configured zone), after writing
 - only if the closing was 31 days ago or less; after that, the period is frozen on request only (section 6.2);
 - with the dashboard's internal user, never with the viewer's;
 - once: the document is created with `create`, and a second run, or a second dashboard, writes nothing;
-- a failure does not prevent the day's snapshots and is retried with the next day's run.
+- a failure does not prevent the day's snapshots and is retried with the next day's run; if the period's incidents cannot be read in the indexer, nothing is frozen and it is retried too.
 
 The document is `annual_freeze|<period>` in the `wazuh-ens-snapshots` index, with revision 1, the instant, the author (`ENSFácil (tarea diaria)`) and the whole data set. It has no `date` field: snapshot reads, the daily job's check and the purge of snapshots older than 1095 days never touch it.
 
@@ -87,12 +87,13 @@ Rules:
 - the server checks the role (`ensfacil_admin` or `all_access`) and writes with the internal user;
 - the request carries the revision read (`expectedRevision`, null when there was none); if someone else changed it, it returns 409;
 - the figures are those of the moment of the request, not those of the closing: a late freeze shows it with `header.frozen_at` after `header.period_end`;
-- a period whose incidents can no longer be recomputed (for example, one op.mon.2 no longer re-emits) is not regenerated: the request is refused with the reason and the current freeze is kept;
+- a period is regenerated only while op.mon.2 still re-sends its incidents: it re-sends them for 400 days, so the window ends about 35 days after the closing. After that, «Regenerar» is disabled and its tooltip gives the reason; the current freeze is kept. Between about 30 and 35 days after the closing, a regeneration leaves the share of alerts that end in an incident without a datum (op.exp.7's reconciliation no longer touches the period); the previous revision keeps it;
+- if the period's incidents cannot be read in the indexer, the request answers «No se han podido leer los incidentes del periodo; volver a intentarlo.» and nothing is saved;
 - the previous revision is kept whole in `annual_freeze|<period>|r<N>`; it is read and exported by choosing it in «Revisión» (or with `?revision=N` in the API, section 10); «Regenerar» always acts on the current one.
 
 ### 6.3 If the annual closing changes
 
-A frozen period keeps the dates of its header (`header.period_start` and `header.period_end`): the panel and the period list show them even if `cierre_anual` changed afterwards, with the notice «Congelado con otro cierre». If, with the new closing, the same period key is open (for example, from 03-31 to 12-31, «2026»), the open period is computed at that moment and the freeze of the previous closing is set aside with a notice; it can still be read through the API with `?period=YYYY&revision=N`.
+A frozen period keeps the dates of its header (`header.period_start` and `header.period_end`): the panel and the period list show them even if `cierre_anual` changed afterwards, with the notice «Congelado con otro cierre». If, with the new closing, the same period key is open (for example, from 03-31 to 12-31, «2026»), the open period is computed at that moment and the freeze of the previous closing is set aside with a notice; it can still be read through the API with `?period=YYYY&revision=N`. «Regenerar» on a freeze of another closing recomputes it with the current closing: the new revision covers the dates the notice gives, not those of the freeze.
 
 ### 6.4 Reproducibility
 
