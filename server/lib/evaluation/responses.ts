@@ -135,7 +135,7 @@ export const buildEvaluationResponse = (run: RunOutput, maturity?: ENSMaturityOf
       meta,
       ...withMaturity(true),
       ...stateHeader(run),
-      dashboard: { ...model, impactEvents: run.impact },
+      dashboard: { ...model, impactEvents: run.impact ?? model.impactEvents },
       agents: agentRows(run),
       timeline,
       // With the first load half done, the state of each control (the missing ones, `pending`): the panel shows
