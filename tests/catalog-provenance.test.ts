@@ -146,7 +146,7 @@ section('6b. v2.0 wording: op.exp.10 reads by auditd, op.exp.3 EV-11 declared as
 {
   const ev = (control: string, id: string) => ENSEvidenceCatalog.find((e: any) => e.controlId === control && e.id === id);
   check('op.exp.10 EV-01 says reads are audited with auditd and FIM only sees integrity changes', /lecturas auditadas con auditd/.test(ev('op.exp.10', 'EV-01').description) && /FIM solo detecta cambios de integridad/.test(ev('op.exp.10', 'EV-01').description));
-  check('op.exp.10 EV-01 notes Windows is pending', /Windows \(SACL de lectura\) queda pendiente/.test(ev('op.exp.10', 'EV-01').description));
+  check('op.exp.10 EV-01 says Windows reads come from a read SACL (event 4663)', /SACL de lectura en Windows \(evento 4663\)/.test(ev('op.exp.10', 'EV-01').description));
   check('op.exp.3 EV-11 is ENSFácil\'s own evidence', /Evidencia propia de ENSFácil/.test(ev('op.exp.3', 'EV-11').description));
 }
 
