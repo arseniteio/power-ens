@@ -17,7 +17,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.3.1', 'mp.com.3.r1.1'],
       type: 'table',
-      example: 'integración con AEAT | / cert. mutuo TLS | internet',
+      example: 'integración con la AEAT | AEAT | certificado mutuo TLS | internet',
       columns: [
         {
           name: 'canal',
@@ -108,7 +108,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.3.2'],
       type: 'table',
-      example: 'secuestro de sesión → / misma sesión desde dos IP; / inyección → payload anómalo',
+      example: 'secuestro de sesión | misma sesión desde dos IP | registros del proxy inverso',
       columns: [
         {
           name: 'ataque',
@@ -149,7 +149,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.3.2'],
       type: 'string',
-      example: '«PR-18 Respuesta a intrusión» → apertura automática / de ticket desde Wazuh',
+      example: '«PR-18 Respuesta a intrusión», con apertura automática de ticket desde Wazuh',
       required: true,
       wazuhUsage:
         'ENSFácil correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
@@ -170,7 +170,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.3.3'],
       type: 'table',
-      example: 'certificado cualificado, / DNIe, Cl@ve, sello de órgano',
+      example: 'certificado cualificado | Reglamento eIDAS',
       columns: [
         {
           name: 'mecanismo',
@@ -205,7 +205,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.3.r1.1'],
       type: 'table',
-      example: 'sede remota | IPsec IKEv2 | / AES-256-GCM + ECDSA P-384',
+      example: 'sede remota | túnel sede-CPD | IPsec IKEv2 | AES-256-GCM y ECDSA P-384',
       columns: [
         {
           name: 'canal',
@@ -252,7 +252,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.com.3.r3.1'],
       type: 'table',
-      example: 'enlace sede | appliance / IPsec dedicado',
+      example: 'sede remota | appliance IPsec dedicado | modelo y versión del fabricante | cifrado del túnel',
       columns: [
         {
           name: 'canal',

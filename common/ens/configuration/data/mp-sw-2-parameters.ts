@@ -17,7 +17,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'table',
-      example: 'portal expedientes | / srv-web01/02 | J. Ruiz | propio',
+      example: 'portal de expedientes | srv-web01, srv-web02 | J. Ruiz | desarrollo propio',
       columns: [
         {
           name: 'aplicacion',
@@ -64,7 +64,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'list',
-      example: 'sin vulnerabilidades críticas; / autenticación conforme a op.acc.5; / registro de actividad activo; / TLS ≥1.2',
+      example: 'sin vulnerabilidades críticas\nautenticación conforme a op.acc.5\nregistro de actividad activo\nTLS 1.2 o superior',
       required: true,
       wazuhUsage:
         'ENSFácil verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
@@ -97,7 +97,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
           name: 'sistema_preprod',
           label: 'Sistema preprod',
           type: 'identifier',
-          required: false,
+          required: true,
         },
         {
           name: 'aislamiento',
@@ -126,7 +126,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'duration_days',
-      example: '7 antes / 7 después',
+      example: '7',
       required: true,
       wazuhUsage:
         'Define la ventana del análisis diferencial: cumplimiento SCA, puertos abiertos, servicios en ejecución y vulnerabilidades antes y después. Es la forma de medir el deterioro en lugar de declararlo.',
@@ -147,7 +147,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'table',
-      example: 'cumplimiento SCA: 0 pts / CVE críticas nuevas: 0 / puertos nuevos: solo los previstos',
+      example: 'puntuación SCA | sin bajada',
       columns: [
         {
           name: 'indicador',
@@ -182,7 +182,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'table',
-      example: 'portal expedientes | / 443 | nginx, php-fpm',
+      example: 'portal de expedientes | 443 | nginx, php-fpm',
       columns: [
         {
           name: 'aplicacion',
@@ -223,7 +223,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'table',
-      example: 'aplicación | versión | fecha | / aceptó | resultado',
+      example: 'portal de expedientes | 2.4.0 | 2026-03-15 | Responsable del Servicio | aceptada',
       columns: [
         {
           name: 'aplicacion',
@@ -276,7 +276,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.r2.1'],
       type: 'table',
-      example: 'portal | 02/2026 | SAST / interno | 14 | 12 cerrados',
+      example: 'portal de expedientes | 2026-02-20 | equipo interno con SAST | 14 | 12 cerrados',
       columns: [
         {
           name: 'aplicacion',

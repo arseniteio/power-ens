@@ -23,7 +23,7 @@
         "mp.com.4.r1.2"
       ],
       "type": "table",
-      "example": "VLAN 10 | usuarios | / 10.1.0.0/16 / VLAN 20 | servicios | 10.2.0.0/16 / VLAN 30 | administración",
+      "example": "VLAN 10 | usuarios | 10.1.0.0/16",
       "columns": [
         {
           "name": "segmento",
@@ -72,7 +72,7 @@
         "mp.com.4.1"
       ],
       "type": "table",
-      "example": "usuarios → servicios | TCP 443 | sí / usuarios → administración | — | no",
+      "example": "usuarios → servicios | TCP | 443 | sí",
       "columns": [
         {
           "name": "origen_destino",
@@ -133,6 +133,17 @@
         "R2",
         "R3"
       ],
+      "optionsByLevel": {
+        "MEDIO": [
+          "R1",
+          "R2",
+          "R3"
+        ],
+        "ALTO": [
+          "R2",
+          "R3"
+        ]
+      },
       "example": "R2",
       "required": true,
       "wazuhUsage": "Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.",
@@ -157,7 +168,7 @@
         "mp.com.4.2"
       ],
       "type": "table",
-      "example": "CORP-WIFI | VLAN 40 | / sí | solo a servicios / INVITADOS | VLAN 90 | sí | solo internet",
+      "example": "CORP-WIFI | VLAN 40 | sí | solo a servicios",
       "columns": [
         {
           "name": "ssid",
@@ -207,7 +218,7 @@
         "mp.com.4.r4.2"
       ],
       "type": "table",
-      "example": "IC-01 | usuarios↔servicios | / fw-interno01 | syslog",
+      "example": "IC-01 | usuarios ↔ servicios | fw-interno01 | syslog",
       "columns": [
         {
           "name": "punto",
@@ -257,7 +268,7 @@
         "mp.com.4.r4.1"
       ],
       "type": "table",
-      "example": "administración | 802.1X + / pertenencia a grupo AD",
+      "example": "administración | 802.1X | pertenencia al grupo de administradores del directorio",
       "columns": [
         {
           "name": "segmento",
@@ -302,7 +313,7 @@
         "mp.com.4.1"
       ],
       "type": "duration_days",
-      "example": "180 o 365",
+      "example": "180",
       "required": true,
       "wazuhUsage": "ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.",
       "ensfacilUsage": "ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.",

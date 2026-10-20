@@ -1,5 +1,6 @@
 import {
   ENSControlParameter,
+  ENSLevel,
   ENSParameterColumn,
   ENSParameterValueVerdict,
 } from '../types';
@@ -675,6 +676,26 @@ export const getParameterOptions = (
   (parameter.options || [])
     .map(option => String(option).trim())
     .filter(Boolean);
+
+/** The options offered at a level: `optionsByLevel` where it narrows them, every option otherwise. */
+export const getParameterOptionsAtLevel = (
+  parameter: ENSControlParameter,
+  level?: ENSLevel
+): string[] => {
+  const all = getParameterOptions(parameter);
+  const narrowed = level ? parameter.optionsByLevel?.[level] : undefined;
+
+  return narrowed ? all.filter(option => narrowed.includes(option)) : all;
+};
+
+/** The parameter as the form offers it at a level: only the options the ENS admits there. */
+export const parameterAtLevel = (
+  parameter: ENSControlParameter,
+  level?: ENSLevel
+): ENSControlParameter =>
+  parameter.optionsByLevel && level && parameter.optionsByLevel[level]
+    ? { ...parameter, options: getParameterOptionsAtLevel(parameter, level) }
+    : parameter;
 
 /** Whether the parameter is edited as a dropdown. */
 export const hasParameterOptions = (

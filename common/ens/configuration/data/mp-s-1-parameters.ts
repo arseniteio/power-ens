@@ -15,9 +15,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       description:
         'Solución de correo electrónico empleada, su pasarela de seguridad y la forma en que ambas envían registros a Wazuh. Sin ingesta no hay evidencia del funcionamiento de ninguno de los filtros.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.s.1'],
+      requirements: ['mp.s.1.1', 'mp.s.1.2', 'mp.s.1.3', 'mp.s.1.4', 'mp.s.1.5', 'mp.s.1.6', 'mp.s.1.7'],
       type: 'select',
-      example: 'Microsoft 365 + Defender / for Office → Management API / o Postfix + Rspamd → syslog',
+      example: 'Zimbra 10 Network con los registros enviados por syslog',
       required: true,
       wazuhUsage:
         'Define los decodificadores y el módulo de integración. Para correo en la nube se emplea el conector correspondiente; para infraestructura propia, log collection del MTA y del filtro. Es el parámetro que habilita todo lo demás.',
@@ -38,7 +38,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.2'],
       type: 'table',
-      example: 'org.es | -all | activo | / p=reject rua=…',
+      example: 'org.es | -all | activo | p=reject',
       columns: [
         {
           name: 'dominio',
@@ -85,7 +85,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.1', 'mp.s.1.2'],
       type: 'string',
-      example: 'TLS ≥1.2 saliente y entrante; / MTA-STS; TLS obligatorio con / dominios de la AGE',
+      example: 'TLS 1.2 o superior entrante y saliente; MTA-STS; TLS obligatorio con los dominios de la AGE',
       required: true,
       wazuhUsage:
         'SCA verifica la configuración del MTA y los logs permiten comprobar qué porcentaje del correo viaja cifrado y con qué versión. Correo en claro hacia destinos que admiten TLS → hallazgo de mp.s.1.1.',
@@ -106,7 +106,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.1'],
       type: 'table',
-      example: 'datos personales a terceros → / anexo cifrado con clave fuera / de banda; S/MIME para / comunicaciones con la AGE',
+      example: 'datos personales a terceros | anexo cifrado con la clave enviada por otro canal',
       columns: [
         {
           name: 'supuesto',
@@ -141,7 +141,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.3'],
       type: 'string',
-      example: 'Defender for Office con / nivel estándar; cuarentena / para puntuación > 5',
+      example: 'SpamAssassin con cuarentena a partir de 5 puntos',
       required: true,
       wazuhUsage:
         'ENSFácil mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
@@ -162,7 +162,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.4'],
       type: 'string',
-      example: 'análisis de anexos + / sandbox + reescritura de URL',
+      example: 'Análisis de anexos con ClamAV y sandbox; reescritura de URL',
       required: true,
       wazuhUsage:
         'ENSFácil mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
@@ -183,7 +183,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.5'],
       type: 'select',
-      example: 'bloqueo de anexos con / macros; HTML saneado; / ecutables en cuarentena',
+      example: 'Bloqueo de anexos con macros, HTML saneado y ejecutables en cuarentena',
       required: true,
       wazuhUsage:
         'ENSFácil verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
@@ -204,7 +204,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.6'],
       type: 'string',
-      example: '«NT-02 Uso del correo / electrónico v3», con acuse de / recepción del personal',
+      example: '«NT-02 Uso del correo electrónico v3», con acuse de recepción del personal',
       required: true,
       wazuhUsage:
         'Acreditación documental. No es verificable técnicamente: el uso privado del correo corporativo no se detecta con un SIEM, y pretender medirlo plantearía además problemas de proporcionalidad.',
@@ -225,7 +225,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.1.7'],
       type: 'table',
-      example: 'campaña de phishing / simulado | 03/2026 | 100 % | 87 %',
+      example: 'campaña de phishing simulado | 2026-03-10 | toda la plantilla | 87 %',
       columns: [
         {
           name: 'actividad',

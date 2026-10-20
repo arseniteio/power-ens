@@ -17,7 +17,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.1.1'],
       type: 'table',
-      example: 'fw-perim01 | cortafuegos | / DMZ norte | syslog 514',
+      example: 'fw-perim01 | cortafuegos | DMZ norte | syslog 514',
       columns: [
         {
           name: 'elemento',
@@ -64,7 +64,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.1.2'],
       type: 'table',
-      example: 'DMZ web → BD interna | / TCP 3306 | RSI | 02/2026',
+      example: 'DMZ web | BD interna | TCP | 3306 | Responsable de Seguridad | 2026-02-01',
       columns: [
         {
           name: 'origen',
@@ -123,7 +123,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.1.1'],
       type: 'table',
-      example: 'enlace principal → fw-perim01 / enlace respaldo → fw-perim02',
+      example: 'enlace principal | fw-perim01 | tráfico general',
       columns: [
         {
           name: 'salida',
@@ -164,7 +164,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.1.2'],
       type: 'duration_days',
-      example: '180 o 365',
+      example: '180',
       required: true,
       wazuhUsage:
         'ENSFácil registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
@@ -185,7 +185,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.com.1.1', 'mp.com.1.2'],
       type: 'list',
-      example: 'any→interno cualquier puerto; / RDP/SSH expuestos a internet; / telnet, FTP, SMBv1 salientes',
+      example: 'any → red interna en cualquier puerto\nRDP o SSH expuestos a internet\ntelnet/FTP/SMBv1 salientes',
       required: true,
       wazuhUsage:
         'ENSFácil analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
@@ -204,9 +204,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       description:
         'Referencia a la Instrucción Técnica de Seguridad de Interconexión de Sistemas de Información aplicable y a los requisitos que de ella se derivan para la categoría del sistema. El propio texto de mp.com.1 remite a ella de forma expresa.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
-      requirements: ['mp.com.1'],
+      requirements: ['mp.com.1.1', 'mp.com.1.2'],
       type: 'string',
-      example: 'derivados por categoría',
+      example: 'ITS de Interconexión de Sistemas de Información: requisitos del perímetro para la categoría MEDIA',
       required: true,
       wazuhUsage:
         'ENSFácil recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',

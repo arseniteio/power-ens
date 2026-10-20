@@ -17,7 +17,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1'],
       type: 'table',
-      example: 'MFP-03 | multifunción | / 10.2.0.14 | Admin | sí',
+      example: 'MFP-03 | multifunción | 10.2.0.14 | Administración | sí',
       columns: [
         {
           name: 'dispositivo',
@@ -70,7 +70,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1'],
       type: 'table',
-      example: 'multifunción | red usuarios | / servidor de impresión | 9100 / sin salida a internet',
+      example: 'multifunción | red de usuarios | servidor de impresión | TCP 9100',
       columns: [
         {
           name: 'tipo',
@@ -117,7 +117,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1', 'mp.eq.4.r2.1'],
       type: 'table',
-      example: 'DHCP Windows | eventos | / switches | syslog + SNMP',
+      example: 'DHCP de Windows | eventos | red de usuarios',
       columns: [
         {
           name: 'fuente',
@@ -158,7 +158,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1'],
       type: 'table',
-      example: 'MFP-03 | sí 514/udp | / v3 | wazuh-mgr',
+      example: 'MFP-03 | sí, 514/udp | v3 | manager de Wazuh',
       columns: [
         {
           name: 'dispositivo',
@@ -205,7 +205,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.2'],
       type: 'table',
-      example: 'MFP-03 | disco 320 GB | / sobrescritura | tras cada trabajo / y en retirada',
+      example: 'MFP-03 | disco de 320 GB | sobrescritura | tras cada trabajo y en la retirada',
       columns: [
         {
           name: 'dispositivo',
@@ -252,7 +252,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1'],
       type: 'select',
-      example: 'invitados solo en VLAN / aislada con salida a internet; / BYOD no admitido en red interna',
+      example: 'Invitados solo en una VLAN aislada con salida a internet; BYOD no admitido en la red interna',
       required: true,
       wazuhUsage:
         'ENSFácil verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
@@ -273,7 +273,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.r1.1'],
       type: 'table',
-      example: 'MFP-03 | sin certificar | / no hay producto equivalente',
+      example: 'MFP-03 | sin certificar | — | no hay producto equivalente en el catálogo CCN-STIC 105',
       columns: [
         {
           name: 'dispositivo',
@@ -320,7 +320,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.r2.1'],
       type: 'select',
-      example: '802.1X en toda la red / cableada; port security en / switches de acceso',
+      example: '802.1X en toda la red cableada; port security en los conmutadores de acceso',
       required: false,
       wazuhUsage:
         'ENSFácil ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',

@@ -17,7 +17,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.4.1', 'mp.com.4.r1.2'],
       type: 'table',
-      example: 'VLAN 10 | usuarios | / 10.1.0.0/16 / VLAN 20 | servicios | 10.2.0.0/16 / VLAN 30 | administración',
+      example: 'VLAN 10 | usuarios | 10.1.0.0/16',
       columns: [
         {
           name: 'segmento',
@@ -58,7 +58,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.4.1'],
       type: 'table',
-      example: 'usuarios → servicios | TCP 443 | sí / usuarios → administración | — | no',
+      example: 'usuarios → servicios | TCP | 443 | sí',
       columns: [
         {
           name: 'origen_destino',
@@ -107,6 +107,8 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       type: 'select',
       // The chosen reinforcement, as in op.acc.5 P-01: the requirements of the options not chosen will come out NO_APLICA.
       options: ['R1', 'R2', 'R3'],
+      // The index: [R1 or R2 or R3] in MEDIA, [R2 or R3] in ALTA (VLAN is no longer enough).
+      optionsByLevel: { MEDIO: ['R1', 'R2', 'R3'], ALTO: ['R2', 'R3'] },
       example: 'R2',
       required: true,
       wazuhUsage:
@@ -128,7 +130,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.4.2'],
       type: 'table',
-      example: 'CORP-WIFI | VLAN 40 | / sí | solo a servicios / INVITADOS | VLAN 90 | sí | solo internet',
+      example: 'CORP-WIFI | VLAN 40 | sí | solo a servicios',
       columns: [
         {
           name: 'ssid',
@@ -175,7 +177,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.com.4.r4.1', 'mp.com.4.r4.2'],
       type: 'table',
-      example: 'IC-01 | usuarios↔servicios | / fw-interno01 | syslog',
+      example: 'IC-01 | usuarios ↔ servicios | fw-interno01 | syslog',
       columns: [
         {
           name: 'punto',
@@ -222,7 +224,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.com.4.r4.1'],
       type: 'table',
-      example: 'administración | 802.1X + / pertenencia a grupo AD',
+      example: 'administración | 802.1X | pertenencia al grupo de administradores del directorio',
       columns: [
         {
           name: 'segmento',
@@ -263,7 +265,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.com.4.1'],
       type: 'duration_days',
-      example: '180 o 365',
+      example: '180',
       required: true,
       wazuhUsage:
         'ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',

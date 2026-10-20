@@ -17,7 +17,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.1'],
       type: 'string',
-      example: '«NT-03 Uso de internet v2», / con limitaciones de uso personal / y régimen de conexiones cifradas',
+      example: '«NT-03 Uso de internet v2», con las limitaciones de uso personal y el régimen de conexiones cifradas',
       required: true,
       wazuhUsage:
         'Acreditación documental. Es el requisito del que cuelga la legitimidad de todo lo demás: sin normativa difundida, el registro de navegación de R1 carece de base informativa frente al personal.',
@@ -38,7 +38,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.5', 'mp.s.3.6'],
       type: 'string',
-      example: 'proxy con filtrado de / categorías + antimalware → / syslog a Wazuh',
+      example: 'Proxy con filtrado por categorías y antimalware; registros a Wazuh por syslog',
       required: true,
       wazuhUsage:
         'Habilita la ingesta y los decodificadores. Sin registros del proxy no hay evidencia de que el filtrado opere ni de qué se bloquea, y el control queda reducido a la configuración declarada.',
@@ -59,7 +59,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.5', 'mp.s.3.6'],
       type: 'table',
-      example: 'malware, phishing → bloqueo; / ecutables → bloqueo; / almacenamiento personal → bloqueo',
+      example: 'descarga de ejecutables | bloqueo',
       columns: [
         {
           name: 'categoria',
@@ -94,7 +94,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.4'],
       type: 'string',
-      example: 'resolutores internos obligatorios; / DNS externo bloqueado en el / perímetro; filtrado en resolutor',
+      example: 'Resolutores internos obligatorios; DNS externo bloqueado en el perímetro; filtrado en el resolutor',
       required: true,
       wazuhUsage:
         'ENSFácil verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
@@ -115,7 +115,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.7'],
       type: 'string',
-      example: 'perfiles de navegador / separados; borrado de cookies / de terceros; sin sincronización / con cuentas personales',
+      example: 'Perfiles de navegador separados; borrado de cookies de terceros; sin sincronización con cuentas personales',
       required: true,
       wazuhUsage:
         'SCA verifica la configuración del navegador gestionado. Es un requisito peculiar del ENS y poco habitual en otros marcos, de modo que conviene no pasarlo por alto: pide política ejecutiva, no recomendación.',
@@ -136,7 +136,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.2'],
       type: 'table',
-      example: 'actividad | fecha | alcance / + periodicidad declarada',
+      example: 'sesión de higiene en la navegación | 2026-03-05 | toda la plantilla',
       columns: [
         {
           name: 'actividad',
@@ -189,7 +189,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
           name: 'formacion',
           label: 'Formación',
           type: 'string',
-          required: false,
+          required: true,
         },
         {
           name: 'fecha',
@@ -224,7 +224,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.s.3.r1.1'],
       type: 'string',
-      example: 'elementos: URL, categoría, / usuario, fecha, volumen / retención: 90 días / uso previsto: seguridad e / investigación de incidentes',
+      example: 'Se registran URL, categoría, usuario, fecha y volumen; retención de 90 días; uso previsto: seguridad e investigación de incidentes',
       required: false,
       wazuhUsage:
         'Configura la ingesta y la política de retención, y queda recogido en el informe como declaración. Es además la base de información al personal: los tres extremos que el ENS pide declarar coinciden con lo que exige la transparencia en materia de protección de datos.',
@@ -245,7 +245,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.s.3.r1.2'],
       type: 'string',
-      example: 'qué se analiza / qué se registra / / retención / uso previsto / + destinos excluidos: banca, / salud, asesoramiento jurídico',
+      example: 'Se analiza el contenido descargado y se registran la URL y el veredicto, con retención de 90 días; destinos excluidos: banca, salud y asesoramiento jurídico',
       required: false,
       wazuhUsage:
         'Configura la inspección y, sobre todo, sus exclusiones. El propio ENS prevé la salvedad de los accesos cifrados singulares a destinos de confianza, y es el parámetro que acota una medida con implicaciones que van más allá del ENS.',
@@ -266,7 +266,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.s.3.r1.3'],
       type: 'list',
-      example: 'listas de reputación + / avisos CCN-CERT + añadidos / internos, con fecha',
+      example: 'listas de reputación\navisos del CCN-CERT\nañadidos internos con su fecha',
       required: false,
       wazuhUsage:
         'Se carga en el proxy y como CDB list en Wazuh para detectar también los intentos que no pasen por el proxy. Enlaza con op.exp.7 R3: los indicadores de los avisos del CCN-CERT alimentan esta lista de forma natural.',
@@ -287,7 +287,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.3.r2.1'],
       type: 'list',
-      example: 'destinos autorizados + / procedimiento de autorización / singular expresa',
+      example: 'sede.org.es\nboe.es',
       required: false,
       wazuhUsage:
         'ENSFácil verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',

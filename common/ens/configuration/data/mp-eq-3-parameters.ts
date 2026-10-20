@@ -17,7 +17,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.1'],
       type: 'table',
-      example: 'PRT-014 | portátil | / J. Gómez | MEDIO',
+      example: 'PRT-014 | portátil | J. Gómez | MEDIO',
       columns: [
         {
           name: 'dispositivo',
@@ -64,7 +64,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.1'],
       type: 'duration_days',
-      example: '30 o 90',
+      example: '90',
       required: true,
       wazuhUsage:
         'ENSFácil registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
@@ -85,7 +85,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.2'],
       type: 'string',
-      example: '«PR-09 Pérdida de / dispositivos v1.2» → / cola ITSM «Seguridad»',
+      example: '«PR-09 Pérdida de dispositivos v1.2», con aviso a la cola ITSM «Seguridad»',
       required: true,
       wazuhUsage:
         'Referencia documental.',
@@ -106,7 +106,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.3'],
       type: 'table',
-      example: 'correo, intranet | / usuario estándar | RSI',
+      example: 'correo e intranet | usuario estándar | Responsable de Seguridad | 2026-03-01',
       columns: [
         {
           name: 'servicio_accesible',
@@ -152,8 +152,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
         'Rutas y artefactos donde pueden residir claves de acceso remoto a la organización que mp.eq.3.4 pide evitar: claves SSH privadas, perfiles de VPN con credenciales, ficheros de configuración con secretos, almacenes de contraseñas del navegador.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.4'],
-      type: 'path',
-      example: '~/.ssh/id_*, *.ovpn con / auth-user-pass, .pem, .ppk, / Login Data de Chrome',
+      // A list: the template asks for «Lista de rutas y patrones», one per line.
+      type: 'list',
+      example: '~/.ssh/id_*\n*.ovpn\n*.ppk\n*.pem',
       required: true,
       wazuhUsage:
         'FIM y Syscollector detectan la presencia de estos artefactos en los dispositivos de P-01. Es la comprobación de mayor valor del control y la que casi nunca se hace: la mayoría de los portátiles corporativos llevan claves que no deberían.',
@@ -174,7 +175,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.eq.3.r1.1'],
       type: 'table',
-      example: 'PRT-014 | MEDIO | sí / PRT-022 | ALTO | sí / PRT-031 | BAJO | no exigible',
+      example: 'PRT-014 | MEDIO | sí | BitLocker',
       columns: [
         {
           name: 'dispositivo',
@@ -221,7 +222,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.eq.3.r2.1'],
       type: 'string',
-      example: '«NT-04 Uso de dispositivos / portátiles», con acuse de / recepción del personal',
+      example: '«NT-04 Uso de dispositivos portátiles», con acuse de recepción del personal',
       required: false,
       wazuhUsage:
         'Es una norma de comportamiento, no una configuración: ENSFácil recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
@@ -242,7 +243,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.3.2', 'mp.eq.3.4'],
       type: 'table',
-      example: 'revocar cert. | 1 h | RSI / borrado remoto | 4 h | Sistemas',
+      example: 'revocar el certificado de acceso remoto | 1 h | Responsable de Seguridad',
       columns: [
         {
           name: 'accion',

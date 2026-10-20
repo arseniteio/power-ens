@@ -76,7 +76,7 @@
         "mp.s.4.1"
       ],
       "type": "table",
-      "example": "sede | 200 pet/s punta | / 800 pet/s | ×4",
+      "example": "sede | 200 peticiones/s en punta | 800 peticiones/s | ×4",
       "columns": [
         {
           "name": "servicio",
@@ -128,7 +128,7 @@
         "mp.s.4.2"
       ],
       "type": "table",
-      "example": "limitación de tasa en proxy; / protección DDoS del proveedor; / SYN cookies en servidores",
+      "example": "limitación de tasa | proxy inverso | sede",
       "columns": [
         {
           "name": "tecnologia",
@@ -173,7 +173,7 @@
         "mp.s.4.r1.1"
       ],
       "type": "table",
-      "example": "peticiones > 5× la media / en 1 min; tiempo de respuesta / > 3× la línea base",
+      "example": "peticiones por segundo | más de 5 veces la media | 1 min",
       "columns": [
         {
           "name": "indicador",
@@ -219,7 +219,7 @@
         "mp.s.4.r1.2"
       ],
       "type": "string",
-      "example": "«PR-25 Reacción ante DoS»: / activar modo de protección, / bloqueo de rangos, escalado al / proveedor, comunicación pública",
+      "example": "«PR-25 Reacción ante DoS»: activar el modo de protección, bloquear rangos, escalar al proveedor y comunicar",
       "required": false,
       "wazuhUsage": "ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.",
       "ensfacilUsage": "ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.",
@@ -243,7 +243,7 @@
         "mp.s.4.r1.2"
       ],
       "type": "string",
-      "example": "NOC del proveedor 24×7, / teléfono y correo, contrato con / mitigación activable en 15 min",
+      "example": "NOC del proveedor 24×7 por teléfono y correo, con mitigación contratada activable en 15 min",
       "required": false,
       "wazuhUsage": "ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.",
       "ensfacilUsage": "ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.",
@@ -267,7 +267,7 @@
         "mp.s.4.r1.1"
       ],
       "type": "string",
-      "example": "sede: 40 pet/s laborables / 8-20 h; 5 pet/s resto",
+      "example": "Sede: 40 peticiones/s en horario laboral (8-20 h) y 5 peticiones/s el resto",
       "required": false,
       "wazuhUsage": "ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.",
       "ensfacilUsage": "ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.",
@@ -294,7 +294,7 @@
         "mp.s.4.r2.1"
       ],
       "type": "list",
-      "example": "tráfico saliente > 10× media; / conexiones masivas a destino único; / DNS o NTP propios respondiendo / a consultas externas",
+      "example": "tráfico saliente superior a 10 veces la media\nconexiones masivas a un destino único\nDNS o NTP propios respondiendo a consultas externas",
       "required": false,
       "wazuhUsage": "Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.",
       "ensfacilUsage": "Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.",

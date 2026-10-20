@@ -17,7 +17,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.1'],
       type: 'table',
-      example: 'sede | sede.org.es | / srv-web01 | internet | sí',
+      example: 'sede | sede.org.es | srv-web01 | internet | sí',
       columns: [
         {
           name: 'aplicacion',
@@ -70,7 +70,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.1', 'mp.s.2.2', 'mp.s.2.3'],
       type: 'table',
-      example: 'srv-web01 | nginx | / /var/log/nginx/access.log | sí',
+      example: 'srv-web01 | nginx | /var/log/nginx/access.log | /var/log/nginx/error.log | sí',
       columns: [
         {
           name: 'servidor',
@@ -123,7 +123,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.1'],
       type: 'table',
-      example: 'sede | /expedientes/* | / sesión + certificado',
+      example: 'sede | /expedientes/* | sesión y certificado',
       columns: [
         {
           name: 'aplicacion',
@@ -164,7 +164,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.1'],
       type: 'table',
-      example: 'autoindex off; acceso / directo a /uploads bloqueado; / métodos PUT/DELETE desactivados',
+      example: 'listado de directorios | autoindex off en nginx',
       columns: [
         {
           name: 'via',
@@ -199,7 +199,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.1'],
       type: 'string',
-      example: 'Secure; HttpOnly; SameSite=Lax / o Strict; sin ámbito excesivo; / rotación tras autenticación',
+      example: 'Secure; HttpOnly; SameSite=Lax o Strict; sin ámbito excesivo; rotación tras la autenticación',
       required: true,
       wazuhUsage:
         'SCA y análisis de las cabeceras de respuesta verifican estos atributos. Las reglas detectan además el uso de una misma cookie de sesión desde orígenes distintos, que es el indicio de manipulación o robo. Enlaza con mp.com.3.2 c) (secuestro de sesión).',
@@ -220,7 +220,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.r1.2'],
       type: 'string',
-      example: '«PR-22 Auditoría de aplicaciones web v2»; caja negra / continua en desarrollo + antes de / cada paso a producción',
+      example: '«PR-22 Auditoría de aplicaciones web v2»: caja negra continua en desarrollo y antes de cada paso a producción',
       required: true,
       wazuhUsage:
         'ENSFácil registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
@@ -243,6 +243,8 @@ export const mpS2Configuration: ENSControlConfiguration = {
       type: 'select',
       // The chosen reinforcement, as in op.acc.5 P-01: the requirements of the options not chosen will come out NO_APLICA.
       options: ['R1', 'R2'],
+      // The index: [R1 or R2] in BÁSICA and MEDIA; in ALTA R2 is required, there is no choice.
+      optionsByLevel: { BAJO: ['R1', 'R2'], MEDIO: ['R1', 'R2'], ALTO: ['R2'] },
       example: 'R2',
       required: true,
       wazuhUsage:
@@ -264,7 +266,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.s.2.r1.1', 'mp.s.2.r2.1', 'mp.s.2.r2.2'],
       type: 'table',
-      example: '02/2026 | sede | caja blanca | / OWASP ASVS | SAST | 23',
+      example: '2026-02-20 | sede | caja blanca | OWASP ASVS | SAST | 23',
       columns: [
         {
           name: 'fecha',
@@ -323,7 +325,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.s.2.r2.3'],
       type: 'table',
-      example: 'XSS en formulario | alta | / 02/2026 | cerrado',
+      example: 'XSS en el formulario de alta | alta | 2026-02-20 | equipo de desarrollo | 2026-03-20 | cerrado',
       columns: [
         {
           name: 'hallazgo',
@@ -382,7 +384,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.s.2.r3.1'],
       type: 'table',
-      example: 'CDN | caché de estáticos | / sede; proxy inverso | balanceo',
+      example: 'CDN | caché de estáticos | sede',
       columns: [
         {
           name: 'elemento',

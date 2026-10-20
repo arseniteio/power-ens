@@ -17,7 +17,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.eq.2.1'],
       type: 'number',
-      example: '10 o 15',
+      example: '15',
       required: true,
       wazuhUsage:
         'SCA verifica el valor configurado en la política de cada equipo y alerta si es superior a P-01 o si el bloqueo está deshabilitado. Es la comprobación central del control.',
@@ -38,7 +38,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       levels: ['ALTO'],
       requirements: ['mp.eq.2.r1.1'],
       type: 'number',
-      example: '60 o 120 / (debe ser > P-01)',
+      example: '60',
       required: false,
       wazuhUsage:
         'SCA verifica los límites de sesión configurados.',
@@ -59,7 +59,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.eq.2.1'],
       type: 'table',
-      example: 'estaciones Windows | GPO / portátiles | Intune',
+      example: 'pc-admin01 | Windows 11 | GPO',
       columns: [
         {
           name: 'equipo',
@@ -100,7 +100,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.eq.2.1'],
       type: 'table',
-      example: 'pantalla SOC | visualización / continua | sala con control de acceso',
+      example: 'pantalla-soc01 | visualización continua | sala con control de acceso | Responsable de Seguridad',
       columns: [
         {
           name: 'equipo',
@@ -147,7 +147,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: ['mp.eq.2.1'],
       type: 'table',
-      example: 'sí – caffeine.exe, / mouse jiggler, nosleep',
+      example: 'sí | caffeine.exe, mousejiggler.exe, nosleep',
       columns: [
         {
           name: 'aplica',
