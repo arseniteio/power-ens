@@ -105,7 +105,12 @@ traffic light.
   closed at P-02 `cierre_anual` (31 December without it). An administrator
   freezes or regenerates a closed period with a reason
   (`POST /api/ensfacil/annual-report/freeze`); the previous revision is
-  kept.
+  kept. A closed period reads all its incidents on the server (up to
+  10,000); a regeneration that would lose the incident figures is refused. A
+  freeze keeps the dates of its header even if the closing changes.
+- op.mon.2 P-01 takes one row per measure: a repeated measure is a
+  validation error that names it with its rows; the report reads P-01 once
+  per measure.
 - op.mon.2 and op.exp.7 publish their report data (incidents, cycles, alert
   reconciliation and detection) as engine variables, changing no verdict.
   With the optional `fecha_ocurrencia` column of the incident register

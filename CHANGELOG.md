@@ -108,7 +108,13 @@ cada control junto al semáforo.
   acaba de cerrar en P-02 `cierre_anual` (31 de diciembre sin él). Un
   administrador congela o regenera un periodo cerrado con motivo
   (`POST /api/ensfacil/annual-report/freeze`); la revisión anterior se
-  conserva.
+  conserva. Un periodo cerrado lee en el servidor todos sus incidentes
+  (hasta 10 000); una regeneración que perdería las cifras de incidentes se
+  rechaza. Un congelado conserva las fechas de su cabecera aunque cambie el
+  cierre.
+- op.mon.2 P-01 admite una sola fila por medida: una medida repetida es un
+  error de validación que la nombra con sus filas; el informe lee P-01 una
+  vez por medida.
 - op.mon.2 y op.exp.7 publican sus datos de informe (incidentes, ciclos,
   conciliación de alertas y detección) como variables del motor, sin cambiar
   ningún veredicto. Con la columna opcional `fecha_ocurrencia` del registro
