@@ -23,7 +23,7 @@ The exact fields of the current INES questionnaire are not confirmed. The data s
 
 | Screen | Content |
 |---|---|
-| Controls > op.mon.2 > «Informe anual (art. 32)» | Period, state (open, closed without freeze or frozen), summary, «Descargar JSON», «Descargar CSV», «Congelar» or «Regenerar» and «Recursos TIC totales» |
+| Controls > op.mon.2 > «Informe anual (art. 32)» | Period, revision (for a period frozen more than once), state (open, closed without freeze or frozen), summary, «Descargar JSON», «Descargar CSV», «Congelar» or «Regenerar» and «Recursos TIC totales» |
 | Controls > op.mon.2 > «Medidas sin motor» | The 50 Annex II measures that ENSFácil does not measure, with their declared entry and the «Declarar» button |
 | Reports > op.mon.2 | The same panel; field 8 of the PDF («Datos para el informe anual del artículo 32») is the summary of the same data set |
 
@@ -45,7 +45,7 @@ The report belongs to the organisation: it is the same with or without a machine
 | Maturity of the measured controls (procedure, assessment) | «Madurez» panel of each control ([guide 10](10-maturity-assessment.en.md)) | `measure.maturity_assessed`, `measure.documentary_reference`, `measure.owner` |
 | Internal and external hours and executed budget of each cycle | Cycle register on the manager (`/etc/ensfacil/metrics-cycle-register.tsv`) | `resources.hours_internal`, `resources.hours_external`, `resources.budget_executed` |
 | Total ICT budget, total ICT staff and security staff of the period | «Informe anual (art. 32)» > «Recursos TIC totales» | `resources.ict_budget_total`, `resources.ict_staff_total`, `resources.security_staff` |
-| Occurrence date of each incident (optional) | `fecha_ocurrencia` column of the incident register ([op.exp.7 compliance guide](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.en.md)) | `incidents.mttd_hours`, `incidents.mttd_from_occurrence` |
+| Occurrence date of each incident (optional) | `fecha_ocurrencia` column of the incident register ([op.exp.7 compliance guide](https://gitlab.com/quersystem/ens-controls-runbook/linux/op.exp.7/-/blob/main/docs/deployment/02-compliance.en.md)) | `incidents.mttd_hours`, `incidents.mttd_from_occurrence` (without it, `incidents.mttd_lower_bound_hours`) |
 
 Declared entries and ICT resources are stored in the maturity document (`wazuh-ens-configuration/_doc/maturity`) through the same route as the maturity: administration role, version read (`expectedVersion`), history that is never overwritten. Each new entry is appended; the current one is the last.
 
@@ -87,7 +87,7 @@ Rules:
 - the server checks the role (`ensfacil_admin` or `all_access`) and writes with the internal user;
 - the request carries the revision read (`expectedRevision`, null when there was none); if someone else changed it, it returns 409;
 - the figures are those of the moment of the request, not those of the closing: a late freeze shows it with `header.frozen_at` after `header.period_end`;
-- the previous revision is kept whole in `annual_freeze|<period>|r<N>` and remains available to read and export.
+- the previous revision is kept whole in `annual_freeze|<period>|r<N>`; it is read and exported by choosing it in «Revisión» (or with `?revision=N` in the API, section 10); «Regenerar» always acts on the current one.
 
 ### 6.3 Reproducibility
 
@@ -115,7 +115,7 @@ A user without read access to `wazuh-ens-snapshots` sees the report computed at 
 | JSON | The whole data set: `schema`, `period` and the sections `header`, `categorisation`, `implementation`, `maturity`, `measures` (each measure with its 16 data), `incidents`, `resources` and `measurement` | `ensfacil-informe-art32-<period>[-r<revision>].json` |
 | CSV | One row per datum with the columns `field_id`, `key`, `value`, `unit`, `source`, `trace` | `ensfacil-informe-art32-<period>[-r<revision>].csv` |
 
-The CSV follows RFC 4180: comma separator, double quotes for cells with commas, quotes or line breaks, CRLF line endings, UTF-8 without BOM. An empty `value` cell means «no datum»; the `trace` column says why. `key` tells apart the data that repeat: the measure (`op.acc.1`), the framework (`org`, `op`, `mp`), the incident type, the severity or the maturity level (`L0` to `L5`). The plugin bundles no XLSX writer; the CSV opens in a spreadsheet.
+The CSV follows RFC 4180: comma separator, double quotes for cells with commas, quotes or line breaks, CRLF line endings, UTF-8 without BOM. A text cell that starts with `=`, `+`, `-`, `@`, tab or carriage return gets a leading apostrophe (`'`) and is quoted (OWASP rule against formula injection): `+R1` comes out as `'+R1`, like any text typed by an administrator (reference, owner, reason). The JSON keeps the value without the apostrophe; when importing the CSV into another tool, remove the leading apostrophe of those cells. An empty `value` cell means «no datum»; the `trace` column says why. `key` tells apart the data that repeat: the measure (`op.acc.1`), the framework (`org`, `op`, `mp`), the incident type, the severity or the maturity level (`L0` to `L5`). The plugin bundles no XLSX writer; the CSV opens in a spreadsheet.
 
 Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is text, number, boolean or null.
 
@@ -196,12 +196,13 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 
 | Field | Content |
 |---|---|
-| `implementation.global_pct` | Mean of the engine percentage of the applicable measures that have one |
+| `implementation.global_pct` | Mean of the engine percentage of the applicable measures of the SoA (op.mon.2 P-01) that have one; op.mon.2, measures without measurement yet and those that do not apply at their level do not count. It is the same figure as field 2 of the op.mon.2 report; null without a SoA |
 | `implementation.framework_pct` | The same mean per framework (`key`: `org`, `op`, `mp`) |
-| `implementation.measures_applicable` | Measures that apply |
-| `implementation.measures_measured` | Of those, with an engine percentage |
+| `implementation.measures_applicable` | Measures applicable according to the SoA |
+| `implementation.measures_measured` | Of those, with an engine percentage (those that count) |
 | `implementation.measures_declared` | Of those, without a percentage and with an assessed or declared maturity |
 | `implementation.measures_without_data` | Of those, with neither; the trace lists them |
+| `implementation.measures_applicable_outside_soa` | Measures that apply without a SoA row (by the declared entry or Annex II): they do not count in the implementation degree; the trace lists them |
 
 ### 9.5 Maturity
 
@@ -220,7 +221,8 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 | `incidents.total` | Incidents opened in the period (first `inicial` phase, or the first phase) |
 | `incidents.by_type` | By `clasificacion` (`key`: the type; `sin clasificar` when missing) |
 | `incidents.by_severity` | By severity, the highest of its phases (`key`: `baja`, `media`, `alta`, `critica`) |
-| `incidents.mttd_hours` | Mean time to detect in hours: from `fecha_ocurrencia` to the `inicial` phase; without it, from the first alert reconciled by op.exp.7 to the `inicial` phase |
+| `incidents.mttd_hours` | Exact mean time to detect in hours: from `fecha_ocurrencia` to the `inicial` phase, only for the incidents that have it; the trace says how many are left out with a lower bound |
+| `incidents.mttd_lower_bound_hours` | Lower bound of the mean time to detect of the incidents without `fecha_ocurrencia`: from the first alert reconciled by op.exp.7 to the `inicial` phase. It is never averaged with `incidents.mttd_hours` |
 | `incidents.mttd_from_occurrence` | Incidents measured with `fecha_ocurrencia` |
 | `incidents.mttd_from_alert` | Incidents measured with the first reconciled alert: a lower bound, only within op.exp.7's 30-day window |
 | `incidents.mttd_without_data` | Incidents with neither datum; the trace lists them |
@@ -233,7 +235,9 @@ Each datum is an object `{ id, key, value, unit, source, trace }`. `value` is te
 | `incidents.alerts_in_incident` | Of those, within a recorded incident |
 | `incidents.alerts_to_incident_pct` | Share of the decided alerts (in an incident, or past their deadline without one) that ended in an incident; null when none is decided |
 
-The alert data cover the 30 days of op.exp.7's reconciliation up to the generation, not the whole period; the trace says so.
+The alert data cover the 30 days of op.exp.7's reconciliation up to the generation, not the whole period; the trace says so. If that window does not touch the period (a closed period read or frozen later), the three `incidents.alerts_*` data are null with «no disponible para este periodo» and the reason; if it touches it in part, the trace says so.
+
+op.mon.2 publishes the incidents opened since the start of the previous period (at most the 1000 most recent). The open period and the last closed one are computed whole; an older one is complete only in its freeze, and without it the incident data are null with the reason.
 
 ### 9.7 Resources
 
@@ -265,7 +269,7 @@ The alert data cover the 30 days of op.exp.7's reconciliation up to the generati
 | `GET /api/ensfacil/annual-report` | Any user who can read the evaluation | Open period; `?period=YYYY` a period; `?period=YYYY&revision=N` an earlier frozen revision |
 | `POST /api/ensfacil/annual-report/freeze` | `ensfacil_admin` or `all_access` | Body `{ "period": "YYYY", "reason": "…", "expectedRevision": N or null }` |
 
-While the evaluation of all controls is being computed, the read returns `pending: true` without a data set; the panel asks again every 5 seconds.
+A frozen period is served as stored, evaluating nothing: only the configuration and the freeze are read. A period without a freeze is computed with the evaluation of all controls (the browser waits up to 180 s); if the evaluation answers with pending rows, the read returns `pending: true` without a data set and the panel asks again every 5 seconds.
 
 ## 11. Limitations
 
@@ -273,6 +277,7 @@ While the evaluation of all controls is being computed, the read returns `pendin
 |---|---|
 | The fields of the INES questionnaire are not confirmed | The ids are ENSFácil's; the mapping to the questionnaire is made when it is available |
 | op.exp.7's alert reconciliation covers 30 days | `incidents.alerts_*` and the alert-based MTTD do not span the whole period |
-| op.exp.9 and op.mon.3 require the 13-column header of the incident register | Do not add `fecha_ocurrencia` on a manager with those runbooks until they accept it |
+| op.exp.7, op.exp.9, op.mon.2 and op.mon.3 read the same incident register | All four accept the 14-column header with `fecha_ocurrencia` (op.exp.9 since 6ab860e, op.mon.3 since a9969c5): update the four runbooks on the manager before adding the column |
+| op.mon.2 publishes the incidents since the previous period | An older period has incident data only in its freeze |
 | The engine recomputes with live facts | A period without a freeze does not reproduce the figures of its closing; a late freeze carries the figures of the day it was requested |
 | One ENSFácil is one system | The list of systems of an organisation with several is put together with one report per installation |

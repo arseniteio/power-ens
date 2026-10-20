@@ -91,8 +91,9 @@ traffic light.
   that end in an incident, resources from the cycle register and measurement
   reliability. Each figure carries a stable field id, its source and its
   trace. «Informe anual (art. 32)» panel in the op.mon.2 detail and in
-  Reports, with JSON and CSV export; field 8 of the PDF comes from the same
-  data set. Route `GET /api/ensfacil/annual-report`.
+  Reports, with JSON and CSV export (formulas neutralised) of the current or
+  an earlier revision; field 8 of the PDF comes from the same data set, with
+  the same implementation degree as field 2. Route `GET /api/ensfacil/annual-report`.
 - «Medidas sin motor» in the op.mon.2 detail: declared entry (applies,
   maturity, documentary reference, owner and date) for the 39 Annex II
   measures outside the catalog and the 11 «Sin medición todavía» controls,
@@ -109,7 +110,9 @@ traffic light.
   reconciliation and detection) as engine variables, changing no verdict.
   With the optional `fecha_ocurrencia` column of the incident register
   (op.exp.7 and op.mon.2 runbooks), MTTD starts at the occurrence date;
-  without it, at the first alert reconciled by op.exp.7.
+  without it, the first alert reconciled by op.exp.7 gives a lower bound
+  published apart. op.exp.7 reads alerts and incidents once per evaluation,
+  also for EV-03.
 
 ### Changed
 
@@ -147,8 +150,9 @@ traffic light.
 - With no dimension declared, the results do not change.
 - Art. 32 annual report: update the op.exp.7 and op.mon.2 runbooks on the
   manager to read `fecha_ocurrencia`; a 13-column register remains valid.
-  op.exp.9 and op.mon.3 still require the 13-column header: do not add the
-  column where they are installed (guide 11, section 11). Frozen reports are
+  op.exp.9 and op.mon.3 also accept the 14-column header with
+  `fecha_ocurrencia`: update them together with op.exp.7 and op.mon.2 before
+  adding the column (guide 11, section 11). Frozen reports are
   read with read access to `wazuh-ens-snapshots`.
 - A document that declares T or D may change verdicts: D also governs
   mp.info.6, and T also op.acc.1 to op.acc.6 when it is the highest of their

@@ -93,8 +93,9 @@ cada control junto al semáforo.
   porcentaje de alertas que acaban en incidente, recursos del registro de
   ciclos y fiabilidad de la medición. Cada cifra lleva un identificador de
   campo estable, su origen y su traza. Panel «Informe anual (art. 32)» en el
-  detalle de op.mon.2 y en Informes, con exportación JSON y CSV; el campo 8
-  del PDF sale del mismo conjunto. Ruta `GET /api/ensfacil/annual-report`.
+  detalle de op.mon.2 y en Informes, con exportación JSON y CSV (fórmulas
+  neutralizadas) de la revisión vigente o de una anterior; el campo 8 del PDF
+  sale del mismo conjunto, con el mismo grado de implantación que el campo 2. Ruta `GET /api/ensfacil/annual-report`.
 - «Medidas sin motor» en el detalle de op.mon.2: entrada declarada (aplica,
   madurez, referencia documental, responsable y fecha) para las 39 medidas
   del Anexo II fuera del catálogo y los 11 controles «Sin medición
@@ -112,7 +113,9 @@ cada control junto al semáforo.
   conciliación de alertas y detección) como variables del motor, sin cambiar
   ningún veredicto. Con la columna opcional `fecha_ocurrencia` del registro
   de incidentes (runbooks op.exp.7 y op.mon.2), el MTTD parte de la fecha de
-  ocurrencia; sin ella, de la primera alerta conciliada por op.exp.7.
+  ocurrencia; sin ella, la primera alerta conciliada por op.exp.7 da una cota
+  inferior que se publica aparte. op.exp.7 lee alertas e incidentes una sola
+  vez por evaluación, también para EV-03.
 
 ### Cambiado
 
@@ -151,9 +154,9 @@ cada control junto al semáforo.
 - Sin ninguna dimensión declarada, los resultados no cambian.
 - Informe anual del art. 32: actualizar los runbooks op.exp.7 y op.mon.2 en
   el manager para leer `fecha_ocurrencia`; un registro de 13 columnas sigue
-  siendo válido. op.exp.9 y op.mon.3 todavía exigen la cabecera de 13
-  columnas: no añadir la columna donde estén instalados (guía 11,
-  apartado 11). Los informes congelados se leen con el permiso de lectura de
+  siendo válido. op.exp.9 y op.mon.3 también admiten la cabecera de 14
+  columnas con `fecha_ocurrencia`: actualizarlos junto con op.exp.7 y
+  op.mon.2 antes de añadir la columna (guía 11, apartado 11). Los informes congelados se leen con el permiso de lectura de
   `wazuh-ens-snapshots`.
 - Un documento que declara T o D puede cambiar de veredicto: D gobierna
   también mp.info.6, y T también op.acc.1 a op.acc.6 cuando es la más alta de
