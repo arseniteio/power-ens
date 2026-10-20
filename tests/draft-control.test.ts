@@ -9,6 +9,11 @@ import type { ENSLevel } from '../common/ens/configuration/types';
 import { evaluateRequirements } from '../common/ens/core/evaluation/requirement/requirement-evaluator';
 import { evaluateControlStatus } from '../common/ens/core/evaluation/control/control-evaluator';
 import { getENSComplianceState } from '../common/ens/core/ens-engine';
+import { nonConformitiesOf } from '../server/lib/evaluation/overview-fields';
+import { ensConfigurationRepository } from '../common/ens/configuration/repository';
+import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { buildOpMon2ReportModel } from '../public/ens/reports/op-mon-2-report-model';
+import { buildENSDashboardModel } from '../common/ens/core/dashboard-adapter';
 import {
   ENS_PLANNED_MEASUREMENTS,
   describePendingMeasurement,
@@ -405,6 +410,82 @@ section('6b. The controls without collector (owner decision 19/10/2026): documen
       /cortafuegos/.test(describePendingMeasurement(control('mp.com.1'))),
     describePendingMeasurement(control('mp.com.1'))
   );
+}
+
+section('6c. A control without collector accuses nobody, not even of missing parameters (real engine output)');
+
+{
+  // The default document: every parameter empty, as right after seeding with inject-control.py.
+  ensConfigurationRepository.replaceActive(JSON.parse(JSON.stringify(defaultENSConfigurationTemplate)));
+  const scope = [{ id: '101', name: 'srv-01' }, { id: '102', name: 'srv-02' }] as any;
+  const now = new Date('2026-10-20T10:00:00Z');
+  const planned = ENS_PLANNED_MEASUREMENTS.map(plan => plan.controlId);
+
+  for (const level of ['MEDIO', 'ALTO'] as ENSLevel[]) {
+    const state = getENSComplianceState(level, [], undefined, scope, now);
+    const ofPlanned = state.results.filter(result => planned.includes(result.control.id));
+
+    check(
+      `${level} · the eleven: no non-conformity and no missing parameter, though their required ones are empty`,
+      ofPlanned.length === 11 && ofPlanned.every(result => result.nonConformities.length === 0 && result.missingParameters.length === 0 && result.missingEvidences.length === 0),
+      ofPlanned.filter(result => result.nonConformities.length || result.missingParameters.length).map(result => `${result.control.id}: ${result.nonConformities.map(nc => nc.id).join(',')} ${result.missingParameters.join(',')}`)
+    );
+    check(
+      `${level} · what they will need is a neutral hint, never «incumplimiento»`,
+      ofPlanned.some(result => result.observations.some(o => /^Para cuando se mida, faltan/.test(o))) &&
+        !ofPlanned.some(result => result.observations.some(o => /incumplimiento del control/.test(o)) || result.evidences.some(e => e.status !== 'NO_APLICA')),
+      ofPlanned[0]?.observations
+    );
+    check(
+      `${level} · the Overview work queue has no planned control`,
+      !nonConformitiesOf(state).some(nc => planned.includes(nc.controlId))
+    );
+
+    const active = state.results.find(result => result.control.id === 'op.nub.1');
+
+    check(
+      `${level} · REVERSAL: an ACTIVE control with empty required parameters still gets its NC-CFG`,
+      Boolean(active && active.missingParameters.length > 0 && active.nonConformities.some(nc => nc.id === 'NC-CFG')),
+      active && `${active.missingParameters.join(',')} ${active.nonConformities.map(nc => nc.id).join(',')}`
+    );
+
+    const machine = getENSComplianceState(level, [], '101', scope, now);
+    const inView = machine.results.filter(result => planned.includes(result.control.id));
+
+    check(
+      `${level} · in a machine's view: the eleven with their one result, on no machine row`,
+      inView.length === 11 && inView.every(result => result.status === 'NO_APLICA' && result.nonConformities.length === 0) &&
+        !machine.agents.some(agent => agent.results.some(result => planned.includes(result.control.id))),
+      `${inView.length}`
+    );
+    check(
+      `${level} · the manager's view carries only what is measured on it`,
+      !getENSComplianceState(level, [], '000', scope, now).results.some(result => planned.includes(result.control.id))
+    );
+
+    // op.mon.2: field 5 and its figures leave them out (I1), even with a result that still carries missing parameters.
+    const opMon2 = state.results.find(result => result.control.id === 'op.mon.2')!;
+    const legacy = { ...ofPlanned[0], missingParameters: ['P-01', 'P-03'] };
+    const field5 = buildOpMon2ReportModel(opMon2, [...state.results.filter(r => r !== ofPlanned[0]), legacy as any]).fields.find(field => field.id === 'op.mon.2.campo5')!;
+
+    check(
+      `${level} · op.mon.2 field 5 lists none of the eleven`,
+      !field5.details.some(detail => planned.some(id => detail.startsWith(`${id}:`))),
+      field5.details.filter(detail => planned.some(id => detail.startsWith(`${id}:`)))
+    );
+
+    const dashboard = buildENSDashboardModel(state);
+
+    check(
+      `${level} · dashboard: the eleven are «Sin medición todavía», apart from «No aplicables»`,
+      dashboard.compliance.sinMedicion === 11 &&
+        dashboard.compliance.noAplica === state.controlSummary.noAplica - 11 &&
+        dashboard.requirementsSummary.sinMedicion === ofPlanned.reduce((n, result) => n + result.requirements.length, 0),
+      [dashboard.compliance.sinMedicion, dashboard.compliance.noAplica, dashboard.requirementsSummary.sinMedicion]
+    );
+  }
+
+  ensConfigurationRepository.reset();
 }
 
 section('7. An ACTIVE control without a runbook must be declared');

@@ -6,6 +6,7 @@ import { createEvaluationHandlers } from '../server/lib/evaluation-handlers';
 import { CancelSignal } from '../server/lib/evaluation/cache';
 import { ensConfigurationRepository } from '../common/ens/configuration/repository';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
+import { ENSCatalog } from '../common/ens/catalog';
 import { getENSComplianceResultByControl, getENSComplianceState } from '../common/ens/core/ens-engine';
 import { normalizeWazuhAlerts } from '../common/ens/core/data-source/data-source-engine';
 import { buildImpactEventsModel } from '../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
@@ -113,7 +114,9 @@ const reference = () => {
   fail = 1;
   const roto = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
-  check('and nothing is stored', service.rows.size === 0, service.rows.size);
+  // Only the controls without collector, which read nothing and so cannot be computed from incomplete data.
+  const withoutCollector = ENSCatalog.filter((control: any) => control.status !== 'ACTIVE').length;
+  check('and nothing read is stored (only the controls without collector, which read nothing)', service.rows.size === withoutCollector, [service.rows.size, withoutCollector]);
   const viaRuta: any = await createEvaluationHandlers({ logger, securityEnabled: true, service: service }).evaluate(context, { query: { timeZone: 'UTC' } }, response);
   check('the route returns it as 503 with the motive', viaRuta.status === 503 && /reintentar/.test(viaRuta.body.message), viaRuta);
   fail = 0;

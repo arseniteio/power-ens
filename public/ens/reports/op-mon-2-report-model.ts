@@ -195,9 +195,10 @@ const rollout = (
   };
 };
 
+// A control without collector is out of every op.mon.2 figure: it cannot be configured «for evaluation» yet.
 const greys = (panorama: ENSComplianceResult[]): string[] =>
   panorama
-    .filter(r => r.control.id !== CONTROL)
+    .filter(r => r.control.id !== CONTROL && !isPendingMeasurement(getENSCatalogControl(r.control.id)))
     .map(r => {
       const parameters = new Set<string>(r.missingParameters || []);
 

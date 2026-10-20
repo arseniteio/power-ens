@@ -357,8 +357,8 @@ const rest = (): void => {
     now.agents.find(a => a.agentId === '000')!.summary.totalControls === 9
   );
   check(
-    'an agent row\'s summary does not count the manager-only ones (16, plus the 11 without collector, NO_APLICA)',
-    now.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 27 && a.summary.measured === a.results.filter(r => !WITHOUT_COLLECTOR.includes(r.control.id) && r.status !== 'NO_APLICA').length)
+    'an agent row\'s summary does not count the manager-only ones nor the 11 without collector (no row of their own)',
+    now.agents.filter(a => a.agentId !== '000').every(a => a.summary.totalControls === 16 && !a.results.some(r => WITHOUT_COLLECTOR.includes(r.control.id)))
   );
 
   section('3. op.cont.2, op.cont.3, op.exp.7, op.exp.9, op.mon.1, op.mon.2 and op.nub.1: manager row; in an agent\'s view, its result');

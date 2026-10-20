@@ -21,6 +21,7 @@ import {
 import { consolidateAgentComplianceResultByControl } from './compliance-state';
 import type { ENSComplianceResult } from './evaluation/types';
 import { isControlMeasuredOnAgent } from './scope/measurement-planes';
+import { isPendingMeasurement } from '../catalog/support/measurement-plan';
 import type { ENSAgentScope } from './scope/types';
 
 export const ENS_PRESENCE_CONTROL_ID = '__ensfacil_presence__';
@@ -127,8 +128,8 @@ export const evaluateENSControlPartition = (
 
   const control = ENSCatalog.find(entry => entry.id === controlId);
   const result = getENSComplianceResultByControl(controlId, level, events, agentId, scopeAgents, now);
-  // The machine row carries only the controls measured on it; organisation controls show in the view with the manager's result but are not on its row (`withOrganizationControls`).
-  const measured = Boolean(result && control && isControlMeasuredOnAgent(control, agentId));
+  // The machine row carries only the controls measured on it; organisation controls and the controls without collector show in the view but are not on its row (`withOrganizationControls`).
+  const measured = Boolean(result && control && isControlMeasuredOnAgent(control, agentId) && !isPendingMeasurement(control));
 
   return { controlId, result, rows: measured && result ? [{ agentId, result }] : [] };
 };

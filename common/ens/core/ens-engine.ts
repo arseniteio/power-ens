@@ -20,6 +20,8 @@ import {
   markPolicyRuntimeStale,
 } from './evidence/stale-collector';
 import { evaluateENSControl } from './evaluation';
+import { buildPendingMeasurementEvidences } from './evidence/pending-measurement';
+import { isPendingMeasurement } from '../catalog/support/measurement-plan';
 import {
   buildComplianceState,
   consolidateAgentComplianceResultByControl,
@@ -102,6 +104,8 @@ export const isControlEvaluatedOnAgent = (
   agentId: string,
   agentName: string | undefined
 ): boolean =>
+  // A control without collector has no machine row: its one result is the same everywhere (see `evaluateControlOnEvents`).
+  !isPendingMeasurement(control) &&
   isControlMeasuredOnAgent(control, agentId) &&
   isControlInDeclaredScope(
     control,
@@ -120,6 +124,20 @@ const evaluateControlOnEvents = (
   // CONFIGURATION gap imposed from outside: the row of a machine the declared scope names that is not in the ENS scope (see `buildOutOfScopeDeclaredRows`).
   configurationGap?: string
 ): ENSComplianceResult => {
+  // A control without collector: no fact to read and nothing to judge. One cheap result, the same for any row or
+  // instant: requirements NO_APLICA, evidences NO_APLICA with the source they need, no non-conformity.
+  if (isPendingMeasurement(catalogControl)) {
+    return evaluateENSControl(
+      catalogControl,
+      getActiveControlConfiguration(catalogControl.id),
+      getControlLevel(catalogControl, level),
+      buildPendingMeasurementEvidences(catalogControl.id),
+      undefined,
+      [],
+      false
+    );
+  }
+
   // The configuration is loaded BEFORE resolving evidences: those declaring `judgment` are judged against the parameter the auditor set on screen.
   // Resolved for the row (agent, templates, organisation); without a row, the organisation view.
   const configuration = getActiveControlConfiguration(catalogControl.id, agentId);
@@ -305,13 +323,24 @@ const withOrganizationControls = (
   scopeAgents?: ENSAgentScope[],
   now?: Date
 ): ENSComplianceResult[] => {
+  // The manager's view carries only what is measured on it.
   if (isManagerAgentId(agentId)) {
     return agentResults;
   }
 
+  // The controls without collector are in every machine's view with their one result (no row of their own).
+  const pendingResults = evaluateCatalogControls(
+    ENSCatalog.filter(control => isPendingMeasurement(control)),
+    level,
+    [],
+    undefined,
+    scopeAgents,
+    now
+  );
+
   const organizationControls = ENSCatalog.filter(isManagerOnlyControl);
 
-  if (organizationControls.length === 0) {
+  if (organizationControls.length === 0 && pendingResults.length === 0) {
     return agentResults;
   }
 
@@ -325,6 +354,7 @@ const withOrganizationControls = (
       scopeAgents,
       now
     ),
+    ...pendingResults,
   ]);
 };
 
