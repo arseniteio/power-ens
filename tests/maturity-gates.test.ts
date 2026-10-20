@@ -37,6 +37,7 @@ const period = { from: new Date(now.getTime() - 30 * 86400e3).toISOString(), to:
 const stamp = { recordedAt: '2026-10-01T10:00:00Z', recordedBy: 'ana' };
 const allDays = wholePeriodDays(period, now, 'Europe/Madrid');
 const day = (offset: number) => new Date(now.getTime() - offset * 86400e3).toISOString().slice(0, 10);
+const addDaysTo = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400e3).toISOString().slice(0, 10);
 
 const attestation = (over: Record<string, unknown> = {}) => ({
   ...stamp,
@@ -164,9 +165,14 @@ check('grey by catalog with daily facts: L2 (the unproven requirement fails cont
 check('grey without facts: L0', level(without(i => { i.result = result({ status: 'NO_EVALUABLE' }) as any; i.activity = { days: [] }; })) === 0);
 
 console.log('4. Own period, retention and machines added later');
-const limited = without(i => (i.period = { ...period, from: new Date(now.getTime() - 12 * 86400e3).toISOString(), limited: true }));
-check('facts only for 12 days (a new installation): L2 and L3 fail with «faltan 18 días de historial» → L1', level(limited) === 1 && /Faltan 18 días de historial: solo hay hechos desde el 2026-10-08/.test(gateOf(limited, 'L2.recurrence').reason) && /Faltan 18 días de historial/.test(gateOf(limited, 'L3.continuity').reason), [gateOf(limited, 'L2.recurrence'), gateOf(limited, 'L3.continuity')]);
-check('...and L1 says since when', gateOf(limited, 'L1.facts').passed && /solo hay hechos desde el 2026-10-08, menos que los 30 días del periodo/.test(gateOf(limited, 'L1.facts').reason));
+const limited = without(i => (i.period = { ...period, historyFrom: new Date(now.getTime() - 12 * 86400e3).toISOString() }));
+check('facts only for 12 days (a new installation): L2 and L3 fail with «Faltan 17 días de historial» (whole days before the oldest fact) → L1', level(limited) === 1 && /Faltan 17 días de historial: solo hay hechos desde el 2026-10-08/.test(gateOf(limited, 'L2.recurrence').reason) && /Faltan 17 días de historial/.test(gateOf(limited, 'L3.continuity').reason), [gateOf(limited, 'L2.recurrence'), gateOf(limited, 'L3.continuity')]);
+check('...and L1 says since when', gateOf(limited, 'L1.facts').passed && /solo hay hechos desde el 2026-10-08/.test(gateOf(limited, 'L1.facts').reason));
+check('boundary: the oldest fact on the first whole day of the period (a 30-day retention) covers it: L2 and L3 pass', allDays[0] === '2026-09-21' && level(without(i => (i.period = { ...period, historyFrom: '2026-09-21T10:00:00Z' }))) === 5);
+const oneDay = without(i => (i.period = { ...period, historyFrom: '2026-09-22T10:00:00Z' }));
+check('...one whole day short: «Falta 1 día de historial» (singular)', level(oneDay) === 1 && /^Falta 1 día de historial/.test(gateOf(oneDay, 'L2.recurrence').reason), gateOf(oneDay, 'L2.recurrence'));
+const unknownFirst = without(i => (i.period = { ...period, firstFactsUnknown: true }));
+check('first facts unreadable: every machine counts from the start of the period, and the reason says so', /no se pudo leer el primer hecho de cada máquina/.test(gateOf(unknownFirst, 'L3.continuity').reason) && /no se pudo leer el primer hecho/.test(gateOf(unknownFirst, 'L2.recurrence').reason));
 const added = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', agentName: 'wazuh-real', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10), since: allDays[allDays.length - 10] }] }));
 check('a machine added 10 days ago is not held below L3 for the days before it', gateOf(added, 'L3.continuity').passed && /nuevo desde el/.test(gateOf(added, 'L3.continuity').reason), gateOf(added, 'L3.continuity'));
 const addedGap = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10, -2), since: allDays[allDays.length - 10] }] }));
@@ -189,6 +195,9 @@ const recovered = without(i => (i.snapshots = below.map((s, k) => (k === below.l
 check('back within the threshold: passes again', gateOf(recovered, 'L4.threshold').passed && /dentro del umbral/.test(gateOf(recovered, 'L4.threshold').reason));
 const noSnapshots = without(i => { i.snapshots = []; i.result = result({ score: 50, status: 'PARCIAL' }) as any; });
 check('no snapshots: the threshold gate fails («sin instantáneas para comprobar el umbral»), never «dentro del umbral»', !gateOf(noSnapshots, 'L4.threshold').passed && /sin instantáneas para comprobar el umbral/.test(gateOf(noSnapshots, 'L4.threshold').reason) && !/dentro/.test(gateOf(noSnapshots, 'L4.threshold').reason) && level(noSnapshots) === 3);
+const oldSeries = without(i => (i.snapshots = snapshotsImproving.map(snapshot => ({ ...snapshot, date: addDaysTo(snapshot.date, -4) }))));
+check('snapshots older than 2 days: L4 fails «la última instantánea es del …», and so does the L5 trend', !gateOf(oldSeries, 'L4.threshold').passed && /la última instantánea es del 2026-10-15/.test(gateOf(oldSeries, 'L4.threshold').reason) && !gateOf(oldSeries, 'L5.trend').passed && /Sin instantáneas recientes: la última instantánea es del 2026-10-15/.test(gateOf(oldSeries, 'L5.trend').reason) && level(oldSeries) === 3, [gateOf(oldSeries, 'L4.threshold'), gateOf(oldSeries, 'L5.trend')]);
+check('...a snapshot from 2 days ago is still recent', gateOf(without(i => (i.snapshots = snapshotsImproving.map(snapshot => ({ ...snapshot, date: addDaysTo(snapshot.date, -1) })))), 'L4.threshold').passed);
 const unreadable = without(i => (i.snapshotsError = 'sin permiso de lectura de wazuh-ens-snapshots'));
 check('snapshots that cannot be read: it fails too («no se pueden leer las instantáneas»)', !gateOf(unreadable, 'L4.threshold').passed && /no se pueden leer las instantáneas/.test(gateOf(unreadable, 'L4.threshold').reason) && level(unreadable) === 3);
 
