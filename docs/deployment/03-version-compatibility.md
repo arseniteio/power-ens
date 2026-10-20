@@ -22,7 +22,7 @@ ENSFácil (`ensfacil`) se compila para una versión **exacta** de OpenSearch Das
 Cualquier otra combinación está sin validar.
 
 > [!note]
-> `1.2.0` y `1.3.0` se publican para la misma combinación que la `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). Se añade a esta tabla cuando cumple en un entorno real los criterios del apartado 6.
+> `1.2.0`, `1.3.0` y `1.4.0` se publican para la misma combinación que la `1.1.0` (Wazuh `4.14.7`, OpenSearch Dashboards `2.19.5`). Se añade a esta tabla cuando cumple en un entorno real los criterios del apartado 6.
 
 OpenSearch Dashboards solo acepta un zip compilado para su versión exacta (`opensearchDashboardsVersion` del manifiesto):
 
@@ -30,7 +30,7 @@ OpenSearch Dashboards solo acepta un zip compilado para su versión exacta (`ope
 - si ya estaba instalado y el dashboard cambia de versión, el dashboard **no arranca**: `Failed to initialize plugins`.
 
 > [!note]
-> En las releases, el zip se llama `ensfacil-<versión>-osd-<versión de OpenSearch Dashboards>.zip`, por ejemplo `ensfacil-1.3.0-osd-2.19.5.zip`: hay un zip por versión del dashboard. Cada release dice en su descripción con qué versión de Wazuh y de OpenSearch Dashboards es compatible ([Instalar desde una release](07-installing-from-a-release.md#21-compatibilidad)). Compilado desde el código fuente, el zip se llama `ensfacil-2.19.5.zip`.
+> En las releases, el zip se llama `ensfacil-<versión>-osd-<versión de OpenSearch Dashboards>.zip`, por ejemplo `ensfacil-1.4.0-osd-2.19.5.zip`: hay un zip por versión del dashboard. Cada release dice en su descripción con qué versión de Wazuh y de OpenSearch Dashboards es compatible ([Instalar desde una release](07-installing-from-a-release.md#21-compatibilidad)). Compilado desde el código fuente, el zip se llama `ensfacil-2.19.5.zip`.
 
 ## 3. Comprobar las versiones instaladas
 
@@ -42,7 +42,7 @@ sudo python3 -c 'import json; print(json.load(open("/usr/share/wazuh-dashboard/p
 sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin list
 ```
 
-Resultado esperado: los tres paquetes en `4.14.7-1`; `2.19.5`; en la lista de plugins, la versión instalada de ENSFácil (por ejemplo, `ensfacil@1.3.0`) y `wazuh@4.14.7-01`.
+Resultado esperado: los tres paquetes en `4.14.7-1`; `2.19.5`; en la lista de plugins, la versión instalada de ENSFácil (por ejemplo, `ensfacil@1.4.0`) y `wazuh@4.14.7-01`.
 
 ### 3.2 Docker
 

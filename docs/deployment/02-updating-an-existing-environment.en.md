@@ -406,7 +406,7 @@ sudo apt-get install --reinstall -o Dpkg::Options::="--force-confold" wazuh-dash
 The reinstallation resets `build.number`. Restore the previous `package.json` and deploy ENSFácil again, which bumps the number:
 
 ```bash
-V=1.2.0   # the ENSFácil version installed in section 10.1
+V=1.4.0   # the ENSFácil version installed in section 10.1
 R=/opt/ensfacil/releases/$V
 sudo cp -a "$T/package.json" /usr/share/wazuh-dashboard/package.json
 sudo bash "$R/deploy-plugin.sh" "$R/ensfacil-$V-osd-2.19.5.zip"

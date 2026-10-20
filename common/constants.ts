@@ -22,7 +22,7 @@ export const ENSFACIL_MATURITY_PATH = `${ENSFACIL_API_BASE}/maturity`;
 export const ENSFACIL_ANNUAL_REPORT_PATH = `${ENSFACIL_API_BASE}/annual-report`;
 
 // Version written in the header of each annual report; `tests/plugin-manifest.test.ts` keeps it equal to the manifest.
-export const ENSFACIL_PLUGIN_VERSION = '1.3.0';
+export const ENSFACIL_PLUGIN_VERSION = '1.4.0';
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';

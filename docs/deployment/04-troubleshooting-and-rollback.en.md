@@ -186,7 +186,7 @@ Only for an environment that comes from the integrated version ([update guide, s
 ```bash
 T=/opt/ensfacil/artifacts/transicion-AAAAMMDD-HHMMSS
 P=/usr/share/wazuh-dashboard/plugins
-V=1.2.0   # the installed ENSFácil version
+V=1.4.0   # the installed ENSFácil version
 R=/opt/ensfacil/releases/$V
 
 if [ "$(dpkg-query -W -f='${Version}' wazuh-dashboard)" = 4.14.7-1 ] \

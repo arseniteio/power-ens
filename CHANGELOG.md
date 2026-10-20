@@ -7,7 +7,7 @@ siguen el [versionado semántico](https://semver.org/lang/es/).
 
 La entrada de cada versión son las notas de su release en GitLab.
 
-## [1.4.0] - Sin publicar
+## [1.4.0] - 2026-10-20
 
 Correcciones del catálogo según las plantillas del auditor v2.0: aplicabilidad
 por las cinco dimensiones, textos literales del BOE con su procedencia y orden

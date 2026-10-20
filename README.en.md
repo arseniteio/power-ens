@@ -167,11 +167,11 @@ one folder:
 
 ```bash
 sha256sum -c SHA256SUMS
-sudo bash deploy-plugin.sh ensfacil-1.3.0-osd-2.19.5.zip
+sudo bash deploy-plugin.sh ensfacil-1.4.0-osd-2.19.5.zip
 ```
 
 Expected result: `OK` for the three files and `dashboard: active` at the end
-of the deployment. Replace `1.3.0` with the release's version.
+of the deployment. Replace `1.4.0` with the release's version.
 
 Commands of the package installation (`deploy-plugin.sh` uses `systemctl`, `sudo -u wazuh-dashboard` and `https://localhost:443`). In Docker, the release zip is installed in a custom dashboard image ([Wazuh in Docker, section 3](docs/deployment/06-wazuh-in-docker.en.md#3-build-the-dashboard-image-with-ensfácil)).
 

@@ -44,6 +44,8 @@ Cada zip sirve para una sola versión de OpenSearch Dashboards, la del nombre (`
 | `1.0.0` | `4.14.7` | `2.19.5` | `ensfacil-1.0.0-osd-2.19.5.zip` |
 | `1.1.0` | `4.14.7` | `2.19.5` | `ensfacil-1.1.0-osd-2.19.5.zip` |
 | `1.2.0` | `4.14.7` | `2.19.5` | `ensfacil-1.2.0-osd-2.19.5.zip` |
+| `1.3.0` | `4.14.7` | `2.19.5` | `ensfacil-1.3.0-osd-2.19.5.zip` |
+| `1.4.0` | `4.14.7` | `2.19.5` | `ensfacil-1.4.0-osd-2.19.5.zip` |
 
 Las combinaciones validadas se mantienen en
 [Compatibilidad de versiones](03-version-compatibility.md#2-versión-validada).
@@ -82,7 +84,7 @@ Requiere una cuenta de GitLab con acceso a `quersystem/plugin-wazuh-ens`.
 Cada versión en su carpeta. Conservar la de la versión anterior (vuelta atrás).
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 sudo mkdir -p "$R"
 sudo chown "$USER":root "$R"
@@ -100,7 +102,7 @@ Sustituir `1.2.0` por la versión que se instala. Los apartados siguientes usan
 3. Copiar los ficheros a la carpeta del servidor:
 
    ```bash
-   scp ensfacil-1.2.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
+   scp ensfacil-1.4.0-osd-2.19.5.zip deploy-plugin.sh create-admin-role.sh SHA256SUMS \
      <usuario>@<servidor>:/opt/ensfacil/releases/1.2.0/
    ```
 
@@ -152,7 +154,7 @@ Resultado esperado: `600 root:root`. El fichero tiene una sola línea,
 ### 6.3 Descargar los cuatro ficheros
 
 ```bash
-V=1.2.0
+V=1.4.0
 R=/opt/ensfacil/releases/$V
 API=https://gitlab.com/api/v4/projects/quersystem%2Fplugin-wazuh-ens/packages/generic/ensfacil/$V
 

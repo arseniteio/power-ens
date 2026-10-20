@@ -8,7 +8,7 @@ follow [semantic versioning](https://semver.org/).
 Each version's entry in the Spanish file, `CHANGELOG.md`, is the notes of its
 GitLab release.
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-10-20
 
 Catalog corrections from the auditor's v2.0 templates: applicability by the
 five dimensions, BOE literal texts with their provenance and Annex II order.
