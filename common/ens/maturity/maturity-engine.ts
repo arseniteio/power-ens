@@ -33,7 +33,7 @@ export interface ENSMaturityMachineActivity {
   agentId: string;
   agentName?: string;
   days: string[];
-  // First day the machine sent any ENS fact in the period: days before it are not expected of it.
+  // First day the machine ever sent an ENS fact (it entered the scope): days before it are not expected of it.
   since?: string;
 }
 
@@ -143,7 +143,7 @@ const greyByCollection = (result?: ENSMaturityResultInput): boolean =>
   result?.status === 'NO_EVALUABLE' &&
   (result.nonConformities || []).some(nonConformity => nonConformity.origin === 'NO_EVIDENCIADA' && nonConformity.cause === 'COLLECTION');
 
-// Each machine (or the whole set) with the expected days it lacks; days before a machine's first fact are not expected.
+// Each machine (or the whole set) with the expected days it lacks; days before a machine's first fact ever are not expected.
 const missingByMachine = (activity: ENSMaturityActivity, expected: string[]): { name: string; since?: string; missing: string[]; expected: number }[] => {
   const machines: ENSMaturityMachineActivity[] = activity.machines?.length ? activity.machines : [{ agentId: '', days: activity.days }];
   return machines
@@ -168,9 +168,16 @@ const describeLateMachines = (activity: ENSMaturityActivity, expected: string[])
   return late.length ? `; ${late.map(machine => `${machine.agentName || machine.agentId} desde el ${machine.since}`).join(', ')}` : '';
 };
 
-// Facts kept (or sent) for less than the period: the gates read what there is, and say so.
+// Facts kept (or sent) for less than the period: L1 says so; L2 and L3 need the whole period.
 const periodNote = (period: ENSMaturityPeriod, timeZone: string): string =>
   period.limited ? ` (solo hay hechos desde el ${dayIn(new Date(period.from), timeZone)}, menos que los ${ENS_MATURITY_PERIOD_DAYS} días del periodo)` : '';
+
+const missingHistory = (period: ENSMaturityPeriod, now: Date, timeZone: string): string | undefined => {
+  if (!period.limited) return undefined;
+  const have = daysBetween(dayIn(new Date(period.from), timeZone), dayIn(now, timeZone));
+  const missing = Math.max(1, ENS_MATURITY_PERIOD_DAYS - have);
+  return `Faltan ${missing} días de historial: solo hay hechos desde el ${dayIn(new Date(period.from), timeZone)} y hacen falta los ${ENS_MATURITY_PERIOD_DAYS} días del periodo.`;
+};
 
 export const describeTrend = (
   snapshots: Pick<ENSControlSnapshot, 'date' | 'score'>[],
@@ -281,21 +288,21 @@ const procedureGate = (record: ENSControlMaturityRecord, now: Date, timeZone: st
   );
 };
 
-// L4 threshold: declared and, if the latest snapshot is below it, a review on or after the deviation began that treats it.
+// L4 threshold: declared, checked against the snapshots, and a deviation (latest below it) treated by a later review.
 const thresholdGate = (input: ENSMaturityInput, timeZone: string): ENSMaturityGate => {
   const label = 'Umbral definido y vigilado';
   const { record } = input;
   const indicators = record.indicators[record.indicators.length - 1];
   if (!indicators) return gate('L4.threshold', 4, 'D+A', label, false, 'Sin umbral declarado para el control.');
+  if (input.snapshotsError) return gate('L4.threshold', 4, 'D+A', label, false, `Umbral ${indicators.minScore} %: no se pueden leer las instantáneas (${input.snapshotsError}).`);
   const today = dayIn(input.now, timeZone);
   const scored = input.snapshots
     .filter(snapshot => typeof snapshot.score === 'number' && snapshot.date < today)
     .sort((a, b) => a.date.localeCompare(b.date));
   const latest = scored[scored.length - 1];
-  if (!latest || (latest.score as number) >= indicators.minScore) {
-    const none = input.snapshotsError ? 'instantáneas no legibles' : 'sin instantáneas';
-    const current = latest ? `última instantánea ${latest.score} % (${latest.date})` : typeof input.result?.score === 'number' ? `${none}; puntuación actual ${input.result.score} %` : `${none} ni puntuación`;
-    return gate('L4.threshold', 4, 'D+A', label, true, `Umbral ${indicators.minScore} %; ${current}: dentro del umbral.`);
+  if (!latest) return gate('L4.threshold', 4, 'D+A', label, false, `Umbral ${indicators.minScore} %: sin instantáneas para comprobar el umbral.`);
+  if ((latest.score as number) >= indicators.minScore) {
+    return gate('L4.threshold', 4, 'D+A', label, true, `Umbral ${indicators.minScore} %; última instantánea ${latest.score} % (${latest.date}): dentro del umbral.`);
   }
   let start = scored.length - 1;
   while (start > 0 && (scored[start - 1].score as number) < indicators.minScore) start -= 1;
@@ -317,6 +324,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
   const whole = wholePeriodDays(period, now, timeZone);
   const grey = greyByCollection(result);
   const note = periodNote(period, timeZone);
+  const shortHistory = missingHistory(period, now, timeZone);
   const gates: ENSMaturityGate[] = [];
 
   // L1: something of the control in the period.
@@ -339,8 +347,8 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'No se pudo leer la actividad del control.')
       : grey
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, 'El control está en gris por falta de recogida: lo que no se recoge no acredita L2 ni superior.')
-      : recentDays.length < 2
-      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `No hay días completos suficientes (hacen falta 2 o más)${note}.`)
+      : shortHistory
+      ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, shortHistory)
       : recentMissing.length
       ? gate('L2.recurrence', 2, 'A', recurrenceLabel, false, `Últimos ${recentDays.length} días: ${describeMissing(recentMissing)}.`)
       : gate('L2.recurrence', 2, 'A', recurrenceLabel, true, `Hechos todos los días de los últimos ${recentDays.length} días${several} (periodicidad diaria)${describeLateMachines(activity, recentDays)}.`)
@@ -377,10 +385,10 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'No se pudo leer la actividad del control.')
       : grey
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'El control está en gris por falta de recogida.')
-      : !whole.length
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `No hay días completos en el periodo${note}.`)
+      : shortHistory
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, shortHistory)
       : gapDays.length
-      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${describeMissing(gapDays)}${note}.`)
+      ? gate('L3.continuity', 3, 'A', continuityLabel, false, `${describeMissing(gapDays)}.`)
       : !result || !result.applicableRequirements
       ? gate('L3.continuity', 3, 'A', continuityLabel, false, 'Sin requisitos aplicables medidos en la evaluación actual.')
       : result.measuredRequirements < result.applicableRequirements
@@ -398,7 +406,7 @@ export const computeMaturityGates = (input: ENSMaturityInput): ENSMaturityGate[]
           'A',
           continuityLabel,
           true,
-          `Hechos los ${whole.length} días completos del periodo${several}${describeLateMachines(activity, whole)}${note} y los ${result.applicableRequirements} requisitos aplicables evidenciados en la evaluación actual.`
+          `Hechos los ${whole.length} días completos del periodo${several}${describeLateMachines(activity, whole)} y los ${result.applicableRequirements} requisitos aplicables evidenciados en la evaluación actual.`
         )
   );
 

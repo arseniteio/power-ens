@@ -165,8 +165,8 @@ check('grey without facts: L0', level(without(i => { i.result = result({ status:
 
 console.log('4. Own period, retention and machines added later');
 const limited = without(i => (i.period = { ...period, from: new Date(now.getTime() - 12 * 86400e3).toISOString(), limited: true }));
-const limitedDays = wholePeriodDays(limited.period, now, 'Europe/Madrid');
-check('facts only for 12 days: continuity over them, and the reason says since when', limitedDays.length === 11 && gateOf(limited, 'L3.continuity').passed && /solo hay hechos desde el 2026-10-0\d, menos que los 30 días del periodo/.test(gateOf(limited, 'L3.continuity').reason), gateOf(limited, 'L3.continuity'));
+check('facts only for 12 days (a new installation): L2 and L3 fail with «faltan 18 días de historial» → L1', level(limited) === 1 && /Faltan 18 días de historial: solo hay hechos desde el 2026-10-08/.test(gateOf(limited, 'L2.recurrence').reason) && /Faltan 18 días de historial/.test(gateOf(limited, 'L3.continuity').reason), [gateOf(limited, 'L2.recurrence'), gateOf(limited, 'L3.continuity')]);
+check('...and L1 says since when', gateOf(limited, 'L1.facts').passed && /solo hay hechos desde el 2026-10-08, menos que los 30 días del periodo/.test(gateOf(limited, 'L1.facts').reason));
 const added = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', agentName: 'wazuh-real', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10), since: allDays[allDays.length - 10] }] }));
 check('a machine added 10 days ago is not held below L3 for the days before it', gateOf(added, 'L3.continuity').passed && /nuevo desde el/.test(gateOf(added, 'L3.continuity').reason), gateOf(added, 'L3.continuity'));
 const addedGap = without(i => (i.activity = { days: allDays, machines: [{ agentId: '024', days: allDays }, { agentId: '031', agentName: 'nuevo', days: allDays.slice(-10, -2), since: allDays[allDays.length - 10] }] }));
@@ -187,6 +187,10 @@ const conformingEmpty = without(i => { i.snapshots = below; i.record.reviews.pus
 check('a conforming review without actions does not', !gateOf(conformingEmpty, 'L4.threshold').passed);
 const recovered = without(i => (i.snapshots = below.map((s, k) => (k === below.length - 1 ? { ...s, score: 85 } : s))));
 check('back within the threshold: passes again', gateOf(recovered, 'L4.threshold').passed && /dentro del umbral/.test(gateOf(recovered, 'L4.threshold').reason));
+const noSnapshots = without(i => { i.snapshots = []; i.result = result({ score: 50, status: 'PARCIAL' }) as any; });
+check('no snapshots: the threshold gate fails («sin instantáneas para comprobar el umbral»), never «dentro del umbral»', !gateOf(noSnapshots, 'L4.threshold').passed && /sin instantáneas para comprobar el umbral/.test(gateOf(noSnapshots, 'L4.threshold').reason) && !/dentro/.test(gateOf(noSnapshots, 'L4.threshold').reason) && level(noSnapshots) === 3);
+const unreadable = without(i => (i.snapshotsError = 'sin permiso de lectura de wazuh-ens-snapshots'));
+check('snapshots that cannot be read: it fails too («no se pueden leer las instantáneas»)', !gateOf(unreadable, 'L4.threshold').passed && /no se pueden leer las instantáneas/.test(gateOf(unreadable, 'L4.threshold').reason) && level(unreadable) === 3);
 
 console.log('6. The control maturity');
 const assessedWith = (level: number, extra: Record<string, unknown> = {}, mutate: (i: ENSMaturityInput) => void = () => undefined) =>
