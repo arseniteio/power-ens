@@ -1,5 +1,12 @@
 // What the art. 32 panels show and offer, kept apart from React so it can be tested.
-import type { ENSAnnualDatum, ENSAnnualMeasure, ENSAnnualReport, ENSAnnualReportResponse, ENSAnnualValue } from '../../../common/ens/annual-report/annual-report-types';
+import type {
+  ENSAnnualDatum,
+  ENSAnnualFreezeEntry,
+  ENSAnnualMeasure,
+  ENSAnnualReport,
+  ENSAnnualReportResponse,
+  ENSAnnualValue,
+} from '../../../common/ens/annual-report/annual-report-types';
 
 export const ANNUAL_REPORT_GUIDE_URL = 'https://gitlab.com/quersystem/plugin-wazuh-ens/-/blob/main/docs/deployment/11-annual-report-art-32.md';
 
@@ -106,3 +113,12 @@ export const describeFreezeStatus = (response: ENSAnnualReportResponse): string 
 // Periods offered: the current one, the last closed one and every frozen one, newest first.
 export const periodOptions = (response: ENSAnnualReportResponse): string[] =>
   Array.from(new Set([response.currentPeriod, response.lastClosedPeriod, response.period, ...response.periods.map(entry => entry.period)])).sort((a, b) => b.localeCompare(a));
+
+// The frozen revisions of the period shown, newest first; the last of the list is the current one.
+export const revisionOptions = (revisions: ENSAnnualFreezeEntry[]): { value: string; text: string }[] =>
+  revisions
+    .map((entry, i) => ({
+      value: String(entry.revision),
+      text: `r${entry.revision} · ${entry.frozenAt.slice(0, 10)} · ${entry.frozenBy}${i === revisions.length - 1 ? ' (vigente)' : ''}`,
+    }))
+    .reverse();

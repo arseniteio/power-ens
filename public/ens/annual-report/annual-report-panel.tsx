@@ -24,7 +24,7 @@ import {
 } from '@elastic/eui';
 import { fetchAnnualReport, freezeAnnualReport } from '../../../common/ens/annual-report/annual-report-http-client';
 import { annualReportFileName, describeAnnualReport, toAnnualReportCsv, toAnnualReportJson } from '../../../common/ens/annual-report/annual-report-export';
-import type { ENSAnnualReport, ENSAnnualReportResponse } from '../../../common/ens/annual-report/annual-report-types';
+import type { ENSAnnualFreezeEntry, ENSAnnualReport, ENSAnnualReportResponse } from '../../../common/ens/annual-report/annual-report-types';
 import { ENS_ANNUAL_REPORT_CONTROL } from '../../../common/ens/annual-report/declared-measures';
 import type { ENSMaturityRecordKind } from '../../../common/ens/maturity/types';
 import { MaturityEntryModal } from '../maturity/maturity-panel';
@@ -35,6 +35,7 @@ import {
   freezeActionOf,
   periodOptions,
   resourcesInitial,
+  revisionOptions,
   withoutEngineRows,
   WithoutEngineRow,
 } from './annual-report-view';
@@ -53,7 +54,7 @@ const download = (name: string, content: string, type: string) => {
 };
 
 // The period's response, asked again every 5 s while the evaluation is pending.
-export const useAnnualReport = (period?: string) => {
+export const useAnnualReport = (period?: string, revision?: number) => {
   const [response, setResponse] = useState<ENSAnnualReportResponse | undefined>(undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export const useAnnualReport = (period?: string) => {
     let current = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
-    fetchAnnualReport(period ? { period } : {})
+    fetchAnnualReport({ ...(period ? { period } : {}), ...(revision !== undefined ? { revision } : {}) })
       .then(data => {
         if (!current) return;
         setResponse(data);
@@ -76,7 +77,7 @@ export const useAnnualReport = (period?: string) => {
       current = false;
       if (timer) clearTimeout(timer);
     };
-  }, [period, tick]);
+  }, [period, revision, tick]);
   return { response, error, loading, reload: useCallback(() => setTick(value => value + 1), []) };
 };
 
@@ -218,13 +219,19 @@ export const AnnualReportPanel = ({
   onReport?: (report: ENSAnnualReport | undefined) => void;
 }) => {
   const [period, setPeriod] = useState<string | undefined>(undefined);
-  const { response, error, loading, reload } = useAnnualReport(period);
+  // An earlier frozen revision to read and export (undefined: the current one).
+  const [revision, setRevision] = useState<number | undefined>(undefined);
+  const { response, error, loading, reload } = useAnnualReport(period, revision);
+  const [revisions, setRevisions] = useState<ENSAnnualFreezeEntry[]>([]);
+  useEffect(() => {
+    if (response && revision === undefined) setRevisions(response.frozen ? [...response.frozen.history, response.frozen] : []);
+  }, [response, revision]);
   const [form, setForm] = useState<{ kind: 'freeze' } | { kind: ENSMaturityRecordKind } | undefined>(undefined);
   const report = response?.report;
   useEffect(() => {
     if (onReport) onReport(report);
   }, [report, onReport]);
-  const action = response ? freezeActionOf(response) : undefined;
+  const action = response && revision === undefined ? freezeActionOf(response) : undefined;
 
   return (
     <EuiPanel>
@@ -241,7 +248,24 @@ export const AnnualReportPanel = ({
               prepend='Periodo'
               options={periodOptions(response).map(value => ({ value, text: value }))}
               value={response.period}
-              onChange={(event: any) => setPeriod(event.target.value)}
+              onChange={(event: any) => {
+                setRevision(undefined);
+                setPeriod(event.target.value);
+              }}
+            />
+          </EuiFlexItem>
+        )}
+        {revisions.length > 1 && (
+          <EuiFlexItem grow={false}>
+            <EuiSelect
+              compressed
+              prepend='Revisión'
+              options={revisionOptions(revisions)}
+              value={String(revision ?? revisions[revisions.length - 1].revision)}
+              onChange={(event: any) => {
+                const chosen = Number(event.target.value);
+                setRevision(chosen === revisions[revisions.length - 1].revision ? undefined : chosen);
+              }}
             />
           </EuiFlexItem>
         )}
