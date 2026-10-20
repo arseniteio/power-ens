@@ -485,6 +485,29 @@ section('6c. A control without collector accuses nobody, not even of missing par
     );
   }
 
+  // N1: a control without collector declared on the manager plane (as a wave may do before activating it) is still
+  // ONE result in a machine's view, none in the manager's, and the per-control path says the same.
+  {
+    const draft = control('mp.eq.2');
+    const before = draft.measurementPlanes;
+    draft.measurementPlanes = ['manager'];
+    try {
+      const engine = require('../common/ens/core/ens-engine');
+      const machine = getENSComplianceState('MEDIO', [], '101', scope, now).results.filter(result => result.control.id === 'mp.eq.2');
+      const manager = getENSComplianceState('MEDIO', [], '000', scope, now).results.filter(result => result.control.id === 'mp.eq.2');
+      const set = getENSComplianceState('MEDIO', [], undefined, scope, now);
+
+      check('manager-plane DRAFT · one result in a machine\'s view (not two)', machine.length === 1 && machine[0].status === 'NO_APLICA', machine.length);
+      check('manager-plane DRAFT · none in the manager\'s view and on no row', manager.length === 0 && !set.agents.some(agent => agent.results.some(result => result.control.id === 'mp.eq.2')));
+      check('manager-plane DRAFT · the per-control path agrees (101 one result, 000 none)',
+        Boolean(engine.getENSComplianceResultByControl('mp.eq.2', 'MEDIO', [], '101', scope, now)) && engine.getENSComplianceResultByControl('mp.eq.2', 'MEDIO', [], '000', scope, now) === undefined);
+      check('manager-plane DRAFT · counted once in the set view', set.results.filter(result => result.control.id === 'mp.eq.2').length === 1);
+    } finally {
+      if (before === undefined) delete draft.measurementPlanes;
+      else draft.measurementPlanes = before;
+    }
+  }
+
   ensConfigurationRepository.reset();
 }
 

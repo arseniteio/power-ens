@@ -338,7 +338,8 @@ const withOrganizationControls = (
     now
   );
 
-  const organizationControls = ENSCatalog.filter(isManagerOnlyControl);
+  // A control without collector is already in `pendingResults`, whatever plane it declares.
+  const organizationControls = ENSCatalog.filter(control => isManagerOnlyControl(control) && !isPendingMeasurement(control));
 
   if (organizationControls.length === 0 && pendingResults.length === 0) {
     return agentResults;
@@ -748,6 +749,13 @@ export const getENSComplianceResultByControl = (
     const catalogControl = ENSCatalog.find(
       control => control.id === controlId
     );
+
+    // A control without collector: its one result in a machine's view, none in the manager's, whatever plane it declares.
+    if (catalogControl && isPendingMeasurement(catalogControl)) {
+      return isManagerAgentId(agentId)
+        ? undefined
+        : evaluateENSComplianceResultByControl(controlId, level, events, undefined, scopeAgents, now);
+    }
 
     // Same plane rule as `getENSComplianceState`: in a machine's view a manager-only control comes out with the manager row; in the manager's view a control not measured there has no result.
     if (
