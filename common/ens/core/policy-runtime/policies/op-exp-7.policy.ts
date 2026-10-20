@@ -241,7 +241,33 @@ type Classification = {
   notificables: Set<string>;
 };
 
-const classification = (context: ENSPolicyContext): Classification | undefined => {
+// One parse per evaluation: EV-02, EV-03 and the art. 32 data read the same alerts, incidents and parameters.
+const memoByContext = <T>(compute: (context: ENSPolicyContext) => T) => {
+  const cache = new WeakMap<ENSPolicyContext, { value: T }>();
+  return (context: ENSPolicyContext): T => {
+    let entry = cache.get(context);
+    if (!entry) {
+      entry = { value: compute(context) };
+      cache.set(context, entry);
+    }
+    return entry.value;
+  };
+};
+
+const memoByInstant = <T>(compute: (context: ENSPolicyContext, now: number) => T) => {
+  const cache = new WeakMap<ENSPolicyContext, Map<number, T>>();
+  return (context: ENSPolicyContext, now: number): T => {
+    let byInstant = cache.get(context);
+    if (!byInstant) {
+      byInstant = new Map();
+      cache.set(context, byInstant);
+    }
+    if (!byInstant.has(now)) byInstant.set(now, compute(context, now));
+    return byInstant.get(now) as T;
+  };
+};
+
+const classification = memoByContext((context: ENSPolicyContext): Classification | undefined => {
   const table = tableParameterRows(context, 'P-01');
 
   if (!table) {
@@ -281,7 +307,7 @@ const classification = (context: ENSPolicyContext): Classification | undefined =
     relevanteDesde: relevantes.length ? Math.min(...relevantes) : undefined,
     notificables: notifiable,
   };
-};
+});
 
 // The highest severity whose minimum level the alert reaches.
 const levelSeverity = (level: number, c: Classification): string | undefined => {
@@ -295,7 +321,7 @@ const levelSeverity = (level: number, c: Classification): string | undefined => 
 // P-02: severity -> recipients and deadline in hours. Empty deadline: no deadline.
 type Escalated = { destinatario: string; plazo?: number };
 
-const escalatedByKey = (context: ENSPolicyContext): Map<string, Escalated> | undefined => {
+const escalatedByKey = memoByContext((context: ENSPolicyContext): Map<string, Escalated> | undefined => {
   const table = tableParameterRows(context, 'P-02');
 
   if (!table) {
@@ -316,7 +342,7 @@ const escalatedByKey = (context: ENSPolicyContext): Map<string, Escalated> | und
   });
 
   return map.size ? map : undefined;
-};
+});
 
 
 type Heartbeat = { evento: ENSNormalizedEvent; t: number };
@@ -460,7 +486,7 @@ type Incident = {
   mejoras: string[];
 };
 
-const incidents = (context: ENSPolicyContext, now: number): Incident[] => {
+const incidents = memoByInstant((context: ENSPolicyContext, now: number): Incident[] => {
   // One row per (incident, phase, date): if the record was re-emitted several times in the window,
   // the last copy counts.
   const seenRows = new Map<string, ENSNormalizedEvent>();
@@ -574,7 +600,7 @@ const incidents = (context: ENSPolicyContext, now: number): Incident[] => {
         (i.cierre === undefined || i.cierre >= now - WINDOW_DAYS * DAY_MS)
     )
     .sort((a, b) => a.apertura - b.apertura);
-};
+});
 
 
 type Alert = {
@@ -587,7 +613,7 @@ type Alert = {
   descripcion: string;
 };
 
-const alerts = (context: ENSPolicyContext, now: number): Alert[] =>
+const alerts = memoByInstant((context: ENSPolicyContext, now: number): Alert[] =>
   facts(context, 'security_alert_observed')
     .map(e => ({
       sistema: factField(e, 'sistema'),
@@ -605,7 +631,7 @@ const alerts = (context: ENSPolicyContext, now: number): Alert[] =>
         a.ultima !== undefined &&
         a.ultima <= now + FUTURE_TOLERANCE_MS &&
         a.ultima >= now - WINDOW_DAYS * DAY_MS
-    );
+    ));
 
 // Does any incident of that system cover instant `t`? An incident covers what happens while open
 // and what happened up to `plazo` hours before opening: registering within the escalation deadline
@@ -773,6 +799,11 @@ const reconcileAlerts = (
   return { excluded, orphan, withoutDeadline, excludedCounted, coverers, relevantes, pending, inIncident, orphanAlerts, withoutDeadlineAlerts };
 };
 
+// The reconciliation once per evaluation (callers check P-01 and P-02 first).
+const reconciled = memoByInstant((context: ENSPolicyContext, now: number) =>
+  reconcileAlerts(context, now, classification(context)!, escalatedByKey(context)!)
+);
+
 const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
   const heartbeat = sources(context, now, 'EV-02', { alertas: true, registro: true });
 
@@ -798,7 +829,7 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
     );
   }
 
-  const { excluded, orphan, withoutDeadline, excludedCounted, coverers, relevantes, pending } = reconcileAlerts(context, now, c, p02);
+  const { excluded, orphan, withoutDeadline, excludedCounted, coverers, relevantes, pending } = reconciled(context, now);
 
   const excludedNote = excludedCounted.size
     ? ` No se concilian, por decisión escrita en P-12: ${Array.from(excludedCounted.entries())
@@ -838,8 +869,16 @@ const ev02 = (context: ENSPolicyContext, now: number): Measurement => {
   );
 };
 
-// The first relevant alert covering the incident: the detection instant.
-const detection = (
+// The first relevant alert covering the incident: the detection instant (once per incident and evaluation).
+const detections = memoByInstant(() => new Map<string, number | undefined>());
+
+const detection = (i: Incident, context: ENSPolicyContext, now: number): number | undefined => {
+  const known = detections(context, now);
+  if (!known.has(i.id)) known.set(i.id, firstReconciledAlert(i, context, now));
+  return known.get(i.id);
+};
+
+const firstReconciledAlert = (
   i: Incident,
   context: ENSPolicyContext,
   now: number
@@ -881,7 +920,7 @@ const art32Reconciliation = (context: ENSPolicyContext, now: number): string => 
     return JSON.stringify({ motivo: 'P-01 o P-02 de op.exp.7 sin configurar: no hay alertas relevantes que conciliar.' });
   }
 
-  const r = reconcileAlerts(context, now, c, p02);
+  const r = reconciled(context, now);
 
   return JSON.stringify({
     desde: iso(now - WINDOW_DAYS * DAY_MS),
