@@ -1,7 +1,6 @@
 // Fields the evaluation route adds for the overview views (1.2.0, Task 2). Pure functions over what the
 // evaluation already holds in memory (built state, probe, series points): no extra reads. Kept apart from
-// `responses.ts` and `evaluation-service.ts` to hook in with one line each. What the screens consume is in
-// `server/README.md`.
+// `responses.ts` and `evaluation-service.ts` to hook in with one line each..
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import type { ENSControlSummaryEntry, ENSFreshness, ENSOverviewNonConformity } from '../../../common/ens/evaluation/types';

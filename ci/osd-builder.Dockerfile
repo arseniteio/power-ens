@@ -1,14 +1,7 @@
-# Imagen de compilación de ENSFácil: el árbol de OpenSearch Dashboards 2.19.5
-# (wazuh-dashboard v4.14.7) preparado con `yarn osd bootstrap` en /osd, como en
-# la guía 08 (docs/deployment/08-building-from-source.md), §3.1-3.2. La usa el
-# trabajo `build` de .gitlab-ci.yml; cómo usarla a mano, en el §4 de esa guía.
-#
-# Se construye EN el servidor del runner, desde la raíz del repositorio:
+# Build image of ENSFácil: the OpenSearch Dashboards 2.19.5 tree
+# (wazuh-dashboard v4.14.7) prepared with `yarn osd bootstrap` in /osd.
 #
 #   docker build -f ci/osd-builder.Dockerfile -t ensfacil-osd-builder:2.19.5 ci/
-#
-# No se sube nunca a un registro (pesa varios GB): el runner la usa desde el
-# Docker local (pull_policy if-not-present).
 FROM node:18.19.0-bookworm
 
 ARG WAZUH_DASHBOARD_REF=v4.14.7

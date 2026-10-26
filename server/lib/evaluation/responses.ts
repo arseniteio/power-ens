@@ -1,5 +1,4 @@
-// What each view returns. Compact: the browser receives results, never facts. The shape of each is in
-// `server/README.md`.
+// What each view returns. Compact: the browser receives results, never facts.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
