@@ -24,8 +24,6 @@ export const MATURITY_ORIGIN_LABELS: Record<ENSMaturityGateOrigin, string> = {
 
 export const MATURITY_NOTE = 'Semáforo y porcentaje: operativos. Madurez: valoración normativa del proceso, de la organización (Anexo II, ap. 6).';
 
-export const MATURITY_GUIDE_URL = 'https://gitlab.com/quersystem/plugin-wazuh-ens/-/blob/main/docs/deployment/10-maturity-assessment.md';
-
 export const MATURITY_FORM_TITLES: Record<ENSMaturityRecordKind, string> = {
   assessment: 'Valorar la madurez',
   attestation: 'Registrar el procedimiento',

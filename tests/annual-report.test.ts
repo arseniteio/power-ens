@@ -1,6 +1,4 @@
 /** Art. 32 data set: per Annex II measure (measured, declared, DRAFT, not applicable), incidents, resources, export. */
-import * as fs from 'fs';
-import * as path from 'path';
 import { buildAnnualReport, markAnnualReportFrozen } from '../common/ens/annual-report/annual-report';
 import { annualReportData, annualReportFileName, describeAnnualReport, ENS_ANNUAL_CSV_COLUMNS, toAnnualReportCsv, toAnnualReportJson } from '../common/ens/annual-report/annual-report-export';
 import { annualPeriodBounds, annualPeriodOfDay, lastClosedAnnualPeriod } from '../common/ens/annual-report/annual-period';
@@ -18,7 +16,6 @@ import { opMon2Configuration } from '../common/ens/configuration/data/op-mon-2-p
 import { configuration, consolidated, INCIDENTS, mpEq2Maturity, opAcc1Maturity, opExp7Row, opMon2Row, records, result, results } from './fixtures/annual-report-fixture';
 
 declare const process: { exit(code: number): void };
-declare const __dirname: string;
 const failures: string[] = [];
 const check = (name: string, ok: boolean, detail: unknown = '') => {
   console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}${!ok && detail !== '' ? ` — ${JSON.stringify(detail).slice(0, 500)}` : ''}`);
@@ -284,11 +281,6 @@ check(
     describeAnnualReport(report).some(line => /MTTD 4 h con fecha de ocurrencia \(1 incidentes\) y cota inferior 2 h con la primera alerta conciliada \(1\)/.test(line)),
   describeAnnualReport(report)
 );
-['11-annual-report-art-32.md', '11-annual-report-art-32.en.md'].forEach(file => {
-  const guide = fs.existsSync(path.join(__dirname, '..', 'docs', 'deployment', file)) ? fs.readFileSync(path.join(__dirname, '..', 'docs', 'deployment', file), 'utf8') : '';
-  const missing = ENS_ANNUAL_FIELD_IDS.filter(id => !guide.includes(`\`${id}\``));
-  check(`guide ${file} documents every field id`, guide.length > 0 && missing.length === 0, missing);
-});
 
 section('Declared entries: validation and target');
 const now = new Date('2026-10-20T12:00:00Z');

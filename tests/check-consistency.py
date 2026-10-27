@@ -2,7 +2,9 @@
 """Consistency check between the plugin and the runbooks: what the plugin promises an auditor exists in what is deployed on the manager.
 
     python3 tests/check-consistency.py
+    RUNBOOKS_BASE=<folder with the runbook clones> python3 tests/check-consistency.py
 
+RUNBOOKS_BASE defaults to the folder that holds the plugin.
 Exits 0 if everything matches, 1 on any failure. No dependencies.
 """
 import glob
@@ -15,7 +17,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PLUGIN = os.path.dirname(HERE)
-BASE = os.path.dirname(PLUGIN)
+BASE = os.environ.get("RUNBOOKS_BASE") or os.path.dirname(PLUGIN)
 
 # control -> (runbook GitLab paths, deployed rules XMLs): what install-manager.sh installs is the manager/ copy of each runbook.
 RUNBOOKS = {

@@ -101,7 +101,7 @@ http.setENSConfigurationHttp(() => ({
   let p = await h.render(ControlDetailENS, { control, onBack: () => undefined }, 6);
   check('the panel asks the annual report route for the current period', gets.some(g => g.path === '/api/ensfacil/annual-report' && !g.query?.period));
   check('«Informe anual (art. 32)» with the period and its state', /Informe anual \(art\. 32\)/.test(p) && /Periodo 2027 \(del 2026-04-01 al 2027-03-31\), en curso: cifras de hoy/.test(p), p.slice(p.indexOf('Informe anual'), p.indexOf('Informe anual') + 600));
-  check('the summary of the data set and the guide', /Grado de implantación de la organización: 80 %/.test(p) && h.findAll('EuiLink').some(link => /11-annual-report-art-32/.test(link.props.href)));
+  check('the summary of the data set', /Grado de implantación de la organización: 80 %/.test(p));
   check('JSON and CSV downloads; no freeze of the open period', /Descargar JSON/.test(p) && /Descargar CSV/.test(p) && !/\[ Congelar \]/.test(p));
 
   console.log('2. «Medidas sin motor»');

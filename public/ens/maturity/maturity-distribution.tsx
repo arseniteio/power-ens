@@ -1,8 +1,8 @@
 // The organisation's maturity (overview and panel): controls per level, accredited and assessed, and below target.
 import React from 'react';
-import { EuiBasicTable, EuiButton, EuiLink, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiBasicTable, EuiButton, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 import type { ENSMaturityListEntry } from '../../../common/ens/evaluation/types';
-import { MATURITY_DISTRIBUTION_ROWS, MATURITY_GUIDE_URL, MATURITY_NOTE } from './maturity-view';
+import { MATURITY_DISTRIBUTION_ROWS, MATURITY_NOTE } from './maturity-view';
 
 export const MaturityDistributionPanel = ({ maturity, error, onRetry }: { maturity?: ENSMaturityListEntry; error?: string; onRetry?: () => void }) => {
   const distribution = maturity?.distribution;
@@ -21,10 +21,7 @@ export const MaturityDistributionPanel = ({ maturity, error, onRetry }: { maturi
       </EuiTitle>
       <EuiText size='xs' color='subdued'>
         <p>
-          {MATURITY_NOTE}{' '}
-          <EuiLink href={MATURITY_GUIDE_URL} target='_blank' external>
-            Guía 10
-          </EuiLink>
+          {MATURITY_NOTE}
         </p>
       </EuiText>
       <EuiSpacer size='s' />

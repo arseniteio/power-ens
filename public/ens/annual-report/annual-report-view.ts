@@ -8,8 +8,6 @@ import type {
   ENSAnnualValue,
 } from '../../../common/ens/annual-report/annual-report-types';
 
-export const ANNUAL_REPORT_GUIDE_URL = 'https://gitlab.com/quersystem/plugin-wazuh-ens/-/blob/main/docs/deployment/11-annual-report-art-32.md';
-
 export const ENGINE_LABELS: Record<ENSAnnualMeasure['engine'], string> = {
   MEDIDO: 'Medida por ENSFácil',
   SIN_MEDICION: 'Sin medición todavía',

@@ -8,7 +8,6 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
-  EuiLink,
   EuiModal,
   EuiModalBody,
   EuiModalFooter,
@@ -29,7 +28,6 @@ import { ENS_ANNUAL_REPORT_CONTROL } from '../../../common/ens/annual-report/dec
 import type { ENSMaturityRecordKind } from '../../../common/ens/maturity/types';
 import { MaturityEntryModal } from '../maturity/maturity-panel';
 import {
-  ANNUAL_REPORT_GUIDE_URL,
   declarationInitial,
   describeFreezeStatus,
   freezeActionOf,
@@ -271,10 +269,7 @@ export const AnnualReportPanel = ({
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
         <p>
-          Datos del informe anual del art. 32 por medida del Anexo II.{' '}
-          <EuiLink href={ANNUAL_REPORT_GUIDE_URL} target='_blank' external>
-            Guía 11
-          </EuiLink>
+          Datos del informe anual del art. 32 por medida del Anexo II.
         </p>
       </EuiText>
       <EuiSpacer size='s' />

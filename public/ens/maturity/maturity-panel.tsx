@@ -10,7 +10,6 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
-  EuiLink,
   EuiModal,
   EuiModalBody,
   EuiModalFooter,
@@ -37,7 +36,6 @@ import {
   initialMaturityDraft,
   MATURITY_FORM_FIELDS,
   MATURITY_FORM_TITLES,
-  MATURITY_GUIDE_URL,
   MATURITY_NOTE,
   MATURITY_ORIGIN_LABELS,
   maturityEntryFromDraft,
@@ -241,10 +239,7 @@ export const MaturityPanel = ({
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
         <p>
-          {MATURITY_NOTE}{' '}
-          <EuiLink href={MATURITY_GUIDE_URL} target='_blank' external>
-            Guía 10
-          </EuiLink>
+          {MATURITY_NOTE}
         </p>
       </EuiText>
       <EuiSpacer size='s' />
