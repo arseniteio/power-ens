@@ -6,8 +6,11 @@ const search = (body: unknown) => ({ index: ENS_VERDICTS_INDEX, ignore_unavailab
 
 const ofRow = (controlId: string, agentId: string) => [{ term: { control: controlId } }, { term: { 'agent.id': agentId } }];
 
-// First and newest control verdict per control and machine: a row is recomputed only when the newest changes.
-export const buildVerdictsProbeRequest = (controlIds: string[], from: string) =>
+export const VERDICTS_PROBE_PAGE = 1000;
+
+// First and newest control verdict per control and machine, a page at a time: a row is recomputed only when the
+// newest changes.
+export const buildVerdictsProbeRequest = (controlIds: string[], from: string, after?: Record<string, string>) =>
   search({
     size: 0,
     query: {
@@ -20,29 +23,32 @@ export const buildVerdictsProbeRequest = (controlIds: string[], from: string) =>
       },
     },
     aggs: {
-      controls: {
-        terms: { field: 'control', size: controlIds.length },
-        aggs: { agents: { terms: { field: 'agent.id', size: 10000 }, aggs: { newest: { max: { field: '@timestamp' } }, oldest: { min: { field: '@timestamp' } } } } },
+      rows: {
+        composite: {
+          size: VERDICTS_PROBE_PAGE,
+          sources: [{ control: { terms: { field: 'control' } } }, { agent: { terms: { field: 'agent.id' } } }],
+          ...(after ? { after } : {}),
+        },
+        aggs: { newest: { max: { field: '@timestamp' } }, oldest: { min: { field: '@timestamp' } } },
       },
     },
   });
 
 export type ENSVerdictsProbe = Record<string, Record<string, { newest: string; oldest: string; count: number }>>;
 
-export const readVerdictsProbe = (body: any): ENSVerdictsProbe =>
-  Object.fromEntries(
-    (body?.aggregations?.controls?.buckets || []).map((control: any) => [
-      control.key,
-      Object.fromEntries(
-        (control.agents?.buckets || [])
-          .filter((agent: any) => Number.isFinite(agent.newest?.value))
-          .map((agent: any) => [
-            agent.key,
-            { newest: new Date(agent.newest.value).toISOString(), oldest: new Date(agent.oldest.value).toISOString(), count: agent.doc_count },
-          ])
-      ),
-    ])
-  );
+export const addVerdictsProbePage = (probe: ENSVerdictsProbe, body: any): Record<string, string> | undefined => {
+  const rows = body?.aggregations?.rows;
+  for (const bucket of rows?.buckets || []) {
+    if (!Number.isFinite(bucket.newest?.value)) continue;
+    const ofControl = (probe[bucket.key.control] = probe[bucket.key.control] || {});
+    ofControl[bucket.key.agent] = {
+      newest: new Date(bucket.newest.value).toISOString(),
+      oldest: new Date(bucket.oldest.value).toISOString(),
+      count: bucket.doc_count,
+    };
+  }
+  return (rows?.buckets || []).length === VERDICTS_PROBE_PAGE ? rows?.after_key : undefined;
+};
 
 // The engine stamps every verdict of a pass with the same instant, so the latest pass is that instant.
 export const buildLatestPassRequest = (controlId: string, agentId: string, newest: string) =>

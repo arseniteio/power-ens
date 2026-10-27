@@ -49,7 +49,7 @@ import { resolveCurrentUser } from '../current-user';
 import { Cancellable, CancelSignal, EVALUATION_TTL_MS, EvaluationCache, Semaphore } from './cache';
 import { ENSTooManyFactsError, MAX_FACTS_PER_READ, newReadStats, readAllFacts, searchComplete, throwIfCancelled, yieldToEventLoop } from './facts-reader';
 import type { ENSFactsReadStats } from './facts-reader';
-import { buildDailyVerdictsRequest, buildLatestPassRequest, buildVerdictsProbeRequest, readVerdictsProbe, verdictsOf } from './verdict-queries';
+import { addVerdictsProbePage, buildDailyVerdictsRequest, buildLatestPassRequest, buildVerdictsProbeRequest, verdictsOf } from './verdict-queries';
 import type { ENSVerdictsProbe } from './verdict-queries';
 import {
   buildAgentRunsQuery,
@@ -411,6 +411,8 @@ export const createEvaluationService = ({
   const timelines = new EvaluationCache<{ pasados: any[]; configurationKey: string; scopeKey: string }>(200, 26 * 3600 * 1000, clockValue);
   // Operational alert incidents of each view (the aggregation); the model is built against each run's results. Bounded by size too (8 MB).
   const impacts = new EvaluationCache<OperationalIncidentsRead>(200, EVALUATION_TTL_MS, clockValue, 8 * 1024 * 1024, value => JSON.stringify(value).length);
+  // The engine writes a pass every few minutes: its newest verdicts are read again at most once a minute.
+  const verdictProbes = new EvaluationCache<ENSVerdictsProbe>(100, 60 * 1000, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
   const maturities = new EvaluationCache<{ records?: ENSMaturityRecords; version?: ENSMaturityVersion }>(4, 24 * 3600 * 1000, clockValue);
@@ -461,6 +463,20 @@ export const createEvaluationService = ({
     return entry;
   };
 
+  const loadVerdictsProbe = async (clients: ENSEvaluationClients, userKey: string, from: string): Promise<ENSVerdictsProbe> => {
+    if (!engineControls.length) return {};
+    const cached = verdictProbes.get(userKey, 'verdicts');
+    if (cached) return cached;
+    const probe: ENSVerdictsProbe = {};
+    let after: Record<string, string> | undefined;
+    do {
+      const body = await searchComplete(clients.asCurrentUser, buildVerdictsProbeRequest(engineControls, from, after), 'los veredictos del motor');
+      after = addVerdictsProbePage(probe, body);
+    } while (after);
+    verdictProbes.set(userKey, 'verdicts', probe);
+    return probe;
+  };
+
   const loadContext = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery): Promise<ENSEvaluationContext> => {
     const now = clock();
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
@@ -498,9 +514,7 @@ export const createEvaluationService = ({
       )
     );
     const presenceEvents = buildENSPresenceEvents(probe.presence);
-    const verdicts = engineControls.length
-      ? readVerdictsProbe(await searchComplete(clients.asCurrentUser, buildVerdictsProbeRequest(engineControls, window.from), 'los veredictos del motor'))
-      : {};
+    const verdicts = await loadVerdictsProbe(clients, userKey, window.from);
 
     return {
       now,

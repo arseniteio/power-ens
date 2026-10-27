@@ -3,6 +3,7 @@ import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService } from '../server/lib/evaluation/evaluation-service';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
 import { ENS_VERDICTS_INDEX } from '../common/constants';
+import { addVerdictsProbePage, buildVerdictsProbeRequest, VERDICTS_PROBE_PAGE } from '../server/lib/evaluation/verdict-queries';
 
 declare const process: { exit(code: number): void };
 const failures: string[] = [];
@@ -85,6 +86,19 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     .run({ asCurrentUser: empty, asInternalUser: empty }, { include: 'control', controlId: 'op.acc.1', agentId: '001', timeZone: 'UTC' });
   const missing = none.views.get('op.acc.1')!.result!;
   check('no verdict yet: not proven, cause COLLECTION', missing.status === 'NO_CUMPLE' && missing.nonConformities.every(nc => nc.cause === 'COLLECTION' || nc.cause === 'CATALOG'), [missing.status, missing.nonConformities.map(nc => nc.cause)]);
+
+  const fleet = createFakeIndexer(
+    Array.from({ length: VERDICTS_PROBE_PAGE * 2 + 5 }, (_, i) => verdict({ '@timestamp': hoursAgo(1), scope: 'control', control: 'op.acc.1', agent: { id: String(i).padStart(6, '0') }, status: 'COMPLIANT' })),
+    { clock: () => clock.getTime() }
+  );
+  const probe = {};
+  let after: Record<string, string> | undefined;
+  let pages = 0;
+  do {
+    after = addVerdictsProbePage(probe, (await fleet.search(buildVerdictsProbeRequest(['op.acc.1'], hoursAgo(48), after))).body);
+    pages += 1;
+  } while (after);
+  check('the probe pages through every machine of a large fleet', Object.keys((probe as any)['op.acc.1']).length === VERDICTS_PROBE_PAGE * 2 + 5 && pages === 3, pages);
 
   console.log(failures.length ? `\n${failures.length} FAILURES` : '\nAll checks pass.');
   process.exit(failures.length ? 1 : 0);

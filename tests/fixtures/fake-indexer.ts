@@ -208,6 +208,26 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
         sum_other_doc_count: all.slice(size).reduce((n, b) => n + b.doc_count, 0),
         buckets: all.slice(0, size),
       };
+    } else if (def.composite) {
+      const names = def.composite.sources.map((source: any) => Object.keys(source)[0]);
+      const fields = def.composite.sources.map((source: any) => (Object.values(source)[0] as any).terms.field);
+      const groups = new Map<string, { key: Record<string, string>; docs: FakeDoc[] }>();
+      for (const d of docs) {
+        const values = fields.map((field: string) => valuesOf(d._source, field)[0]);
+        if (values.some((v: unknown) => v === undefined)) continue;
+        const k = JSON.stringify(values);
+        const g = groups.get(k);
+        if (g) g.docs.push(d);
+        else groups.set(k, { key: Object.fromEntries(names.map((name: string, i: number) => [name, String(values[i])])), docs: [d] });
+      }
+      const order = (key: Record<string, string>) => names.map((name: string) => key[name]).join('\u0000');
+      const after = def.composite.after ? order(def.composite.after) : undefined;
+      const sorted = [...groups.values()].sort((a, b) => (order(a.key) < order(b.key) ? -1 : 1)).filter(g => after === undefined || order(g.key) > after);
+      const page = sorted.slice(0, def.composite.size ?? 10);
+      output[name] = {
+        after_key: page.length ? page[page.length - 1].key : undefined,
+        buckets: page.map(g => ({ key: g.key, doc_count: g.docs.length, ...aggregate(g.docs, def.aggs) })),
+      };
     } else if (def.value_count) {
       output[name] = { value: docs.reduce((n, d) => n + valuesOf(d._source, def.value_count.field).length, 0) };
     } else if (def.top_hits) {
