@@ -31,6 +31,7 @@ import {
 } from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadgeColor } from './motive-view';
 import { ENS_THEME } from '../../theme-colors';
+import { statusLabel } from '../../../../common/ens/core/status-label';
 
 export type { NonConformityClass } from './nonconformity-class';
 
@@ -228,7 +229,7 @@ export const NonConformityCard = ({
                 >
                   <strong>{culprit.evidenceId}</strong>
                 </EuiBadge>{' '}
-                <EuiBadge color={statusBadgeColor(culprit.status)}>{culprit.status}</EuiBadge>{' '}
+                <EuiBadge color={statusBadgeColor(culprit.status)}>{statusLabel(culprit.status)}</EuiBadge>{' '}
               </>
             )}
           </p>
@@ -278,7 +279,7 @@ export const NonConformityCard = ({
                   >
                     {part.evidenceId}
                   </EuiBadge>{' '}
-                  <EuiBadge color={statusBadgeColor(part.status)}>{part.status}</EuiBadge>{' '}
+                  <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
                   <MotiveText texto={part.summary} />
                 </p>
               </EuiText>
@@ -295,7 +296,7 @@ export const NonConformityCard = ({
               <EuiText size='xs' key={`${part.evidenceId}-${i}`} color='subdued'>
                 <p style={{ marginBottom: 2 }}>
                   <EuiBadge color='hollow'>{part.evidenceId}</EuiBadge>{' '}
-                  <EuiBadge color={statusBadgeColor(part.status)}>{part.status}</EuiBadge>{' '}
+                  <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
                   <MotiveText texto={part.summary} />
                 </p>
               </EuiText>

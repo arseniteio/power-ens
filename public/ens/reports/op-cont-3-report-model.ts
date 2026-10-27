@@ -1,4 +1,5 @@
 import type { ENSComplianceResult } from '../../../common/ens/core';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpCont3ReportFieldStatus =
   | 'CUMPLE'
@@ -101,14 +102,14 @@ export const buildOpCont3ReportModel = (
     ALL_EVIDENCES,
     (result?.requirements || [])
       .filter(requirement => requirement.status !== 'NO_APLICA')
-      .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}`),
+      .map(requirement => `${requirement.id} ${requirement.title}: ${statusLabel(requirement.status)}`),
   );
 
   const field2 = field(
     'op.cont.3.campo2',
     'Histórico de pruebas realizadas',
     asHighLevel(evidenceStatus('EV-01')),
-    'Las pruebas del registro de pruebas del manager con su inicio y fin, tipo, escenario, sistemas, resultado declarado y deficiencias. Es la evidencia documental principal y el punto de partida de la revisión del control.',
+    'Las pruebas del registro de pruebas del manager con su inicio y fin, tipo, escenario, sistemas, resultado declarado y deficiencias.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -117,7 +118,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo3',
     'Cumplimiento de la periodicidad',
     asHighLevel(evidenceStatus('EV-02')),
-    'La última prueba del plan, la de cada tipo de P-02 y la de cada escenario de P-03, contra su periodicidad, en el instante en que se leyó el registro. Los escenarios nunca probados se nombran, y se da el próximo vencimiento.',
+    'La última prueba del plan, la de cada tipo de P-02 y la de cada escenario de P-03, contra su periodicidad, en el instante en que se leyó el registro.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -126,7 +127,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo4',
     'Suficiencia del alcance de las pruebas',
     asHighLevel(evidenceStatus('EV-01')),
-    'Distribución de las pruebas por tipo (revisión documental, escritorio, parcial, simulacro) y la última que ejercita de verdad los medios alternativos. Solo revisiones o ejercicios de mesa no acreditan que el plan funcione.',
+    'Distribución de las pruebas por tipo (revisión documental, escritorio, parcial, simulacro) y la última que ejercita de verdad los medios alternativos.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -135,7 +136,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo5',
     'Medición objetiva de las pruebas',
     asHighLevel(evidenceStatus('EV-04')),
-    'Por cada prueba parcial o simulacro del periodo y cada sistema implicado: sus caídas y restablecimientos en la ventana real de la prueba y las 24 h siguientes, y la indisponibilidad más larga. Es el dato que respalda —o desmiente— el resultado declarado; su estado es el de EV-04.',
+    'Por cada prueba parcial o simulacro del periodo y cada sistema implicado: sus caídas y restablecimientos en la ventana real de la prueba y las 24 h siguientes, y la indisponibilidad más larga.',
     ['EV-03', 'EV-04'],
     [...evidenceObservations('EV-03'), ...evidenceObservations('EV-04')],
   );
@@ -144,7 +145,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo6',
     'Resultado frente a los objetivos comprometidos',
     asHighLevel(evidenceStatus('EV-04')),
-    'La indisponibilidad medida de cada sistema frente a su RTO de P-07 y el resultado de las restauraciones de la ventana, contrastados con el resultado declarado. Una prueba declarada satisfactoria que no alcanzó sus objetivos se señala expresamente.',
+    'La indisponibilidad medida de cada sistema frente a su RTO de P-07 y el resultado de las restauraciones de la ventana, contrastados con el resultado declarado.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -153,7 +154,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo7',
     'Restauración de copias en las pruebas',
     asHighLevel(evidenceStatus('EV-04')),
-    'Las pruebas de restauración de mp.info.6 recibidas en la ventana de cada prueba, con su resultado y si el contenido coincide. Una restauración fallida en una prueba declarada satisfactoria la juzga EV-04, cuyo estado lleva este campo.',
+    'Las pruebas de restauración de mp.info.6 recibidas en la ventana de cada prueba, con su resultado y si el contenido coincide.',
     ['EV-08', 'EV-04'],
     evidenceObservations('EV-08'),
   );
@@ -162,7 +163,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo8',
     'Deficiencias detectadas y su corrección',
     asHighLevel(evidenceStatus('EV-05')),
-    'Las deficiencias de cada prueba con su responsable, plazo y estado. Se destacan las abiertas fuera de plazo, las que siguen abiertas tras la prueba siguiente y las pruebas que declaran más deficiencias de las que se siguen.',
+    'Las deficiencias de cada prueba con su responsable, plazo y estado.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -171,7 +172,7 @@ export const buildOpCont3ReportModel = (
     'op.cont.3.campo9',
     'Actualización del plan tras las pruebas',
     asHighLevel(evidenceStatus('EV-05')),
-    'La versión del plan de continuidad que recoge cada deficiencia cerrada. Las cerradas sin versión se señalan como corrección posiblemente nominal; el estado es el de la corrección (EV-05).',
+    'La versión del plan de continuidad que recoge cada deficiencia cerrada.',
     ['EV-07', 'EV-05'],
     evidenceObservations('EV-07'),
   );

@@ -1,4 +1,5 @@
 import type { ENSComplianceResult } from '../../../common/ens/core';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpCont2ReportFieldStatus =
   | 'CUMPLE'
@@ -120,7 +121,7 @@ export const buildOpCont2ReportModel = (
       return `${requirementId}: no aplica`;
     }
 
-    return `${requirementId} ${requirement.title}: ${requirement.status}${
+    return `${requirementId} ${requirement.title}: ${statusLabel(requirement.status)}${
       requirement.attested
         ? ', acreditado documentalmente'
         : requirement.evidenced === false

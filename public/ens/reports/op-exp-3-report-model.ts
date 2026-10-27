@@ -191,7 +191,7 @@ export const buildOpExp3ReportModel = (
     'op.exp.3.campo8',
     'Elementos no autorizados en el sistema',
     evidenceStatus('EV-03'),
-    'Software instalado de nuevo en el período, con quién lo pidió, contrastado con el software autorizado sobre la línea base (P-01). Tolerancia cero.',
+    'Software instalado de nuevo en el período, con quién lo pidió, contrastado con el software autorizado sobre la línea base (P-01).',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -239,7 +239,7 @@ export const buildOpExp3ReportModel = (
     formatValue(result?.status),
     ALL,
     [
-      'Bloques: base (BAJO, MEDIO, ALTO), R1 (MEDIO y ALTO), R2 y R3 (solo ALTO). R4 y R5 no son exigibles en ninguna categoría.',
+      'Bloques: base (BAJO, MEDIO, ALTO), R1 (MEDIO y ALTO), R2 y R3 (solo ALTO).',
       'Remisiones: op.exp.3.1 y .2 → op.exp.2; op.exp.3.3 → op.acc.4; op.exp.3.4 → op.exp.4; op.exp.3.5 → op.exp.7.',
     ],
     gaps(...ALL),

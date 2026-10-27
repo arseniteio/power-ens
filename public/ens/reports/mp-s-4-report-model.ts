@@ -116,7 +116,7 @@ export const buildMpS4ReportModel = (
     'mp.s.4.campo2',
     'Carga y holgura de los servicios',
     evidenceStatus('EV-01'),
-    'Por servicio de P-01: carga media y de punta observada, capacidad dotada según P-02, utilización en percentiles y margen de holgura efectivo. Servicios operando sin holgura destacados aunque nunca hayan caído, porque es lo que mp.s.4.1 exige.',
+    'Por servicio de P-01: carga media y de punta observada, capacidad dotada según P-02, utilización en percentiles y margen de holgura efectivo.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpS4ReportModel = (
     'mp.s.4.campo3',
     'Tecnologías de prevención desplegadas',
     evidenceStatus('EV-02'),
-    'Tecnologías de P-03 con su ubicación y estado: las verificables desde el sistema con el resultado de sus checks, y las que operan en el proveedor recogidas como declaración. Acredita mp.s.4.2.',
+    'Tecnologías de P-03 con su ubicación y estado: las verificables desde el sistema con el resultado de sus checks, y las que operan en el proveedor recogidas como declaración.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -138,7 +138,7 @@ export const buildMpS4ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-03')
       : 'NO_APLICA',
-    'Episodios compatibles con denegación de servicio con fecha, servicio afectado, vector, indicador que disparó la detección y duración. Distinguiendo el patrón volumétrico del de agotamiento de recursos.',
+    'Episodios compatibles con denegación de servicio con fecha, servicio afectado, vector, indicador que disparó la detección y duración.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -148,7 +148,7 @@ export const buildMpS4ReportModel = (
     'mp.s.4.campo5',
     'Impacto en la disponibilidad',
     evidenceStatus('EV-04'),
-    'Por episodio: tiempo de indisponibilidad total o parcial, degradación del tiempo de respuesta y tasa de error frente a la línea base de P-07. Contraste con la disponibilidad comprometida en P-01.',
+    'Por episodio: tiempo de indisponibilidad total o parcial, degradación del tiempo de respuesta y tasa de error frente a la línea base de P-07.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -160,7 +160,7 @@ export const buildMpS4ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-05')
       : 'NO_APLICA',
-    'Datos del ataque que el proveedor necesita para mitigar: rangos de origen ordenados por volumen, protocolos y puertos, vector y distribución temporal. Resumen exportable para la comunicación de mp.s.4.r1.2.',
+    'Datos del ataque que el proveedor necesita para mitigar: rangos de origen ordenados por volumen, protocolos y puertos, vector y distribución temporal.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -172,7 +172,7 @@ export const buildMpS4ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-06')
       : 'NO_APLICA',
-    'Por episodio: acciones de P-05 ejecutadas con sus tiempos, apertura del incidente en op.exp.7 y comunicación al proveedor de P-06 con su plazo. Relación de episodios sin activación del procedimiento.',
+    'Por episodio: acciones de P-05 ejecutadas con sus tiempos, apertura del incidente en op.exp.7 y comunicación al proveedor de P-06 con su plazo.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -184,7 +184,7 @@ export const buildMpS4ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-07')
       : 'NO_APLICA',
-    'Acciones automáticas ejecutadas con su disparador, objetivo, resultado y reversión. Apartado con nota de prudencia: un bloqueo mal calibrado ante un pico legítimo causa la indisponibilidad que se quiere evitar.',
+    'Acciones automáticas ejecutadas con su disparador, objetivo, resultado y reversión.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -194,7 +194,7 @@ export const buildMpS4ReportModel = (
     'mp.s.4.campo9',
     'Ataques salientes desde las propias instalaciones (R2)',
     evidenceStatus('EV-08'),
-    'Tráfico saliente anómalo y equipos con patrones compatibles con participación en ataques a terceros; y servicios propios expuestos utilizables como amplificadores con su configuración. Acredita R2, no exigible en ningún nivel pero el mejor cubierto por la plataforma.',
+    'Tráfico saliente anómalo y equipos con patrones compatibles con participación en ataques a terceros; y servicios propios expuestos utilizables como amplificadores con su configuración.',
     ['EV-08', 'EV-09'],
     evidenceObservations('EV-08'),
   );

@@ -118,7 +118,7 @@ export const buildOpExp5ReportModel = (
     'op.exp.5.campo3',
     'Conciliación cambio real frente a cambio autorizado',
     evidenceStatus('EV-02'),
-    'Para cada cambio de EV-01, la petición aprobada cuya ventana lo cubre, o «sin petición». Fuente de las peticiones: registro TSV de la máquina, mantenido a mano (no hay integración con un ITSM).',
+    'Para cada cambio de EV-01, la petición aprobada cuya ventana lo cubre, o «sin petición».',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );

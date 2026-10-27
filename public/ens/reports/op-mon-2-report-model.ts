@@ -11,6 +11,7 @@ import { getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/
 import { describeAnnualReport } from '../../../common/ens/annual-report/annual-report-export';
 import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from '../../../common/ens/annual-report/implementation-degree';
 import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpMon2ReportFieldStatus =
   | 'CUMPLE'
@@ -212,7 +213,7 @@ export const buildOpMon2ReportModel = (
     ALL_EVIDENCES,
     (result?.requirements || [])
       .filter(requirement => requirement.status !== 'NO_APLICA')
-      .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
+      .map(requirement => `${requirement.id} ${requirement.title}: ${statusLabel(requirement.status)}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
   );
 
   const field2 = field(
@@ -350,7 +351,7 @@ export const buildOpMon2ReportModel = (
       ...(result?.requirements || []).map(requirement =>
         requirement.status === 'NO_APLICA'
           ? `${requirement.id}: no aplica`
-          : `${requirement.id}: ${requirement.status}${requirement.attested ? ', acreditado documentalmente (dato declarado, la herramienta no lo verifica)' : requirement.evidenced === false ? ', no demostrado' : ''}`,
+          : `${requirement.id}: ${statusLabel(requirement.status)}${requirement.attested ? ', acreditado documentalmente (dato declarado, la herramienta no lo verifica)' : requirement.evidenced === false ? ', no demostrado' : ''}`,
       ),
     ],
   );

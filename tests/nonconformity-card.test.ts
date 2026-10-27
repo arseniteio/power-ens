@@ -48,7 +48,7 @@ const card = (props: any = {}) => () => React.createElement(NonConformityCard, {
   const texts = h.findAll('EuiText').map(n => n.texto);
   const titular = h.nodes().find(n => n.type === 'p' && n.props?.title);
   check('the headline is EV-11\'s first sentence (the culprit)', titular?.props.title === 'La respuesta activa no tiene sus scripts.', titular?.props.title);
-  check('...with the EV-11 and NO_CUMPLE badges in front', /\[ EV-11 \] \[ NO_CUMPLE \] La respuesta activa no tiene sus scripts\./.test(p), p.slice(0, 400));
+  check('...with the EV-11 and «No cumple» badges in front', /\[ EV-11 \] \[ No cumple \] La respuesta activa no tiene sus scripts\./.test(p), p.slice(0, 400));
   check('the bridge template is not in the card (only in the panel)', !/Resuelta por la política/.test(p));
   check('nor the first evidence (EV-01) as headline', !/^El parámetro P-02/.test(titular?.props.title || ''));
   const bolds = h.nodes().filter(n => n.type === 'strong').map(n => n.texto);
@@ -60,7 +60,7 @@ const card = (props: any = {}) => () => React.createElement(NonConformityCard, {
   check('the script list as a list (3 items) and «y 2 más»', lis === 3 && /: quarantine\.sh yara\.sh clamav\.sh y 2 más/.test(p), { lis, p: p.slice(p.indexOf('Faltan'), p.indexOf('Faltan') + 160) });
   const date = h.nodes().find(n => n.type === 'span' && n.props?.title === '2026-10-15T13:00:58Z');
   check('«Además» apart, with the date in es-ES and the ISO in the title', /Además: El último despliegue es del/.test(p) && /^15\/10/.test(date?.texto || ''), date?.texto);
-  check('the other evidence that does not comply (EV-01), with its state', /\[ EV-01 \] \[ NO_EVALUABLE \] El parámetro P-02/.test(p));
+  check('the other evidence that does not comply (EV-01), with its state', /\[ EV-01 \] \[ No evaluable \] El parámetro P-02/.test(p));
   const accordion = h.find('EuiAccordion');
   check('the compliant ones, folded: «1 evidencia del requisito conforma»', accordion?.props.buttonContent === '1 evidencia del requisito conforma', accordion?.props.buttonContent);
   void texts;
@@ -87,8 +87,8 @@ const card = (props: any = {}) => () => React.createElement(NonConformityCard, {
   console.log('4. The cell');
   const cell = () => React.createElement(MotiveCell, { lineas: [{ texto: `${BRIDGE}${motive}` }], evidenceId: 'EV-04', titulo: 'Motivo · EV-04' });
   p = await h.render(cell);
-  check('EV-04\'s row shows ITS part: «EV-04 CUMPLE» and its sentence', /\[ EV-04 CUMPLE \] Los logs de detección se han leído/.test(p) && !/Resuelta por la política/.test(p.split('Ver motivo')[0]), p.slice(0, 300));
-  check('with published (reasonParts) the same', /\[ EV-04 CUMPLE \]/.test(await h.render(() => React.createElement(MotiveCell, { lineas: [{ texto: `${BRIDGE}${motive}` }], evidenceId: 'EV-04', conocidos: [{ reason: motive, parts: reasonPartsOf(ownOnes) }] }))));
+  check('EV-04\'s row shows ITS part: «EV-04 Cumple» and its sentence', /\[ EV-04 Cumple \] Los logs de detección se han leído/.test(p) && !/Resuelta por la política/.test(p.split('Ver motivo')[0]), p.slice(0, 300));
+  check('with published (reasonParts) the same', /\[ EV-04 Cumple \]/.test(await h.render(() => React.createElement(MotiveCell, { lineas: [{ texto: `${BRIDGE}${motive}` }], evidenceId: 'EV-04', conocidos: [{ reason: motive, parts: reasonPartsOf(ownOnes) }] }))));
 
   console.log('5. Nothing is lost');
   h.reset();

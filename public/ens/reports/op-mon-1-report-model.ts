@@ -1,4 +1,5 @@
 import type { ENSComplianceResult } from '../../../common/ens/core';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpMon1ReportFieldStatus =
   | 'CUMPLE'
@@ -107,14 +108,14 @@ export const buildOpMon1ReportModel = (
     ALL_EVIDENCES,
     (result?.requirements || [])
       .filter(requirement => requirement.status !== 'NO_APLICA')
-      .map(requirement => `${requirement.id} ${requirement.title}: ${requirement.status}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
+      .map(requirement => `${requirement.id} ${requirement.title}: ${statusLabel(requirement.status)}${requirement.attested ? ' (acreditado documentalmente)' : ''}`),
   );
 
   const field2 = field(
     'op.mon.1.campo2',
     'Capacidad de detección desplegada',
     evidenceStatus('EV-01'),
-    'Motor de reglas del manager: servicio activo, eventos procesados entre pasadas, versión de Wazuh, reglas cargadas y con técnica MITRE ATT&CK. Es la acreditación conjunta del requisito base y de R1; en R1 se exigen además los conjuntos de reglas de P-03.',
+    'Motor de reglas del manager: servicio activo, eventos procesados entre pasadas, versión de Wazuh, reglas cargadas y con técnica MITRE ATT&CK.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -123,7 +124,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo3',
     'Cobertura de la detección',
     evidenceStatus('EV-02'),
-    'Por cada sistema de P-01: su agente, estado de conexión, último contacto y la última pasada de FIM y de SCA frente a P-10. Relación nominal de los sistemas sin detección efectiva.',
+    'Por cada sistema de P-01: su agente, estado de conexión, último contacto y la última pasada de FIM y de SCA frente a P-10.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -132,7 +133,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo4',
     'Detecciones del período',
     evidenceStatus('EV-03'),
-    'Por cada sistema de P-01 conectado: su última detección, las alertas y el nivel máximo de las últimas 24 h, las reglas distintas y las técnicas MITRE ATT&CK. Un sistema activo sin detecciones en P-09 días es un hallazgo.',
+    'Por cada sistema de P-01 conectado: su última detección, las alertas y el nivel máximo de las últimas 24 h, las reglas distintas y las técnicas MITRE ATT&CK.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -141,7 +142,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo5',
     'Cobertura del análisis de riesgos',
     evidenceStatus('EV-04'),
-    'Matriz que cruza cada situación de compromiso de P-04 con las reglas cargadas que la detectan. Las situaciones sin regla, o con reglas que el manager no carga, son los puntos ciegos declarados del control.',
+    'Matriz que cruza cada situación de compromiso de P-04 con las reglas cargadas que la detectan.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -150,7 +151,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo6',
     'Detección en red',
     evidenceStatus('EV-05'),
-    'Si P-02 la exige: los NIDS cuyos eventos ingiere el manager, por dónde llegan y su última alerta frente a P-09. Si no la exige: la referencia del análisis de riesgos que lo justifica.',
+    'Si P-02 la exige: los NIDS cuyos eventos ingiere el manager, por dónde llegan y su última alerta frente a P-09.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -159,7 +160,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo7',
     'Vigencia del conjunto de reglas',
     evidenceStatus('EV-08'),
-    'Versión del ruleset, fecha de su fichero de reglas más reciente y días transcurridos frente a P-08. Es el equivalente, para un sistema de detección, a la antigüedad de las firmas de un antivirus.',
+    'Versión del ruleset, fecha de su fichero de reglas más reciente y días transcurridos frente a P-08.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -168,7 +169,7 @@ export const buildOpMon1ReportModel = (
     'op.mon.1.campo8',
     'Exclusiones y afinación',
     evidenceStatus('EV-08'),
-    'Ficheros de reglas excluidos y reglas reescritas a nivel 0 en el manager, cada uno contra P-06: su motivo y quién lo aprobó. Un silenciamiento sin constancia es un hallazgo de R1.',
+    'Ficheros de reglas excluidos y reglas reescritas a nivel 0 en el manager, cada uno contra P-06: su motivo y quién lo aprobó.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -209,7 +210,7 @@ export const buildOpMon1ReportModel = (
       ...(result?.requirements || []).map(requirement =>
         requirement.status === 'NO_APLICA'
           ? `${requirement.id}: no aplica`
-          : `${requirement.id}: ${requirement.status}${requirement.attested ? ', acreditado documentalmente (no se satisface con la herramienta)' : requirement.evidenced === false ? ', no demostrado' : ''}`,
+          : `${requirement.id}: ${statusLabel(requirement.status)}${requirement.attested ? ', acreditado documentalmente (no se satisface con la herramienta)' : requirement.evidenced === false ? ', no demostrado' : ''}`,
       ),
       r3 ? `op.mon.1.r3.1 (no exigible): cobertura de hecho ${formatValue(r3.value)}` : '',
     ],

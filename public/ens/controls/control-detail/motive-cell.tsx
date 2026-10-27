@@ -13,6 +13,7 @@ import {
 import { KnownReasonParts, parseMotive } from '../../../../common/ens/evaluation/motive-parser';
 import { MotiveView, MotiveViewHandlers, statusBadgeColor } from './motive-view';
 import { ENS_THEME } from '../../theme-colors';
+import { statusLabel } from '../../../../common/ens/core/status-label';
 
 const QUESTION_PREFIX = 'Pregunta de auditoría:';
 
@@ -84,7 +85,7 @@ export const MotiveCell = ({
             )}
             {parsed?.parte?.evidenceId && parsed.compuesto && (
               <>
-                <EuiBadge color={statusBadgeColor(parsed.parte.status)}>{`${parsed.parte.evidenceId} ${parsed.parte.status}`}</EuiBadge>{' '}
+                <EuiBadge color={statusBadgeColor(parsed.parte.status)}>{`${parsed.parte.evidenceId} ${statusLabel(parsed.parte.status)}`}</EuiBadge>{' '}
               </>
             )}
             {summary.length > TEXT_LIMIT ? `${summary.slice(0, TEXT_LIMIT).trimEnd()}…` : summary}

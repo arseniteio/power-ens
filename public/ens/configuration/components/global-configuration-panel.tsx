@@ -263,9 +263,7 @@ export const GlobalConfigurationPanel = ({
         color='subdued'
       >
         <p>
-          Define el contexto general utilizado por el
-          motor ENSFácil para evaluar controles,
-          evidencias y resultados de cumplimiento.
+          Nivel ENS y periodo de evaluación.
         </p>
       </EuiText>
 
@@ -392,8 +390,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiText size='xs' color='subdued'>
         <p>
-          Nivel de madurez que se espera de cada control según la categoría con que se aplica. Por defecto, L2 en BÁSICA,
-          L3 en MEDIA y L4 en ALTA, a falta de confirmación del auditor. Una valoración puede fijar otro objetivo para un control.
+                    Madurez esperada por categoría: L2 en BÁSICA, L3 en MEDIA y L4 en ALTA, salvo que el auditor fije otra.
         </p>
       </EuiText>
 

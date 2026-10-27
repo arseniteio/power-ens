@@ -25,6 +25,7 @@ import type { ENSAnnualDatum, ENSAnnualFreezeEntry, ENSAnnualMeasure, ENSAnnualR
 import { ART32_MAX_INCIDENTS, ART32_REGISTER_WINDOW_DAYS } from '../core/policy-runtime/policies/op-mon-2.policy';
 import { ENS_ANNUAL_REPORT_CONTROL, measureEngine } from './declared-measures';
 import { applicableMeasures, describeRepeatedMeasures, implementationDegree } from './implementation-degree';
+import { statusLabel } from '../core/status-label';
 
 const INCIDENTS_CONTROL = 'op.exp.7';
 const HOUR_MS = 3600e3;
@@ -225,7 +226,7 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
         ? 'sin resultado del motor'
         : typeof result.score === 'number'
         ? `motor de ENSFácil: ${result.applicableRequirements} requisitos aplicables en nivel ${result.level}, ${result.measuredRequirements} demostrados`
-        : `sin puntuación: ${result.status} en nivel ${result.level}`,
+        : `sin puntuación: ${statusLabel(result.status)} en nivel ${result.level}`,
       '%'
     );
     push(

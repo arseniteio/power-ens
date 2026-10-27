@@ -116,7 +116,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo2',
     'Canales con el exterior del dominio',
     evidenceStatus('EV-01'),
-    'Canales de P-01 con su contraparte, mecanismo de autenticación mutua y red de tránsito. Verificación por canal de que la autenticación del extremo precede al intercambio de información.',
+    'Canales de P-01 con su contraparte, mecanismo de autenticación mutua y red de tránsito.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo3',
     'Conformidad criptográfica configurada (R2)',
     evidenceStatus('EV-02'),
-    'Por canal: versiones de protocolo admitidas, suites habilitadas, algoritmos de firma y parámetros de intercambio de claves, contrastados con los autorizados por el CCN en P-02. Relación de desviaciones.',
+    'Por canal: versiones de protocolo admitidas, suites habilitadas, algoritmos de firma y parámetros de intercambio de claves, contrastados con los autorizados por el CCN en P-02.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo4',
     'Algoritmos efectivamente negociados (R2)',
     evidenceStatus('EV-03'),
-    'Distribución de protocolos y suites realmente negociados en el período frente a los configurados como mínimo. Detecta el caso del extremo que declara mínimos correctos y sigue aceptando negociaciones inferiores.',
+    'Distribución de protocolos y suites realmente negociados en el período frente a los configurados como mínimo.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -146,7 +146,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo5',
     'Ataques activos detectados',
     evidenceStatus('EV-04'),
-    'Por cada uno de los tres tipos que enumera mp.com.3.2: detecciones del período, canal afectado, indicador que las disparó y severidad. Presentados por separado porque el requisito los distingue expresamente en sus apartados a), b) y c).',
+    'Por cada uno de los tres tipos que enumera mp.com.3.2: detecciones del período, canal afectado, indicador que las disparó y severidad.',
     ['EV-04', 'EV-05', 'EV-06'],
     evidenceObservations('EV-04'),
   );
@@ -156,7 +156,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo6',
     'Activación del procedimiento de incidente',
     evidenceStatus('EV-07'),
-    'Por cada detección de ataque activo: ticket de incidente asociado, momento de apertura e intervalo. Relación de detecciones sin incidente, que incumplen la segunda mitad de mp.com.3.2 aunque la detección haya funcionado.',
+    'Por cada detección de ataque activo: ticket de incidente asociado, momento de apertura e intervalo.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -176,7 +176,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo8',
     'Mecanismos de identificación admitidos',
     evidenceStatus('EV-09'),
-    'Mecanismos de P-05 presentados en el período con su resultado. Apartado destacado para rechazos sistemáticos de mecanismos legalmente admisibles, que es la forma en que se incumple mp.com.3.3.',
+    'Mecanismos de P-05 presentados en el período con su resultado.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -186,7 +186,7 @@ export const buildMpCom3ReportModel = (
     'mp.com.3.campo9',
     'Integridad de la configuración de los canales',
     evidenceStatus('EV-10'),
-    'Cambios detectados en la configuración de los extremos y túneles, con el usuario que los realizó y el diff. Destacados los que degradan la protección criptográfica.',
+    'Cambios detectados en la configuración de los extremos y túneles, con el usuario que los realizó y el diff.',
     ['EV-10'],
     evidenceObservations('EV-10'),
   );
@@ -198,7 +198,7 @@ export const buildMpCom3ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-11')
       : 'NO_APLICA',
-    'Dispositivos hardware de P-07 empleados en la VPN, con el criterio documentado sobre la tensión de redacción de R3; y productos certificados de P-08 con su referencia y vigencia. Aviso anticipado de caducidad, que en R4 es incumplimiento directo.',
+    'Dispositivos hardware de P-07 empleados en la VPN, con el criterio documentado sobre la tensión de redacción de R3; y productos certificados de P-08 con su referencia y vigencia.',
     ['EV-11'],
     evidenceObservations('EV-11'),
   );

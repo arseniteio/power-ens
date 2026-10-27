@@ -68,6 +68,7 @@ import {
   isFromAnotherMachine,
   nextRetained,
 } from './detail-view-state';
+import { statusLabel } from '../../../../common/ens/core/status-label';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -767,7 +768,7 @@ export const ControlDetailENS = ({
             {data?.result && (
               <EuiFlexItem grow={false}>
                 <EuiBadge color={getBadgeColor(data.result.status)} iconType={getStatusIcon(data.result.status)}>
-                  {data.result.status}
+                  {statusLabel(data.result.status)}
                   {typeof data.result.score === 'number' ? ` · ${data.result.score}%` : ''}
                 </EuiBadge>
               </EuiFlexItem>
@@ -849,8 +850,7 @@ export const ControlDetailENS = ({
     <>
       <EuiCallOut color='warning' iconType='gear' title={`${control.id} no está en la configuración activa`}>
         <p>
-          El control existe en el catálogo de esta versión pero no se ha añadido a la configuración: sus requisitos
-          cuentan como no evidenciados hasta que se añade y se declaran sus parámetros obligatorios.
+          Añádelo y declara sus parámetros obligatorios: hasta entonces sus requisitos no se evidencian.
         </p>
         <AddControlWithDefaultsButton controlId={control.id} onAdded={() => evaluation.retry()} />
       </EuiCallOut>
@@ -1367,7 +1367,7 @@ export const ControlDetailENS = ({
                     color={getBadgeColor(status)}
                     iconType={getStatusIcon(status)}
                   >
-                    {status}
+                    {statusLabel(status)}
                   </EuiBadge>
                 ),
             },

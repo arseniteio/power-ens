@@ -116,7 +116,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo2',
     'Puestas en servicio del período',
     evidenceStatus('EV-01'),
-    'Aplicaciones y versiones que entraron en producción, con fecha, sistemas afectados y responsable. Es el eje del informe: cada entrada abre el resto de las comprobaciones.',
+    'Aplicaciones y versiones que entraron en producción, con fecha, sistemas afectados y responsable.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo3',
     'Aceptación previa acreditada',
     evidenceStatus('EV-02'),
-    'Por cada puesta en servicio: acta de aceptación de P-07 asociada, su fecha y quién aceptó. Relación de despliegues sin acta previa o con acta posterior al despliegue, que incumplen el enunciado.',
+    'Por cada puesta en servicio: acta de aceptación de P-07 asociada, su fecha y quién aceptó.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo4',
     'Criterios de aceptación verificados',
     evidenceStatus('EV-06'),
-    'Por criterio de P-02: resultado de la verificación automática cuando sea posible, o constancia de declaración cuando no lo sea. Distingue lo comprobado de lo declarado, que es la diferencia entre un acta con respaldo y una firma.',
+    'Por criterio de P-02: resultado de la verificación automática cuando sea posible, o constancia de declaración cuando no lo sea.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -146,7 +146,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo5',
     'Diferencial de seguridad del entorno',
     evidenceStatus('EV-03'),
-    'Por cada despliegue: cumplimiento SCA, puertos, servicios y vulnerabilidades antes y después de la ventana de P-04, con la variación y su contraste con P-05. Es la acreditación de mp.sw.2.1 b) y el apartado de mayor valor del informe.',
+    'Por cada despliegue: cumplimiento SCA, puertos, servicios y vulnerabilidades antes y después de la ventana de P-04, con la variación y su contraste con P-05.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -156,7 +156,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo6',
     'Exposición introducida',
     evidenceStatus('EV-04'),
-    'Puertos y servicios nuevos tras cada despliegue, distinguiendo los previstos en P-06 de los inesperados. Los inesperados exigen además revisión del perímetro, por lo que se señala el enlace con mp.com.1.',
+    'Puertos y servicios nuevos tras cada despliegue, distinguiendo los previstos en P-06 de los inesperados.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -166,7 +166,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo7',
     'Vulnerabilidades introducidas',
     evidenceStatus('EV-05'),
-    'CVE que aparecen tras el despliegue con su severidad, componente afectado y si proviene de la aplicación o de sus dependencias de terceros. Enlaza con op.exp.4 para el seguimiento de su remediación.',
+    'CVE que aparecen tras el despliegue con su severidad, componente afectado y si proviene de la aplicación o de sus dependencias de terceros.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -186,7 +186,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo9',
     'Paso por preproducción (R1)',
     evidenceStatus('EV-07'),
-    'Por versión desplegada: si consta su instalación previa en el par de preproducción de P-03, con las fechas de ambas. Nota de que esta evidencia es compartida con op.exp.4 y op.exp.5 para evitar duplicidad.',
+    'Por versión desplegada: si consta su instalación previa en el par de preproducción de P-03, con las fechas de ambas.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -196,7 +196,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo10',
     'Aislamiento del entorno de preproducción (R1)',
     evidenceStatus('EV-08'),
-    'Verificación del aislamiento efectivo: interfaces y rutas de los sistemas de preproducción, y tráfico observado entre los rangos de preproducción y producción. Un preproducción conectado no es aislado, y el refuerzo lo exige.',
+    'Verificación del aislamiento efectivo: interfaces y rutas de los sistemas de preproducción, y tráfico observado entre los rangos de preproducción y producción.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -206,7 +206,7 @@ export const buildMpSw2ReportModel = (
     'mp.sw.2.campo11',
     'Auditoría de código fuente (R2)',
     evidenceStatus('EV-10'),
-    'Si P-08 está cumplimentado: auditorías realizadas con fecha, metodología, hallazgos y estado de cierre, con el cruce frente a las vulnerabilidades observables en producción. Acredita R2, no exigible en ninguna categoría.',
+    'Si P-08 está cumplimentado: auditorías realizadas con fecha, metodología, hallazgos y estado de cierre, con el cruce frente a las vulnerabilidades observables en producción.',
     ['EV-10'],
     evidenceObservations('EV-10'),
   );

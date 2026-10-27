@@ -116,7 +116,7 @@ export const buildMpCom4ReportModel = (
     'mp.com.4.campo2',
     'Modalidad de segmentación y su admisibilidad',
     evidenceStatus('EV-07'),
-    'Forma de segmentación declarada en P-03, verificación de su implementación efectiva y comprobación de que es admisible para la categoría del sistema. Aviso destacado si la categoría es ALTA y la modalidad es VLAN, porque implica rediseño de red y no reconfiguración.',
+    'Forma de segmentación declarada en P-03, verificación de su implementación efectiva y comprobación de que es admisible para la categoría del sistema.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -126,7 +126,7 @@ export const buildMpCom4ReportModel = (
     'mp.com.4.campo3',
     'Mapa de segmentos y segregación mínima',
     evidenceStatus('EV-08'),
-    'Segmentos de P-01 con los equipos detectados en cada uno, y verificación de que existen al menos usuarios, servicios y administración. Equipos ubicados en segmento que no corresponde a su función.',
+    'Segmentos de P-01 con los equipos detectados en cada uno, y verificación de que existen al menos usuarios, servicios y administración.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -146,7 +146,7 @@ export const buildMpCom4ReportModel = (
     'mp.com.4.campo5',
     'Fugas de segmentación',
     evidenceStatus('EV-02'),
-    'Flujos entre segmentos no autorizados, con origen, destino, protocolo, volumen y frecuencia. Ordenados por gravedad, con prioridad máxima para los que alcanzan el segmento de administración. Es el hallazgo principal del control.',
+    'Flujos entre segmentos no autorizados, con origen, destino, protocolo, volumen y frecuencia.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -178,7 +178,7 @@ export const buildMpCom4ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-05')
       : 'NO_APLICA',
-    'Por cada punto de P-05: elemento que lo controla, volumen de registros ingeridos, continuidad y conexiones aceptadas y denegadas entre los segmentos que une. R4 remite a mp.com.1, de modo que las exigencias del perímetro le son aplicables.',
+    'Por cada punto de P-05: elemento que lo controla, volumen de registros ingeridos, continuidad y conexiones aceptadas y denegadas entre los segmentos que une.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -200,7 +200,7 @@ export const buildMpCom4ReportModel = (
     'mp.com.4.campo10',
     'Encapsulamiento de incidentes',
     evidenceStatus('EV-09'),
-    'Alertas de seguridad distribuidas por segmento y detección de propagación entre ellos. Es la evidencia del propósito declarado del control: que los incidentes queden restringidos al entorno donde ocurren.',
+    'Alertas de seguridad distribuidas por segmento y detección de propagación entre ellos.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );

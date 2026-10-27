@@ -294,7 +294,7 @@ section('2. Green: P-01 with the real systems, ruleset of 10/07 under P-08 = 180
     'at BÁSICA without P-03, EV-01 stays CUMPLE: P-03\'s sets belong to R1',
     evaluate(hoy(), { ...BASE, 'P-03': undefined }, 'BAJO').evidencia('EV-01')?.status === 'CUMPLE'
   );
-  check('the report shows the requirements with their verdict', buildOpMon1ReportModel(r.motor()).fields[0].details.some(d => /op\.mon\.1\.1 .*: CUMPLE/.test(d)));
+  check('the report shows the requirements with their verdict', buildOpMon1ReportModel(r.motor()).fields[0].details.some(d => /op\.mon\.1\.1 .*: Cumple/.test(d)));
 }
 
 section('3. R2 at ALTA: P-05 accredits it documentarily; P-ATT if there is no P-05');

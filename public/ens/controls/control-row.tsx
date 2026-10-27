@@ -10,6 +10,7 @@ import type { ENSControlListEntry, ENSMachineTally } from './controls-list-model
 import { describeTally } from './controls-list-model';
 import { AddControlWithDefaultsButton, NOT_IN_CONFIGURATION_TEXT } from './add-control-button';
 import { ENS_PENDING_MEASUREMENT_LABEL } from '../../../common/ens/catalog';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export interface ControlRowData {
   id: string;
@@ -166,7 +167,7 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado: statusColo
         {levels}
       </EuiBadge>
       <EuiBadge color={statusBadge(status)} style={{ marginLeft: 6 }}>
-        {status}
+        {statusLabel(status)}
       </EuiBadge>
       {unproven > 0 && (
         <EuiBadge color='default' iconType='questionInCircle' style={{ marginLeft: 6 }}>

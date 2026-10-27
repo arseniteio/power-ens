@@ -116,7 +116,7 @@ export const buildMpEq2ReportModel = (
     'mp.eq.2.campo2',
     'Conformidad de la política de bloqueo',
     evidenceStatus('EV-01'),
-    'Por equipo: bloqueo activo, temporizador configurado frente a P-01, y si el desbloqueo exige credenciales. Porcentaje de conformidad y relación de equipos no conformes.',
+    'Por equipo: bloqueo activo, temporizador configurado frente a P-01, y si el desbloqueo exige credenciales.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -128,7 +128,7 @@ export const buildMpEq2ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-02')
       : 'NO_APLICA',
-    'Por equipo: límite de sesión configurado, contraste con P-02 y validación de coherencia con P-01. Relación de equipos sin límite o con valores incoherentes.',
+    'Por equipo: límite de sesión configurado, contraste con P-02 y validación de coherencia con P-01.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -138,7 +138,7 @@ export const buildMpEq2ReportModel = (
     'mp.eq.2.campo4',
     'Bloqueos efectivamente producidos',
     evidenceStatus('EV-03'),
-    'Número de eventos de bloqueo y desbloqueo por equipo en el período, con la frecuencia media. Equipos con actividad y sin bloqueos registrados destacados como posible neutralización del control.',
+    'Número de eventos de bloqueo y desbloqueo por equipo en el período, con la frecuencia media.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -148,7 +148,7 @@ export const buildMpEq2ReportModel = (
     'mp.eq.2.campo5',
     'Sesiones de larga duración sin bloqueo',
     evidenceStatus('EV-04'),
-    'Sesiones que superaron P-02 minutos sin evento de bloqueo ni cierre, con el equipo, el usuario y la duración. Es el indicador de cumplimiento efectivo frente al meramente configurado.',
+    'Sesiones que superaron P-02 minutos sin evento de bloqueo ni cierre, con el equipo, el usuario y la duración.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -158,7 +158,7 @@ export const buildMpEq2ReportModel = (
     'mp.eq.2.campo6',
     'Herramientas de inhibición detectadas',
     evidenceStatus('EV-05'),
-    'Equipos en los que se ha detectado la presencia o ejecución de utilidades que simulan actividad para evitar el bloqueo, con el usuario asociado. Apartado de hallazgo poco habitual y de corrección sencilla.',
+    'Equipos en los que se ha detectado la presencia o ejecución de utilidades que simulan actividad para evitar el bloqueo, con el usuario asociado.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );

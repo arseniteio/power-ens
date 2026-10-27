@@ -116,7 +116,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo2',
     'Inventario de dispositivos portátiles',
     evidenceStatus('EV-01'),
-    'Relación de dispositivos con tipo, modelo, responsable, confidencialidad de la información que almacenan y estado de monitorización. Dispositivos detectados fuera del inventario y entradas sin responsable destacados por separado.',
+    'Relación de dispositivos con tipo, modelo, responsable, confidencialidad de la información que almacenan y estado de monitorización.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo3',
     'Control de custodia',
     evidenceStatus('EV-02'),
-    'Por dispositivo: fecha de la última confirmación de custodia por su responsable y días transcurridos frente a P-02, junto a la fecha de la última conexión del agente. Dispositivos sin señal prolongada señalados para verificación activa.',
+    'Por dispositivo: fecha de la última confirmación de custodia por su responsable y días transcurridos frente a P-02, junto a la fecha de la última conexión del agente.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo4',
     'Claves de acceso remoto almacenadas',
     evidenceStatus('EV-03'),
-    'Por dispositivo: artefactos de P-05 detectados, con su ruta y tipo, y si las claves SSH están protegidas con frase de paso. Es el apartado que mejor dimensiona el riesgo real de una pérdida y el hallazgo más frecuente de este control.',
+    'Por dispositivo: artefactos de P-05 detectados, con su ruta y tipo, y si las claves SSH están protegidas con frase de paso.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -148,7 +148,7 @@ export const buildMpEq3ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-04')
       : 'NO_APLICA',
-    'Por dispositivo al que resulta exigible según P-06: cifrado activo, mecanismo, estado de protección (atención a los suspendidos) y método de protección de la clave. Relación de dispositivos no cifrados con cifrado exigible.',
+    'Por dispositivo al que resulta exigible según P-06: cifrado activo, mecanismo, estado de protección (atención a los suspendidos) y método de protección de la clave.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -158,7 +158,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo6',
     'Accesos remotos desde dispositivos portátiles',
     evidenceStatus('EV-05'),
-    'Servicios efectivamente accedidos desde dispositivos portátiles por redes no controladas, contrastados con el perfil autorizado de P-04. Accesos fuera de perfil con el dispositivo, usuario y servicio.',
+    'Servicios efectivamente accedidos desde dispositivos portátiles por redes no controladas, contrastados con el perfil autorizado de P-04.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -168,7 +168,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo7',
     'Incidentes de pérdida y reacción aplicada',
     evidenceStatus('EV-06'),
-    'Pérdidas o sustracciones declaradas en el período con las acciones de P-08 ejecutadas y su plazo: revocación de certificados, deshabilitación de cuentas, cierre de sesiones, borrado remoto. Relación de incidentes con reacción incompleta o tardía.',
+    'Pérdidas o sustracciones declaradas en el período con las acciones de P-08 ejecutadas y su plazo: revocación de certificados, deshabilitación de cuentas, cierre de sesiones, borrado remoto.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -178,7 +178,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo8',
     'Configuración de protección del dispositivo',
     evidenceStatus('EV-08'),
-    'Por dispositivo: arranque seguro, estado del TPM, contraseña de firmware y política de arranque desde medios externos. Complementa al cifrado: un disco cifrado con arranque USB abierto protege menos de lo que parece.',
+    'Por dispositivo: arranque seguro, estado del TPM, contraseña de firmware y política de arranque desde medios externos.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -188,7 +188,7 @@ export const buildMpEq3ReportModel = (
     'mp.eq.3.campo9',
     'Requisitos normativos — acreditación documental',
     evidenceStatus('EV-07'),
-    'Bloque no verificable técnicamente: procedimiento de comunicación de pérdidas de P-03, autorización de los responsables para el perfil de acceso remoto de P-04, y normativa de entornos protegidos de P-07 con su registro de difusión. Se presentan como documentación aportada.',
+    'Bloque no verificable técnicamente: procedimiento de comunicación de pérdidas de P-03, autorización de los responsables para el perfil de acceso remoto de P-04, y normativa de entornos protegidos de P-07 con su registro de difusión.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );

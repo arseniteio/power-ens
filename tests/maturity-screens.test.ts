@@ -100,7 +100,7 @@ http.setENSConfigurationHttp(() => ({
   h.setSearch('?tabView=plugins&control=op.acc.1');
   let p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), onBack: () => undefined });
   check('accredited L2 here (no procedure)', maturity.accredited === 2, maturity.gates.filter((g: any) => !g.passed));
-  check('header: the traffic light and «Madurez: sin valorar (acreditado L2, objetivo L3)», side by side', /\[ PARCIAL · 75% \] \[ [^\]]*Madurez: sin valorar \(acreditado L2, objetivo L3\) \]/.test(p), p.slice(0, 900));
+  check('header: the traffic light and «Madurez: sin valorar (acreditado L2, objetivo L3)», side by side', /\[ Parcial · 75% \] \[ [^\]]*Madurez: sin valorar \(acreditado L2, objetivo L3\) \]/.test(p), p.slice(0, 900));
   check('the «Madurez» panel with the one-line note and the guide', /Madurez · op\.acc\.1/.test(p) && /Semáforo y porcentaje: operativos/.test(p) && h.findAll('EuiLink').some(link => /10-maturity-assessment/.test(link.props.href)));
   check('the gates with origin, state and reason', /Hechos recurrentes sin huecos/.test(p) && /Documental/.test(p) && /Sin procedimiento registrado/.test(p) && /No se cumple/.test(p) && /Se cumple/.test(p));
   check('what is recorded: none yet', /Procedimiento:\s*sin registrar/.test(p) && /Última revisión:\s*ninguna registrada/.test(p));

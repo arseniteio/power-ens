@@ -1,4 +1,5 @@
 import type { ENSComplianceResult } from '../../../common/ens/core';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpNub1ReportFieldStatus =
   | 'CUMPLE'
@@ -138,7 +139,7 @@ export const buildOpNub1ReportModel = (
     attested?: boolean;
     evidenced?: boolean;
   }): string =>
-    `${requirement.id} ${requirement.title}: ${requirement.status}${
+    `${requirement.id} ${requirement.title}: ${statusLabel(requirement.status)}${
       requirement.attested
         ? ' (acreditado documentalmente)'
         : requirement.status !== 'NO_APLICA' && requirement.evidenced === false
@@ -175,7 +176,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo3',
     'Expediente documental por servicio',
     evidenceStatus('EV-09'),
-    'DOCUMENTACIÓN APORTADA, no verificada técnicamente. Por cada servicio utilizado: conformidad ENS o guía CCN-STIC vigente (P-03), informe de pentest del proveedor dentro de P-12 meses (P-10), cifrado y gestión de claves (P-09), región de los datos y de las copias y jurisdicción (P-08).',
+    'DOCUMENTACIÓN APORTADA, no verificada técnicamente.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -188,7 +189,7 @@ export const buildOpNub1ReportModel = (
       ...(level === 'BAJO' ? [] : [evidenceStatus('EV-08')]),
       asStatus(variables.get('vigencia_conformidades')?.value),
     ]),
-    'DOCUMENTACIÓN APORTADA. Fecha de vigencia de cada conformidad (P-03) y de cada certificación reconocida (P-04, R1 desde MEDIA), con los días restantes frente a la fecha de la evaluación. Las vencidas son incumplimiento inmediato.',
+    'DOCUMENTACIÓN APORTADA.',
     ['EV-08', 'EV-09'],
     [variableDescription('vigencias'), variableDescription('vigencia_conformidades'), ...evidenceObservations('EV-08')],
   );
@@ -208,7 +209,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo6',
     'Trazabilidad del perímetro cloud',
     evidenceStatus('EV-01'),
-    'MEDIDO en el manager de Wazuh. Por cada servicio de P-06: su módulo cloud, dónde está configurado, su última alerta y las de 24 h frente a P-13, y sus errores. Los servicios del inventario sin integración son puntos ciegos de trazabilidad: un hallazgo, no un incumplimiento.',
+    'MEDIDO en el manager de Wazuh.',
     ['EV-01'],
     [variableDescription('servicios_sin_integracion'), ...evidenceObservations('EV-01')],
   );
@@ -217,7 +218,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo7',
     'Operaciones administrativas en los servicios cloud',
     evidenceStatus('EV-04'),
-    'MEDIDO en el manager de Wazuh. Operaciones de administración con éxito en la ventana, por actor, con sus operaciones y la fecha de la última, frente a los administradores autorizados de P-11. Destacadas las de actores no autorizados. Sin operaciones, el módulo solo cuenta como medido si trae un registro de administración leído en los últimos 30 días.',
+    'MEDIDO en el manager de Wazuh.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -226,7 +227,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo8',
     'Cifrado y gestión de claves',
     'NO_APLICA',
-    'Dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA cloud con el que verificar el cifrado configurado. Lo declarado en P-09 forma parte del expediente documental (op.nub.1.2 c). Enlaza con op.exp.10: las claves de los servicios cloud son material criptográfico del sistema.',
+    'Dato del informe, sin veredicto: Wazuh 4.14 no tiene SCA cloud con el que verificar el cifrado configurado.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -235,7 +236,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo9',
     'Región de los datos y jurisdicción',
     'NO_APLICA',
-    'Dato del informe, sin veredicto: la región configurada no se puede medir, porque Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor. Lo declarado en P-08 forma parte del expediente documental (op.nub.1.2 d).',
+    'Dato del informe, sin veredicto: la región configurada no se puede medir, porque Wazuh 4.14 no tiene SCA para inquilinos cloud ni el recolector usa credenciales del proveedor.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -244,7 +245,7 @@ export const buildOpNub1ReportModel = (
     'op.nub.1.campo10',
     'Accesos a los servicios cloud',
     'NO_APLICA',
-    'Hallazgo del informe, sin veredicto, cruzado con op.acc.6.r8.1 (que lo juzga): inicios de sesión interactivos por servicio, con resultado, segundo factor y orígenes, medidos en el manager de Wazuh. Destacados los accesos con éxito sin segundo factor.',
+    'Hallazgo del informe, sin veredicto, cruzado con op.acc.6.r8.1 (que lo juzga): inicios de sesión interactivos por servicio, con resultado, segundo factor y orígenes, medidos en el manager de Wazuh.',
     ['EV-07'],
     [variableDescription('accesos_cloud'), ...evidenceObservations('EV-07')],
   );

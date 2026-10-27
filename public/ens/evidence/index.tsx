@@ -9,6 +9,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export const EvidenceENS = () => {
   const items = ENSControls.flatMap(control =>
@@ -48,7 +49,7 @@ export const EvidenceENS = () => {
     {
       field: 'expectedStatus',
       name: 'Estado esperado',
-      render: status => <EuiBadge>{status}</EuiBadge>,
+      render: status => <EuiBadge>{statusLabel(status)}</EuiBadge>,
     },
     {
       field: 'ruleIds',

@@ -77,8 +77,8 @@ const listOf = (agentId?: string, name?: string, extra: any = {}) =>
     check('the 11 without collector: «sin medición», no summary, in their Annex II place (not at the end)', JSON.stringify(pending.map(e => e.id).sort()) === JSON.stringify([...['mp.eq.2', 'mp.eq.3', 'mp.eq.4', 'mp.com.1', 'mp.com.3', 'mp.com.4', 'mp.sw.2', 'mp.s.1', 'mp.s.2', 'mp.s.3', 'mp.s.4']].sort()) &&
       pending.every(e => e.measured && !e.notMeasured && !e.summary && /no se juzga como incumplimiento/.test(e.pendingMeasurement || '')) && manager.findIndex(e => e.id === 'mp.eq.2') < manager.findIndex(e => e.id === 'mp.info.6'), pending.map(e => e.id));
     const greys = manager.filter(e => !e.measured);
-    check('14 unmeasured, all at the end and with the PLANE motive', greys.length === 14 && manager.slice(-14).every(e => !e.measured && e.notMeasured?.cause === 'PLANE'), greys.map(e => e.id));
-    check('the measured ones (and those without collector), first and in catalog order', JSON.stringify(manager.slice(0, 20).map(e => e.id)) === JSON.stringify(ENSControls.map((c: any) => c.id).filter((id: string) => !greys.some(g => g.id === id))));
+    check('8 unmeasured, all at the end and with the PLANE motive', greys.length === 8 && manager.slice(-8).every(e => !e.measured && e.notMeasured?.cause === 'PLANE'), greys.map(e => e.id));
+    check('the measured ones (and those without collector), first and in catalog order', JSON.stringify(manager.slice(0, 26).map(e => e.id)) === JSON.stringify(ENSControls.map((c: any) => c.id).filter((id: string) => !greys.some(g => g.id === id))));
     const ldap = listOf('102', 'ldap01');
     check('with a machine outside P-04: the 34 and mp.info.6 last, with P-04', ldap.length === 34 && ldap[33].id === 'mp.info.6' && ldap[33].notMeasured?.cause === 'DECLARED_SCOPE', ldap[33]);
     check('on a declared one, mp.info.6 is measured', listOf('101', 'srv-web01').every(e => e.measured));
@@ -117,18 +117,18 @@ const listOf = (agentId?: string, name?: string, extra: any = {}) =>
     const rows = h.findAll('EuiFacetButton');
     check('with the manager: 34 rows', rows.length === 34, rows.length);
     check('11 «Sin medición todavía», with the wave on its own line and no verdict', h.findAll('EuiBadge', /Sin medición todavía/).length === 11 && /Medición prevista en la oleada A/.test(p), h.findAll('EuiBadge', /Sin medición todavía/).length);
-    check('loading: spinner in the measures, no verdict', h.findAll('EuiLoadingSpinner').length === 9 && !/NO_CUMPLE|NO_EVALUABLE|CUMPLE/.test(p.replace(/No se mide/g, '')), h.findAll('EuiLoadingSpinner').length);
-    check('14 «No se mide en esta máquina», with the motive', h.findAll('EuiBadge', /No se mide en esta máquina/).length === 14 && /no en el manager de Wazuh \(000\)/.test(p));
-    const greyButton = h.findAll('EuiFacetButton').find(n => /op\.acc\.1/.test(n.texto))!;
-    const motiveOutside = h.findAll('EuiText').find(n => /op\.acc\.1 se mide en cada máquina/.test(n.texto));
+    check('loading: spinner in the measures, no verdict', h.findAll('EuiLoadingSpinner').length === 15 && !/No cumple|No evaluable|Cumple/.test(p.replace(/No se mide/g, '')), h.findAll('EuiLoadingSpinner').length);
+    check('8 «No se mide en esta máquina», with the motive', h.findAll('EuiBadge', /No se mide en esta máquina/).length === 8 && /no en el manager de Wazuh \(000\)/.test(p));
+    const greyButton = h.findAll('EuiFacetButton').find(n => /op\.exp\.1 /.test(n.texto))!;
+    const motiveOutside = h.findAll('EuiText').find(n => /op\.exp\.1 se mide en cada máquina/.test(n.texto));
     check('the motive, outside the button (its own line)', Boolean(motiveOutside) && !motiveOutside!.ruta.startsWith(greyButton.ruta + '.') && !/se mide en cada máquina/.test(greyButton.texto), motiveOutside?.ruta);
-    check('the notice of how many are not measured and «Ver todas las máquinas»', /14 controles no se miden en 000/.test(p) && Boolean(h.find('EuiLink', /Ver todas las máquinas/)), p.slice(p.indexOf('Nivel BAJO') + 100, p.indexOf('Nivel BAJO') + 500));
+    check('the notice of how many are not measured and «Ver todas las máquinas»', /8 controles no se miden en 000/.test(p) && Boolean(h.find('EuiLink', /Ver todas las máquinas/)), p.slice(p.indexOf('Nivel BAJO') + 100, p.indexOf('Nivel BAJO') + 500));
     check('«Nivel BAJO: 4 controles no aplican» with a link to Configuration', /Nivel BAJO: 4 controles no aplican/.test(p) && Boolean(h.find('EuiLink', /Cambiar el nivel en Configuración/)));
     evaluation = { data: { meta: {}, controls: [{ controlId: 'op.exp.7', status: 'NO_CUMPLE', score: 0, evaluated: true, requirementsNotMet: 3, requirementsNotEvidenced: 1 }], agents: [] }, isLoading: false };
     p = await h.render(ControlsENS);
     const exp7 = h.findAll('EuiFacetButton').find(n => /op\.exp\.7/.test(n.texto));
-    check('with a result: op.exp.7 with its number and its state', exp7?.props.quantity === 3 && /NO_CUMPLE/.test(p));
-    const gris = h.findAll('EuiFacetButton').find(n => /op\.acc\.1/.test(n.texto));
+    check('with a result: op.exp.7 with its number and its state', exp7?.props.quantity === 3 && /No cumple/.test(p));
+    const gris = h.findAll('EuiFacetButton').find(n => /op\.exp\.1 /.test(n.texto));
     check('the grey ones without a number', gris && gris.props.quantity === undefined);
     check('the 6 unconfigured: the mark and «Añadir con valores por defecto»', h.findAll('EuiBadge', /No está en la configuración activa/).length === 6 && h.findAll('EuiButton', /Añadir con valores por defecto/).length === 6);
     await h.click(/Añadir con valores por defecto/);

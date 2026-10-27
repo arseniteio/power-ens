@@ -116,7 +116,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo2',
     'Normativa, concienciación y formación',
     evidenceStatus('EV-12'),
-    'Referencia de la normativa de P-01 con su difusión y régimen de conexiones cifradas; actividades de concienciación de P-06; y formación de administradores de P-07. Los tres presentados por separado, porque mp.s.3.2 y mp.s.3.3 son requisitos distintos y uno suele quedar sin acreditar.',
+    'Referencia de la normativa de P-01 con su difusión y régimen de conexiones cifradas; actividades de concienciación de P-06; y formación de administradores de P-07.',
     ['EV-12'],
     evidenceObservations('EV-12'),
   );
@@ -126,7 +126,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo3',
     'Volumen y resultado del filtrado de navegación',
     evidenceStatus('EV-01'),
-    'Peticiones procesadas, permitidas y bloqueadas, desglosadas por categoría de P-03, con su evolución. Categorías declaradas sin bloqueos registrados señaladas para revisión, porque suelen indicar filtro mal aplicado y no ausencia de intentos.',
+    'Peticiones procesadas, permitidas y bloqueadas, desglosadas por categoría de P-03, con su evolución.',
     ['EV-01', 'EV-02'],
     evidenceObservations('EV-01'),
   );
@@ -136,7 +136,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo4',
     'Accesos a destinos de reputación maliciosa',
     evidenceStatus('EV-04'),
-    'Accesos e intentos hacia destinos maliciosos con el usuario y el puesto, distinguiendo los bloqueados de los permitidos. Los permitidos con actividad posterior anómala en el puesto se escalan como posible compromiso y enlazan con op.exp.7.',
+    'Accesos e intentos hacia destinos maliciosos con el usuario y el puesto, distinguiendo los bloqueados de los permitidos.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -146,7 +146,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo5',
     'Descargas de código ejecutable y contenido activo',
     evidenceStatus('EV-03'),
-    'Descargas bloqueadas por tipo de contenido y relación de las permitidas que correspondían a tipos declarados bloqueados. Atención a comprimidos y extensiones alteradas, que son la vía de evasión habitual.',
+    'Descargas bloqueadas por tipo de contenido y relación de las permitidas que correspondían a tipos declarados bloqueados.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -156,7 +156,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo6',
     'Protección de la resolución de nombres',
     evidenceStatus('EV-05'),
-    'Conformidad de la configuración de resolución en los puestos y detección de consultas a resolutores no autorizados o por canales alternativos. Acredita mp.s.3.4 y cierra una vía frecuente de evasión.',
+    'Conformidad de la configuración de resolución en los puestos y detección de consultas a resolutores no autorizados o por canales alternativos.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -166,7 +166,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo7',
     'Evasión del control de navegación',
     evidenceStatus('EV-11'),
-    'Tráfico web observado en el perímetro sin registro correspondiente en el proxy, túneles y servicios de anonimización detectados, por puesto y usuario. Enlaza con mp.com.1: es la misma comprobación de que todo el tráfico atraviesa el sistema previsto.',
+    'Tráfico web observado en el perímetro sin registro correspondiente en el proxy, túneles y servicios de anonimización detectados, por puesto y usuario.',
     ['EV-11'],
     evidenceObservations('EV-11'),
   );
@@ -186,7 +186,7 @@ export const buildMpS3ReportModel = (
     'mp.s.3.campo9',
     'Política de control de cookies',
     evidenceStatus('EV-07'),
-    'Conformidad de la configuración de cookies con P-05 por puesto: aislamiento de perfiles, cookies de terceros, sincronización con cuentas no corporativas. Acredita mp.s.3.7, requisito peculiar del ENS y de los más olvidados.',
+    'Conformidad de la configuración de cookies con P-05 por puesto: aislamiento de perfiles, cookies de terceros, sincronización con cuentas no corporativas.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -198,7 +198,7 @@ export const buildMpS3ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-08')
       : 'NO_APLICA',
-    'Elementos efectivamente registrados frente a los declarados en P-08, retención efectiva frente a la declarada, y uso previsto. Los tres extremos que el refuerzo exige declarar, con verificación de que la práctica coincide con la declaración.',
+    'Elementos efectivamente registrados frente a los declarados en P-08, retención efectiva frente a la declarada, y uso previsto.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -210,7 +210,7 @@ export const buildMpS3ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-09')
       : 'NO_APLICA',
-    'Declaraciones de P-09 —qué se analiza, qué se registra, retención y uso previsto—, relación de destinos de confianza excluidos, y verificación de que la inspección respeta esas exclusiones. Apartado con aviso destacado por sus implicaciones más allá del ENS.',
+    'Declaraciones de P-09 —qué se analiza, qué se registra, retención y uso previsto—, relación de destinos de confianza excluidos, y verificación de que la inspección respeta esas exclusiones.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -222,7 +222,7 @@ export const buildMpS3ReportModel = (
     level === 'ALTO'
       ? evidenceStatus('EV-10')
       : 'NO_APLICA',
-    'Estado de la lista de P-10 con sus fuentes y fecha de última actualización, e intentos de acceso a destinos vetados detectados, incluidos los que no pasaron por el proxy. Enlaza con op.exp.7 R3 y op.mon.3.',
+    'Estado de la lista de P-10 con sus fuentes y fecha de última actualización, e intentos de acceso a destinos vetados detectados, incluidos los que no pasaron por el proxy.',
     ['EV-10'],
     evidenceObservations('EV-10'),
   );

@@ -116,7 +116,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo2',
     'Protección en tránsito del correo',
     evidenceStatus('EV-06'),
-    'Porcentaje de correo entrante y saliente cifrado, versiones de TLS negociadas y relación de destinos con los que se intercambia correo en claro pese a admitir cifrado. Acredita la parte de tránsito de mp.s.1.1.',
+    'Porcentaje de correo entrante y saliente cifrado, versiones de TLS negociadas y relación de destinos con los que se intercambia correo en claro pese a admitir cifrado.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -126,7 +126,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo3',
     'Autenticación del dominio propio',
     evidenceStatus('EV-07'),
-    'Estado de los registros SPF, DKIM y DMARC de cada dominio de P-02, con su política y coherencia. Resumen de los informes agregados de DMARC. Se señala que estos mecanismos son el medio estándar de cumplir mp.s.1.2, no una exigencia nombrada en el texto del ENS.',
+    'Estado de los registros SPF, DKIM y DMARC de cada dominio de P-02, con su política y coherencia.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -136,7 +136,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo4',
     'Suplantación del dominio y fraude detectados',
     evidenceStatus('EV-08'),
-    'Intentos de suplantación del dominio o de identidades internas detectados en el período, con el origen, el destinatario objetivo y si fueron bloqueados. Es la amenaza de mayor impacto económico del correo.',
+    'Intentos de suplantación del dominio o de identidades internas detectados en el período, con el origen, el destinatario objetivo y si fueron bloqueados.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );
@@ -146,7 +146,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo5',
     'Eficacia del filtrado de correo no solicitado',
     evidenceStatus('EV-02'),
-    'Volumen de mensajes procesados, clasificados como no solicitados, en cuarentena, liberados y entregados, con las tasas correspondientes. Valoración de la calibración del filtro frente a los umbrales de P-05.',
+    'Volumen de mensajes procesados, clasificados como no solicitados, en cuarentena, liberados y entregados, con las tasas correspondientes.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -156,7 +156,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo6',
     'Detecciones de código dañino',
     evidenceStatus('EV-03'),
-    'Detecciones por tipo de amenaza según el desglose que enumera mp.s.1.4, con remitente, destinatario y acción aplicada. Apartado destacado para las detecciones en destino y para las correlaciones con actividad posterior en el puesto del receptor.',
+    'Detecciones por tipo de amenaza según el desglose que enumera mp.s.1.4, con remitente, destinatario y acción aplicada.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -166,7 +166,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo7',
     'Cobertura del análisis de anexos',
     evidenceStatus('EV-04'),
-    'Mensajes con anexo frente a mensajes con análisis registrado, con las omisiones desglosadas por causa: tamaño, tipo, anexo cifrado, remitente en lista de confianza. Las omisiones son el hueco real del filtro.',
+    'Mensajes con anexo frente a mensajes con análisis registrado, con las omisiones desglosadas por causa: tamaño, tipo, anexo cifrado, remitente en lista de confianza.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -176,7 +176,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo8',
     'Tratamiento del código móvil y contenido activo',
     evidenceStatus('EV-05'),
-    'Mensajes con contenido activo bloqueado o saneado, desglosados por tipo: macros, scripts en HTML, ejecutables. Acredita mp.s.1.5, que es el requisito de amenazas más frecuentemente desatendido.',
+    'Mensajes con contenido activo bloqueado o saneado, desglosados por tipo: macros, scripts en HTML, ejecutables.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -186,7 +186,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo9',
     'Integridad de la configuración del servicio',
     evidenceStatus('EV-09'),
-    'Cambios en la configuración del MTA, en las reglas de la pasarela y en los registros DNS del dominio, con el usuario que los realizó. Destacados los que degradan la protección.',
+    'Cambios en la configuración del MTA, en las reglas de la pasarela y en los registros DNS del dominio, con el usuario que los realizó.',
     ['EV-09'],
     evidenceObservations('EV-09'),
   );
@@ -196,7 +196,7 @@ export const buildMpS1ReportModel = (
     'mp.s.1.campo10',
     'Concienciación y formación (mp.s.1.7)',
     evidenceStatus('EV-10'),
-    'Actividades realizadas con fecha, alcance y participación. Si existen campañas de phishing simulado, sus tasas de apertura, clic y notificación, que dan una métrica de eficacia. Enlaza con mp.per.3 y mp.per.4.',
+    'Actividades realizadas con fecha, alcance y participación.',
     ['EV-10'],
     evidenceObservations('EV-10'),
   );

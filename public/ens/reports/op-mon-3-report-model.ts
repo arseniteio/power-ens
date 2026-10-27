@@ -1,4 +1,5 @@
 import type { ENSComplianceResult } from '../../../common/ens/core';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export type OpMon3ReportFieldStatus =
   | 'CUMPLE'
@@ -132,7 +133,7 @@ export const buildOpMon3ReportModel = (
       return `${id}: no aplica`;
     }
 
-    return `${id} ${requirement.title}: ${requirement.status}${
+    return `${id} ${requirement.title}: ${statusLabel(requirement.status)}${
       requirement.attested
         ? ' (acreditado documentalmente)'
         : requirement.evidenced === false
@@ -156,7 +157,7 @@ export const buildOpMon3ReportModel = (
     'op.mon.3.campo2',
     'Recolección de eventos de seguridad',
     requirementStatus('op.mon.3.1'),
-    'Sistema central de recolección (servicio, eventos procesados y descartados entre pasadas, conexiones de recepción) y cada fuente de P-01 con su máquina, método, eventos, descartes y último evento frente a max_horas_sin_eventos. Relación de las fuentes sin recolección efectiva y de las lagunas detectadas.',
+    'Sistema central de recolección (servicio, eventos procesados y descartados entre pasadas, conexiones de recepción) y cada fuente de P-01 con su máquina, método, eventos, descartes y último evento frente a max_horas_sin_eventos.',
     ['EV-01', 'EV-02'],
     evidenceObservations('EV-01', 'EV-02'),
   );
@@ -314,7 +315,7 @@ export const buildOpMon3ReportModel = (
       ...(result?.requirements || []).map(requirement =>
         requirement.status === 'NO_APLICA'
           ? `${requirement.id}: no aplica`
-          : `${requirement.id}: ${requirement.status}${
+          : `${requirement.id}: ${statusLabel(requirement.status)}${
               requirement.attested
                 ? ', acreditado documentalmente (no se satisface con la herramienta)'
                 : requirement.evidenced === false

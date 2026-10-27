@@ -285,7 +285,7 @@ section('2. Green: three tests up to date, the drill measured within the RTO, de
   check('EV-06 shows the later FIM changes and the recorded deficiencies of that test', /wazuh-real \(024\) 3 cambio\(s\)/.test(r.de('EV-06')) && /1 deficiencia\(s\) registradas/.test(r.de('EV-06')), r.de('EV-06'));
 
   const report = buildOpCont3ReportModel(r.motor());
-  check('the report shows the requirement with its verdict', report.fields[0].details.some(d => /op\.cont\.3\.1 .*: CUMPLE/.test(d)), report.fields[0].details.join(' | '));
+  check('the report shows the requirement with its verdict', report.fields[0].details.some(d => /op\.cont\.3\.1 .*: Cumple/.test(d)), report.fields[0].details.join(' | '));
   const measurement = report.fields.find(f => f.id === 'op.cont.3.campo5')!;
   check('the test measurement carries EV-04\'s state, which it feeds, and its chronology', measurement.status === 'CUMPLE' && measurement.details.some(d => /2 h 36 min/.test(d)), `${measurement.status} ${measurement.details.join(' | ')}`);
 }

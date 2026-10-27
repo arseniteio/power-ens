@@ -59,6 +59,7 @@ import {
   listENSFamilies,
   resolveENSSectionOpenState,
 } from '../control-filter/prefix';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -328,7 +329,7 @@ const ControlReport = ({
       width: '190px',
       render: (status: string, item: { prueba: string }) => (
         <>
-          <EuiBadge color={ensReportStatusBadgeColor(status)}>{status}</EuiBadge>
+          <EuiBadge color={ensReportStatusBadgeColor(status)}>{statusLabel(status)}</EuiBadge>
           {item.prueba ? (
             <EuiText size='xs' color='subdued'>
               {item.prueba}
@@ -466,7 +467,7 @@ const ControlReport = ({
       name: 'Estado',
       width: '210px',
       render: (status: string) => (
-        <EuiBadge color={parameterBadgeColor(status)}>{status}</EuiBadge>
+        <EuiBadge color={parameterBadgeColor(status)}>{statusLabel(status)}</EuiBadge>
       ),
     },
   ];

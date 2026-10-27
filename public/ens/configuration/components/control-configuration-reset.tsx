@@ -108,15 +108,10 @@ export const ControlConfigurationReset = ({
         </p>
         <p>Los Datos de la organización que lee este control no se borran: se editan en General.</p>
         <p>
-          El control seguirá en la pantalla y podrás volver a configurarlo.
-          Lo que se pierde es <strong>lo que declaró el responsable</strong>,
-          y eso no se puede deshacer desde aquí.
+          No se puede deshacer.
         </p>
         <p>
-          Mientras esté sin configurar, sus evidencias saldrán{' '}
-          <strong>no evaluables</strong> y sus requisitos no cumplirán: es lo
-          correcto —una política sin declarar no acredita— pero el índice del
-          cliente lo va a notar.
+          Mientras esté sin configurar, sus requisitos no cumplirán.
         </p>
       </EuiText>
 

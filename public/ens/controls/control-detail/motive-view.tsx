@@ -5,6 +5,7 @@ import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps 
 
 import { statusBadgeColor } from '../../status-colors';
 import { ENS_THEME } from '../../theme-colors';
+import { statusLabel } from '../../../../common/ens/core/status-label';
 
 export { statusBadgeColor };
 
@@ -118,7 +119,7 @@ export const MotivePartView = ({ part, handlers, withSummary = true }: { part: M
             >
               {part.evidenceId}
             </EuiBadge>{' '}
-            <EuiBadge color={statusBadgeColor(part.status)}>{part.status}</EuiBadge>{' '}
+            <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
           </>
         )}
         {withSummary ? <MotiveText texto={part.text} list={part.list} /> : <MotiveText texto={part.detail} list={undefined} />}

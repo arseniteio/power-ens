@@ -188,8 +188,7 @@ const MeasuresWithoutEngine = ({
       </EuiTitle>
       <EuiText size='xs' color='subdued'>
         <p>
-          Medidas del Anexo II que ENSFácil no mide: fuera del catálogo o sin medición todavía. Cada una lleva su entrada declarada (aplica, madurez,
-          referencia documental, responsable y fecha). {frozen ? 'El periodo mostrado está congelado: una entrada nueva cuenta en el periodo en curso.' : ''}
+          Medidas del Anexo II que ENSFácil no mide, con su entrada declarada. {frozen ? 'El periodo mostrado está congelado: una entrada nueva cuenta en el periodo en curso.' : ''}
         </p>
       </EuiText>
       <EuiSpacer size='s' />
@@ -272,7 +271,7 @@ export const AnnualReportPanel = ({
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
         <p>
-          Conjunto de datos del informe anual del art. 32 por medida del Anexo II, con identificadores estables y el origen de cada cifra.{' '}
+          Datos del informe anual del art. 32 por medida del Anexo II.{' '}
           <EuiLink href={ANNUAL_REPORT_GUIDE_URL} target='_blank' external>
             Guía 11
           </EuiLink>

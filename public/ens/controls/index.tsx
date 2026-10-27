@@ -108,12 +108,7 @@ export const ControlsENS = () => {
         </EuiTitle>
         <EuiText>
           <p>
-            Catálogo de controles ENS. El número en rojo son las no
-            conformidades abiertas del control: la carga de la prueba es del
-            auditado, así que lo que no se ha podido demostrar cuenta igual que
-            lo demostrado. «No evidenciadas» dice cuántas de ellas lo son por
-            falta de prueba —otra acción y otra persona—, no otro hallazgo.
-            Pulsa un control para ver su detalle completo.
+                        Controles ENS. En rojo, las no conformidades abiertas. Pulsa un control para ver su detalle.
           </p>
         </EuiText>
         <EuiSpacer size='l' />
@@ -130,8 +125,7 @@ export const ControlsENS = () => {
           <>
             <EuiText size='s' color='subdued'>
               <p>
-                <EuiIcon type='iInCircle' /> {outOfLevel.text}: se evalúan, pero ninguno de sus requisitos rige en
-                este nivel.{' '}
+                <EuiIcon type='iInCircle' /> {outOfLevel.text}: no rige ningún requisito en este nivel.{' '}
                 <EuiLink onClick={() => updateUrl({ tabView: 'configuration', configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined })}>
                   Cambiar el nivel en Configuración
                 </EuiLink>

@@ -148,8 +148,8 @@ const response: any = {
   p = await h.rerender();
   check('freshness: «nunca» where it is measured and nothing has arrived, and ages', /nunca/.test(p) && /hace 1 h/.test(p) && /hace 2 d/.test(p));
   check('the queue: one accordion per owner', h.findAll('EuiAccordion').length === 4);
-  check('the trend: one segment per day and op.acc.1\'s row marked as changed', /NO_CUMPLE → PARCIAL/.test(p));
-  check('the trend: legend with the five states and «sin resultado», and the dates of the first and last day', ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'].every(e => p.includes(e)) && /sin resultado ese día/.test(p) && /15\/10 — 17\/10 \(hoy\)/.test(p));
+  check('the trend: one segment per day and op.acc.1\'s row marked as changed', /No cumple → Parcial/.test(p));
+  check('the trend: legend with the five states and «sin resultado», and the dates of the first and last day', ['Cumple', 'Parcial', 'No cumple', 'No evaluable', 'No aplica'].every(e => p.includes(e)) && /sin resultado ese día/.test(p) && /15\/10 — 17\/10 \(hoy\)/.test(p));
   responses.summary = undefined;
   p = await h.rerender();
   check('without the trend yet: its loading, and the rest already painted', /Calculando el resultado de cada día/.test(p) && h.findAll('EuiTableRow').length === 34);

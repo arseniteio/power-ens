@@ -116,7 +116,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo2',
     'Dispositivos descubiertos en la red',
     evidenceStatus('EV-01'),
-    'Dispositivos vistos en el período con dirección, fabricante deducido del OUI, primera y última aparición y segmento. Es la foto de lo que hay realmente conectado, que casi nunca coincide con el inventario.',
+    'Dispositivos vistos en el período con dirección, fabricante deducido del OUI, primera y última aparición y segmento.',
     ['EV-01'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo3',
     'Contraste inventario frente a red',
     evidenceStatus('EV-02'),
-    'Dispositivos del inventario P-01 no vistos en la red y dispositivos vistos sin entrada en el inventario. Los segundos son el hallazgo: equipos conectados sin configuración verificada ni flujo definido.',
+    'Dispositivos del inventario P-01 no vistos en la red y dispositivos vistos sin entrada en el inventario.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo4',
     'Flujos de información observados',
     evidenceStatus('EV-03'),
-    'Por dispositivo: destinos, puertos y protocolos observados, contrastados con lo autorizado en P-02. Relación de flujos no previstos con su volumen y frecuencia. El caso más frecuente es salida a internet no contemplada.',
+    'Por dispositivo: destinos, puertos y protocolos observados, contrastados con lo autorizado en P-02.',
     ['EV-03'],
     evidenceObservations('EV-03'),
   );
@@ -146,7 +146,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo5',
     'Trazabilidad propia de los dispositivos',
     evidenceStatus('EV-04'),
-    'Dispositivos de P-04 con registros efectivamente ingeridos y volumen de eventos. Dispositivos del inventario sin trazabilidad propia, que son los que solo se ven desde fuera.',
+    'Dispositivos de P-04 con registros efectivamente ingeridos y volumen de eventos.',
     ['EV-04'],
     evidenceObservations('EV-04'),
   );
@@ -156,7 +156,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo6',
     'Exposición de los paneles de administración',
     evidenceStatus('EV-05'),
-    'Accesos a las interfaces de administración con origen, usuario y resultado. Apartado destacado para accesos desde segmentos no previstos y para autenticaciones con credenciales por defecto, que dan acceso directo a los documentos almacenados.',
+    'Accesos a las interfaces de administración con origen, usuario y resultado.',
     ['EV-05'],
     evidenceObservations('EV-05'),
   );
@@ -166,7 +166,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo7',
     'Dispositivos de invitados y BYOD',
     evidenceStatus('EV-07'),
-    'Dispositivos no corporativos detectados, segmento en que se encuentran frente al previsto en P-06 y recursos alcanzados. Enlaza con mp.com.4.',
+    'Dispositivos no corporativos detectados, segmento en que se encuentran frente al previsto en P-06 y recursos alcanzados.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );
@@ -176,7 +176,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo8',
     'Control de conexión a la red (R2)',
     evidenceStatus('EV-06'),
-    'Si P-08 está configurado: conexiones autorizadas, intentos bloqueados y violaciones de port security. Acredita la segunda parte de R2, no exigible en ningún nivel pero es lo que permite reaccionar en el momento de la conexión.',
+    'Si P-08 está configurado: conexiones autorizadas, intentos bloqueados y violaciones de port security.',
     ['EV-06'],
     evidenceObservations('EV-06'),
   );
@@ -186,7 +186,7 @@ export const buildMpEq4ReportModel = (
     'mp.eq.4.campo9',
     'Capacidad y ejecución del borrado de almacenamiento',
     evidenceStatus('EV-08'),
-    'Por dispositivo con almacenamiento: funcionalidad de borrado declarada en P-05, ejecuciones registradas y verificación de que las retiradas fueron precedidas del borrado. Es el momento de mayor riesgo del ciclo de vida de estos equipos.',
+    'Por dispositivo con almacenamiento: funcionalidad de borrado declarada en P-05, ejecuciones registradas y verificación de que las retiradas fueron precedidas del borrado.',
     ['EV-08'],
     evidenceObservations('EV-08'),
   );

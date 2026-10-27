@@ -55,6 +55,7 @@ import {
   MatrixCell,
   overviewMachines,
 } from './overview-model';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 // A control not measured on a machine is a striped gap, not the NO_APLICA grey.
 const STRIPED = ENS_NO_RESULT_PATTERN;
@@ -82,7 +83,7 @@ const MatrixCellView = ({ cell }: { cell: MatrixCell }) => {
     return <div title={cell.reason || 'No se mide en esta máquina.'} style={{ background: STRIPED, height: 22, borderRadius: 3 }} />;
   }
   return (
-    <span title={`${cell.status}${cell.notMet ? ` · ${cell.notMet} requisitos no cumplen` : ''}${cell.notEvidenced ? ` (${cell.notEvidenced} no evidenciados)` : ''}`}>
+    <span title={`${statusLabel(cell.status)}${cell.notMet ? ` · ${cell.notMet} requisitos no cumplen` : ''}${cell.notEvidenced ? ` (${cell.notEvidenced} no evidenciados)` : ''}`}>
       <EuiBadge color={statusBadgeColor(cell.status)}>
         {typeof cell.score === 'number' ? `${cell.score}%` : cell.status === 'NO_APLICA' ? 'n/a' : '—'}
       </EuiBadge>
@@ -161,9 +162,7 @@ export const OverviewENS = () => {
         </EuiTitle>
         <EuiText size='s' color='subdued'>
           <p>
-            Todas las máquinas del alcance y todos los controles a la vez: qué máquina está peor, en cuántas falla
-            cada control, qué recogida se ha parado, quién tiene trabajo pendiente y cómo evoluciona. Pulsar una
-            celda abre el detalle de ese control en esa máquina.
+                        Todos los controles en todas las máquinas del alcance. Pulsa una celda para ver el detalle.
           </p>
         </EuiText>
         <EuiSpacer size='s' />
@@ -281,8 +280,8 @@ export const OverviewENS = () => {
             <EuiText size='xs' color='subdued'>
               <p>
                 {mode === 'estado'
-                  ? 'Cada celda: el resultado del control en esa máquina (número y requisitos que no cumplen, en rojo). Rayado: no se mide en esa máquina. «en el manager»: control de la organización, su resultado está en la columna 000.'
-                  : `Cada celda: el último dato de ese control en esa máquina. En rojo, más de 24 h sin datos o ninguno en la ventana; esa máquina no puede demostrar nada de ese control.`}
+                  ? 'Resultado del control en cada máquina; en rojo, requisitos que no cumplen. Rayado: no se mide allí.'
+                  : 'Último dato del control en cada máquina. En rojo: más de 24 h sin datos.'}
               </p>
             </EuiText>
             <EuiSpacer size='s' />
@@ -400,8 +399,7 @@ export const OverviewENS = () => {
             </EuiTitle>
             <EuiText size='xs' color='subdued'>
               <p>
-                Las no conformidades de todos los controles, por quien tiene que actuar. Medido y no evidenciado
-                cuentan igual; la acción y la persona son distintas.
+                                No conformidades de todos los controles, por quién debe actuar.
               </p>
             </EuiText>
             <EuiSpacer size='s' />
@@ -448,7 +446,7 @@ export const OverviewENS = () => {
                         <EuiText size='xs'>
                           <span>
                             {it.evidenceId && <EuiBadge color='hollow'>{it.evidenceId}</EuiBadge>}{' '}
-                            {it.status && <EuiBadge color={statusBadgeColor(it.status)}>{it.status}</EuiBadge>} {title}
+                            {it.status && <EuiBadge color={statusBadgeColor(it.status)}>{statusLabel(it.status)}</EuiBadge>} {title}
                           </span>
                         </EuiText>
                       ),
@@ -485,8 +483,7 @@ export const OverviewENS = () => {
             <EuiText size='xs' color='subdued'>
               <p>
                 Índice medio de cumplimiento cada día
-                {series.delta !== undefined ? ` (${series.delta >= 0 ? '+' : ''}${series.delta} puntos en la ventana)` : ''}; debajo,
-                el estado de cada control cada día. Cada día se evalúa con los hechos conocidos hasta ese día.
+                {series.delta !== undefined ? ` (${series.delta >= 0 ? '+' : ''}${series.delta} puntos en la ventana)` : ''}; debajo, el estado de cada control.
               </p>
             </EuiText>
             <EuiSpacer size='s' />
@@ -518,7 +515,7 @@ export const OverviewENS = () => {
                   <EuiText size='xs'>
                     <span>
                       <span style={{ display: 'inline-block', width: 12, height: 10, background: ENS_STATUS_COLORS[status], marginRight: 4 }} />
-                      {status}
+                      {statusLabel(status)}
                     </span>
                   </EuiText>
                 </EuiFlexItem>
@@ -543,13 +540,13 @@ export const OverviewENS = () => {
                     {row.cells.map(c => (
                       <span
                         key={c.date}
-                        title={`${row.controlId} · ${c.label}: ${c.status || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
+                        title={`${row.controlId} · ${c.label}: ${statusLabel(c.status) || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
                         style={{ width: 14, height: 12, background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : STRIPED, display: 'inline-block' }}
                       />
                     ))}
                     {row.changed && (
                       <EuiText size='xs' color='subdued'>
-                        <span style={{ marginLeft: 6 }}>{`${row.first} → ${row.last}`}</span>
+                        <span style={{ marginLeft: 6 }}>{`${statusLabel(row.first)} → ${statusLabel(row.last)}`}</span>
                       </EuiText>
                     )}
                   </div>

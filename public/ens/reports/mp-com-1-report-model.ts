@@ -116,7 +116,7 @@ export const buildMpCom1ReportModel = (
     'mp.com.1.campo2',
     'Elementos perimetrales y continuidad del registro',
     evidenceStatus('EV-01'),
-    'Elementos de P-01 con el volumen de eventos ingeridos y su continuidad. Lagunas detectadas con las fechas afectadas, que son períodos sin acreditación posible de los flujos.',
+    'Elementos de P-01 con el volumen de eventos ingeridos y su continuidad.',
     ['EV-01', 'EV-08'],
     evidenceObservations('EV-01'),
   );
@@ -126,7 +126,7 @@ export const buildMpCom1ReportModel = (
     'mp.com.1.campo3',
     'Flujos observados frente a autorizados',
     evidenceStatus('EV-02'),
-    'Flujos que atravesaron el perímetro agregados por tupla, con su volumen, contrastados con P-02. Relación de flujos no autorizados ordenada por volumen, distinguiendo uso puntual de uso continuado.',
+    'Flujos que atravesaron el perímetro agregados por tupla, con su volumen, contrastados con P-02.',
     ['EV-02'],
     evidenceObservations('EV-02'),
   );
@@ -136,7 +136,7 @@ export const buildMpCom1ReportModel = (
     'mp.com.1.campo4',
     'Vías de elusión del perímetro',
     evidenceStatus('EV-03'),
-    'Interfaces de red no previstas, rutas alternativas, conexiones sin registro en el perímetro y túneles o software de acceso remoto inverso detectados, por sistema. Es el apartado de mayor valor del informe: acredita el «todo el tráfico» que exige literalmente mp.com.1.1.',
+    'Interfaces de red no previstas, rutas alternativas, conexiones sin registro en el perímetro y túneles o software de acceso remoto inverso detectados, por sistema.',
     ['EV-03', 'EV-04', 'EV-05'],
     evidenceObservations('EV-03'),
   );
@@ -146,7 +146,7 @@ export const buildMpCom1ReportModel = (
     'mp.com.1.campo5',
     'Servicios de administración expuestos',
     evidenceStatus('EV-07'),
-    'Tráfico entrante desde redes externas hacia puertos de administración, con origen, destino y volumen. Contraste con las autorizaciones de P-02: la exposición autorizada conscientemente es distinta de la heredada de una regla antigua.',
+    'Tráfico entrante desde redes externas hacia puertos de administración, con origen, destino y volumen.',
     ['EV-07'],
     evidenceObservations('EV-07'),
   );

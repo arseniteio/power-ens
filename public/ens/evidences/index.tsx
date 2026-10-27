@@ -41,6 +41,7 @@ import {
   machinesLabel,
   summarizeMotives,
 } from '../controls/control-detail/general-view';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 // A row of the evidences table. No `control` column: the section header says it.
 interface EvidenceRow {
@@ -116,7 +117,7 @@ const statusIcon = (status: string): string | undefined =>
 
 const StatusBadge = ({ estado: status }: { estado: string }) => (
   <EuiBadge color={statusColorOf(status)} iconType={statusIcon(status)}>
-    {status}
+    {statusLabel(status)}
   </EuiBadge>
 );
 

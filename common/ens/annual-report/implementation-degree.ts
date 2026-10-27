@@ -2,6 +2,7 @@
 import { getENSCatalogControl, isPendingMeasurement } from '../catalog';
 import type { ENSComplianceResult } from '../core/evaluation/types';
 import { parseStatementOfApplicability } from '../core/policy-runtime/policies/op-mon-2.policy';
+import { statusLabel } from '../core/status-label';
 
 const CONTROL = 'op.mon.2';
 
@@ -70,10 +71,10 @@ export const implementationDegree = (applicable: string[], results: ENSComplianc
     } else if (r.status === 'NO_APLICA') {
       lines.push(`${measure}: P-01 la declara aplicable y el motor no la exige en esta categoría (revisa P-01)`);
     } else if (typeof r.score !== 'number') {
-      lines.push(`${measure}: ${r.status}, sin puntuación`);
+      lines.push(`${measure}: ${statusLabel(r.status)}, sin puntuación`);
     } else {
       scored.push({ medida: measure, score: r.score });
-      lines.push(`${measure}: ${figure(r.score)} % (${r.status})`);
+      lines.push(`${measure}: ${figure(r.score)} % (${statusLabel(r.status)})`);
     }
   });
 
