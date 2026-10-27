@@ -86,10 +86,10 @@ const request = async (service: any, clients2: any, q: any) => {
   }) && STREAM_SORT.length === FACTS_SORT.length + 1);
 
   console.log('2. A day without ENSFácil facts in the window');
-  const reference = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+  const reference = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
   const withoutForeign = indexer(ens);
   const clientsRef = { asCurrentUser: withoutForeign, asInternalUser: withoutForeign };
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
   const clients2 = { asCurrentUser: withForeign, asInternalUser: withForeign };
   let response: any;
   let failure: any;
@@ -116,7 +116,7 @@ const request = async (service: any, clients2: any, q: any) => {
       return withForeign.search(p);
     },
   };
-  const service3 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+  const service3 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
   const clients3 = { asCurrentUser: rejector, asInternalUser: rejector };
   let r3: any;
   let f3: any;
@@ -151,7 +151,7 @@ const request = async (service: any, clients2: any, q: any) => {
         return withForeign.search(p);
       },
     };
-    const s4 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+    const s4 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
     let f4: any;
     try {
       await request(s4, { asCurrentUser: withState, asInternalUser: withState }, { include: 'results' });

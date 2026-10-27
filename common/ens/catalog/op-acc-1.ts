@@ -5,6 +5,8 @@ export const opAcc1CatalogDefinition: ENSControlDefinition = {
   name: 'Identificación',
   family: 'Marco operacional',
   category: 'Control de acceso',
+  // The OSCompliance engine judges every machine that sends facts, the manager included.
+  measurementPlanes: ['agent', 'manager'],
   dimension: 'Trazabilidad y Autenticidad',
   // Annex II applies op.acc.1 by the levels of Traceability and Authenticity: the higher of the two rules.
   levelDimension: ['T', 'A'],

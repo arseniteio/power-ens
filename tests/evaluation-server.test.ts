@@ -70,7 +70,7 @@ const index = createFakeIndexer([
 ], { clock: () => clock.getTime() });
 const clients2 = { asCurrentUser: index, asInternalUser: index };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
-const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
 
 const reference = () => {
   ensConfigurationRepository.replaceActive(configuration as any);

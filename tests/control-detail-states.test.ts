@@ -43,9 +43,9 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
   {
     const ofAgent = ENSCatalog.filter((c: any) => !planes.isControlMeasuredOnPlane(c, 'manager')).map((c: any) => c.id).sort();
     // The 11 without collector (1.4.0) keep the default plane until their wave decides it.
-    check('25 controls of plane agent (14 measured and the 11 without collector)', ofAgent.length === 25, ofAgent);
+    check('19 controls of plane agent (8 measured and the 11 without collector)', ofAgent.length === 19, ofAgent);
     const onManager = ofAgent.map((id: string) => planes.describeNotMeasuredOnAgent(control(id), '000', 'Manager', undefined));
-    check('the 25, on the manager: PLANE with its text', onManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), onManager.map((m: any) => m?.cause));
+    check('the 19, on the manager: PLANE with its text', onManager.every((m: any) => m?.cause === 'PLANE' && /no en el manager de Wazuh \(000\)/.test(m.text)), onManager.map((m: any) => m?.cause));
     const managerOnly = ENSCatalog.filter((c: any) => planes.isManagerOnlyControl(c));
     check('manager-only ones, on another machine: no motive (seen with the manager row)',
       managerOnly.length === 7 && managerOnly.every((c: any) => planes.describeNotMeasuredOnAgent(c, '101', 'srv-web01', undefined) === undefined), managerOnly.map((c: any) => c.id));
@@ -146,8 +146,8 @@ const mpInfo6Config = (value: string[]) => ({ controlId: 'mp.info.6', parameters
     check('«Configurar P-04» opens Configuration on mp.info.6 / P-04 with the way back', s.tabView === 'configuration' && s.configControl === 'mp.info.6' && s.configParam === 'P-04' && s.configBack === 'plugins' && s.control === 'mp.info.6', s);
 
     h.reset();
-    p = await h.render(ControlDetailENS, { control: ctl('op.acc.1'), agentId: '000', onBack: () => undefined });
-    check('op.acc.1 en el manager: «no en el manager de Wazuh»', /no en el manager de Wazuh \(000\)/.test(p), p.slice(0, 400));
+    p = await h.render(ControlDetailENS, { control: ctl('op.exp.1'), agentId: '000', onBack: () => undefined });
+    check('op.exp.1 en el manager: «no en el manager de Wazuh»', /no en el manager de Wazuh \(000\)/.test(p), p.slice(0, 400));
 
     h.reset();
     evaluation = { data: { meta, result: result('PARCIAL'), agents: [], traceabilityTotal: 0, traceabilityAvailable: 0 }, isLoading: false };

@@ -5,6 +5,8 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
   name: 'Mecanismo de autenticación (usuarios de la organización)',
   family: 'Marco operacional',
   category: 'Control de acceso',
+  // The OSCompliance engine judges every machine that sends facts, the manager included.
+  measurementPlanes: ['agent', 'manager'],
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
   // Annex II applies op.acc.6 by the levels of C, I, T and A, not the system category: the highest of them rules.
   levelDimension: ['C', 'I', 'T', 'A'],

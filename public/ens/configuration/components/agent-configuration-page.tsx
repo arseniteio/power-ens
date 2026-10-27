@@ -63,7 +63,6 @@ import {
 } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { getAgentControls } from '../../../../common/ens/configuration/agents/agent-controls';
 import { validateAgentProfile } from '../../../../common/ens/configuration/agents/agent-configuration-validator';
-import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 
 import { AgentParameterRow, valueRows } from './agent-parameter-row';
@@ -87,11 +86,7 @@ interface AgentConfigurationPageProps {
 }
 
 // Parameters that describe machines are declared per agent as its contribution to a union.
-const isContribution = (controlId: string, parameterId: string): boolean => {
-  const control = getENSCatalogControl(controlId);
-  if (control?.scopeParameter === parameterId) return true;
-  return getParameterClass(controlId, parameterId) === 'system' && (control?.measurementPlanes || []).includes('manager');
-};
+const isContribution = (controlId: string, parameterId: string): boolean => isUnionParameter(controlId, parameterId);
 
 const BY_TYPE = '__type';
 

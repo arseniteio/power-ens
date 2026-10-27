@@ -208,7 +208,7 @@ def main():
                   r.returncode == 0 and "templates" not in state["doc"]["configuration"], r.stdout + r.stderr)
 
         for name, content, reason, legacy in [
-            ("a built-in of another control", {"agents": {"028": {"op.acc.1": {"template": "manager-wazuh"}}}}, "has no template manager-wazuh", False),
+            ("a built-in of another control", {"agents": {"028": {"op.acc.1": {"template": "pbs-backup"}}}}, "has no template pbs-backup", False),
             ("an unknown id", {"agents": {"028": {"op.acc.1": {"template": "nope"}}}}, "has no template nope", False),
             ("a 1.2.0 document", {"agents": {"028": {"op.acc.1": {"template": "linux-ubuntu"}}}}, "Guardar la conversión", True),
         ]:

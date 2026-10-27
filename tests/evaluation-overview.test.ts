@@ -49,7 +49,7 @@ const clients2 = { asCurrentUser: index, asInternalUser: index };
 const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
 
 (async () => {
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
   const request1 = async (q: any) => buildEvaluationResponse(await service.run(clients2, { timeZone: 'UTC', ...q })) as any;
   const request = async (q: any) => {
     let r = await request1(q);
@@ -69,7 +69,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   check('each with `controls` (state, number, nonconformities)', summary.agents.every((a: any) => Array.isArray(a.controls) && a.controls.every((c: any) => 'status' in c && 'requirementsNotMet' in c)));
   const from = (id: string) => summary.agents.find((a: any) => a.agentId === id).controls.map((c: any) => c.controlId);
   check('101: those of plane agent (op.acc.1, op.exp.3...), none manager-only', from('101').includes('op.acc.1') && from('101').includes('op.exp.3') && !from('101').includes('op.exp.7'), from('101'));
-  check('000: only those measured on the manager', from('000').includes('op.exp.7') && !from('000').includes('op.acc.1'), from('000'));
+  check('000: only those measured on the manager', from('000').includes('op.exp.7') && from('000').includes('op.acc.1') && !from('000').includes('op.exp.3'), from('000'));
   for (const agent of ['101', '102', '000']) {
     const vista = await request({ include: 'summary', agentId: agent });
     const ownItems = summary.agents.find((a: any) => a.agentId === agent).controls;
@@ -147,7 +147,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
     const lento = { ...index, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return index.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
     // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 300 ms.
-    const s5 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 100 });
+    const s5 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 100 });
     const t0 = Date.now();
     const first = buildEvaluationResponse(await s5.run(cl, { include: 'overview', timeZone: 'UTC' })) as any;
     const pending = first.meta.pending?.controls || [];

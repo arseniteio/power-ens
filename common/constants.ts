@@ -29,6 +29,8 @@ export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
 export const ENS_CONFIGURATION_INDEX = 'wazuh-ens-configuration';
 // One document per control and day (status, score, coverage, accredited and assessed maturity).
 export const ENS_SNAPSHOTS_INDEX = 'wazuh-ens-snapshots';
+// Written by the OSCompliance engine: one verdict per evidence and pass, per requirement and day, per control and day.
+export const ENS_VERDICTS_INDEX = 'oscompliance-verdicts';
 
 // Who can save the configuration and see its history: the plugin's own role or the security plugin's superuser.
 export const ENSFACIL_ADMIN_ROLES = ['ensfacil_admin', 'all_access'];

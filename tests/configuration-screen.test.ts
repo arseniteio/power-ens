@@ -447,7 +447,7 @@ const prepare = async (doc: any, agents = AGENTS) => {
     await prepare(documentWith({ agents: { '101': { detectedType: 'linux', controls: { 'op.acc.1': { templateId: 'none' } } }, '102': { detectedType: 'zimbra-ldap', controls: { 'op.acc.1': { templateId: 'linux-ubuntu' } } } } }));
     search = '?tabView=configuration';
     page = await render(ConfigurationShell);
-    check('«con plantilla asignada» does not count «Sin plantilla»', /op\.acc\.1 · [^\]]+\][^\[]*3 de serie · 0 propia\(s\) · 1 agente con plantilla asignada/.test(page), page.slice(page.indexOf('op.acc.1 ·'), page.indexOf('op.acc.1 ·') + 400));
+    check('«con plantilla asignada» does not count «Sin plantilla»', /op\.acc\.1 · [^\]]+\][^\[]*4 de serie · 0 propia\(s\) · 1 agente con plantilla asignada/.test(page), page.slice(page.indexOf('op.acc.1 ·'), page.indexOf('op.acc.1 ·') + 400));
 
     await prepare(documentWith({ agents: { '101': { name: 'web01', detectedType: 'linux' } } }));
     search = '?tabView=configuration&configAgent=101';

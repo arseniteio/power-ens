@@ -207,7 +207,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   ], { clock: () => clock.getTime() });
   const clients = { asCurrentUser: indexer, asInternalUser: indexer };
   const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const runAll = await service.run(clients, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }));
   const panel = (buildEvaluationResponse(runAll) as any).dashboard.impactEvents;
   const reference = (agentIds: string[]) => normalizeWazuhAlerts(docs.filter(d => agentIds.includes(d._source.agent.id)));
@@ -246,7 +246,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
     { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration, updatedAt: configuration.updatedAt } },
   ], { clock: () => clock.getTime(), failShards: (body: any) => (failing && body?.aggs?.collector_warning ? 1 : 0) });
   const warned: string[] = [];
-  const flakyService = createEvaluationService({ logger: { ...logger, warn: (m: string) => warned.push(m) }, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const flakyService = createEvaluationService({ engineControls: [], logger: { ...logger, warn: (m: string) => warned.push(m) }, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const flakyClients = { asCurrentUser: flaky, asInternalUser: flaky };
   const down = buildEvaluationResponse(await flakyService.run(flakyClients, normalizeQuery({ include: 'dashboard', timeZone: 'UTC' }))) as any;
   check('alerts read fails: the panel says so, the rest of the dashboard stands',

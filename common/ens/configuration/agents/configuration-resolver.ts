@@ -21,6 +21,7 @@ import { ENSControlTemplate, findControlTemplate, getTypeDefaultTemplate } from 
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
 import { needsTemplateMigration, planTemplateMigration } from './template-migration';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
+import { isEngineJudged } from '../../core/engine-judged';
 
 export const ENS_MANAGER_AGENT = ENS_MANAGER_AGENT_ID;
 
@@ -160,7 +161,8 @@ export const getInheritedValue = (
 const isManagerRow = (agentId?: string): boolean =>
   agentId === undefined || normalizeAgentId(agentId) === ENS_MANAGER_AGENT;
 
-// Parameters that describe other machines are read whole by the engine, so they resolve by union.
+// Parameters that describe other machines are read whole by the manager row, so they resolve by union. The
+// OSCompliance engine judges the manager as one more machine: its controls never union.
 export const isUnionParameter = (
   controlId: string,
   parameterId: string,
@@ -175,6 +177,7 @@ export const isUnionParameter = (
 
   return (
     getParameterClass(controlId, parameterId) === 'system' &&
+    !isEngineJudged(controlId) &&
     (control?.measurementPlanes || []).includes('manager') &&
     isManagerRow(agentId)
   );

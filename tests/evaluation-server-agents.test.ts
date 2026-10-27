@@ -127,7 +127,7 @@ const toma = async (service: ReturnType<typeof createEvaluationService>): Promis
 };
 const evaluate = async (configuration: any): Promise<Toma> => {
   setActive(configuration);
-  return toma(createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 }));
+  return toma(createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 }));
 };
 const identical = (a: Toma, b: Toma) =>
   same(a.conjunto.results.map(withoutTrace), b.conjunto.results.map(withoutTrace)) &&
@@ -181,7 +181,7 @@ const applied = (r: any) => r?.policyRuntime?.appliedParameters?.find((p: any) =
 
   console.log('3. A save changes the fingerprint');
   setActive(withoutKey);
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const antes = await toma(service);
   check('before saving: the without-the-key data', identical(antes, base));
   check('repeating recomputes nothing', (await service.run(clients2, { include: 'summary', timeZone: 'UTC' })).meta.stats.computed === 0);

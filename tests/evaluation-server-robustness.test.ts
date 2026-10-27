@@ -117,7 +117,7 @@ const reference = () => {
   const withoutControl: any = await h.traceability(context, { query: {} }, response);
   check('traceability without control: 400 (not 500)', withoutControl.status === 400, withoutControl);
 
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   fail = 1;
   const roto = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' })).then(() => undefined, (e: any) => e);
   check('a failed shard: the evaluation fails with the motive (503)', roto?.statusCode === 503 && /Datos incompletos: 1 de 10 shards fallaron/.test(roto?.message), roto?.message);
@@ -153,7 +153,7 @@ const reference = () => {
   check('when requested again: the recomputed one, unmarked', !newOne.meta.refreshing && newOne.meta.stats.computed === 0 && same(newOne.state!.results.map(withoutTrace), getENSComplianceState(ref2.nivel, ref2.eventos, undefined, ref2.alcance, clock).results.map(withoutTrace)));
   void t0;
 
-  const another = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const another = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   while (!service.idle()) await wait(20);
   const reads = searchIndex.log.length;
   await Promise.all([
@@ -163,7 +163,7 @@ const reference = () => {
   const ofFacts = searchIndex.log.slice(reads).filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts'));
   const repeated = ofFacts.length - new Set(ofFacts.map(l => JSON.stringify([l.body.query, l.body.search_after]))).size;
   check('panel and list at once: each read only once', repeated === 0, repeated);
-  const third = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const third = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) await wait(30); return searchIndex.search(p); } };
   const signal = new CancelSignal();
   const promise = third.run({ asCurrentUser: lento, asInternalUser: lento }, normalizeQuery({ include: 'results', timeZone: 'UTC' }), { signal: signal }).then(() => 'terminó', (e: any) => e?.statusCode);
@@ -208,7 +208,7 @@ const reference = () => {
   check('each day\'s facts, counted until the end of the day in Madrid', (series.timeline || []).filter(p => !p.isCurrent).every((p, i) => p.events === ofDay(plan[i].cutoff)));
 
   {
-    const s9 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+    const s9 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     const summary = (options: any = {}) => s9.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...options });
     await summary();
     const factReads = () => searchIndex.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
@@ -242,7 +242,7 @@ const reference = () => {
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) await wait(40); return searchIndex.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
     // A short first-response budget: with one date formatter per zone the rows compute fast enough to finish in 600 ms.
-    const s10 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 150 });
+    const s10 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 150 });
     const signal = new CancelSignal();
     const t0 = Date.now();
     const first = await s10.run(cl, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, signal: signal });
@@ -278,7 +278,7 @@ const reference = () => {
   }
 
   {
-    const s11 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+    const s11 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     const since = searchIndex.log.length;
     await s11.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }));
     const calls = searchIndex.log.slice(since);
@@ -291,7 +291,7 @@ const reference = () => {
   }
 
   {
-    const s12 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+    const s12 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     const summary = (o: any = {}) => s12.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...o });
     await summary();
     while (!s12.idle()) await wait(20);
@@ -319,7 +319,7 @@ const reference = () => {
     };
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) { await wait(10); newOne(); } return searchIndex.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
-    const s13 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+    const s13 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     const request = (q: any) => s13.run(cl, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
     await request({ include: 'summary' });
     newOne();
@@ -347,7 +347,7 @@ const reference = () => {
     const after2 = await request({ include: 'dashboard', timelineDays: '7' });
     const sheet = await request({ include: 'control', controlId: 'op.exp.3', timelineDays: '30' });
     check('C1: all finished, with another new fact: the panel and the sheet with series', Boolean(after2.timeline) && !after2.meta.seriesPending && Boolean(sheet.timeline) && !sheet.meta.seriesPending);
-    const clean = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+    const clean = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
     let ref13 = await clean.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', timelineDays: '30', timeZone: 'UTC' }), { allowStale: true });
     for (let i = 0; i < 300 && !ref13.timeline; i++) {
       await wait(50);
@@ -358,7 +358,7 @@ const reference = () => {
     while (!s13.idle() || !clean.idle()) await wait(20);
 
     const saved = clock;
-    const s15 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 1 });
+    const s15 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 1 });
     const request15 = (q: any) => s15.run(clients2, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
     const advances = () => {
       clock = new Date(clock.getTime() + 2 * 60 * 1000);
@@ -387,7 +387,7 @@ const reference = () => {
     await calm();
     clock = saved;
 
-    const s14 = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 1 });
+    const s14 = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 1 });
     const request14 = (q: any) => s14.run(cl, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
     let p14 = await request14({ include: 'dashboard', timelineDays: '7' });
     for (let i = 0; i < 300 && !p14.timeline; i++) {

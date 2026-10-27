@@ -33,6 +33,7 @@ import type { ENSComplianceResult, ENSTraceabilityResult } from '../../../common
 import { buildENSControlFactsFilter } from '../../../common/ens/dashboard/all-controls-facts-filter';
 import { computeStateFactCutoffsByCollector } from '../../../common/ens/core/evidence/state-facts';
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
+import { buildENSResultFromVerdicts, ENGINE_JUDGED_CONTROLS, verdictSeriesPoints } from '../../../common/ens/core/engine-verdicts';
 import { normalizeInventory, resolveENSScopeAgents } from '../../../common/ens/core/scope/runtime';
 import {
   ENS_MANAGER_AGENT_ID,
@@ -51,6 +52,8 @@ import { resolveCurrentUser } from '../current-user';
 import { Cancellable, CancelSignal, EVALUATION_TTL_MS, EvaluationCache, Semaphore } from './cache';
 import { ENSTooManyFactsError, MAX_FACTS_PER_READ, newReadStats, readAllFacts, searchComplete, throwIfCancelled, yieldToEventLoop } from './facts-reader';
 import type { ENSFactsReadStats } from './facts-reader';
+import { buildDailyVerdictsRequest, buildLatestPassRequest, buildVerdictsProbeRequest, readVerdictsProbe, verdictsOf } from './verdict-queries';
+import type { ENSVerdictsProbe } from './verdict-queries';
 import {
   buildAgentRunsQuery,
   buildAgentSideQuery,
@@ -183,6 +186,7 @@ export interface ENSEvaluationContext {
   // Filters of the WHOLE scope: the server always evaluates all machines; a machine's view comes from its rows.
   filters: unknown[];
   probe: ENSProbeResult;
+  verdicts: ENSVerdictsProbe;
   // Where facts are read: the window's indices (or the wildcard).
   factsIndex: string;
   // Presence facts of all machines (identity and names).
@@ -333,6 +337,8 @@ export interface ENSEvaluationServiceOptions {
   firstResponseMs?: number;
   // false: no daily series (the daily maturity job only needs today's result).
   computeSeries?: boolean;
+  // Controls read from the OSCompliance engine verdicts instead of evaluated here.
+  engineControls?: string[];
 }
 
 export interface ENSRunOptions {
@@ -399,7 +405,9 @@ export const createEvaluationService = ({
   maxStoredBytes = 64 * 1024 * 1024,
   firstResponseMs = FIRST_RESPONSE_MS,
   computeSeries = true,
+  engineControls = ENGINE_JUDGED_CONTROLS,
 }: ENSEvaluationServiceOptions) => {
+  const isEngineJudged = (controlId: string) => engineControls.includes(controlId);
   const clockValue = () => clock().getTime();
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
   // Past days of a series do not change within the day: up to 26 h (the key carries the day and zone; only valid
@@ -494,6 +502,9 @@ export const createEvaluationService = ({
       )
     );
     const presenceEvents = buildENSPresenceEvents(probe.presence);
+    const verdicts = engineControls.length
+      ? readVerdictsProbe(await searchComplete(clients.asCurrentUser, buildVerdictsProbeRequest(engineControls, window.from), 'los veredictos del motor'))
+      : {};
 
     return {
       now,
@@ -510,6 +521,7 @@ export const createEvaluationService = ({
       window,
       filters,
       probe,
+      verdicts,
       presenceEvents,
       factsIndex: factsIndexFor(probe.indices, window),
       presenceOf: new Map(presenceEvents.map(event => [event.agentId as string, event])),
@@ -530,7 +542,9 @@ export const createEvaluationService = ({
 
   // Row fingerprint: what, if it changes, changes its result.
   const rowFingerprint = (ctx: ENSEvaluationContext, controlId: string, agentId: string): string =>
-    sha(
+    isEngineJudged(controlId)
+      ? sha(ctx.configurationKey, ctx.scopeKey, controlId, agentId, ctx.verdicts[controlId]?.[agentId]?.newest || null)
+      : sha(
       ctx.configurationKey,
       ctx.scopeKey,
       controlId,
@@ -544,6 +558,9 @@ export const createEvaluationService = ({
 
   // Facts of a row's whole past days (in the viewer's zone): if unchanged, its points of those days stay valid.
   const pastSignature = (ctx: ENSEvaluationContext, spec: RowSpec): string => {
+    if (isEngineJudged(spec.controlId)) {
+      return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), ctx.verdicts[spec.controlId]?.[spec.factsAgent || '']?.newest || null);
+    }
     const past = ctx.probe.past;
     const today = startOfDayIn(ctx.now, ctx.timeZone).getTime();
     if (!spec.factsAgent) {
@@ -562,7 +579,9 @@ export const createEvaluationService = ({
 
   // That of a control without rows (the engine evaluates it over all its facts).
   const fallbackFingerprint = (ctx: ENSEvaluationContext, controlId: string): string =>
-    sha(ctx.configurationKey, ctx.scopeKey, controlId, ctx.probe.controls[controlId] || null, ctx.probe.orphans, ctx.presenceEvents.map(e => e.agentId));
+    isEngineJudged(controlId)
+      ? sha(ctx.configurationKey, ctx.scopeKey, controlId, ctx.verdicts[controlId] || null)
+      : sha(ctx.configurationKey, ctx.scopeKey, controlId, ctx.probe.controls[controlId] || null, ctx.probe.orphans, ctx.presenceEvents.map(e => e.agentId));
 
   // View fingerprint: the one the browser probe compares.
   const viewFingerprint = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): string => {
@@ -581,7 +600,9 @@ export const createEvaluationService = ({
 
   // Cost of computing a row (the facts the probe reports): cheap ones first.
   const weightOf = (ctx: ENSEvaluationContext, controlId: string, agentId?: string): number =>
-    agentId ? ctx.probe.controls[controlId]?.agents[agentId]?.count || 0 : ctx.probe.controls[controlId]?.count || 0;
+    isEngineJudged(controlId)
+      ? 1
+      : agentId ? ctx.probe.controls[controlId]?.agents[agentId]?.count || 0 : ctx.probe.controls[controlId]?.count || 0;
 
   // Series days each row computes: those of the configuration window (30 by default), in the viewer's zone. They
   // cover any series the screens ask (panel 7, detail 30).
@@ -749,6 +770,63 @@ export const createEvaluationService = ({
   // A control without collector reads nothing: no fact can be about it, and its one result needs none.
   const readsNothing = (spec: RowSpec): boolean => isPendingMeasurement(ENSCatalog.find(entry => entry.id === spec.controlId));
 
+  // A control the OSCompliance engine judges: its latest pass and its daily verdicts, no facts.
+  const computeVerdictRow = (
+    clients: ENSEvaluationClients,
+    ctx: ENSEvaluationContext,
+    spec: RowSpec,
+    signal: Cancellable,
+    options: { background: boolean }
+  ): Promise<StoredRow> => {
+    const requested = Date.now();
+    return reads.use(async () => {
+      const reading = Date.now();
+      throwIfCancelled(signal);
+      const agentId = spec.factsAgent;
+      const newest = agentId ? ctx.verdicts[spec.controlId]?.[agentId]?.newest : undefined;
+      const subject = `${spec.controlId} en ${agentId}`;
+      const [latest, daily] = agentId && newest
+        ? await Promise.all([
+            searchComplete(clients.asCurrentUser, buildLatestPassRequest(spec.controlId, agentId, newest), `los veredictos de ${subject}`),
+            searchComplete(clients.asCurrentUser, buildDailyVerdictsRequest(spec.controlId, agentId, ctx.window.from, ctx.now.toISOString()), `la serie de ${subject}`),
+          ])
+        : [undefined, undefined];
+      const fetched = Date.now();
+      throwIfCancelled(signal);
+      ensConfigurationRepository.replaceActive(ctx.configuration);
+      const verdicts = verdictsOf(latest);
+      const result = buildENSResultFromVerdicts(spec.controlId, ctx.configuration.global.ensLevel, spec.viewAgent, verdicts, ctx.now);
+      const series = seriesOf(ctx);
+      return {
+        result: withoutTraceability(result),
+        traceability: compresses(result.traceability),
+        traceabilityStored: result.traceability.length,
+        traceabilityTotal: result.traceability.length,
+        cuts: {
+          key: series.key,
+          pastKey: pastSignature(ctx, spec),
+          asOf: ctx.now.getTime(),
+          points: verdictSeriesPoints(series.plan.map(cut => cut.cutoff), verdictsOf(daily)),
+          complete: true,
+        },
+        configurationKey: ctx.configurationKey,
+        scopeKey: ctx.scopeKey,
+        stats: {
+          controlId: spec.controlId,
+          agentId: agentId || '*',
+          hits: verdicts.length,
+          pages: latest ? 1 : 0,
+          events: verdicts.length,
+          queueMs: reading - requested,
+          fetchMs: fetched - reading,
+          normalizeMs: 0,
+          evaluateMs: Date.now() - fetched,
+          pruned: false,
+        },
+      };
+    }, { background: options.background });
+  };
+
   const computeRow = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -756,6 +834,7 @@ export const createEvaluationService = ({
     signal: Cancellable,
     options: { background: boolean; previous?: StoredRow }
   ): Promise<StoredRow> => {
+    if (isEngineJudged(spec.controlId)) return computeVerdictRow(clients, ctx, spec, signal, options);
     const requested = Date.now();
     return reads.use(async () => {
       const reading = Date.now();
@@ -971,6 +1050,7 @@ export const createEvaluationService = ({
   let foregroundJobs = 0;
 
   const streamable = (need: RowNeed) =>
+    !isEngineJudged(need.spec.controlId) &&
     Boolean(need.spec.factsAgent) &&
     need.spec.factsAgent === need.spec.viewAgent &&
     need.key.startsWith('r|') &&
@@ -1371,7 +1451,13 @@ export const createEvaluationService = ({
     const ownItems = (agentNames: string[]) => ctx.probe.presence.filter(p => agentNames.includes(p.agentId));
     let first2: number | undefined;
     let howMany = 0;
-    if (query.controlId) {
+    if (query.controlId && isEngineJudged(query.controlId)) {
+      const verdicts = Object.entries(ctx.verdicts[query.controlId] || {})
+        .filter(([agentId]) => !query.agentId || agentId === query.agentId)
+        .map(([, stamp]) => stamp);
+      first2 = verdicts.length ? Math.min(...verdicts.map(stamp => Date.parse(stamp.oldest))) : undefined;
+      howMany = verdicts.reduce((n, stamp) => n + stamp.count, 0);
+    } else if (query.controlId) {
       const facts = ctx.probe.controls[query.controlId];
       if (query.agentId) {
         // A machine's series starts at its first fact of the control (or the manager's, for an organization

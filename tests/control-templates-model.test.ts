@@ -122,8 +122,8 @@ console.log('2. Built-in templates');
   check('each control: built-ins with unique ids, the frozen 1.2.0 values, valid, never common parameters nor lab names', problems.length === 0, problems);
 
   const names = (controlId: string) => getBuiltinTemplates(controlId).map(template => template.name).join(',');
-  check('op.acc.1: Linux, Servidor LDAP and Windows', names('op.acc.1') === 'Linux,Servidor LDAP,Windows', names('op.acc.1'));
-  check('op.acc.6: no Windows (no collector there)', names('op.acc.6') === 'Linux,Servidor LDAP', names('op.acc.6'));
+  check('op.acc.1: Linux, Servidor LDAP, Windows and the manager', names('op.acc.1') === 'Linux,Servidor LDAP,Windows,Manager Wazuh', names('op.acc.1'));
+  check('op.acc.6: no Windows (no collector there)', names('op.acc.6') === 'Linux,Servidor LDAP,Manager Wazuh', names('op.acc.6'));
   check('op.exp.8 (both planes): Linux, Servidor LDAP and Manager Wazuh', names('op.exp.8') === 'Linux,Servidor LDAP,Manager Wazuh', names('op.exp.8'));
   check('op.exp.7 (manager only): Manager Wazuh', names('op.exp.7') === 'Manager Wazuh', names('op.exp.7'));
   check('mp.info.6: PBS and Zimbra NE as alternatives, not type defaults',
@@ -144,7 +144,7 @@ console.log('2. Built-in templates');
   const fromPlugin = Object.fromEntries(withTemplates.map(id => [id, getBuiltinTemplates(id).map(template => template.id)]));
   check('set-parameters.py knows the same built-in ids per control', JSON.stringify(fromScript) === JSON.stringify(fromPlugin), fromScript);
   const custom = { templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }] } as any;
-  check('control templates: built-ins first, then custom ones', getControlTemplates(custom, 'op.acc.1').map(template => `${template.id}:${template.builtin}`).join() === 'linux-ubuntu:true,zimbra-ldap:true,windows-server:true,custom-web:false');
+  check('control templates: built-ins first, then custom ones', getControlTemplates(custom, 'op.acc.1').map(template => `${template.id}:${template.builtin}`).join() === 'linux-ubuntu:true,zimbra-ldap:true,windows-server:true,manager-wazuh:true,custom-web:false');
 }
 
 console.log('3. Document shape');

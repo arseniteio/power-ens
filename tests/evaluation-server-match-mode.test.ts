@@ -77,7 +77,7 @@ const rowsOf = (state: any) => Object.fromEntries(state.agents.map((a: any) =>
   [a.agentId, Object.fromEntries(a.results.map((r: any) => [r.control.id, withoutTrace(r)]))]));
 const evaluate = async (configuration: any) => {
   setActive(configuration);
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   const state = (await service.run(clients, { include: 'results', timeZone: 'UTC' })).state!;
   return rowsOf(state);
 };

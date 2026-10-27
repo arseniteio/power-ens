@@ -112,7 +112,7 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
     { _id: 'active', _index: 'wazuh-ens-configuration', _source: { documentType: 'ACTIVE_CONFIGURATION', configuration: configuration, updatedAt: configuration.updatedAt } },
   ], { clock: () => clock.getTime(), user: { user_name: 'ana', roles: ['all_access'] } });
   const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
-  const h = createEvaluationHandlers({ logger, securityEnabled: true, service: createEvaluationService({ logger, securityEnabled: true, clock: () => clock }) });
+  const h = createEvaluationHandlers({ logger, securityEnabled: true, service: createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock }) });
   const context = { core: { opensearch: { client: { asCurrentUser: index, asInternalUser: index } } } };
   const response = { ok: (r: any) => ({ status: 200, data: r.body.data }), customError: (r: any) => ({ status: r.statusCode, message: r.body?.message }) };
   const throughRoute = async (string: string, validator = ruta) => {

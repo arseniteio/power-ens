@@ -164,7 +164,7 @@ const setup = (
 ) => {
   const internal = createStore(options);
   seed(internal, options.evaluationPeriod, options.ensLevel);
-  const service = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
+  const service = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, firstResponseMs: 600000 });
   // `failOrganisation`: the organisation pass behind a machine view always fails (the views themselves work).
   // The organisation pass behind a machine view can be made to fail (`failOrganisation`) or to come back refreshing.
   const maturityEvaluation: any = {
@@ -246,7 +246,7 @@ const Z = { timeZone: 'Europe/Madrid' };
       clock: () => clock,
       timers,
       createEvaluation: () => {
-        const created = createEvaluationService({ logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2, computeSeries: false });
+        const created = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2, computeSeries: false });
         built.push(created);
         return created;
       },
@@ -289,7 +289,7 @@ const Z = { timeZone: 'Europe/Madrid' };
     clock: () => clock,
     createEvaluation: () => {
       evaluations += 1;
-      return createEvaluationService({ logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2, computeSeries: false });
+      return createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2, computeSeries: false });
     },
   });
   await daily.runOnce();
@@ -317,7 +317,7 @@ const Z = { timeZone: 'Europe/Madrid' };
     maturity: refused.maturity,
     clock: () => clock,
     timers: { set: (run: () => void, ms: number) => refusedTimers.push({ run, ms }), clear: () => undefined },
-    createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
+    createEvaluation: () => createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
   });
   const refusedBefore = warnings.length;
   await refusedJob.runOnce();
@@ -335,7 +335,7 @@ const Z = { timeZone: 'Europe/Madrid' };
     maturity: broken.maturity,
     clock: () => clock,
     timers: { set: (run: () => void, ms: number) => brokenTimers.push({ run, ms }), clear: () => undefined },
-    createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
+    createEvaluation: () => createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, computeSeries: false }),
   });
   const brokenBefore = warnings.length;
   await brokenJob.runOnce();
@@ -353,14 +353,14 @@ const Z = { timeZone: 'Europe/Madrid' };
   clock = new Date('2026-10-20T21:10:00Z');
   const lateTimers: { run: () => void; ms: number }[] = [];
   const late = setup({ failActivity: true });
-  const lateJob = createDailySnapshotJob({ logger, client: { ...late.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: late.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => lateTimers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
+  const lateJob = createDailySnapshotJob({ logger, client: { ...late.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: late.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => lateTimers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
   const lateBefore = warnings.length;
   await lateJob.runOnce();
   check('after 23:00 local time (23:10 Madrid) no more retries that day: tomorrow at 02:30', lateTimers.length === 0 && /retried tomorrow at 02:30/.test(warnings.slice(lateBefore).join(' ')), warnings.slice(lateBefore));
   clock = lateClock;
   // A persistent failure backs off (30 min, 1 h, 2 h, 4 h, 8 h) and stops at 23:00; the next day starts at 30 min again.
   const jobWith = (s: any, timers: { run: () => void; ms: number }[]) =>
-    createDailySnapshotJob({ logger, client: { ...s.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: s.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => timers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
+    createDailySnapshotJob({ logger, client: { ...s.internal, transport: { request: async () => ({ body: INTERNAL }) } }, maturity: s.maturity, clock: () => clock, timers: { set: (run: () => void, ms: number) => timers.push({ run, ms }), clear: () => undefined }, createEvaluation: () => createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, computeSeries: false }) });
   clock = new Date('2026-10-20T00:30:00Z');
   const steady = setup({ failActivity: true });
   const steadyTimers: { run: () => void; ms: number }[] = [];
@@ -446,7 +446,7 @@ const Z = { timeZone: 'Europe/Madrid' };
       clock: () => clock,
       createEvaluation: () => {
         built += 1;
-        return createEvaluationService({ logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2 });
+        return createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock, maxConcurrentReads: 2 });
       },
       timers: { set: (run: () => void, ms: number) => timers.push({ run, ms }), clear: () => undefined },
     });

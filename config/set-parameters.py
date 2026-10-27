@@ -211,12 +211,12 @@ def classes():
 # Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
 BUILTIN_TEMPLATES = {
     "mp.info.6": ["linux-ubuntu", "zimbra-ldap", "pbs-backup", "zimbra-ne-backup"],
-    "op.acc.1": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
-    "op.acc.2": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
-    "op.acc.3": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
-    "op.acc.4": ["linux-ubuntu", "zimbra-ldap", "windows-server"],
-    "op.acc.5": ["linux-ubuntu", "zimbra-ldap"],
-    "op.acc.6": ["linux-ubuntu", "zimbra-ldap"],
+    "op.acc.1": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
+    "op.acc.2": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
+    "op.acc.3": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
+    "op.acc.4": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
+    "op.acc.5": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
+    "op.acc.6": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
     "op.cont.3": ["manager-wazuh"],
     "op.exp.1": ["linux-ubuntu", "zimbra-ldap"],
     "op.exp.2": ["linux-ubuntu", "zimbra-ldap"],

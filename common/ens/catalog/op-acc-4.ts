@@ -5,6 +5,8 @@ export const opAcc4CatalogDefinition: ENSControlDefinition = {
   name: 'Proceso de gestión de derechos de acceso',
   family: 'Marco operacional',
   category: 'Control de acceso',
+  // The OSCompliance engine judges every machine that sends facts, the manager included.
+  measurementPlanes: ['agent', 'manager'],
   dimension: 'Confidencialidad, Integridad, Trazabilidad y Autenticidad',
   // Annex II applies op.acc.4 by the levels of C, I, T and A, not the system category: the highest of them rules.
   levelDimension: ['C', 'I', 'T', 'A'],

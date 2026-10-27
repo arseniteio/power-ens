@@ -86,12 +86,12 @@ ensConfigurationRepository.replaceActive({
 
 const AGENT_PLANE = [
   'mp.info.6',
-  'op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4', 'op.acc.5', 'op.acc.6',
   'op.exp.1', 'op.exp.2', 'op.exp.3', 'op.exp.4', 'op.exp.5', 'op.exp.6',
   'op.exp.10',
 ];
 const MANAGER_ONLY = ['op.cont.2', 'op.cont.3', 'op.exp.7', 'op.exp.9', 'op.mon.1', 'op.mon.2', 'op.nub.1'];
-const DOUBLE_PLANE = ['op.exp.8', 'op.mon.3'];
+const ENGINE_PLANE = ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4', 'op.acc.5', 'op.acc.6'];
+const DOUBLE_PLANE = ['op.exp.8', 'op.mon.3', ...ENGINE_PLANE];
 // The 11 without collector (1.4.0, DRAFT): default plane until their wave decides it.
 const WITHOUT_COLLECTOR = ['mp.eq.2', 'mp.eq.3', 'mp.eq.4', 'mp.com.1', 'mp.com.3', 'mp.com.4', 'mp.sw.2', 'mp.s.1', 'mp.s.2', 'mp.s.3', 'mp.s.4'];
 
@@ -176,7 +176,7 @@ check(
   fingerprint(getControlMeasurementPlanes(ENSCatalog.find(c => c.id === 'op.mon.3')!)) === '["agent","manager"]'
 );
 check(
-  'the usual 14 declare nothing and are `agent`',
+  'the usual 8 declare nothing and are `agent`',
   AGENT_PLANE.every(id => {
     const control = ENSCatalog.find(c => c.id === id)!;
 
@@ -305,7 +305,7 @@ hydrateENSScope(scopeOf({ mode: 'group' }), async () => INVENTORY).then(() => {
 });
 
 const rest = (): void => {
-  section('2. With the manager and facts only from agents, the 14 agent-plane ones do not change');
+  section('2. With the manager and facts only from agents, the 8 agent-plane ones do not change');
 
   const hoy = getENSComplianceState(LEVEL, OF_AGENTS, undefined, AGENTS, NOW);
   const now = getENSComplianceState(LEVEL, OF_AGENTS, undefined, WITH_MANAGER, NOW);
@@ -314,7 +314,7 @@ const rest = (): void => {
     id => fingerprint(byControl(hoy.results).get(id)) !== fingerprint(byControl(now.results).get(id))
   );
 
-  check('consolidated · none of the 14 changes', changed.length === 0, changed.join(', '));
+  check('consolidated · none of the 8 changes', changed.length === 0, changed.join(', '));
   check(
     'consolidated · all 34 are there, in catalog order',
     fingerprint(ids(now.results)) === fingerprint(ENSCatalog.map(c => c.id)),
@@ -328,7 +328,7 @@ const rest = (): void => {
       id => fingerprint(byControl(rowToday.results).get(id)) !== fingerprint(byControl(rowNow.results).get(id))
     );
 
-    check(`row ${agent.id} · none of the 14 changes`, distinct.length === 0, distinct.join(', '));
+    check(`row ${agent.id} · none of the 8 changes`, distinct.length === 0, distinct.join(', '));
 
     const vistaHoy = getENSComplianceState(LEVEL, OF_AGENTS, agent.id, AGENTS, NOW);
     const viewNow = getENSComplianceState(LEVEL, OF_AGENTS, agent.id, WITH_MANAGER, NOW);
@@ -336,7 +336,7 @@ const rest = (): void => {
       id => fingerprint(byControl(vistaHoy.results).get(id)) !== fingerprint(byControl(viewNow.results).get(id))
     );
 
-    check(`view of ${agent.id} · none of the 14 changes`, distinctView.length === 0, distinctView.join(', '));
+    check(`view of ${agent.id} · none of the 8 changes`, distinctView.length === 0, distinctView.join(', '));
   }
 
   const byControlDistinct = AGENT_PLANE.filter(
@@ -345,16 +345,16 @@ const rest = (): void => {
       fingerprint(getENSComplianceResultByControl(id, LEVEL, OF_AGENTS, undefined, WITH_MANAGER, NOW))
   );
 
-  check('control by control (detail) · none of the 14 changes', byControlDistinct.length === 0, byControlDistinct.join(', '));
+  check('control by control (detail) · none of the 8 changes', byControlDistinct.length === 0, byControlDistinct.join(', '));
 
   check(
-    'the manager is one more row and brings only its 9 controls',
-    fingerprint(ids(now.agents.find(a => a.agentId === '000')!.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
+    'the manager is one more row and brings only its 15 controls',
+    fingerprint(ids(now.agents.find(a => a.agentId === '000')!.results)) === '["op.acc.1","op.acc.2","op.acc.3","op.acc.4","op.acc.5","op.acc.6","op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
     ids(now.agents.find(a => a.agentId === '000')?.results || []).join(', ')
   );
   check(
-    'and its summary counts only those 9',
-    now.agents.find(a => a.agentId === '000')!.summary.totalControls === 9
+    'and its summary counts only those 15',
+    now.agents.find(a => a.agentId === '000')!.summary.totalControls === 15
   );
   check(
     'an agent row\'s summary does not count the manager-only ones nor the 11 without collector (no row of their own)',
@@ -362,8 +362,8 @@ const rest = (): void => {
   );
   // Pinned: the controls without collector change neither the machines' measured count nor the manager's.
   check(
-    'measured per row: 16 of 16 on each machine, 7 of 9 on the manager',
-    JSON.stringify(now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])) === '[["000",7,9],["001",16,16],["002",16,16]]',
+    'measured per row: 16 of 16 on each machine, 13 of 15 on the manager',
+    JSON.stringify(now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])) === '[["000",13,15],["001",16,16],["002",16,16]]',
     now.agents.map(a => [a.agentId, a.summary.measured, a.summary.totalControls])
   );
 
@@ -428,13 +428,13 @@ const rest = (): void => {
     const vista = getENSComplianceState(LEVEL, ALL, '000', WITH_MANAGER, NOW);
 
     check(
-      'vista del manager · sus 9 controles',
-      fingerprint(ids(vista.results)) === '["op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
+      'vista del manager · sus 15 controles',
+      fingerprint(ids(vista.results)) === '["op.acc.1","op.acc.2","op.acc.3","op.acc.4","op.acc.5","op.acc.6","op.exp.7","op.exp.8","op.exp.9","op.nub.1","op.cont.2","op.cont.3","op.mon.1","op.mon.2","op.mon.3"]',
       ids(vista.results).join(', ')
     );
     check(
       'manager\'s view · an agent-plane control has no result',
-      getENSComplianceResultByControl('op.acc.1', LEVEL, ALL, '000', WITH_MANAGER, NOW) === undefined
+      getENSComplianceResultByControl('op.exp.1', LEVEL, ALL, '000', WITH_MANAGER, NOW) === undefined
     );
   }
 
