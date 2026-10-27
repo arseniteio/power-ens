@@ -15,11 +15,8 @@ import { buildComplianceState } from '../../../common/ens/core/compliance-state'
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import {
   assembleENSComplianceState,
-  buildENSHeartbeatEvents,
   buildENSPresenceEvents,
   consolidateENSControlRows,
-  ENS_CROSS_CONTROL_EVENT_TYPES,
-  ENS_CROSS_CONTROL_HEARTBEAT,
   ENSControlPartition,
   evaluateENSControlPartition,
   evaluateENSControlRow,
@@ -192,7 +189,6 @@ export interface ENSEvaluationContext {
   // Presence facts of all machines (identity and names).
   presenceEvents: ENSNormalizedEvent[];
   presenceOf: Map<string, ENSNormalizedEvent>;
-  heartbeatsOf: Map<string, ENSNormalizedEvent[]>;
   timeZone: string;
 }
 
@@ -269,7 +265,7 @@ export const decompressTraceability = (dataItems: Buffer | null): ENSTraceabilit
 export const storedRowBytes = (row: StoredRow): number =>
   JSON.stringify(row.result || null).length + (row.traceability?.length || 0) + ENS_EVALUATION_LIMITS.maxTimelineDays * 80 + 512;
 
-// The result as is, except traceability (the control's fact list, tens of thousands with op.acc.3).
+// The result as is, except traceability (the control's fact list, tens of thousands on a busy machine).
 export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({
   ...result,
   traceability: [],
@@ -525,9 +521,6 @@ export const createEvaluationService = ({
       presenceEvents,
       factsIndex: factsIndexFor(probe.indices, window),
       presenceOf: new Map(presenceEvents.map(event => [event.agentId as string, event])),
-      heartbeatsOf: new Map(
-        Object.entries(probe.heartbeats).map(([agentId, times]) => [agentId, buildENSHeartbeatEvents([{ agentId, times }])])
-      ),
       timeZone: query.timeZone,
     };
   };
@@ -551,9 +544,7 @@ export const createEvaluationService = ({
       agentId,
       ctx.probe.controls[controlId]?.agents[agentId] || null,
       ctx.probe.orphans.agents[agentId] || null,
-      ctx.presenceOf.has(agentId),
-      ctx.probe.cross[controlId]?.[agentId] || null,
-      ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? (ctx.probe.heartbeats[agentId] || []).slice(-1)[0] || null : null
+      ctx.presenceOf.has(agentId)
     );
 
   // Facts of a row's whole past days (in the viewer's zone): if unchanged, its points of those days stay valid.
@@ -562,7 +553,6 @@ export const createEvaluationService = ({
       return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), ctx.verdicts[spec.controlId]?.[spec.factsAgent || '']?.newest || null);
     }
     const past = ctx.probe.past;
-    const today = startOfDayIn(ctx.now, ctx.timeZone).getTime();
     if (!spec.factsAgent) {
       return sha(ctx.timeZone, startOfDayIn(ctx.now, ctx.timeZone).toISOString(), past?.controls[spec.controlId]?.total ?? null, past?.orphans.total ?? null);
     }
@@ -571,9 +561,7 @@ export const createEvaluationService = ({
       ctx.timeZone,
       startOfDayIn(ctx.now, ctx.timeZone).toISOString(),
       past?.controls[spec.controlId]?.agents[agentName] ?? null,
-      past?.orphans.agents[agentName] ?? null,
-      past?.cross[spec.controlId]?.agents[agentName] ?? null,
-      ENS_CROSS_CONTROL_HEARTBEAT.includes(spec.controlId) ? (ctx.probe.heartbeats[agentName] || []).filter(t => Date.parse(t) < today) : null
+      past?.orphans.agents[agentName] ?? null
     );
   };
 
@@ -671,19 +659,12 @@ export const createEvaluationService = ({
     return buildStateFactKeepClause(controlId, agentId, gaps);
   };
 
-  // Normalised facts of a row, with the synthetic ones the engine read from other controls (presence and
-  // heartbeats).
+  // Normalised facts of a row, with the presence facts the engine reads from other controls.
   const eventsOf = (ctx: ENSEvaluationContext, spec: RowSpec, hits: any[]): { events: ENSNormalizedEvent[]; synthetic: number } => {
-    const { controlId, factsAgent } = spec;
+    const { factsAgent } = spec;
     const synthetic = factsAgent
-      ? [
-          ...(ctx.presenceOf.has(factsAgent) ? [ctx.presenceOf.get(factsAgent)!] : []),
-          ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? ctx.heartbeatsOf.get(factsAgent) || [] : []),
-        ]
-      : [
-          ...ctx.presenceEvents,
-          ...(ENS_CROSS_CONTROL_HEARTBEAT.includes(controlId) ? [...ctx.heartbeatsOf.values()].flat() : []),
-        ];
+      ? ctx.presenceOf.has(factsAgent) ? [ctx.presenceOf.get(factsAgent)!] : []
+      : ctx.presenceEvents;
     return { events: [...normalizeWazuhAlerts(hits), ...synthetic], synthetic: synthetic.length };
   };
 
@@ -764,7 +745,7 @@ export const createEvaluationService = ({
     }, { background: o.background });
   };
 
-  // A ROW READ ALONE: op.acc.3 (reads types of other controls), a control without rows (whole scope) and a
+  // A ROW READ ALONE: a control the engine judges, a control without rows (whole scope) and a
   // machine's view of an organization control without a manager row. The read slot is kept until the engine
   // finishes: no more than `maxConcurrentReads` reads in memory.
   // A control without collector reads nothing: no fact can be about it, and its one result needs none.
@@ -1053,8 +1034,7 @@ export const createEvaluationService = ({
     !isEngineJudged(need.spec.controlId) &&
     Boolean(need.spec.factsAgent) &&
     need.spec.factsAgent === need.spec.viewAgent &&
-    need.key.startsWith('r|') &&
-    !(need.spec.controlId in ENS_CROSS_CONTROL_EVENT_TYPES);
+    need.key.startsWith('r|');
 
   // Groups the rows. A control can be shown only when ALL its rows (one per machine) exist, so controls are
   // split into BANDS, cheap to expensive per the probe, and each band into a per-machine stream (up to

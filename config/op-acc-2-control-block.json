@@ -67,11 +67,7 @@
       "evidenceIds": [
         "EV-02"
       ],
-      "ruleIds": [
-        "106920",
-        "106921",
-        "106922"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-02 se publica NO EVALUABLE y op.acc.2.3 no puede acreditarse automáticamente."
     },
     {
@@ -96,9 +92,7 @@
       "evidenceIds": [
         "EV-01"
       ],
-      "ruleIds": [
-        "106902"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede decidir qué world-writable es incumplimiento y EV-01 no se pronuncia sobre ese eje."
     },
     {
@@ -153,10 +147,7 @@
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "106930",
-        "106931"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El refuerzo R1 es NO EVALUABLE y no se pueden verificar op.acc.2.r1.1 ni op.acc.2.r1.2."
     },
     {
@@ -206,10 +197,7 @@
         "EV-04",
         "EV-06"
       ],
-      "ruleIds": [
-        "106935",
-        "106936"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-06 se publica NO EVALUABLE: sin la tabla, no encontrar violaciones no significa que no las haya."
     },
     {
@@ -234,10 +222,7 @@
       "evidenceIds": [
         "EV-01"
       ],
-      "ruleIds": [
-        "106903",
-        "106904"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No hay contra qué comparar el umask observado y EV-01 no se pronuncia sobre ese eje."
     },
     {
@@ -288,10 +273,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "106913",
-        "106914"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-04 se publica NO EVALUABLE, nunca CUMPLE: sin la decisión escrita no hay contra qué comparar las ACL reales."
     },
     {
@@ -336,9 +318,7 @@
         "EV-05",
         "EV-06"
       ],
-      "ruleIds": [
-        "106933"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-05 y EV-06 se publican NO EVALUABLE: sin el perfil de cada usuario no se puede decidir si un acceso supera el autorizado."
     },
     {
@@ -372,10 +352,7 @@
       "evidenceIds": [
         "EV-07"
       ],
-      "ruleIds": [
-        "106925",
-        "106926"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-07 se publica NO EVALUABLE, nunca CUMPLE: sembrarla con lo que hay en la máquina declararía autorizada la puerta trasera de un sistema comprometido."
     },
     {
@@ -408,9 +385,7 @@
       "evidenceIds": [
         "EV-01"
       ],
-      "ruleIds": [
-        "106902"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No hay excepciones: todo world-writable cuenta como incumplimiento cuando P-03 indica que no se permiten."
     },
     {
@@ -444,9 +419,7 @@
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "106932"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El agente aplica su lista de fábrica (sudo, wheel, admin, adm y root) y el informe no cita una decisión del cliente."
     }
   ]

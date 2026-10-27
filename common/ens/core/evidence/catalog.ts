@@ -161,7 +161,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT', 'API', 'SCA'],
     expectedEventTypes: ['evidence_state', 'account_inventory', 'account_active'],
-    relatedRules: ['106809', '106810', '106811'],
+    relatedRules: [],
     auditQuestion:
       '¿Existe un inventario actualizado de cuentas activas con identificador único por entidad?',
   },
@@ -182,7 +182,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_modified',
       'account_deleted',
     ],
-    relatedRules: ['106812', '106813', '106818'],
+    relatedRules: [],
     auditQuestion:
       '¿Se detectan y controlan las modificaciones no autorizadas sobre las cuentas del sistema?',
   },
@@ -203,7 +203,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'generic_account_login',
       'auth_success',
     ],
-    relatedRules: ['106801', '106802', '106873'],
+    relatedRules: [],
     auditQuestion:
       '¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?',
 
@@ -237,7 +237,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_disabled',
       'account_offboarding',
     ],
-    relatedRules: ['106815', '106816', '106817'],
+    relatedRules: [],
     auditQuestion:
       '¿Las cuentas de usuarios que causan baja se deshabilitan dentro del plazo definido?',
   },
@@ -258,7 +258,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'service_account_interactive',
       'interactive_login',
     ],
-    relatedRules: ['106805', '106806', '106873'],
+    relatedRules: [],
     auditQuestion:
       '¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?',
 
@@ -288,7 +288,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'multi_role_usage', 'privilege_use'],
-    relatedRules: ['106807', '106808'],
+    relatedRules: [],
     auditQuestion:
       '¿Cada rol de un usuario dispone de un identificador diferenciado con sus privilegios delimitados?',
   },
@@ -309,7 +309,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'authorized_list_check',
       'unauthorized_user',
     ],
-    relatedRules: ['106824', '106825', '106826', '106811'],
+    relatedRules: [],
     auditQuestion:
       '¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?',
 
@@ -341,7 +341,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'account_deleted',
       'retention_violation',
     ],
-    relatedRules: ['106818', '106819'],
+    relatedRules: [],
     auditQuestion:
       '¿Se conservan las cuentas deshabilitadas durante el periodo de retención antes de eliminarlas?',
   },
@@ -364,7 +364,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'umask_check',
     ],
     // 106905 is the NO_CUMPLE pair of `sca_check`; 106901 is the generic CUMPLE and ignores `estado`.
-    relatedRules: ['106901', '106902', '106903', '106904', '106905'],
+    relatedRules: [],
     auditQuestion:
       '¿Los recursos del sistema tienen controles de acceso que impiden su uso no autorizado?',
   },
@@ -385,7 +385,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'fim_added',
       'fim_deleted',
     ],
-    relatedRules: ['106920', '106921', '106922'],
+    relatedRules: [],
     auditQuestion:
       '¿Se detectan y controlan los cambios no autorizados en los componentes del sistema operativo?',
   },
@@ -406,7 +406,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'privilege_escalation',
       'sudo_usage',
     ],
-    relatedRules: ['106910', '106911', '106912'],
+    relatedRules: [],
     auditQuestion:
       '¿Se registran los intentos de acceso a recursos sin los derechos suficientes?',
   },
@@ -422,7 +422,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'acl_check', 'acl_deviation'],
-    relatedRules: ['106913', '106914'],
+    relatedRules: [],
     auditQuestion:
       '¿Los derechos de acceso a cada recurso siguen la política interna y las decisiones del responsable?',
   },
@@ -444,7 +444,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'group_membership',
     ],
     // 106933 is the NO_CUMPLE pair of `privilege_check` (106930 is the generic CUMPLE).
-    relatedRules: ['106930', '106931', '106932', '106933'],
+    relatedRules: [],
     auditQuestion:
       '¿Cada usuario autorizado tiene privilegios mantenidos individualmente que restringen el tipo de acceso?',
   },
@@ -464,7 +464,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'access_type_violation',
       'object_access',
     ],
-    relatedRules: ['106935', '106936'],
+    relatedRules: [],
     auditQuestion:
       '¿Se detectan accesos que superan el tipo de acceso autorizado para el usuario?',
   },
@@ -486,7 +486,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       'no_owner_file',
     ],
     // 106924 is the NO_CUMPLE pair of `rootcheck` (106925 is the generic CUMPLE). It matters here because EV-07 is a negative assertion.
-    relatedRules: ['106924', '106925', '106926', '106927'],
+    relatedRules: [],
     auditQuestion:
       '¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?',
   },
@@ -502,7 +502,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_action'],
-    relatedRules: ['107001'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: detección de desarrollo y operación en la misma cuenta?',
   },
@@ -518,7 +518,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_action'],
-    relatedRules: ['107001'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: detección de autorización y control en la misma cuenta?',
   },
@@ -535,7 +535,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'critical_task_run'],
-    relatedRules: ['107002'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: verificación de concurrencia en tareas críticas?',
   },
@@ -551,7 +551,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_action'],
-    relatedRules: ['107001'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: detección de configuración y mantenimiento en la misma cuenta (r1)?',
   },
@@ -567,7 +567,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'MEDIUM',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_action'],
-    relatedRules: ['107001'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: cuentas de auditoría ejerciendo otras funciones (r1)?',
   },
@@ -583,7 +583,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_action'],
-    relatedRules: ['107001'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: inventario de acciones por cuenta y función?',
   },
@@ -599,7 +599,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'FIM', 'LOCAL_JSON'],
     expectedEventTypes: ['evidence_state', 'security_info_access'],
-    relatedRules: ['107003'],
+    relatedRules: [],
     auditQuestion:
       '¿Se acredita: acceso a la información de seguridad del sistema?',
   },
@@ -615,7 +615,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'default_deny_violation'],
-    relatedRules: ['107101'],
+    relatedRules: [],
     judgment: {
       // Each observed deviation from default-deny is checked against the declared exceptions; with none declared, any deviation fails.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
@@ -639,7 +639,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'privilege_grant'],
-    relatedRules: ['107102'],
+    relatedRules: [],
     judgment: {
       // Each effective privilege must match, cell by cell, its row in the declared matrix (an 'rw' where the matrix says 'r' fails).
       primitive: 'CONFORME_A_TABLA',
@@ -673,7 +673,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'privileged_group_member'],
-    relatedRules: ['107103'],
+    relatedRules: [],
     judgment: {
       // Every observed member of a privileged group must be in the matrix. The column is `rol` because the matrix declares profiles.
       primitive: 'TODOS_EN_LISTA',
@@ -697,7 +697,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'permission_change'],
-    relatedRules: ['107104'],
+    relatedRules: [],
     judgment: {
       // The ACTOR is checked, not the subject of the change.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
@@ -722,7 +722,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'permission_review'],
-    relatedRules: ['107105'],
+    relatedRules: [],
     judgment: {
       // The only EXISTENTIAL evidence of the control: a recent enough review suffices, and it never passes by absence.
       primitive: 'ANTIGUEDAD_MAXIMA',
@@ -745,7 +745,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'remote_access'],
-    relatedRules: ['107106'],
+    relatedRules: [],
     judgment: {
       // `NINGUNO_FUERA_DE_LISTA`, not `TODOS_EN_LISTA`: what is required is that nobody else enters, not that every authorized account does.
       primitive: 'NINGUNO_FUERA_DE_LISTA',
@@ -768,7 +768,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'sensitive_access'],
-    relatedRules: ['107107'],
+    relatedRules: [],
     judgment: {
       // What is judged is whether the profile has a declared justification for the resource, not whether the technical permission exists.
       primitive: 'CONFORME_A_TABLA',
@@ -796,7 +796,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'SCA', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'excessive_privilege'],
-    relatedRules: ['107108'],
+    relatedRules: [],
     judgment: {
       // A privilege above the minimum is a FACT, not a verdict: it fails only if the subject is not in the matrix.
       primitive: 'TODOS_EN_LISTA',
@@ -823,7 +823,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'access_log_source', 'external_auth_success', 'external_auth_failure'],
-    relatedRules: ['110002', '110011'],
+    relatedRules: [],
     judgment: {
       // Each pass declares how many days each service keeps its authentication log; all must reach P-08. Successes and failures (110001, 110002) travel in the trace.
       primitive: 'UMBRAL_MINIMO',
@@ -846,7 +846,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'lockout_policy', 'failed_attempt_streak', 'password_policy'],
-    relatedRules: ['110004', '110005', '110006'],
+    relatedRules: [],
     judgment: {
       // One field for two facts: the CONFIGURED limit (`lockout_policy`) and the OBSERVED streak (`failed_attempt_streak`); neither may exceed P-03.
       // A disabled lockout arrives WITHOUT `intentos` (a 0 would pass the threshold) and the policy turns it into a failure.
@@ -870,7 +870,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_failures_by_origin'],
-    relatedRules: ['110003'],
+    relatedRules: [],
     judgment: {
       // Without failures there are no facts and the threshold does not pass by absence; the .8 policy accepts that silence only with the heartbeat covering EV-03.
       primitive: 'UMBRAL_MAXIMO',
@@ -893,7 +893,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_age'],
-    relatedRules: ['110007'],
+    relatedRules: [],
     judgment: {
       // An account whose last change is unknown arrives without `dias_desde_cambio` and the evidence stays unasserted.
       primitive: 'UMBRAL_MAXIMO',
@@ -916,7 +916,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_disable_delay'],
-    relatedRules: ['110008'],
+    relatedRules: [],
     judgment: {
       // Pending items are reissued every pass with their hours; an undisabled notification fails by itself once P-06 passes.
       primitive: 'UMBRAL_MAXIMO',
@@ -939,7 +939,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_error_verbose'],
-    relatedRules: ['110009'],
+    relatedRules: [],
     judgment: {
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-02',
@@ -962,7 +962,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'external_auth_success'],
-    relatedRules: ['110001'],
+    relatedRules: [],
     judgment: {
       // The agent CLASSIFIES the observed factors into the ENS class (R1..R4 or `ninguno`); P-01 says which class is required.
       // Lower class is a missing factor; higher class means P-01 does not describe the service.
@@ -986,7 +986,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'certificate_validation'],
-    relatedRules: ['110010'],
+    relatedRules: [],
     judgment: {
       // A CA without a P-07 row is NO_EVALUABLE / CONFIGURATION, not NO_CUMPLE (the engine cannot tell 'not admitted' and 'not declared' apart).
       primitive: 'CONFORME_A_TABLA',
@@ -1014,7 +1014,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'access_log_gap'],
-    relatedRules: ['110012'],
+    relatedRules: [],
     judgment: {
       primitive: 'NINGUNO_EN_LISTA',
       parameterId: 'P-02',
@@ -1038,7 +1038,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_logging_gap', 'authentication_success', 'authentication_failure'],
     stateFactEventTypes: ['auth_logging_gap'],
-    relatedRules: ['110101', '110102', '110105'],
+    relatedRules: [],
     judgment: {
       // A logging gap fails only if the unlogged source is among those declared monitored. With the source looked at (heartbeat) and no gaps, silence passes.
       primitive: 'NINGUNO_EN_LISTA',
@@ -1063,7 +1063,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // No `judgment` on purpose: classifying an address against CIDR ranges and requiring factors per zone is decided by the op-acc-6 policy.
     expectedEventTypes: ['evidence_state', 'authentication_success', 'remote_channel_listening'],
     stateFactEventTypes: ['remote_channel_listening'],
-    relatedRules: ['110101', '110108'],
+    relatedRules: [],
     auditQuestion:
       '¿Todo acceso desde o a través de zona no controlada ha verificado dos factores, y ningún canal expuesto fuera de zona controlada admite uno solo?',
   },
@@ -1081,7 +1081,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // No `judgment`: op.acc.6.8 is three simultaneous conditions, decided by the policy.
     expectedEventTypes: ['evidence_state', 'lockout_policy_checked', 'account_locked'],
     stateFactEventTypes: ['lockout_policy_checked'],
-    relatedRules: ['110103', '110104'],
+    relatedRules: [],
     auditQuestion:
       '¿Cada camino de autenticación con contraseña bloquea la cuenta tras P-05 fallos y exige una intervención para reactivarla?',
   },
@@ -1098,7 +1098,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     // No `judgment`: correlates failures and lockouts per account; decided by the policy together with EV-03.
     expectedEventTypes: ['evidence_state', 'authentication_failure', 'account_locked'],
-    relatedRules: ['110102', '110103'],
+    relatedRules: [],
     auditQuestion:
       '¿Alguna cuenta acumula más fallos de los admitidos sin que se registre su bloqueo?',
   },
@@ -1115,7 +1115,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_age_checked'],
     stateFactEventTypes: ['credential_age_checked'],
-    relatedRules: ['110106'],
+    relatedRules: [],
     judgment: {
       // No value may exceed P-04. A policy with no expiry (99999) does not guarantee periodic change.
       primitive: 'UMBRAL_MAXIMO',
@@ -1138,7 +1138,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'credential_disable_checked'],
-    relatedRules: ['110107'],
+    relatedRules: [],
     judgment: {
       // Not existential: EVERY notification must be attended in time. Without notifications it is NO_EVALUABLE.
       primitive: 'UMBRAL_MAXIMO',
@@ -1161,7 +1161,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     criticality: 'HIGH',
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'authentication_success'],
-    relatedRules: ['110101'],
+    relatedRules: [],
     judgment: {
       // What is required is that nobody enters through another channel. Only REMOTE accesses arrive here (the console is not tagged EV-07).
       primitive: 'NINGUNO_FUERA_DE_LISTA',
@@ -1186,7 +1186,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'remote_channel_listening'],
     stateFactEventTypes: ['remote_channel_listening'],
-    relatedRules: ['110108'],
+    relatedRules: [],
     judgment: {
       // A channel without a row is an undecided case, not a proven failure. `uso_constante` is checked against `habilitado_permanente`.
       primitive: 'CONFORME_A_TABLA',
@@ -1216,7 +1216,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'reauthentication_not_required'],
     stateFactEventTypes: ['reauthentication_not_required'],
-    relatedRules: ['110109'],
+    relatedRules: [],
     judgment: {
       // P-08 lists the points where the session is NOT enough. A finding on a declared point fails; on an undeclared one it does not.
       primitive: 'NINGUNO_EN_LISTA',
@@ -1240,7 +1240,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'account_inactivity_checked'],
     stateFactEventTypes: ['account_inactivity_checked'],
-    relatedRules: ['110110'],
+    relatedRules: [],
     judgment: {
       primitive: 'UMBRAL_MAXIMO',
       parameterId: 'P-09',
@@ -1264,7 +1264,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     // No `judgment`: P-10 is several minimums at once and applies only with R1 or R2 (P-01); decided by the policy.
     expectedEventTypes: ['evidence_state', 'password_policy_checked'],
     stateFactEventTypes: ['password_policy_checked'],
-    relatedRules: ['110111'],
+    relatedRules: [],
     auditQuestion:
       '¿La política de contraseñas impuesta alcanza cada mínimo de P-10?',
   },
@@ -1281,7 +1281,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     sourceTypes: ['WAZUH_ALERT', 'LOCAL_JSON', 'SCRIPT'],
     expectedEventTypes: ['evidence_state', 'auth_disclosure_observed'],
     stateFactEventTypes: ['auth_disclosure_observed'],
-    relatedRules: ['110112'],
+    relatedRules: [],
     judgment: {
       primitive: 'NINGUNO_FUERA_DE_LISTA',
       parameterId: 'P-11',

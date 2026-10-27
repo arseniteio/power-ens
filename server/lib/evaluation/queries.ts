@@ -18,7 +18,6 @@ import {
   getStateFactOwnerEvidenceIds,
 } from '../../../common/ens/core/evidence/state-facts';
 import { getEvidenceDefinitions } from '../../../common/ens/core/evidence/registry';
-import { ENS_CROSS_CONTROL_EVENT_TYPES, ENS_CROSS_CONTROL_HEARTBEAT } from '../../../common/ens/core/control-partition';
 import { OPERATIONAL_ALERT_KEY_FIELDS } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 import type { OperationalIncident } from '../../../common/ens/core/dashboard-adapter/presenters/impact-events.presenter';
 
@@ -95,7 +94,6 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
     terms: { field: 'agent.id', size: 10000 },
     aggs: { newest: { max: { field: '@timestamp' } }, ...pastDay, ...(aggs || {}) },
   });
-  const crossed = Object.entries(ENS_CROSS_CONTROL_EVENT_TYPES).filter(([id]) => controlIds.includes(id));
   return {
     index: ENS_ALERTS_INDEX,
     body: {
@@ -123,38 +121,25 @@ export const buildProbeRequest = (filters: unknown[], controlIds: string[], time
           filter: buildENSFactsWithoutControlFilter(),
           aggs: { newest: { max: { field: '@timestamp' } }, ...pastDay, agents: byMachine() },
         },
-        ...Object.fromEntries(
-          crossed.map(([id, types]) => [
-            `cross:${id}`,
-            {
-              filter: { bool: { filter: [{ terms: { 'data.event': types } }], must_not: [buildENSControlFactsFilter(id)] } },
-              aggs: { agents: byMachine() },
-            },
-          ])
-        ),
-        ...(ENS_CROSS_CONTROL_HEARTBEAT.some(id => controlIds.includes(id))
-          ? {
-              heartbeats: {
-                filter: { term: { 'data.event': 'collector_run' } },
-                aggs: {
-                  agents: {
-                    terms: { field: 'agent.id', size: 10000 },
-                    aggs: {
-                      days: {
-                        date_histogram: {
-                          field: '@timestamp',
-                          calendar_interval: 'day',
-                          time_zone: timeZone || 'UTC',
-                          min_doc_count: 1,
-                        },
-                        aggs: { last: { max: { field: '@timestamp' } } },
-                      },
-                    },
+        heartbeats: {
+          filter: { term: { 'data.event': 'collector_run' } },
+          aggs: {
+            agents: {
+              terms: { field: 'agent.id', size: 10000 },
+              aggs: {
+                days: {
+                  date_histogram: {
+                    field: '@timestamp',
+                    calendar_interval: 'day',
+                    time_zone: timeZone || 'UTC',
+                    min_doc_count: 1,
                   },
+                  aggs: { last: { max: { field: '@timestamp' } } },
                 },
               },
-            }
-          : {}),
+            },
+          },
+        },
         agents: {
           terms: { field: 'agent.id', size: 10000 },
           aggs: {
@@ -183,16 +168,14 @@ export interface ENSPastFactsCount {
 export interface ENSProbeResult extends ENSFactsCount {
   controls: Record<string, ENSFactsCount & { agents: Record<string, ENSFactsCount> }>;
   orphans: ENSFactsCount & { agents: Record<string, ENSFactsCount> };
-  cross: Record<string, Record<string, ENSFactsCount>>;
   // Per machine, the last heartbeat of each day (any control).
   heartbeats: Record<string, string[]>;
   // Each machine: its first fact in the window (presence), the last, and how many it has.
   presence: { agentId: string; agentName?: string; earliest: string; newest?: string; count: number }[];
   // Indices with facts in the window (`undefined` without a reliable list).
   indices?: string[];
-  // Apart (not part of the row fingerprint): facts of whole past days, per control, without control and of
-  // crossed types.
-  past?: { controls: Record<string, ENSPastFactsCount>; orphans: ENSPastFactsCount; cross: Record<string, ENSPastFactsCount> };
+  // Apart (not part of the row fingerprint): facts of whole past days, per control and without control.
+  past?: { controls: Record<string, ENSPastFactsCount>; orphans: ENSPastFactsCount };
 }
 
 const date = (agg: any): string | undefined =>
@@ -223,11 +206,6 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
       ? {
           controls: Object.fromEntries(Object.entries(aggs.controls?.buckets || {}).map(([id, b]: [string, any]) => [id, pastOf(b)])),
           orphans: pastOf(aggs.orphans),
-          cross: Object.fromEntries(
-            Object.entries(aggs)
-              .filter(([name]) => name.startsWith('cross:'))
-              .map(([name, agg]: [string, any]) => [name.slice('cross:'.length), pastOf(agg)])
-          ),
         }
       : undefined,
     count: typeof total === 'number' ? total : Number(total?.value || 0),
@@ -240,11 +218,6 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
       ])
     ),
     orphans: { count: Number(aggs.orphans?.doc_count || 0), newest: date(aggs.orphans?.newest), agents: byMachineOf(aggs.orphans?.agents) },
-    cross: Object.fromEntries(
-      Object.entries(aggs)
-        .filter(([name]) => name.startsWith('cross:'))
-        .map(([name, agg]: [string, any]) => [name.slice('cross:'.length), byMachineOf(agg?.agents)])
-    ),
     heartbeats: Object.fromEntries(
       (aggs.heartbeats?.agents?.buckets || []).map((b: any) => [
         String(b.key),
@@ -269,8 +242,7 @@ export const readProbeResponse = (body: any): ENSProbeResult => {
 // not fit is read.
 export const PRUNING_MAX_LEAVES = 400;
 
-// Facts of a control on ONE machine: its own, those naming no control and, if the control reads them, those of
-// types read from other controls; with its state facts pruned. Empty `agentId`: the control's facts across the
+// Facts of a control on ONE machine: its own and those naming no control, with its state facts pruned. Empty `agentId`: the control's facts across the
 // whole `viewFilters` scope (only to evaluate a control no machine measures, like the engine).
 export const buildFactsQuery = (
   viewFilters: unknown[],
@@ -278,7 +250,6 @@ export const buildFactsQuery = (
   agentId: string | undefined,
   pruning?: unknown
 ) => {
-  const foreignTypes = ENS_CROSS_CONTROL_EVENT_TYPES[controlId] || [];
   return {
     bool: {
       filter: [
@@ -289,7 +260,6 @@ export const buildFactsQuery = (
             should: [
               buildENSControlFactsFilter(controlId),
               buildENSFactsWithoutControlFilter(),
-              ...(foreignTypes.length ? [{ terms: { 'data.event': foreignTypes } }] : []),
             ],
             minimum_should_match: 1,
           },

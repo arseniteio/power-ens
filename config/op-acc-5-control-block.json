@@ -45,9 +45,7 @@
       "evidenceIds": [
         "EV-07"
       ],
-      "ruleIds": [
-        "110001"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El control es NO EVALUABLE: sin saber el mecanismo no se verifica ninguna condición."
     },
     {
@@ -97,11 +95,7 @@
         "EV-06",
         "EV-09"
       ],
-      "ruleIds": [
-        "110009",
-        "110011",
-        "110012"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No hay ingesta de eventos de autenticación externa y todas las evidencias quedan sin fuente."
     },
     {
@@ -128,11 +122,7 @@
         "EV-02",
         "EV-03"
       ],
-      "ruleIds": [
-        "110003",
-        "110004",
-        "110005"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede verificar op.acc.5.8 ni distinguir un ataque de fuerza bruta de un bloqueo que funciona."
     },
     {
@@ -184,9 +174,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "110007"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede verificar op.acc.5.4: la caducidad de credenciales queda sin control automático."
     },
     {
@@ -213,9 +201,7 @@
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "110008"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se mide la reacción ante compromiso: op.acc.5.5 y .5.6 quedan NO EVALUABLES."
     },
     {
@@ -259,9 +245,7 @@
       "evidenceIds": [
         "EV-08"
       ],
-      "ruleIds": [
-        "110010"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede verificar que los certificados sean cualificados ni que se valide su revocación."
     },
     {
@@ -287,10 +271,7 @@
         "EV-01",
         "EV-09"
       ],
-      "ruleIds": [
-        "110011",
-        "110012"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se acredita la conservación exigida por R5: riesgo de pérdida de trazabilidad."
     },
     {

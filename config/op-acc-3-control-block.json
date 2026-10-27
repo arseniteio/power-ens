@@ -36,9 +36,7 @@
         "EV-05",
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC3-MATRIZ-FUNCIONES-PERSONA"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El informe pierde la referencia organizativa y la comparación se hace a mano. Al ser obligatorio, la configuración del control queda incompleta.",
       "columns": [
         {
@@ -83,9 +81,7 @@
         "EV-05",
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC3-PARES-FUNCIONES-INCOMPATIBLES"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro, no incumplidos."
     },
     {
@@ -112,9 +108,7 @@
         "EV-02",
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC3-ACCIONES-POR-FUNCION"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Los cuatro requisitos del cruce salen NO EVALUABLE nombrando este parámetro.",
       "columns": [
         {
@@ -151,9 +145,7 @@
       "wazuhUsage": "El agente emite una observación por cuenta distinta que ejecutó cada tarea del fichero de tareas críticas, no una por ejecución. No cuenta ni compara.",
       "ensfacilUsage": "El motor cuenta las cuentas distintas por tarea ejecutada en el periodo y las compara con el número declarado. Una tarea no ejecutada no incumple; una fila con menos de dos personas o sin número se ignora.",
       "evidenceIds": [],
-      "ruleIds": [
-        "ENS-OPACC3-TAREAS-CRITICAS-DOBLE-PERSONA"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "La concurrencia no se juzga, pero los hechos se recogen: al declararlo, el veredicto se calcula sobre lo ya recogido."
     },
     {
@@ -176,9 +168,7 @@
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "ENS-OPACC3-CUENTAS-AUDITORIA"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.3.r1.2 pierde su comprobación directa y solo se verifica con el comodín de auditoría de P-02. En BAJO y MEDIO no es exigible (no aplicable)."
     },
     {
@@ -205,9 +195,7 @@
         "EV-02",
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC3-VENTANA-CORRELACION-DIAS"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Rige la ventana de treinta días del motor, que puede no ajustarse al ciclo real. Al ser obligatorio, la configuración del control queda incompleta."
     },
     {

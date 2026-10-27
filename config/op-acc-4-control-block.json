@@ -37,9 +37,7 @@
         "EV-07",
         "EV-08"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-MATRIZ-PRIVILEGIOS-AUTORIZADOS"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.4.1, op.acc.4.2 y op.acc.4.3 quedan NO EVALUABLES: sin referencia autorizada no se puede juzgar si un privilegio es excesivo.",
       "columns": [
         {
@@ -86,9 +84,7 @@
         "EV-04",
         "EV-05"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-PERSONAL-CON-CAPACIDAD-AUTORIZAR"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.4.4 no se puede verificar: los cambios se registran, pero no se juzga si quien los hizo era competente.",
       "columns": [
         {
@@ -129,9 +125,7 @@
         "EV-04",
         "EV-05"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-PERIODICIDAD-REVISION-PERMISOS-DIAS"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede verificar la revisión periódica de op.acc.4.4: sin plazo no se decide si la revisión sigue vigente."
     },
     {
@@ -156,9 +150,7 @@
       "evidenceIds": [
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-CANALES-ACCESO-REMOTO-PERMITIDOS"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.4.5 se evalúa por las cuentas de P-05, pero el informe no recoge la política de canales."
     },
     {
@@ -183,9 +175,7 @@
       "evidenceIds": [
         "EV-06"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-USUARIOS-AUTORIZADOS-ACCESO-REMOTO"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.4.5 queda sin verificar: se registran los accesos remotos, pero no se distingue uno legítimo de uno no autorizado."
     },
     {
@@ -212,9 +202,7 @@
         "EV-03",
         "EV-08"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-GRUPOS-PRIVILEGIADOS"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El informe pierde el criterio escrito de qué grupos son sensibles; el agente sigue recogiendo y contrastando con P-01."
     },
     {
@@ -239,9 +227,7 @@
       "evidenceIds": [
         "EV-07"
       ],
-      "ruleIds": [
-        "ENS-OPACC4-RECURSOS-SENSIBLES-NECESIDAD-CONOCER"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "op.acc.4.3 queda NO EVALUABLE: no se distingue un acceso técnicamente posible de uno justificado.",
       "columns": [
         {

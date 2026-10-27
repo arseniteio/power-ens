@@ -23,22 +23,6 @@ RUNBOOKS = {
         ("linux/mp.info.6", "zimbra/zimbra-mta/mp.info.6"),
         ["ensfacil_mp_info_6_json_rules.xml"],
     ),
-    "op.acc.1": (
-        ("linux/op.acc.1",),
-        ["ensfacil_op_acc_1_json_rules.xml"],
-    ),
-    "op.acc.2": (
-        ("linux/op.acc.2",),
-        ["ensfacil_op_acc_2_json_rules.xml"],
-    ),
-    "op.acc.3": (
-        ("linux/op.acc.3",),
-        ["ensfacil_op_acc_3_json_rules.xml"],
-    ),
-    "op.acc.4": (
-        ("linux/op.acc.4",),
-        ["ensfacil_op_acc_4_json_rules.xml"],
-    ),
     "op.exp.1": (
         ("linux/op.exp.1",),
         ["ensfacil_op_exp_1_json_rules.xml"],
@@ -46,14 +30,6 @@ RUNBOOKS = {
     "op.exp.2": (
         ("linux/op.exp.2",),
         ["ensfacil_op_exp_2_json_rules.xml"],
-    ),
-    "op.acc.6": (
-        ("linux/op.acc.6",),
-        ["ensfacil_op_acc_6_json_rules.xml"],
-    ),
-    "op.acc.5": (
-        ("linux/op.acc.5",),
-        ["ensfacil_op_acc_5_json_rules.xml"],
     ),
     "op.exp.3": (
         ("linux/op.exp.3",),
@@ -112,12 +88,6 @@ RUNBOOKS = {
 FORMER_FOLDERS = {
     "linux/mp.info.6": "mp.info.6-proxmox-backup-runbook",
     "zimbra/zimbra-mta/mp.info.6": "mp.info.6-zimbra",
-    "linux/op.acc.1": "op.acc.1-identification",
-    "linux/op.acc.2": "op.acc.2-access-requirements",
-    "linux/op.acc.3": "op.acc.3-segregation-of-duties-and-tasks",
-    "linux/op.acc.4": "op.acc.4-access-rights-management-process",
-    "linux/op.acc.5": "op.acc.5-external-users-authentication",
-    "linux/op.acc.6": "op.acc.6-organization-users-authentication",
     "linux/op.exp.1": "op.exp.1-asset-inventory",
     "linux/op.exp.2": "op.exp.2-security-configuration",
     "linux/op.exp.3": "op.exp.3-security-configuration-management",
@@ -630,10 +600,7 @@ def requirements_without_evidence(control):
     return bare
 
 
-SCORE = {
-    "op.acc.1": "ens_opacc1_score.py",
-    "op.acc.2": "ens_opacc2_score.py",
-}
+SCORE = {}
 
 for control, (repos, _rules) in sorted(RUNBOOKS.items()):
     if control not in SCORE:

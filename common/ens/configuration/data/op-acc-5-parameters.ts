@@ -37,7 +37,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Decide qué refuerzo cuenta en el denominador. En nivel MEDIO o ALTO con R1 hay incumplimiento directo: la contraseña sola no es admisible por encima de BAJO.',
       evidenceIds: ['EV-07'],
-      ruleIds: ['110001'],
+      ruleIds: [],
       ifNotConfigured:
         'El control es NO EVALUABLE: sin saber el mecanismo no se verifica ninguna condición.',
     },
@@ -78,7 +78,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'EV-06 y EV-09 solo cuentan hallazgos de los servicios de esta tabla: un rechazo revelador o una laguna en un servicio declarado incumple.',
       evidenceIds: ['EV-01', 'EV-06', 'EV-09'],
-      ruleIds: ['110009', '110011', '110012'],
+      ruleIds: [],
       ifNotConfigured:
         'No hay ingesta de eventos de autenticación externa y todas las evidencias quedan sin fuente.',
     },
@@ -100,7 +100,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.',
       evidenceIds: ['EV-02', 'EV-03'],
-      ruleIds: ['110003', '110004', '110005'],
+      ruleIds: [],
       ifNotConfigured:
         'No se puede verificar op.acc.5.8 ni distinguir un ataque de fuerza bruta de un bloqueo que funciona.',
     },
@@ -143,7 +143,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['110007'],
+      ruleIds: [],
       ifNotConfigured:
         'No se puede verificar op.acc.5.4: la caducidad de credenciales queda sin control automático.',
     },
@@ -165,7 +165,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['110008'],
+      ruleIds: [],
       ifNotConfigured:
         'No se mide la reacción ante compromiso: op.acc.5.5 y .5.6 quedan NO EVALUABLES.',
     },
@@ -203,7 +203,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Un emisor sin fila no se da por bueno: queda sin demostrar hasta que se declare o se deje de aceptar.',
       evidenceIds: ['EV-08'],
-      ruleIds: ['110010'],
+      ruleIds: [],
       ifNotConfigured:
         'No se puede verificar que los certificados sean cualificados ni que se valide su revocación.',
     },
@@ -225,7 +225,7 @@ export const opAcc5Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'EV-01 exige que el registro de cada servicio conserve en origen al menos estos días; EV-09, que no tenga lagunas.',
       evidenceIds: ['EV-01', 'EV-09'],
-      ruleIds: ['110011', '110012'],
+      ruleIds: [],
       ifNotConfigured:
         'No se acredita la conservación exigida por R5: riesgo de pérdida de trazabilidad.',
     },

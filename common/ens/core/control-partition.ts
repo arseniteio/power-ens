@@ -1,9 +1,6 @@
 // The engine control by control: what the server uses to evaluate the whole window without holding all facts at once. The server reads one control's facts, evaluates it with the usual engine, keeps the result and drops the facts before the next one.
 // The panel state is built afterwards exactly as `getENSComplianceState` does over all facts (same rows, consolidation and catalog order); `tests/control-partition.test.ts` proves both paths give the same state.
-// WHAT A CONTROL READS FROM OTHER CONTROLS (the server must supply it apart). Three unfiltered `context.events` reads remain across the engine and policies:
-// 1. op.mon.3 knows its row from the `agent.id` of the facts it receives, of ANY control. A PRESENCE fact per machine is sent, with the instant of its first fact in the window and a control outside the catalog, so the rest of the engine ignores it.
-// 2. op.acc.3 treats a period without actions as "looked at" if a `collector_run` of the machine exists in the last 24 h, of ANY control (`op-acc-3.policy.ts`). Synthetic HEARTBEATS go with the foreign control: the last of each day (see `buildENSHeartbeatEvents`).
-// 3. op.acc.3 also reads `account_action`, `critical_task_run` and `security_info_access` of any control: read from the machine with the control's facts (`ENS_CROSS_CONTROL_EVENT_TYPES`).
+// WHAT A CONTROL READS FROM OTHER CONTROLS (the server must supply it apart): op.mon.3 knows its row from the `agent.id` of the facts it receives, of ANY control. A PRESENCE fact per machine is sent, with the instant of its first fact in the window and a control outside the catalog, so the rest of the engine ignores it.
 // Facts naming no control are accepted by evidences and some policies as their own: the server reads them with each machine's.
 import { ENSCatalog } from '../catalog';
 import type { ENSLevel } from '../configuration/types';
@@ -26,33 +23,6 @@ import type { ENSAgentScope } from './scope/types';
 
 export const ENS_PRESENCE_CONTROL_ID = '__ensfacil_presence__';
 export const ENS_PRESENCE_EVENT_TYPE = 'agent_presence';
-
-// Reads of other controls the engine does per control (see the header).
-export const ENS_CROSS_CONTROL_EVENT_TYPES: Record<string, string[]> = {
-  'op.acc.3': ['account_action', 'critical_task_run', 'security_info_access'],
-};
-export const ENS_CROSS_CONTROL_HEARTBEAT: string[] = ['op.acc.3'];
-
-// A machine's heartbeats, of any control: the last of each day.
-export const buildENSHeartbeatEvents = (
-  heartbeats: { agentId: string; times: string[] }[]
-): ENSNormalizedEvent[] =>
-  heartbeats.flatMap(entry =>
-    entry.times
-      .filter(time => Number.isFinite(Date.parse(time)))
-      .map((time, index) => ({
-        id: `heartbeat:${entry.agentId}:${index}`,
-        agentId: entry.agentId,
-        controlId: ENS_PRESENCE_CONTROL_ID,
-        status: 'NO_EVALUABLE',
-        eventType: 'collector_run',
-        sourceType: 'WAZUH_ALERT' as const,
-        source: 'ensfacil-heartbeat',
-        timestamp: new Date(time).toISOString(),
-        attributes: {},
-        isSynthetic: false,
-      }))
-  );
 
 export interface ENSAgentPresence {
   agentId: string;

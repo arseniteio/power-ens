@@ -261,46 +261,13 @@ section('6. Traceability is not invented: each rule exists on a manager');
     String(newOnes.length)
   );
 
-  const three = newOnes.filter(
-    evidence => evidence.controlId === 'op.acc.3'
-  );
-
   check(
-    'op.acc.3 · all seven accredit a rule in their band',
-    three.length === 7 &&
-      three.every(
-        evidence =>
-          evidence.relatedRules.length === 1 &&
-          /^1070\d\d$/.test(evidence.relatedRules[0])
-      ),
-    three.map(e => `${e.id}=${e.relatedRules.join('|')}`).join(' ')
-  );
-
-  check(
-    'and five of them share the same rule: they share the fact',
-    three.filter(
-      evidence => evidence.relatedRules[0] === '107001'
-    ).length === 5,
-    three.map(e => `${e.id}=${e.relatedRules[0]}`).join(' ')
-  );
-
-  const four = newOnes.filter(
-    evidence => evidence.controlId === 'op.acc.4'
-  );
-
-  check(
-    'op.acc.4 · all eight accredit exactly one rule in their band',
-    four.length === 8 &&
-      four.every(
-        evidence =>
-          evidence.relatedRules.length === 1 &&
-          /^1071\d\d$/.test(evidence.relatedRules[0])
-      ),
-    four.map(e => `${e.id}=${e.relatedRules.join('|')}`).join(' ')
+    'op.acc.3 and op.acc.4 accredit no v1 rule: the OSCompliance engine judges them',
+    newOnes.every(evidence => evidence.relatedRules.length === 0)
   );
 
   const deployed = ENSEvidenceCatalog.filter(evidence =>
-    ['mp.info.6', 'op.acc.1', 'op.acc.2'].includes(evidence.controlId)
+    ['mp.info.6'].includes(evidence.controlId)
   );
 
   const withoutRule = deployed.filter(

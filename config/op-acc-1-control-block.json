@@ -85,11 +85,7 @@
       "evidenceIds": [
         "EV-05"
       ],
-      "ruleIds": [
-        "106805",
-        "106857",
-        "106858"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-05 no acredita y el requisito op.acc.1.2 cuenta como incumplimiento."
     },
     {
@@ -115,9 +111,7 @@
       "evidenceIds": [
         "EV-03"
       ],
-      "ruleIds": [
-        "106801"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-03 no acredita y el requisito op.acc.1.1 cuenta como incumplimiento."
     },
     {
@@ -143,10 +137,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "106820",
-        "106844"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No hay contra qué medir el retraso y la letra b del requisito op.acc.1.4 no se acredita."
     },
     {
@@ -172,10 +163,7 @@
       "evidenceIds": [
         "EV-08"
       ],
-      "ruleIds": [
-        "106821",
-        "106856"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se puede afirmar si una cuenta eliminada se retuvo lo suficiente y la letra c del requisito op.acc.1.4 queda sin acreditar."
     },
     {
@@ -220,12 +208,7 @@
       "evidenceIds": [
         "EV-07"
       ],
-      "ruleIds": [
-        "106832",
-        "106833",
-        "106839",
-        "106840"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta como incumplimiento en las categorías MEDIA y ALTA."
     },
     {
@@ -289,10 +272,7 @@
       "evidenceIds": [
         "EV-04"
       ],
-      "ruleIds": [
-        "106816",
-        "106817"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "Sin integración con recursos humanos no hay fuente de fechas de baja y EV-04 no tiene qué medir."
     },
     {
@@ -352,9 +332,7 @@
       "evidenceIds": [
         "EV-06"
       ],
-      "ruleIds": [
-        "106808"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "El agente aplica su lista de fábrica (sudo, wheel y admin) y el informe cita un valor por defecto del producto, no una decisión del cliente."
     },
     {
@@ -379,9 +357,7 @@
       "evidenceIds": [
         "EV-06"
       ],
-      "ruleIds": [
-        "106807"
-      ],
+      "ruleIds": [],
       "ifNotConfigured": "No se excluye a nadie: toda cuenta con privilegio administrativo es candidata a acumular roles y el hallazgo pierde precisión."
     },
     {

@@ -105,7 +105,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-05'],
       // 106873 is the raw fact the engine judges against this parameter; 106805 and 106806 are old-model rules
       // kept for the historical index. The ids 106857 and 106858 that were here exist in no manager.
-      ruleIds: ['106873', '106805', '106806'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-05 no acredita y el requisito op.acc.1.2 cuenta como incumplimiento.',
     },
@@ -136,7 +136,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Es la lista contra la que se juzga EV-03. Editarla en esta pantalla cambia el veredicto sin ejecutar nada en la máquina.',
       evidenceIds: ['EV-03'],
-      ruleIds: ['106801'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-03 no acredita y el requisito op.acc.1.1 cuenta como incumplimiento.',
     },
@@ -159,7 +159,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
         'Es el umbral con el que EV-04 decide si una baja se resolvió a tiempo. Cada hecho lleva el plazo aplicado y los días medidos.',
       evidenceIds: ['EV-04'],
       // 106815 account_disabled, 106816/106817 account_offboarding.
-      ruleIds: ['106815', '106816', '106817'],
+      ruleIds: [],
       ifNotConfigured:
         'No hay contra qué medir el retraso y la letra b del requisito op.acc.1.4 no se acredita.',
     },
@@ -182,7 +182,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
         'Es el umbral con el que EV-08 juzga las cuentas que desaparecen. Cada hecho lleva el umbral aplicado y los días retenidos.',
       evidenceIds: ['EV-08'],
       // 106818 account_deleted, 106819 retention_violation.
-      ruleIds: ['106818', '106819'],
+      ruleIds: [],
       ifNotConfigured:
         'No se puede afirmar si una cuenta eliminada se retuvo lo suficiente y la letra c del requisito op.acc.1.4 queda sin acreditar.',
     },
@@ -228,7 +228,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       evidenceIds: ['EV-07'],
       // 106811 (account_active) is the raw fact the engine compares with the 'usuario' column; the other three
       // are old-model rules kept for the historical index.
-      ruleIds: ['106811', '106824', '106825', '106826'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta como incumplimiento en las categorías MEDIA y ALTA.',
     },
@@ -288,7 +288,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['106816', '106817'],
+      ruleIds: [],
       ifNotConfigured:
         'Sin integración con recursos humanos no hay fuente de fechas de baja y EV-04 no tiene qué medir.',
     },
@@ -340,7 +340,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Indica qué considera privilegio administrativo la organización. Un grupo que no administra nada marcaría como acumulación de roles a cuentas que no pueden cambiar el sistema.',
       evidenceIds: ['EV-06'],
-      ruleIds: ['106808'],
+      ruleIds: [],
       ifNotConfigured:
         'El agente aplica su lista de fábrica (sudo, wheel y admin) y el informe cita un valor por defecto del producto, no una decisión del cliente.',
     },
@@ -361,7 +361,7 @@ export const opAcc1Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Permite acreditar el requisito op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria y limita el hallazgo a quien no la separa.',
       evidenceIds: ['EV-06'],
-      ruleIds: ['106807'],
+      ruleIds: [],
       ifNotConfigured:
         'No se excluye a nadie: toda cuenta con privilegio administrativo es candidata a acumular roles y el hallazgo pierde precisión.',
     },

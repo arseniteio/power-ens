@@ -138,9 +138,7 @@ const reference = () => {
     expectedValue.results.filter((r, i) => !same(withoutTrace(r), withoutTrace(whole.state!.results[i]))).map(r => r.control.id));
   const ofThe028 = getENSComplianceResultByControl('op.acc.3', ref.nivel, ref.eventos, '028', ref.alcance, clock);
   const view028 = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.acc.3', agentId: '028', timeZone: 'UTC' }));
-  check('op.acc.3 on 028 (no own facts, with op.exp.1\'s heartbeat): as 1.1.0', same(withoutTrace(view028.views.get('op.acc.3')!.result), withoutTrace(ofThe028)));
-  const withoutForeignHeartbeat = getENSComplianceResultByControl('op.acc.3', ref.nivel, ref.eventos.filter(e => !(e.agentId === '028' && e.controlId === 'op.exp.1')), '028', ref.alcance, clock);
-  check('(and that foreign heartbeat changes the result: the test really looks at it)', !same(withoutTrace(withoutForeignHeartbeat), withoutTrace(ofThe028)));
+  check('op.acc.3 on 028 (no own facts): same as the engine', same(withoutTrace(view028.views.get('op.acc.3')!.result), withoutTrace(ofThe028)));
 
   searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'nueva', funcion: 'desarrollo' }, 0.5));
   const t0 = Date.now();

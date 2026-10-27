@@ -57,7 +57,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Evidencia la integridad del SO comparando hash, modo y propietario de cada ruta con la pasada anterior y detectando cambios sin justificar.',
       evidenceIds: ['EV-02'],
-      ruleIds: ['106920', '106921', '106922'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-02 se publica NO EVALUABLE y op.acc.2.3 no puede acreditarse automáticamente.',
     },
@@ -78,7 +78,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Distingue un world-writable que es incumplimiento de uno legítimo sin apagar la comprobación entera.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['106902'],
+      ruleIds: [],
       ifNotConfigured:
         'No se puede decidir qué world-writable es incumplimiento y EV-01 no se pronuncia sobre ese eje.',
     },
@@ -127,7 +127,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).',
       evidenceIds: ['EV-05'],
-      ruleIds: ['106930', '106931'],
+      ruleIds: [],
       ifNotConfigured:
         'El refuerzo R1 es NO EVALUABLE y no se pueden verificar op.acc.2.r1.1 ni op.acc.2.r1.2.',
     },
@@ -177,7 +177,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.',
       evidenceIds: ['EV-04', 'EV-06'],
-      ruleIds: ['106935', '106936'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-06 se publica NO EVALUABLE: sin la tabla, no encontrar violaciones no significa que no las haya.',
     },
@@ -198,7 +198,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Compara el umask efectivo de las fuentes del sistema con el mínimo exigido.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['106903', '106904'],
+      ruleIds: [],
       ifNotConfigured:
         'No hay contra qué comparar el umask observado y EV-01 no se pronuncia sobre ese eje.',
     },
@@ -249,7 +249,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Acredita que los derechos responden a una decisión escrita del responsable (op.acc.2.2) y es la tabla contra la que se comparan modo, propietario y ACL reales.',
       evidenceIds: ['EV-04'],
-      ruleIds: ['106913', '106914'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-04 se publica NO EVALUABLE, nunca CUMPLE: sin la decisión escrita no hay contra qué comparar las ACL reales.',
     },
@@ -290,7 +290,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Verifica el refuerzo R1: contrasta cada cuenta con privilegio observada con lo declarado para ella.',
       evidenceIds: ['EV-05', 'EV-06'],
-      ruleIds: ['106933'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-05 y EV-06 se publican NO EVALUABLE: sin el perfil de cada usuario no se puede decidir si un acceso supera el autorizado.',
     },
@@ -321,7 +321,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Distingue un binario SUID/SGID aprobado de uno que nadie ha revisado. Sin línea base, EV-07 no significa nada.',
       evidenceIds: ['EV-07'],
-      ruleIds: ['106925', '106926'],
+      ruleIds: [],
       ifNotConfigured:
         'EV-07 se publica NO EVALUABLE, nunca CUMPLE: sembrarla con lo que hay en la máquina declararía autorizada la puerta trasera de un sistema comprometido.',
     },
@@ -350,7 +350,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Distingue el world-writable legítimo del incumplimiento sin apagar la comprobación. Cada ruta exceptuada viaja por nombre en la evidencia.',
       evidenceIds: ['EV-01'],
-      ruleIds: ['106902'],
+      ruleIds: [],
       ifNotConfigured:
         'No hay excepciones: todo world-writable cuenta como incumplimiento cuando P-03 indica que no se permiten.',
     },
@@ -379,7 +379,7 @@ export const opAcc2Configuration: ENSControlConfiguration = {
       ensfacilUsage:
         'Define qué cuenta como privilegio administrativo en la máquina.',
       evidenceIds: ['EV-05'],
-      ruleIds: ['106932'],
+      ruleIds: [],
       ifNotConfigured:
         'El agente aplica su lista de fábrica (sudo, wheel, admin, adm y root) y el informe no cita una decisión del cliente.',
     },
