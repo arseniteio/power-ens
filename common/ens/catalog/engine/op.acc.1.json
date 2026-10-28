@@ -1,0 +1,742 @@
+{
+  "framework": "ENS",
+  "control": "op.acc.1",
+  "title": "Identificación",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Control de acceso",
+  "dimension": "Trazabilidad y Autenticidad",
+  "level_dimension": [
+    "T",
+    "A"
+  ],
+  "annex_section": "4.2.1",
+  "description": "Control ENS orientado a garantizar que cada entidad que accede al sistema dispone de un identificador único, que las cuentas se gestionan y deshabilitan conforme a la política, y que existe una lista actualizada de usuarios autorizados.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "ENSFacil_Plantilla_op.acc.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.acc.1.1",
+      "title": "Identificador único válido",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se podrá utilizar como identificador único los sistemas de identificación previstos en la normativa de aplicación, entre ellos, los sistemas de clave concertada y cualquier otro sistema que las administraciones consideren válido en los términos de la Ley 39/2015.",
+      "interpretation": "ENSFácil lo lee como unicidad del identificador: no se admiten cuentas genéricas o compartidas (P-04) con autenticación correcta (EV-03).",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.acc.1.2",
+      "title": "Identificadores singulares por rol",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cuando el usuario tenga diferentes roles frente al sistema (como ciudadano, trabajador del organismo o administrador, por ejemplo) recibirá identificadores singulares para cada perfil, de forma que se recaben los correspondientes registros de actividad y se delimiten los privilegios de cada perfil.",
+      "interpretation": "ENSFácil comprueba que las cuentas de servicio (P-03) no se usan para acceso interactivo (EV-05) y que una misma cuenta no ejerce a la vez privilegios de administración y de usuario (EV-06).",
+      "evidence_ids": [
+        "EV-05",
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.acc.1.3",
+      "title": "Identificador singular por entidad",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cada entidad (usuario o proceso) que accede al sistema contará con un identificador singular que permita conocer el destinatario, los derechos de acceso que recibe y las acciones realizadas por dicha entidad.",
+      "interpretation": "ENSFácil contrasta el inventario de cuentas activas (EV-01) y los cambios en los ficheros de identidad (EV-02) con las cuentas genéricas (P-04) y de servicio (P-03) declaradas.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.acc.1.4",
+      "title": "Gestión del ciclo de vida de las cuentas",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las cuentas de usuario se gestionarán de la siguiente forma: a) Cada cuenta estará asociada a un identificador único. b) Las cuentas deben ser inhabilitadas cuando: el usuario deja la organización; cesa en la función para la cual se requería la cuenta; o la persona que la autorizó da orden contraria. c) Las cuentas se retendrán durante el período necesario para atender las necesidades de trazabilidad de los registros de actividad (denominado «período de retención»).",
+      "interpretation": "ENSFácil comprueba que la cuenta se inhabilita dentro del plazo de P-05 tras la baja (EV-04) y que no se elimina antes del periodo de retención de P-06 (EV-08).",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-04",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-05",
+        "P-06",
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.acc.1.5",
+      "title": "Identificación en comunicaciones electrónicas (eIDAS)",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "En comunicaciones electrónicas, las partes se identificarán conforme al Reglamento (UE) n.º 910/2014 (eIDAS), con la siguiente correspondencia: a) Autenticidad nivel BAJO → nivel de seguridad eIDAS bajo, sustancial o alto. b) Autenticidad nivel MEDIO → nivel de seguridad eIDAS sustancial o alto. c) Autenticidad nivel ALTO → nivel de seguridad eIDAS alto.",
+      "interpretation": "Requisito documental: se acredita con una atestación (P-ATT), porque la telemetría de Wazuh no observa el nivel eIDAS de las comunicaciones.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.1.r1.1",
+      "title": "Singularización de la persona",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "La identificación del usuario permitirá al Responsable del Sistema, al Responsable de la Seguridad o a sus administradores delegados, singularizar a la persona asociada al mismo, así como sus responsabilidades en el sistema.",
+      "interpretation": "Requisito documental: se acredita con una atestación (P-ATT).",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.1.r1.2",
+      "title": "Identificación ligada a privilegios",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los datos de identificación serán utilizados por el sistema para determinar los privilegios del usuario conforme a los requisitos de control de acceso establecidos en la documentación de seguridad.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-06"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.1.r1.3",
+      "title": "Lista actualizada de usuarios autorizados",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R1 exigible en nivel MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se asegurará la existencia de una lista actualizada de usuarios autorizados, mantenida por el administrador del sistema o de la seguridad del sistema.",
+      "interpretation": "ENSFácil contrasta las cuentas activas (EV-01) con la lista de usuarios autorizados de P-07 (EV-07).",
+      "evidence_ids": [
+        "EV-01",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Inventario de cuentas activas",
+      "description": "Existe un inventario de las cuentas de usuario activas en los sistemas monitorizados que permite verificar la unicidad del identificador.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.3",
+        "op.acc.1.4",
+        "op.acc.1.r1.2",
+        "op.acc.1.r1.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Existe un inventario actualizado de cuentas activas con identificador único por entidad?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Cambios en ficheros de identidad",
+      "description": "Se detectan modificaciones en los ficheros o repositorios que controlan las identidades del sistema.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.3",
+        "op.acc.1.4"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan y controlan las modificaciones no autorizadas sobre las cuentas del sistema?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Detección de cuentas genéricas o compartidas",
+      "description": "No se detecta autenticación exitosa con cuentas genéricas o compartidas que rompan la unicidad del identificador.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.1",
+        "op.acc.1.3"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se garantiza que no se utilizan cuentas genéricas o compartidas para el acceso al sistema?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Cuentas activas de usuarios dados de baja",
+      "description": "No existen cuentas que permanezcan habilitadas más tiempo del permitido tras la baja o cese del usuario.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Las cuentas de usuarios que causan baja se deshabilitan dentro del plazo definido?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Cuentas de servicio con acceso interactivo",
+      "description": "No se detectan logins interactivos realizados con cuentas de proceso o servicio declaradas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2",
+        "op.acc.1.3"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se impide que las cuentas de servicio se utilicen para accesos interactivos?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Uso multi-rol sin identificadores diferenciados",
+      "description": "No se detecta un mismo identificador utilizado con privilegios administrativos y de usuario normal sin identificadores separados.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2",
+        "op.acc.1.r1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Cada rol de un usuario dispone de un identificador diferenciado con sus privilegios delimitados?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Estado de la lista de usuarios autorizados",
+      "description": "Existe y se mantiene actualizada una lista de usuarios autorizados contra la que se contrastan las cuentas activas (Refuerzo R1).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.r1.3"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Existe una lista actualizada de usuarios autorizados y todas las cuentas activas figuran en ella?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Eliminación prematura de cuentas",
+      "description": "No se eliminan cuentas deshabilitadas antes de cumplir el periodo de retención definido.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Se conservan las cuentas deshabilitadas durante el periodo de retención antes de eliminarlas?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "platform",
+      "name": "fuente_identidad",
+      "label": "Fuente de identidad",
+      "description": "Sistema o directorio que gestiona las cuentas de usuario de la organización y del que nacen las identidades que el control audita.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.3",
+        "op.acc.1.4"
+      ],
+      "type": "list",
+      "example": "Active Directory",
+      "required": true,
+      "agent_usage": "Determina qué integración de Wazuh aporta los eventos de cuenta: Active Directory, eventos de Windows, auditd en Linux o un conector cloud.",
+      "engine_usage": "Se indica en el informe como origen de las identidades auditadas. El agente no lo lee: recoge siempre las cuentas de su máquina.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "if_not_configured": "El informe no indica de dónde vienen las cuentas auditadas y el alcance queda sin justificar."
+    },
+    "P-02": {
+      "class": "system",
+      "name": "sistemas_monitorizados",
+      "label": "Sistemas incluidos en el alcance",
+      "description": "Sistemas en los que debe verificarse la política de identificación. Lo que quede fuera de la lista no se audita.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.3",
+        "op.acc.1.4"
+      ],
+      "type": "list",
+      "example": "srv-dc01 | Windows",
+      "required": true,
+      "agent_usage": "Delimita la monitorización: Wazuh solo detecta anomalías de cuentas en los sistemas incluidos.",
+      "engine_usage": "Se contrasta con las máquinas que envían evidencias para detectar un servidor que debería auditarse y no reporta.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "No hay alcance con el que contrastar lo recibido y no se distingue un sistema que cumple de uno que no envía nada."
+    },
+    "P-03": {
+      "class": "platform",
+      "name": "cuentas_servicio_definidas",
+      "label": "Cuentas de servicio legítimas",
+      "description": "Cuentas técnicas o de proceso que no corresponden a una persona y no deben iniciar sesión de forma interactiva. Un nombre de cuenta por línea, sin más columnas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2",
+        "op.acc.1.3"
+      ],
+      "type": "list",
+      "pattern": true,
+      "example": "svc_backup",
+      "initial_value": [
+        "daemon",
+        "bin",
+        "sys",
+        "sync",
+        "games",
+        "man",
+        "lp",
+        "mail",
+        "news",
+        "uucp",
+        "proxy",
+        "www-data",
+        "backup",
+        "list",
+        "irc",
+        "gnats",
+        "nobody",
+        "_apt",
+        "systemd-network",
+        "systemd-resolve",
+        "messagebus",
+        "systemd-timesync",
+        "pollinate",
+        "syslog",
+        "uuidd",
+        "tcpdump",
+        "tss",
+        "landscape",
+        "fwupd-refresh",
+        "usbmux",
+        "sshd",
+        "lxd"
+      ],
+      "required": true,
+      "agent_usage": "Puede cargarse como lista CDB para distinguir en las alertas las cuentas de servicio de las de persona.",
+      "engine_usage": "Es la lista contra la que se juzga EV-05: cada autenticación observada se contrasta con ella para detectar una cuenta de servicio usada como persona.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 no acredita y el requisito op.acc.1.2 cuenta como incumplimiento."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "cuentas_genericas_prohibidas",
+      "label": "Cuentas genéricas prohibidas",
+      "description": "Nombres de cuenta prohibidos porque no identifican a nadie, como admin, guest, test o temp. Un nombre por entrada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.1",
+        "op.acc.1.3"
+      ],
+      "type": "list",
+      "pattern": true,
+      "example": "admin",
+      "initial_value": [
+        "admin",
+        "administrator",
+        "guest",
+        "test",
+        "temp",
+        "demo",
+        "user",
+        "usuario"
+      ],
+      "required": true,
+      "agent_usage": "Se carga como lista CDB: cualquier autenticación correcta con una de estas cuentas genera alerta.",
+      "engine_usage": "Es la lista contra la que se juzga EV-03. Editarla en esta pantalla cambia el veredicto sin ejecutar nada en la máquina.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 no acredita y el requisito op.acc.1.1 cuenta como incumplimiento."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "plazo_max_deshabilitar_dias",
+      "label": "Plazo máximo para deshabilitar",
+      "description": "Plazo máximo, en días, desde que una persona cesa hasta que su cuenta debe estar deshabilitada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "type": "duration_days",
+      "example": "1",
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "Compara la fecha de baja de la persona con la fecha en que su cuenta quedó deshabilitada.",
+      "engine_usage": "Es el umbral con el que EV-04 decide si una baja se resolvió a tiempo. Cada hecho lleva el plazo aplicado y los días medidos.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "No hay contra qué medir el retraso y la letra b del requisito op.acc.1.4 no se acredita."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "periodo_retencion_cuentas_dias",
+      "label": "Retención de cuentas deshabilitadas",
+      "description": "Periodo, en días, que se conservan las cuentas deshabilitadas antes de eliminarlas, para que la actividad registrada siga siendo atribuible.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "type": "duration_days",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Verifica que una cuenta deshabilitada no se elimine antes de cumplir el periodo.",
+      "engine_usage": "Es el umbral con el que EV-08 juzga las cuentas que desaparecen. Cada hecho lleva el umbral aplicado y los días retenidos.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "No se puede afirmar si una cuenta eliminada se retuvo lo suficiente y la letra c del requisito op.acc.1.4 queda sin acreditar."
+    },
+    "P-07": {
+      "class": "system",
+      "name": "lista_usuarios_autorizados",
+      "label": "Lista de usuarios autorizados",
+      "description": "Relación maestra de las personas autorizadas a acceder a los sistemas del alcance, mantenida por el responsable de seguridad y exigida por el refuerzo R1 (MEDIA y ALTA). Una fila por persona.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.r1.2",
+        "op.acc.1.r1.3"
+      ],
+      "type": "table",
+      "example": "jgomez | srv01 | ops",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El inventario de cuentas activas se compara con esta lista y una cuenta activa que no figure en ella genera alerta.",
+      "engine_usage": "Es la lista contra la que se juzga EV-07. Solo la columna de usuario se contrasta con las cuentas activas, de forma literal y sensible a mayúsculas; sistema y rol acompañan a la decisión en el informe.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta como incumplimiento en las categorías MEDIA y ALTA."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "integracion_rrhh",
+      "label": "Integración con RRHH",
+      "description": "Indica si ENSFácil recibe las altas y bajas de empleados de un sistema de recursos humanos o de un directorio. Admite sí o no.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "type": "boolean",
+      "example": "sí",
+      "required": false,
+      "agent_usage": "Con integración, los eventos de baja de recursos humanos se correlacionan con la deshabilitación de la cuenta.",
+      "engine_usage": "Documenta en el informe cómo llegan las bajas. El agente no lo lee: consulta el registro de bajas de su máquina, descrito en la documentación del runbook.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "El informe no indica si la detección de bajas es automática o manual."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "bajas_declaradas",
+      "label": "Bajas declaradas manualmente",
+      "description": "Ceses declarados a mano cuando no hay integración con recursos humanos. Una fila por persona, con la fecha en formato año-mes-día.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.4"
+      ],
+      "type": "table",
+      "example": "mlopez | 2026-03-31",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "fecha_baja",
+          "label": "Fecha de baja",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Cada baja declarada se compara con la fecha de deshabilitación de su cuenta y una fuera de plazo genera el hecho correspondiente.",
+      "engine_usage": "Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "Sin integración con recursos humanos no hay fuente de fechas de baja y EV-04 no tiene qué medir."
+    },
+    "P-10": {
+      "class": "platform",
+      "name": "uid_minimo_persona",
+      "label": "UID mínimo de cuenta de persona",
+      "description": "Identificador numérico desde el que una cuenta Linux se considera de una persona. Por debajo es cuenta del sistema y queda fuera del inventario y del contraste con la lista de autorizados.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.1",
+        "op.acc.1.3"
+      ],
+      "type": "number",
+      "example": "1000",
+      "required": false,
+      "min_value": 0,
+      "agent_usage": "Delimita qué cuentas del fichero de usuarios entran en el inventario publicado como evidencia.",
+      "engine_usage": "Fija la frontera entre personas y sistema. Un umbral bajo mete cuentas del sistema y produce incumplimientos falsos; uno alto esconde cuentas de persona.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "El agente aplica su valor de fábrica, 1000, y el informe cita un valor por defecto del producto, no una decisión del cliente."
+    },
+    "P-11": {
+      "class": "platform",
+      "name": "grupos_privilegiados",
+      "label": "Grupos que otorgan privilegio administrativo",
+      "description": "Grupos del sistema cuya pertenencia concede privilegios de administración. Definen qué cuenta como uso de privilegio.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2"
+      ],
+      "type": "list",
+      "example": "sudo",
+      "columns": [
+        {
+          "name": "grupo",
+          "label": "Grupo privilegiado",
+          "type": "identifier",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Define qué pertenencias se registran como uso de privilegios.",
+      "engine_usage": "Indica qué considera privilegio administrativo la organización. Un grupo que no administra nada marcaría como acumulación de roles a cuentas que no pueden cambiar el sistema.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "El agente aplica su lista de fábrica (sudo, wheel y admin) y el informe cita un valor por defecto del producto, no una decisión del cliente."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "sufijo_admin",
+      "label": "Sufijo del identificador administrativo",
+      "description": "Sufijo que distingue la cuenta administrativa de la ordinaria de la misma persona, como jgomez y jgomez.adm.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.1.2"
+      ],
+      "type": "string",
+      "example": ".adm",
+      "required": false,
+      "agent_usage": "Excluye del hallazgo de acumulación de roles a las cuentas administrativas diferenciadas por este sufijo.",
+      "engine_usage": "Permite acreditar el requisito op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria y limita el hallazgo a quien no la separa.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "No se excluye a nadie: toda cuenta con privilegio administrativo es candidata a acumular roles y el hallazgo pierde precisión."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, como una política aprobada o un procedimiento firmado. Una fila por requisito, con el nombre del documento y un enlace.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.acc.1.5 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee: es la prueba documental de lo que la telemetría no alcanza. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
+      "engine_usage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y enlace en el informe, y nunca como medido. Declararla solo con el documento aprobado.",
+      "evidence_ids": [],
+      "if_not_configured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."
+    }
+  }
+}

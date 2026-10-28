@@ -132,9 +132,7 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
     hit('024', 'wazuh-real', { ensfacil: 'mp.eq.2', event: 'collector_warning', origen: 'gsettings', objeto: 'lock', motivo: 'sin bloqueo' }, 5),
     hit('028', 'zimbraHldap', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
     hit('099', 'otro', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
-    // The agent says CUMPLE on 024 and NO_CUMPLE on 028: what counts is the engine (a MEDIDA non-conformity of EV-06 only on 024).
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'multi_role_usage', requisito: 'op.acc.1.2', estado: 'CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 3),
-    hit('028', 'zimbraHldap', { ensfacil: 'op.acc.1', event: 'multi_role_usage', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'zadmin', roles: 'usuario,administrador' }, 3),
+    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'atd', motivo: 'servicio no declarado' }, 3),
     // Security alerts written by the manager: about 024 (one rule, three hours = one problem), about a machine outside the scope, about no machine.
     ...[8, 7, 6].map(h => hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '024', sistema: 'wazuh-real', regla: '5710', nivel: '10', alertas: '4', primera: at(h + 1), ultima: at(h), descripcion: 'sshd: intento de acceso con un usuario inexistente' }, h)),
     hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '029', sistema: 'fuera', regla: '5710', primera: at(9), ultima: at(8) }, 8),
@@ -147,13 +145,6 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('the same warning observed three times: one row, 3 observations, the last one', repeated?.count === 3 && repeated?.lastObserved === at(10) && repeated?.severity === 'warning' && repeated?.controlId === 'op.exp.3' && repeated?.agentName === 'wazuh-real', repeated);
   const cut = model.rows.find((row: any) => /cron/.test(row.description));
   check('another motive is another row; the motive cut to 140 characters', Boolean(cut) && cut.label.length === 140 && cut.label.endsWith('...'), cut?.label);
-  const multi = model.rows.filter((row: any) => row.eventType === 'multi_role_usage');
-  check('multi_role_usage: an INCIDENCIA where the engine holds a measured EV-06 non-conformity (024), whatever the agent says; nothing on 028 (EV-03 measured, EV-06 unevidenced)',
-    multi.length === 1 && multi[0].agentId === '024' && multi[0].severity === 'error' && /jgomez/.test(multi[0].description), multi);
-  const anchorOnly = [applicable('op.acc.1', [requirement('op.acc.1.2', 'NO_CUMPLE')], [{ ...nc('op.acc.1.2', 'MEDIDA', 'EV-06'), evidenceIds: [] }])];
-  const anchorModel = alerts.buildImpactEventsModel(events, buildComplianceState(anchorOnly, [agentRow('024', 'wazuh-real', anchorOnly)]), { scope });
-  check('multi_role_usage: EV-06 only as the non-conformity\'s anchor (not among its failing evidences) is not enough', !anchorModel.rows.some((row: any) => row.eventType === 'multi_role_usage'), anchorModel.rows.map((r: any) => r.id));
-  check('the engine\'s alert goes first', model.rows[0].eventType === 'multi_role_usage', model.rows.map((r: any) => r.id));
   const security = model.rows.filter((row: any) => row.eventType === 'security_alert_observed');
   const on024 = security.find((row: any) => row.agentId === '024');
   check('a security alert is attributed to the machine it names: one row for three hours of the same rule', on024?.count === 3 && on024?.agentName === 'wazuh-real' && on024?.controlId === 'op.exp.7' && /Regla 5710/.test(on024?.description), security);
@@ -216,11 +207,11 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('…with the warning seen three times as one row', panel.rows.some((row: any) => row.count === 3 && /servicio sin unidad/.test(row.label)), panel.rows);
   const request = indexer.log.find((entry: any) => entry.body?.aggs?.collector_warning);
   const sizes = Object.values(request?.body?.aggs || {}).map((agg: any) => agg.aggs.incidents.multi_terms.size);
-  check('one aggregation without documents, each type bounded', request?.body.size === 0 && sizes.length === 3 && sizes.every(size => size === OPERATIONAL_ALERTS_PER_TYPE), request?.body);
+  check('one aggregation without documents, each type bounded', request?.body.size === 0 && sizes.length === 2 && sizes.every(size => size === OPERATIONAL_ALERTS_PER_TYPE), request?.body);
   const topFilters = request?.body.query.bool.filter || [];
   const eventFilter = topFilters.find((f: any) => f.terms?.['data.event'])?.terms['data.event'] || [];
   const controlFilter = topFilters.find((f: any) => f.terms?.['data.ensfacil'])?.terms['data.ensfacil'] || [];
-  check('the bound is spent only on the three types and on ACTIVE controls', eventFilter.length === 3 && controlFilter.includes('op.exp.3') && controlFilter.includes('op.acc.1') && !controlFilter.includes('mp.eq.2'), { eventFilter, controlFilter });
+  check('the bound is spent only on the two types and on ACTIVE controls', eventFilter.length === 2 && controlFilter.includes('op.exp.3') && controlFilter.includes('op.acc.1') && !controlFilter.includes('mp.eq.2'), { eventFilter, controlFilter });
   const run024 = await service.run(clients, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }));
   const panel024 = (buildEvaluationResponse(run024) as any).dashboard.impactEvents;
   check('machine view 024: as in memory with its facts and the manager\'s', JSON.stringify(panel024) === JSON.stringify(alerts.buildImpactEventsModel(reference(['000', '024']), run024.state, { scope: run024.ctx.scope, agentId: '024' })) && panel024.total > 0, panel024);
@@ -262,10 +253,10 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   let screen = await h.render(EnsDashboardMain);
   const box = screen.slice(screen.indexOf('ALERTAS OPERATIVAS SOC'));
   check('severity, control, machine, motive, last observation and repetitions',
-    /INCIDENCIA/.test(box) && /ADVERTENCIA/.test(box) && /op\.acc\.1/.test(box) && /wazuh-real/.test(box) && /Uso de identificadores sin separación de privilegios/.test(box) && /Última observación:/.test(box) && /3 observaciones/.test(box),
+    /ADVERTENCIA/.test(box) && /op\.exp\.3/.test(box) && /wazuh-real/.test(box) && /servicio no declarado/.test(box) && /Última observación:/.test(box) && /3 observaciones/.test(box),
     box.slice(0, 900));
   check('says how many are left out', /Se muestran 5 de 6/.test(box), box.slice(-300));
-  check('the motive\'s detail as a tooltip', h.findAll('div').some(node => node.props?.title === 'Cuenta jgomez · requisito op.acc.1.2'));
+  check('the motive\'s detail as a tooltip', h.findAll('div').some(node => node.props?.title === 'systemd · atd'));
   h.reset();
   evaluations.dashboard = { data: { meta, dashboard: { ...buildENSDashboardModel(whole), impactEvents: alerts.buildImpactEventsModel([], whole, { scope }) } }, isLoading: false };
   screen = await h.render(EnsDashboardMain);

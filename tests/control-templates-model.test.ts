@@ -81,11 +81,11 @@ console.log('1. Parameter classes');
   check('system key columns exist on per-system tables', bad.length === 0, bad);
 
   const source = readFileSync(`${__dirname}/../common/ens/configuration/agents/parameter-classes.ts`, 'utf8');
-  const start = source.indexOf('{', source.indexOf('ENS_PARAMETER_CLASSES:'));
+  const start = source.indexOf('{', source.indexOf('HAND_PARAMETER_CLASSES:'));
   const end = source.indexOf('\n};', start);
   let json: any;
   try { json = JSON.parse(source.slice(start, end + 2)); } catch (error) { json = undefined; }
-  check('the classes are JSON between braces (set-parameters.py reads them)', json && Object.keys(json).length === 34);
+  check('the classes are JSON between braces (set-parameters.py reads them), the engine-judged ones in its catalog', json && Object.keys(json).length === 28 && Object.keys(ENS_PARAMETER_CLASSES).length === 34);
 }
 
 console.log('2. Built-in templates');
@@ -142,7 +142,8 @@ console.log('2. Built-in templates');
   let fromScript: any;
   try { fromScript = JSON.parse(script.slice(start, end + 2).replace(/,\s*}/, '}')); } catch (error) { fromScript = undefined; }
   const fromPlugin = Object.fromEntries(withTemplates.map(id => [id, getBuiltinTemplates(id).map(template => template.id)]));
-  check('set-parameters.py knows the same built-in ids per control', JSON.stringify(fromScript) === JSON.stringify(fromPlugin), fromScript);
+  const sorted = (o: any) => o && JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]]));
+  check('set-parameters.py knows the same built-in ids per control', sorted(fromScript) === sorted(fromPlugin), fromScript);
   const custom = { templates: [{ id: 'custom-web', controlId: 'op.acc.1', name: 'Web', values: { 'P-10': 500 } }] } as any;
   check('control templates: built-ins first, then custom ones', getControlTemplates(custom, 'op.acc.1').map(template => `${template.id}:${template.builtin}`).join() === 'linux-ubuntu:true,zimbra-ldap:true,windows-server:true,manager-wazuh:true,custom-web:false');
 }

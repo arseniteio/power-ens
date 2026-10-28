@@ -75,10 +75,10 @@ export interface ENSControl {
   family: string;
   dimension: string;
   scope: ENSScope;
-  expectedResult: ENSExpectedResult;
+  expectedResult?: ENSExpectedResult;
   requirements: ENSRequirement[];
   evidences: ENSEvidence[];
   parameters: ENSParameter[];
-  events: string[];
-  presentationRules: ENSPresentationRules;
+  events?: string[];
+  presentationRules?: ENSPresentationRules;
 }

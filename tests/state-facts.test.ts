@@ -78,37 +78,37 @@ const NOW = new Date('2026-09-21T18:00:00Z');
 section('1. State prior to the last observation is discarded');
 
 {
-  const states = getStateFactEventTypes('op.acc.6');
+  const states = getStateFactEventTypes('op.exp.1');
 
   check(
-    'op.acc.6 declares password_policy_checked as state',
-    states.has('password_policy_checked')
+    'op.exp.1 declares asset_system as state',
+    states.has('asset_system')
   );
   check(
     'authentication_success is NOT state: it is an action',
-    !states.has('authentication_success')
+    !states.has('collector_warning')
   );
 
   const events = [
-    event('op.acc.6', 'password_policy_checked', '2026-09-21T11:47:03Z', { longitud_minima: '6' }, '024', 'EV-11'),
-    heartbeat('op.acc.6', '2026-09-21T11:47:05Z', 'EV-11,EV-12'),
-    event('op.acc.6', 'authentication_success', '2026-09-21T11:30:00Z', { usuario: 'dioni' }),
-    event('op.acc.6', 'password_policy_checked', '2026-09-21T12:07:29Z', { longitud_minima: '12' }, '024', 'EV-11'),
-    heartbeat('op.acc.6', '2026-09-21T12:07:31Z', 'EV-11,EV-12'),
+    event('op.exp.1', 'asset_system', '2026-09-21T11:47:03Z', { valor: '6' }, '024', 'EV-01'),
+    heartbeat('op.exp.1', '2026-09-21T11:47:05Z', 'EV-01,EV-02'),
+    event('op.exp.1', 'collector_warning', '2026-09-21T11:30:00Z', { usuario: 'dioni' }),
+    event('op.exp.1', 'asset_system', '2026-09-21T12:07:29Z', { valor: '12' }, '024', 'EV-01'),
+    heartbeat('op.exp.1', '2026-09-21T12:07:31Z', 'EV-01,EV-02'),
     event('op.exp.3', 'service_running', '2026-09-21T09:00:00Z', { servicio: 'atd.service' }),
   ];
 
-  const result = keepLatestRunStateFacts('op.acc.6', events, NOW);
-  const policies = result.filter(e => e.eventType === 'password_policy_checked');
+  const result = keepLatestRunStateFacts('op.exp.1', events, NOW);
+  const policies = result.filter(e => e.eventType === 'asset_system');
 
   check(
-    'only the last observation\'s policy remains',
-    policies.length === 1 && policies[0].attributes?.longitud_minima === '12',
-    policies.map(p => String(p.attributes?.longitud_minima)).join(',')
+    'only the last observation\'s snapshot remains',
+    policies.length === 1 && policies[0].attributes?.valor === '12',
+    policies.map(p => String(p.attributes?.valor)).join(',')
   );
   check(
     'the earlier action is kept',
-    result.some(e => e.eventType === 'authentication_success')
+    result.some(e => e.eventType === 'collector_warning')
   );
   check(
     'other controls\' events are not touched',
@@ -151,20 +151,20 @@ section('3. The cut is per agent and as of the evaluation date');
 
 {
   const policy = (v: string, ts: string, agent: string) =>
-    event('op.acc.6', 'password_policy_checked', ts, { v }, agent, 'EV-11');
+    event('op.exp.1', 'asset_system', ts, { v }, agent, 'EV-01');
 
   const events = [
-    heartbeat('op.acc.6', '2026-09-21T10:47:05Z', 'EV-11', '024'),
+    heartbeat('op.exp.1', '2026-09-21T10:47:05Z', 'EV-01', '024'),
     policy('a-vieja', '2026-09-21T11:47:03Z', '024'),
-    heartbeat('op.acc.6', '2026-09-21T11:47:05Z', 'EV-11', '024'),
+    heartbeat('op.exp.1', '2026-09-21T11:47:05Z', 'EV-01', '024'),
     policy('a-nueva', '2026-09-21T12:07:29Z', '024'),
-    heartbeat('op.acc.6', '2026-09-21T12:07:31Z', 'EV-11', '024'),
+    heartbeat('op.exp.1', '2026-09-21T12:07:31Z', 'EV-01', '024'),
     policy('b-unica', '2026-09-21T11:24:58Z', '028'),
-    heartbeat('op.acc.6', '2026-09-21T11:25:00Z', 'EV-11', '028'),
+    heartbeat('op.exp.1', '2026-09-21T11:25:00Z', 'EV-01', '028'),
   ];
 
-  const hoy = keepLatestRunStateFacts('op.acc.6', events, NOW)
-    .filter(e => e.eventType === 'password_policy_checked')
+  const hoy = keepLatestRunStateFacts('op.exp.1', events, NOW)
+    .filter(e => e.eventType === 'asset_system')
     .map(e => String(e.attributes?.v))
     .sort();
 
@@ -175,11 +175,11 @@ section('3. The cut is per agent and as of the evaluation date');
   );
 
   const atNoon = keepLatestRunStateFacts(
-    'op.acc.6',
+    'op.exp.1',
     events,
     new Date('2026-09-21T12:00:00Z')
   )
-    .filter(e => e.eventType === 'password_policy_checked' && e.agentId === '024')
+    .filter(e => e.eventType === 'asset_system' && e.agentId === '024')
     .map(e => String(e.attributes?.v));
 
   check(
@@ -193,18 +193,18 @@ section('4. Without declared coverage the emission prevails; with nothing, no cu
 
 {
   const policy = (v: string, ts: string) =>
-    event('op.acc.6', 'password_policy_checked', ts, { v }, '024', 'EV-11');
+    event('op.exp.1', 'asset_system', ts, { v }, '024', 'EV-01');
 
   const withoutCoverage = keepLatestRunStateFacts(
-    'op.acc.6',
+    'op.exp.1',
     [
       policy('vieja', '2026-09-21T11:47:03Z'),
-      heartbeat('op.acc.6', '2026-09-21T11:47:05Z', ''),
+      heartbeat('op.exp.1', '2026-09-21T11:47:05Z', ''),
       policy('nueva', '2026-09-21T12:07:29Z'),
-      heartbeat('op.acc.6', '2026-09-21T12:07:31Z', ''),
+      heartbeat('op.exp.1', '2026-09-21T12:07:31Z', ''),
     ],
     NOW
-  ).filter(e => e.eventType === 'password_policy_checked');
+  ).filter(e => e.eventType === 'asset_system');
 
   check(
     'heartbeats without coverage: it cuts all the same by the last emission',
@@ -215,25 +215,25 @@ section('4. Without declared coverage the emission prevails; with nothing, no cu
   check(
     'without any heartbeat there is nothing to delimit with: everything is kept',
     keepLatestRunStateFacts(
-      'op.acc.6',
+      'op.exp.1',
       [
         policy('vieja', '2026-09-21T11:47:03Z'),
         policy('nueva', '2026-09-21T12:07:29Z'),
       ],
       NOW
-    ).filter(e => e.eventType === 'password_policy_checked').length === 2
+    ).filter(e => e.eventType === 'asset_system').length === 2
   );
 
   check(
     'a single pass: there is no earlier pass to delimit with',
     keepLatestRunStateFacts(
-      'op.acc.6',
+      'op.exp.1',
       [
         policy('unica', '2026-09-21T12:07:29Z'),
-        heartbeat('op.acc.6', '2026-09-21T12:07:31Z', 'EV-11'),
+        heartbeat('op.exp.1', '2026-09-21T12:07:31Z', 'EV-01'),
       ],
       NOW
-    ).filter(e => e.eventType === 'password_policy_checked').length === 1
+    ).filter(e => e.eventType === 'asset_system').length === 1
   );
 
   check(

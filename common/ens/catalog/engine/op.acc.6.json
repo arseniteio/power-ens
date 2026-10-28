@@ -1,0 +1,1032 @@
+{
+  "framework": "ENS",
+  "control": "op.acc.6",
+  "title": "Mecanismo de autenticación (usuarios de la organización)",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Control de acceso",
+  "dimension": "Confidencialidad, Integridad, Trazabilidad y Autenticidad",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A"
+  ],
+  "annex_section": "4.2.6",
+  "description": "op.acc.6 exige un mecanismo de autenticación para el personal de la organización: UNO de cuatro refuerzos (contraseña solo desde zona controlada, contraseña con segundo factor, certificado o certificado en soporte físico), doble factor desde zona no controlada y acceso remoto autorizado, cifrado y auditado desde nivel BAJO, registro de accesos desde MEDIO, y reautenticación y suspensión por no uso en ALTO.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "ENSFacil_Plantilla_op.acc.6",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.acc.6.1",
+      "title": "Aceptación previa de la política de seguridad",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de proporcionar las credenciales a los usuarios, estos deberán conocer y aceptar la política de seguridad del organismo en los aspectos que les afecten.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.2",
+      "title": "Acuse de recibo y obligaciones de custodia",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de activar el mecanismo de autenticación, el usuario reconocerá que ha recibido las credenciales de acceso y que conoce y acepta las obligaciones que implica su tenencia, en particular, el deber de custodia diligente, la protección de su confidencialidad y el deber de notificación inmediata en caso de pérdida.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.3",
+      "title": "Credencial bajo control exclusivo del usuario",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales estarán bajo el control exclusivo del usuario y se activarán una vez estén bajo su control efectivo.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.4",
+      "title": "Cambio periódico de credenciales",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales se cambiarán con una periodicidad marcada por la política de seguridad de la organización.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.acc.6.5",
+      "title": "Inhabilitación ante compromiso",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales serán inhabilitadas —pudiendo ser regeneradas, en su caso—, cuando conste o se sospeche su pérdida, compromiso o revelación a entidades (personas, equipos o procesos) no autorizadas.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-06",
+        "P-12"
+      ]
+    },
+    {
+      "id": "op.acc.6.6",
+      "title": "Inhabilitación al cesar la relación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales serán inhabilitadas cuando el usuario que autentican termina su relación con el sistema.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-06",
+        "P-12"
+      ]
+    },
+    {
+      "id": "op.acc.6.7",
+      "title": "Rechazo que no revela el motivo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de autorizar el acceso, la información presentada por el sistema será la mínima imprescindible para que el usuario se autentique, evitando todo aquello que pueda, directa o indirectamente, revelar información sobre el sistema o la cuenta, sus características, su operación o su estado. Las credenciales solamente se validarán cuando se tengan todos los datos necesarios y, si se rechaza, no se informará del motivo del rechazo.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-11"
+      ]
+    },
+    {
+      "id": "op.acc.6.8",
+      "title": "Límite de intentos con bloqueo efectivo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El número de intentos permitidos será limitado, bloqueando la oportunidad de acceso una vez superado tal número, y requiriendo una intervención específica para reactivar la cuenta, que se describirá en la documentación.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.acc.6.9",
+      "title": "Información de derechos tras el acceso",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema informará al usuario de sus derechos u obligaciones inmediatamente después de obtener el acceso.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.r1.1",
+      "title": "Contraseña solo desde zona controlada (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R1. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "Se empleará una contraseña como mecanismo de autenticación cuando el acceso se realiza desde zonas controladas y sin atravesar zonas no controladas (véase refuerzo R8).",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.6.r1.2",
+      "title": "Complejidad mínima de la contraseña (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R1 o R2. Con R3 o R4 se muestra NO_APLICA.",
+      "description": "Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.acc.6.r2.1",
+      "title": "Segundo factor junto a la contraseña (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R2. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "Se requerirá un segundo factor tal como «algo que se tiene», es decir, un dispositivo, una contraseña de un solo uso (OTP, en inglés) como complemento a la contraseña de usuario, o «algo que se es».",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.6.r3.1",
+      "title": "Certificado cualificado (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R3. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "Se emplearán certificados cualificados como mecanismo de autenticación.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.6.r3.2",
+      "title": "Certificado protegido por PIN o biometría (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R3. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.6.r4.1",
+      "title": "Certificado en soporte físico autorizado (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R4. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "Se emplearán certificados cualificados como mecanismo de autenticación, en soporte físico (tarjeta o similar) usando algoritmos, parámetros y dispositivos autorizados por el CCN.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.6.r4.2",
+      "title": "Soporte físico protegido por PIN o biometría (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Rige solo si P-01 declara R4. Con otro refuerzo elegido se muestra NO_APLICA.",
+      "description": "El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.6.r5.1",
+      "title": "Registro de accesos con éxito y fallidos (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se registrarán los accesos con éxito y los fallidos.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.acc.6.r5.2",
+      "title": "Aviso del último acceso efectuado (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se informará al usuario del último acceso efectuado con su identidad.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.r6.1",
+      "title": "Reautenticación en operaciones críticas (R6)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Se definirán aquellos puntos en los que el sistema requerirá una renovación de la autenticación del usuario, mediante identificación singular, no bastando con la sesión establecida.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.acc.6.r7.1",
+      "title": "Suspensión por no utilización (R7)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Las credenciales se suspenderán tras un periodo definido de no utilización.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.acc.6.r8.1",
+      "title": "Doble factor desde zona no controlada (R8)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Para el acceso desde o a través de zonas no controladas se requerirá un doble factor de autenticación: R2, R3 o R4.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.6.r9.1",
+      "title": "Aplicación de la ITS de interconexión (R9)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Será de aplicación la ITS de Interconexión de sistemas de información.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.6.r9.2",
+      "title": "Acceso remoto autorizado, cifrado y auditado (R9)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El acceso remoto deberá considerar los siguientes aspectos: a) Ser autorizado por la autoridad correspondiente. b) El tráfico deberá ser cifrado. c) Si la utilización no se produce de manera constante, el acceso remoto deberá encontrarse inhabilitado y habilitarse únicamente cuando sea necesario. d) Deberán recogerse registros de auditoría de este tipo de conexiones.",
+      "evidence_ids": [
+        "EV-07",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registro de accesos con éxito y fallidos",
+      "description": "Barrido de las fuentes de autenticación declaradas en P-03 buscando huecos de registro: una fuente que no existe, que nunca ha registrado nada o cuya configuración no registra los accesos con éxito o los fallidos (LogLevel de sshd, olcLogLevel de slapd, journald sin almacenamiento). Los propios accesos (110101, 110102) son el registro que se acredita. Es la evidencia central del Refuerzo R5, obligatorio desde MEDIO.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r5.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Registran las fuentes de autenticación declaradas los accesos con éxito y los fallidos, sin huecos?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Verificación del doble factor en accesos desde zona no controlada",
+      "description": "Cada acceso con éxito con su origen y los factores que el servidor verificó, y cada canal de autenticación en escucha con las direcciones en que escucha y el mínimo de factores que exige. El motor clasifica origen y direcciones contra las zonas controladas de P-02. Es la evidencia del Refuerzo R8, obligatorio desde nivel BAJO, y la de R1 (contraseña solo desde zona controlada) y R2 (segundo factor).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r1.1",
+        "op.acc.6.r2.1",
+        "op.acc.6.r8.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo acceso desde o a través de zona no controlada ha verificado dos factores, y ningún canal expuesto fuera de zona controlada admite uno solo?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Límite de intentos y bloqueo efectivo de cuenta",
+      "description": "Configuración del límite de intentos de cada camino de autenticación con contraseña en uso (pam_faillock, pam_tally2 o la política del directorio): si hay bloqueo, tras cuántos fallos y si la cuenta se desbloquea sola. Se contrasta con P-05 y con la exigencia de que reactivar la cuenta requiera una intervención específica.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.8"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada camino de autenticación con contraseña bloquea la cuenta tras P-05 fallos y exige una intervención para reactivarla?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Fallos acumulados sin bloqueo (fuerza bruta y password spraying)",
+      "description": "Fallos de autenticación agregados por cuenta, origen y canal en cada pasada, y bloqueos registrados. Una cuenta existente con más de P-05 fallos en una pasada sin bloqueo registrado evidencia que el límite no es operativo. Los fallos contra cuentas inexistentes se muestran como patrón de ataque pero no se pueden bloquear. Kerberoasting no aplica: no hay KDC.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.8"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Alguna cuenta acumula más fallos de los admitidos sin que se registre su bloqueo?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Antigüedad de credenciales y política de cambio",
+      "description": "Por cada credencial de una cuenta que puede autenticarse: su antigüedad en días (contraseña, desde /etc/shadow o pwdChangedTime; clave ssh, desde la fecha de su fichero, que es una cota inferior) y la caducidad que el sistema impone (99999 si no impone ninguna). Las dos medidas se contrastan con la periodicidad P-04.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.4"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Ninguna credencial supera la periodicidad de cambio P-04, y el sistema impone esa caducidad?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Reacción ante compromiso y baja de personal",
+      "description": "Horas entre cada notificación de compromiso o de baja anotada por la organización y la inhabilitación de la cuenta observada por el agente, o las que lleva habilitada si no se ha inhabilitado. Contraste con el plazo máximo P-06.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.5",
+        "op.acc.6.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Toda credencial comprometida o de una persona que causó baja se inhabilitó dentro del plazo P-06?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Acceso remoto: canal y registro de auditoría",
+      "description": "Cada acceso remoto con éxito queda registrado con su canal, origen, usuario y métodos (el mismo hecho 110101 de EV-01 y EV-02). Se contrasta el canal con los autorizados en P-07. Cubre los apartados a) y d) de op.acc.6.r9.2; el cifrado y el uso constante de cada canal los cubre EV-08.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r9.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo acceso remoto registrado entró por un canal autorizado en P-07?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Canales de acceso remoto: cifrado y habilitación",
+      "description": "Cada canal de acceso remoto en escucha fuera de loopback, con el cifrado que exige (ssh sí; ldap sin TLS obligatorio, no) y si arranca siempre. Se casa con su fila de P-07: el cifrado tiene que coincidir, y un canal que arranca siempre tiene que estar declarado de uso constante. Cubre los apartados b) y c) de op.acc.6.r9.2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r9.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada canal remoto en escucha está autorizado en P-07, cifra como declara y solo está habilitado siempre si su uso es constante?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Renovación de autenticación en puntos críticos (R6)",
+      "description": "Barrido de las configuraciones que permiten ejecutar un punto crítico sin volver a autenticarse: sudo con NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust. Se contrasta con los puntos declarados en P-08. Obligatorio en nivel ALTO.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r6.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Ningún punto declarado en P-08 se puede ejecutar amparándose solo en la sesión establecida?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Credenciales activas sin utilización prolongada (R7)",
+      "description": "Por cada cuenta habilitada (shell que permite sesión, no caducada, con contraseña usable o claves autorizadas), los días desde su último acceso: lo más reciente entre lastlog, wtmp y los accesos que el agente anota del log de autenticación. Una cuenta que nunca ha accedido cuenta desde la fecha de su credencial. Obligatorio en nivel ALTO.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r7.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Ninguna cuenta habilitada lleva más de P-09 días sin utilizarse?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Complejidad y robustez de las contraseñas (R1)",
+      "description": "Lo que el sistema impone al fijar una contraseña: longitud mínima, clases de caracteres exigidas, historial y si se consulta una lista de bloqueo (pila password de PAM; en un directorio, su política de contraseñas). Se contrasta con los mínimos de P-10. Rige con R1 y con R2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La política de contraseñas impuesta alcanza cada mínimo de P-10?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Información expuesta antes de autenticar",
+      "description": "Barrido de lo que cada servicio de autenticación muestra a quien todavía no se ha identificado: versión del software y de la distribución en la identificación de SSH, banner previo, rootDSE o bind anónimos del directorio. Se contrasta con lo que la organización admite en P-11. OpenSSH y slapd no distinguen usuario inexistente de credencial incorrecta hacia el cliente, así que ese caso no produce hallazgo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.7"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Los servicios de autenticación solo exponen, antes de autenticar, lo que la organización admite en P-11?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "refuerzo_autenticacion_elegido",
+      "label": "Refuerzo autenticacion elegido",
+      "description": "Mecanismo de autenticación del personal: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige uno en todos los niveles y solo rigen los requisitos del elegido; la complejidad de contraseña (op.acc.6.r1.2) rige con R1 y R2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r1.1",
+        "op.acc.6.r1.2",
+        "op.acc.6.r2.1",
+        "op.acc.6.r3.1",
+        "op.acc.6.r3.2",
+        "op.acc.6.r4.1",
+        "op.acc.6.r4.2"
+      ],
+      "type": "select",
+      "example": "R2",
+      "options": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "required": true,
+      "agent_usage": "No cambia lo que observa el agente: decide qué requisitos de refuerzo se evalúan.",
+      "engine_usage": "Los requisitos de los refuerzos no elegidos salen del denominador como NO_APLICA. Con R1, el acceso con contraseña desde fuera de P-02 incumple op.acc.6.r1.1; con R2, todo acceso debe haber verificado dos factores.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-11"
+      ],
+      "if_not_configured": "Ningún refuerzo de mecanismo se puede evaluar: sus siete requisitos quedan sin demostrar y cuentan en contra."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "definicion_zonas_controladas",
+      "label": "Definicion zonas controladas",
+      "description": "Redes que son zona controlada según el ENS (no públicas y con autenticación física previa), una por línea: rango CIDR (10.0.0.0/8, fd00::/8), dirección suelta o `local` para la consola física, con comentario opcional tras un espacio. Todo lo demás es zona no controlada y exige doble factor (R8).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r8.1",
+        "op.acc.6.r1.1",
+        "op.acc.6.r2.1"
+      ],
+      "type": "list",
+      "example": "192.168.10.0/24 red de la sede",
+      "required": true,
+      "agent_usage": "El agente emite la dirección de origen de cada acceso y las direcciones en que escucha cada canal de autenticación, sin clasificarlas.",
+      "engine_usage": "Es el parámetro más crítico. Un acceso desde fuera de estos rangos con un solo factor, o un canal expuesto fuera de ellos que admite un solo factor, incumple R8.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "R8, obligatorio desde nivel BAJO, no se puede evaluar: queda sin demostrar y cuenta en contra."
+    },
+    "P-03": {
+      "class": "platform",
+      "name": "fuente_directorio_corporativo",
+      "label": "Fuente directorio corporativo",
+      "description": "Fuentes de identidad cuyos accesos deben quedar registrados: local (log de autenticación), ldap (binds del directorio), active_directory o azure_ad. Una por línea; coherente con el parámetro equivalente de op.acc.1.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r5.1"
+      ],
+      "type": "list",
+      "example": "local",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "select",
+          "required": true,
+          "options": [
+            "local",
+            "ldap",
+            "active_directory",
+            "azure_ad"
+          ]
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente emite un hueco de registro cuando una fuente no existe, nunca ha registrado nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).",
+      "engine_usage": "Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "No se sabe qué fuentes deben registrar los accesos: op.acc.6.r5.1 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "periodicidad_cambio_credenciales_dias",
+      "label": "Periodicidad cambio credenciales dias",
+      "description": "Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite a la política de seguridad de la organización (op.acc.6.4) y no fija plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.4"
+      ],
+      "type": "duration_days",
+      "example": "180",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente emite la antigüedad en días de cada credencial (contraseña desde /etc/shadow; clave ssh desde la fecha de su fichero) y la caducidad que impone el sistema (99999 si ninguna).",
+      "engine_usage": "Una credencial más antigua que este plazo, o una caducidad configurada mayor, incumple op.acc.6.4.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "op.acc.6.4 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "max_intentos_fallidos",
+      "label": "Max intentos fallidos",
+      "description": "Máximo de intentos fallidos antes del bloqueo de la cuenta. El ENS exige que sea limitado y que reactivar la cuenta requiera intervención específica (op.acc.6.8).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.8"
+      ],
+      "type": "number",
+      "example": "5",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente emite la configuración de bloqueo de cada camino de autenticación con contraseña (pam_faillock, pam_tally2, ppolicy) y los fallos y bloqueos del log.",
+      "engine_usage": "Incumple op.acc.6.8 un camino en uso sin bloqueo, con umbral mayor que este valor o con desbloqueo automático, y una cuenta con más fallos que este valor en una pasada sin bloqueo registrado.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04"
+      ],
+      "if_not_configured": "op.acc.6.8 queda sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "plazo_max_inhabilitar_credencial_horas",
+      "label": "Plazo max inhabilitar credencial horas",
+      "description": "Tiempo máximo entre que consta o se sospecha el compromiso de una credencial (o el usuario termina su relación con el sistema) y su inhabilitación efectiva.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.5",
+        "op.acc.6.6"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "La organización anota cada compromiso o baja en el registro del agente; el agente emite las horas hasta que observa la cuenta inhabilitada, o las que lleva habilitada.",
+      "engine_usage": "Una inhabilitación que tarda más que este plazo, o una cuenta que lo supera sin inhabilitar, incumple op.acc.6.5 y op.acc.6.6.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "op.acc.6.5 y op.acc.6.6 quedan sin demostrar."
+    },
+    "P-07": {
+      "class": "platform",
+      "name": "canales_acceso_remoto",
+      "label": "Canales acceso remoto",
+      "description": "Canales de acceso remoto autorizados, uno por fila: canal (ssh, ldap, ldaps, rdp, vnc, tailscale, openvpn…, como lo nombra el agente), si el tráfico va cifrado (si/no), quién lo autoriza y si su uso es constante (si: puede estar siempre habilitado; no: debe estar inhabilitado y habilitarse solo si hace falta). R9 es obligatorio en los tres niveles.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r9.2"
+      ],
+      "type": "table",
+      "example": "ssh | si | Responsable de Seguridad | si",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "cifrado",
+          "label": "Cifrado",
+          "type": "select",
+          "required": true,
+          "options": [
+            "si",
+            "no"
+          ]
+        },
+        {
+          "name": "autoriza",
+          "label": "Autoriza",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "uso_constante",
+          "label": "Uso constante",
+          "type": "select",
+          "required": true,
+          "options": [
+            "si",
+            "no"
+          ]
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente emite cada canal en escucha (con su cifrado observado y si arranca siempre) y cada acceso con su canal.",
+      "engine_usage": "Incumple op.acc.6.r9.2 un acceso por un canal ausente de la tabla, un canal en escucha con cifrado distinto del de su fila, o uno que arranca siempre cuando su fila dice uso no constante. Un canal en escucha sin fila no se da por bueno.",
+      "evidence_ids": [
+        "EV-07",
+        "EV-08"
+      ],
+      "if_not_configured": "R9, obligatorio desde nivel BAJO, no se puede evaluar: op.acc.6.r9.2 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "platform",
+      "name": "puntos_renovacion_autenticacion",
+      "label": "Puntos renovacion autenticacion",
+      "description": "Puntos donde se exige renovar la autenticación aunque haya sesión, uno por línea con el nombre del agente: sudo (elevación general), su, o sudo:/ruta/del/comando para un comando crítico; un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r6.1"
+      ],
+      "type": "list",
+      "example": "sudo",
+      "required": true,
+      "agent_usage": "El agente emite cada configuración que permite ejecutar un punto sin reautenticar (sudo NOPASSWD o !authenticate, credencial de sudo sin caducidad, su con pam_wheel trust).",
+      "engine_usage": "Un punto declarado aquí que se ejecuta sin reautenticación incumple op.acc.6.r6.1.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "R6 queda sin demostrar; en nivel ALTO es obligatorio."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "periodo_no_utilizacion_dias",
+      "label": "Periodo no utilizacion dias",
+      "description": "Días de inactividad tras los cuales una credencial debe estar suspendida; el ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r7.1"
+      ],
+      "type": "duration_days",
+      "example": "45",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente emite, por cuenta habilitada, los días desde su último acceso (lastlog, wtmp y accesos que anota del log de autenticación).",
+      "engine_usage": "Una cuenta habilitada con más días de inactividad que este valor incumple op.acc.6.r7.1.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "R7 queda sin demostrar; en nivel ALTO es obligatorio."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "politica_complejidad_contrasenas",
+      "label": "Politica complejidad contrasenas",
+      "description": "Mínimos de robustez de contraseña cuando P-01 es R1 o R2, uno por fila (criterio y valor mínimo): longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores no repetibles) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.r1.2"
+      ],
+      "type": "table",
+      "example": "longitud_minima | 12",
+      "columns": [
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "select",
+          "required": true,
+          "options": [
+            "longitud_minima",
+            "clases_de_caracteres",
+            "historial",
+            "lista_de_bloqueo"
+          ]
+        },
+        {
+          "name": "minimo",
+          "label": "Mínimo",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "El agente emite lo que impone la pila password de PAM (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.",
+      "engine_usage": "Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "Con R1 o R2, op.acc.6.r1.2 queda sin demostrar."
+    },
+    "P-11": {
+      "class": "platform",
+      "name": "exposiciones_autenticacion_admitidas",
+      "label": "Exposiciones autenticacion admitidas",
+      "description": "Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea con el nombre del agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.7"
+      ],
+      "type": "list",
+      "example": "sshd:version_software",
+      "required": true,
+      "agent_usage": "El agente emite cada dato que un servicio de autenticación expone antes de autenticar, leído de su configuración efectiva.",
+      "engine_usage": "Una exposición observada que no figura aquí incumple op.acc.6.7.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "if_not_configured": "op.acc.6.7 queda sin demostrar."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "registro_inhabilitaciones",
+      "label": "Registro de inhabilitaciones",
+      "description": "Credenciales inhabilitadas por baja o incidencia, una por fila: usuario, fecha y motivo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.6.5",
+        "op.acc.6.6"
+      ],
+      "type": "table",
+      "example": "jperez | 2026-10-01 | baja",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente emite el estado de cada cuenta: habilitada o inhabilitada y desde cuándo.",
+      "engine_usage": "El motor comprueba que cada cuenta del registro se inhabilitó dentro del plazo de P-06.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "op.acc.6.5 y op.acc.6.6 quedan sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, una fila por requisito con nombre del documento y enlace. Aquí acredita aceptación previa de la política (.1), acuse de credenciales (.2), entrega bajo control exclusivo (.3), información de derechos (.9), aviso del último acceso (r5.2), ITS de interconexión (r9.1) y certificados de R3 y R4.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.acc.6.1 | Política de seguridad aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "engine_usage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "evidence_ids": [],
+      "if_not_configured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
+    }
+  }
+}

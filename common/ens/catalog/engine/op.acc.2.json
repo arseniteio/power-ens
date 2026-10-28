@@ -1,0 +1,632 @@
+{
+  "framework": "ENS",
+  "control": "op.acc.2",
+  "title": "Requisitos de acceso",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Control de acceso",
+  "dimension": "Confidencialidad, Integridad, Trazabilidad y Autenticidad",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A"
+  ],
+  "annex_section": "4.2.2",
+  "description": "Control ENS orientado a garantizar que los recursos del sistema están protegidos por controles de acceso, que esos controles reflejan las decisiones del responsable del recurso, que los componentes y ficheros del sistema operativo están especialmente controlados y que, en nivel ALTO, los privilegios de acceso se mantienen individualmente y restringen el tipo de acceso.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "ENSFacil_Plantilla_op.acc.2",
+    "version": "1.0"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.acc.2.1",
+      "title": "Protección de los recursos mediante control de acceso",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los recursos del sistema se protegerán con algún mecanismo que impida su utilización, salvo a las entidades que disfruten de derechos de acceso suficientes.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-03",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.acc.2.2",
+      "title": "Derechos de acceso según el responsable del recurso",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los derechos de acceso de cada recurso se establecerán según las decisiones de la persona responsable del recurso, ateniéndose a la política y normativa de seguridad del sistema.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.acc.2.3",
+      "title": "Control de acceso a componentes y ficheros del sistema operativo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Particularmente, se controlará el acceso a los componentes del sistema operativo y a sus ficheros o registros de configuración.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.2.r1.1",
+      "title": "Privilegios de seguridad mantenidos individualmente",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R1 exigible únicamente en nivel ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Todos los usuarios autorizados deben tener un conjunto de atributos de seguridad (privilegios) que puedan ser mantenidos individualmente.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.acc.2.r1.2",
+      "title": "Privilegios que restringen el tipo de acceso",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R1 exigible únicamente en nivel ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Los privilegios de acceso se implementarán para restringir el tipo de acceso que un usuario puede tener (lectura, escritura, modificación, borrado, etc.).",
+      "evidence_ids": [
+        "EV-05",
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Verificación de permisos en recursos del sistema",
+      "description": "Comprobación automatizada de que los recursos del sistema (ficheros, directorios, servicios, puertos) tienen controles de acceso que impiden su uso no autorizado. Detecta world-writable no permitidos, permisos abiertos y umask insuficiente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.3"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los recursos del sistema tienen controles de acceso que impiden su uso no autorizado?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Monitorización de ficheros y registros del SO",
+      "description": "Vigilancia de cambios (creación, modificación, eliminación, cambio de permisos) en los componentes del sistema operativo y sus ficheros o registros de configuración declarados en P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.3"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan y controlan los cambios no autorizados en los componentes del sistema operativo?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Detección de accesos denegados y escaladas de privilegio",
+      "description": "Captura de eventos de autenticación y autorización fallidos o exitosos que evidencian intentos de acceso a recursos sin los derechos suficientes. Incluye accesos denegados por ACL y uso de sudo/su.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Se registran los intentos de acceso a recursos sin los derechos suficientes?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Verificación de ACLs y derechos de acceso por recurso",
+      "description": "Auditoría de que los derechos de acceso a cada recurso siguen la política interna (P-04) y las decisiones del responsable del recurso. Detecta recursos con ACLs que difieren de la tabla P-06.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.2",
+        "op.acc.2.r1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Los derechos de acceso a cada recurso siguen la política interna y las decisiones del responsable?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Verificación de privilegios individuales por usuario (R1)",
+      "description": "Comprobación de que cada usuario autorizado tiene privilegios mantenidos individualmente y de que restringen el tipo de acceso según P-05 y P-06. Detecta usuarios con privilegios excesivos o sin definición individual.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.r1.1",
+        "op.acc.2.r1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada usuario autorizado tiene privilegios mantenidos individualmente que restringen el tipo de acceso?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Detección de accesos fuera del tipo permitido (R1)",
+      "description": "Identificación de accesos que superan el tipo de acceso autorizado para el usuario (lectura que intenta escribir, desarrollo que accede a producción, etc.). Requiere P-06 configurado.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.r1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan accesos que superan el tipo de acceso autorizado para el usuario?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Detección de vulnerabilidades de control de acceso en el SO",
+      "description": "El módulo rootcheck detecta configuraciones que debilitan el control de acceso: ficheros SUID/SGID no esperados, directorios con permisos excesivos, servicios corriendo con privilegios de root innecesariamente y ficheros sin propietario.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.3"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Se detectan configuraciones del SO que debilitan el control de acceso (SUID/SGID, ficheros sin propietario)?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "system",
+      "name": "sistemas_en_scope",
+      "label": "Sistemas incluidos en el alcance",
+      "description": "Sistemas sobre los que debe verificarse op.acc.2, identificados por nombre de máquina o IP y por sistema operativo. Lo que no figure aquí no se audita.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.3"
+      ],
+      "type": "list",
+      "example": "srv01 | Linux",
+      "required": true,
+      "agent_usage": "Define en qué sistemas se ejecutan las comprobaciones SCA, FIM y log collection.",
+      "engine_usage": "Delimita el alcance auditado y distingue un sistema que no reporta de uno que nunca se pidió auditar.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03"
+      ],
+      "if_not_configured": "El control es NO EVALUABLE: sin alcance no se puede emitir semáforo. En un despliegue por agente el alcance es la propia máquina y el parámetro es informativo."
+    },
+    "P-02": {
+      "class": "platform",
+      "name": "rutas_criticas_so",
+      "label": "Rutas críticas del sistema operativo",
+      "description": "Rutas de ficheros y directorios del SO críticas, bajo control de acceso estricto y vigiladas por FIM. Una ruta por entrada: /etc/passwd, /etc/shadow, /etc/sudoers, /etc/ssh/sshd_config.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.3"
+      ],
+      "type": "list",
+      "example": "/etc/passwd",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Ruta crítica",
+          "type": "path",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.",
+      "engine_usage": "Evidencia la integridad del SO comparando hash, modo y propietario de cada ruta con la pasada anterior y detectando cambios sin justificar.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 se publica NO EVALUABLE y op.acc.2.3 no puede acreditarse automáticamente."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "permisos_world_writable_permitidos",
+      "label": "World-writable permitidos",
+      "description": "Indica si se permiten ficheros o directorios con escritura para todos (world-writable): sí o no. Las excepciones concretas (/tmp, /var/tmp) se declaran en P-11.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1"
+      ],
+      "type": "boolean",
+      "example": "no",
+      "required": true,
+      "agent_usage": "SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta; las excepciones se cargan como whitelist.",
+      "engine_usage": "Distingue un world-writable que es incumplimiento de uno legítimo sin apagar la comprobación entera.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "No se puede decidir qué world-writable es incumplimiento y EV-01 no se pronuncia sobre ese eje."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "politica_acceso_so_referencia",
+      "label": "Referencia de la política de acceso",
+      "description": "Referencia a la política o normativa interna que establece los derechos de acceso a los recursos. Acredita op.acc.2.2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.2"
+      ],
+      "type": "string",
+      "example": "Política de Control de Acceso v2.1, aprobada 01/01/2025",
+      "required": true,
+      "agent_usage": "Se incluye como referencia documental en el informe.",
+      "engine_usage": "Acredita que los derechos de acceso responden a una decisión escrita del responsable del recurso, como exige op.acc.2.2, y da al informe la referencia normativa.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "El informe no cita la norma que respalda los derechos de acceso. Es un hueco documental: EV-04 no se degrada."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "modelo_privilegios",
+      "label": "Modelo de privilegios",
+      "description": "Modelo de privilegios del sistema, exigido por R1. Si no es ninguno de la lista (ABAC, por ejemplo), seleccionar Otro y detallarlo en la política referenciada en P-04.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.r1.1",
+        "op.acc.2.r1.2"
+      ],
+      "type": "select",
+      "example": "RBAC sobre AD",
+      "options": [
+        "RBAC sobre AD",
+        "ACL granular por recurso",
+        "Mínimo privilegio + sudo",
+        "Otro"
+      ],
+      "required": false,
+      "agent_usage": "ENSFácil verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.",
+      "engine_usage": "Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "El refuerzo R1 es NO EVALUABLE y no se pueden verificar op.acc.2.r1.1 ni op.acc.2.r1.2."
+    },
+    "P-06": {
+      "class": "system",
+      "name": "tipos_acceso_permitidos_por_perfil",
+      "label": "Tipos de acceso permitidos por perfil",
+      "description": "Tipos de acceso de cada perfil sobre cada recurso, una fila por perfil y recurso; el perfil enlaza con la columna Perfil de P-09. El recurso es una ruta absoluta vigilada con auditd: no se admiten /, /etc, /usr, /var, /var/log, /proc, /sys, /dev, /bin, /sbin, /lib ni /boot, porque inundan el log de auditoría.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.r1.2"
+      ],
+      "type": "table",
+      "example": "ops | /srv/datos | lectura,escritura",
+      "columns": [
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "tipos_permitidos",
+          "label": "Tipos de acceso",
+          "type": "multiselect",
+          "required": true,
+          "options": [
+            "lectura",
+            "escritura",
+            "ejecucion",
+            "modificacion"
+          ]
+        }
+      ],
+      "required": false,
+      "agent_usage": "ENSFácil cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.",
+      "engine_usage": "Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.",
+      "evidence_ids": [
+        "EV-04",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 se publica NO EVALUABLE: sin la tabla, no encontrar violaciones no significa que no las haya."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "umask_minimo",
+      "label": "umask mínimo exigido",
+      "description": "Umask mínimo exigido para crear ficheros, para que no se creen con permisos abiertos. Tres o cuatro dígitos octales: 022 deja 755/644 y 027 deja 750/640.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1"
+      ],
+      "type": "string",
+      "example": "027",
+      "required": true,
+      "agent_usage": "SCA verifica el umask en los perfiles de usuario y /etc/profile. Si es más permisivo que P-07, genera alerta.",
+      "engine_usage": "Compara el umask efectivo de las fuentes del sistema con el mínimo exigido.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "No hay contra qué comparar el umask observado y EV-01 no se pronuncia sobre ese eje."
+    },
+    "P-08": {
+      "class": "system",
+      "name": "acl_declarada",
+      "label": "Derechos de acceso declarados por recurso",
+      "description": "Derechos que el responsable decide para cada ruta protegida, una fila por recurso. El modo se compara como octal (750 y 0750 son iguales), la ACL extendida usa la sintaxis de setfacl (u:auditor:r-x) y propietario y ACL pueden quedar vacíos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.2"
+      ],
+      "type": "table",
+      "example": "/srv/datos | 750 | root:ops | u:auditor:r-x",
+      "columns": [
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "modo",
+          "label": "Modo",
+          "type": "octal",
+          "required": true
+        },
+        {
+          "name": "propietario_grupo",
+          "label": "Propietario:grupo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "acl_esperada",
+          "label": "ACL esperada",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Es la tabla contra la que se comparan las ACL reales de cada recurso. Una diferencia genera acl_deviation.",
+      "engine_usage": "Acredita que los derechos responden a una decisión escrita del responsable (op.acc.2.2) y es la tabla contra la que se comparan modo, propietario y ACL reales.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 se publica NO EVALUABLE, nunca CUMPLE: sin la decisión escrita no hay contra qué comparar las ACL reales."
+    },
+    "P-09": {
+      "class": "system",
+      "name": "privilegios_declarados",
+      "label": "Privilegios declarados por usuario",
+      "description": "Perfil y privilegios que el responsable concede a cada cuenta. El usuario se escribe como en /etc/passwd (comparación literal, distingue mayúsculas); el perfil enlaza con P-06.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.r1.1",
+        "op.acc.2.r1.2"
+      ],
+      "type": "table",
+      "example": "jgomez | admin | sudo:total",
+      "columns": [
+        {
+          "name": "usuario",
+          "label": "Usuario",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "privilegios",
+          "label": "Privilegios concedidos",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Se contrasta con la pertenencia real a grupos privilegiados y el uso de sudo. Un usuario con más de lo declarado genera excessive_privilege.",
+      "engine_usage": "Verifica el refuerzo R1: contrasta cada cuenta con privilegio observada con lo declarado para ella.",
+      "evidence_ids": [
+        "EV-05",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-05 y EV-06 se publican NO EVALUABLE: sin el perfil de cada usuario no se puede decidir si un acceso supera el autorizado."
+    },
+    "P-10": {
+      "class": "platform",
+      "name": "suid_autorizados",
+      "label": "Línea base de binarios SUID/SGID autorizados",
+      "description": "Rutas absolutas de los binarios SUID o SGID revisados y autorizados por el responsable; un nombre sin ruta (sudo, passwd) no casa con nada. No se siembra sola: la revisión es el control.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.3"
+      ],
+      "type": "list",
+      "example": "/usr/bin/sudo",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Binario autorizado",
+          "type": "path",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Todo binario SUID/SGID fuera de esta lista se publica como suid_sgid no autorizado.",
+      "engine_usage": "Distingue un binario SUID/SGID aprobado de uno que nadie ha revisado. Sin línea base, EV-07 no significa nada.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 se publica NO EVALUABLE, nunca CUMPLE: sembrarla con lo que hay en la máquina declararía autorizada la puerta trasera de un sistema comprometido."
+    },
+    "P-11": {
+      "class": "platform",
+      "name": "world_writable_excepciones",
+      "label": "Excepciones world-writable",
+      "description": "Rutas con escritura para todos que el responsable declara legítimas, como los directorios temporales con sticky bit. Fuera de esta lista, un world-writable incumple si P-03 dice que no se permiten.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1"
+      ],
+      "type": "list",
+      "example": "/tmp",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Ruta exceptuada",
+          "type": "path",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Actúa como lista blanca de la comprobación world-writable: lo que figura aquí no genera alerta.",
+      "engine_usage": "Distingue el world-writable legítimo del incumplimiento sin apagar la comprobación. Cada ruta exceptuada viaja por nombre en la evidencia.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "No hay excepciones: todo world-writable cuenta como incumplimiento cuando P-03 indica que no se permiten."
+    },
+    "P-12": {
+      "class": "platform",
+      "name": "grupos_privilegiados",
+      "label": "Grupos que otorgan privilegio administrativo",
+      "description": "Grupos del sistema cuya pertenencia concede privilegios de administración. Pertenecer a uno y no estar declarado en P-09 es un privilegio no justificado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.2.1",
+        "op.acc.2.r1.1"
+      ],
+      "type": "list",
+      "example": "sudo",
+      "columns": [
+        {
+          "name": "grupo",
+          "label": "Grupo privilegiado",
+          "type": "identifier",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Define qué pertenencias se registran como group_membership privilegiada.",
+      "engine_usage": "Define qué cuenta como privilegio administrativo en la máquina.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "El agente aplica su lista de fábrica (sudo, wheel, admin, adm y root) y el informe no cita una decisión del cliente."
+    }
+  }
+}

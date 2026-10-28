@@ -1,0 +1,527 @@
+{
+  "framework": "ENS",
+  "control": "op.acc.4",
+  "title": "Proceso de gestión de derechos de acceso",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Control de acceso",
+  "dimension": "Confidencialidad, Integridad, Trazabilidad y Autenticidad",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A"
+  ],
+  "annex_section": "4.2.4",
+  "description": "op.acc.4 establece los principios que rigen la asignación de derechos: denegación por defecto, mínimo privilegio, necesidad de conocer, capacidad de autorizar y política de acceso remoto.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "ENSFacil_Plantilla_op.acc.4",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.acc.4.1",
+      "title": "Todo acceso estará prohibido, salvo autorización expresa.",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Todo acceso estará prohibido, salvo autorización expresa.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.4.2",
+      "title": "Mínimo privilegio: los privilegios de cada entidad, usuario…",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Mínimo privilegio: los privilegios de cada entidad, usuario o proceso se reducirán al mínimo imprescindible para cumplir sus obligaciones o funciones.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.acc.4.3",
+      "title": "Necesidad de conocer y responsabilidad de compartir: los…",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Necesidad de conocer y responsabilidad de compartir: los privilegios se asignarán de forma que las entidades, usuarios o procesos sólo accederán al conocimiento de aquella información requerida para cumplir sus obligaciones o funciones. La información es patrimonio del organismo y toda aquella que resulte necesaria para el usuario estará a su disposición.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.acc.4.4",
+      "title": "Capacidad de autorizar: Exclusivamente el personal con…",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Capacidad de autorizar: Exclusivamente el personal con competencia para ello podrá conceder, alterar o anular la autorización de acceso a los recursos, conforme a los criterios establecidos por su responsable. Los permisos de acceso se revisarán de forma periódica.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03",
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.acc.4.5",
+      "title": "Se establecerá una política específica de acceso remoto,…",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se establecerá una política específica de acceso remoto, requiriéndose autorización expresa.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-04",
+        "P-05"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Verificación de denegación por defecto",
+      "description": "Comprobación de que la configuración de los sistemas aplica denegación por defecto: políticas de firewall con DROP por defecto, servicios sin acceso anónimo, recursos compartidos sin permisos para «Todos» o «Everyone».",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: verificación de denegación por defecto?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Contraste de privilegios reales contra matriz autorizada",
+      "description": "Extracción de los privilegios efectivamente configurados en los sistemas (ACLs, membresías de grupo, permisos sudo) y comparación con la matriz P-01. Detecta privilegios asignados sin autorización expresa y privilegios superiores al mínimo imprescindible.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.1",
+        "op.acc.4.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: contraste de privilegios reales contra matriz autorizada?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Cambios en grupos privilegiados",
+      "description": "Detección de altas y bajas en los grupos declarados en P-06. Toda incorporación a un grupo privilegiado supone una concesión de derechos que debe estar contemplada en P-01 y realizada por personal competente (P-02).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.2",
+        "op.acc.4.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: cambios en grupos privilegiados?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Cambios de permisos por cuenta no competente",
+      "description": "Identificación de eventos de concesión, alteración o anulación de permisos ejecutados por cuentas que no figuran en P-02 como personal con capacidad de autorizar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: cambios de permisos por cuenta no competente?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Control de la revisión periódica de permisos",
+      "description": "Registro de la fecha de la última revisión de permisos realizada y verificación de que no se ha superado el plazo P-03. La revisión puede detectarse por evidencias en el sistema o declararse en ENSFácil.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: control de la revisión periódica de permisos?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Accesos remotos por canal, origen y usuario",
+      "description": "Registro de todas las conexiones remotas al sistema con identificación de canal, puerto, IP de origen y cuenta. Contraste contra los canales permitidos (P-04) y los usuarios autorizados (P-05).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.5"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: accesos remotos por canal, origen y usuario?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Accesos a recursos sujetos a necesidad de conocer",
+      "description": "Monitorización de accesos a los recursos declarados en P-07, con identificación del perfil de la cuenta que accede. Detecta accesos por perfiles sin justificación declarada, aunque el permiso técnico exista.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: accesos a recursos sujetos a necesidad de conocer?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Cuentas con privilegios excesivos o innecesarios",
+      "description": "Identificación de cuentas cuyos privilegios exceden lo necesario: usuarios con shell innecesaria, cuentas de servicio con permisos de administrador, usuarios con sudo sin restricción de comandos (ALL=(ALL) ALL).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se acredita: cuentas con privilegios excesivos o innecesarios?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "system",
+      "name": "matriz_privilegios_autorizados",
+      "label": "Matriz privilegios autorizados",
+      "description": "Matriz que declara, para cada rol o perfil, a qué recursos puede acceder y con qué tipo de acceso. Es la referencia autorizada contra la que se contrasta el privilegio observado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.1",
+        "op.acc.4.2",
+        "op.acc.4.3"
+      ],
+      "type": "table",
+      "example": "ops | /srv/app | rw / dev | /srv/app | r",
+      "columns": [
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "acceso",
+          "label": "Acceso",
+          "type": "multiselect",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Es el núcleo del control. Todo privilegio observado sin fila que lo ampare se presenta como acceso sin autorización expresa.",
+      "engine_usage": "El agente emite un hecho por cada privilegio efectivo (sudo, grupos privilegiados, ACL del directorio) y el motor busca la fila de su rol, comprobando recurso y tipo de acceso.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-07",
+        "EV-08"
+      ],
+      "if_not_configured": "op.acc.4.1, op.acc.4.2 y op.acc.4.3 quedan NO EVALUABLES: sin referencia autorizada no se puede juzgar si un privilegio es excesivo."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "personal_con_capacidad_autorizar",
+      "label": "Personal con capacidad autorizar",
+      "description": "Cuentas o personas con competencia para conceder, alterar o anular autorizaciones de acceso, con el ámbito de recursos al que alcanza.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.4"
+      ],
+      "type": "table",
+      "example": "rsec | global / admin_bd | bases de datos",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Los cambios de permisos y de pertenencia a grupos hechos por una cuenta ausente de esta lista se presentan como autorización otorgada por quien no era competente.",
+      "engine_usage": "El motor comprueba que el actor de cada cambio de permisos, tomado de la traza de auditoría, figure en la lista. Se contrasta siempre quien hace el cambio, nunca la cuenta afectada.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "if_not_configured": "op.acc.4.4 no se puede verificar: los cambios se registran, pero no se juzga si quien los hizo era competente."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "periodicidad_revision_permisos_dias",
+      "label": "Periodicidad revision permisos dias",
+      "description": "Cada cuántos días deben revisarse los permisos de acceso concedidos. El ENS exige revisión periódica (op.acc.4.4) y deja el plazo a la normativa de cada organización.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.4"
+      ],
+      "type": "duration_days",
+      "example": "90 (trimestral) / o 180 (semestral) / o 365 (anual)",
+      "required": true,
+      "agent_usage": "ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
+      "engine_usage": "El motor toma la última revisión de P-08 y comprueba que no supere este plazo.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "if_not_configured": "No se puede verificar la revisión periódica de op.acc.4.4: sin plazo no se decide si la revisión sigue vigente."
+    },
+    "P-04": {
+      "class": "platform",
+      "name": "canales_acceso_remoto_permitidos",
+      "label": "Canales acceso remoto permitidos",
+      "description": "Canales autorizados para el acceso remoto, uno por línea como canal | puerto | origen, con el nombre de canal del agente (ssh, rdp, openvpn…), sin espacios: es el mismo canal de op.acc.6 P-07 en Datos de la organización.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.5"
+      ],
+      "type": "list",
+      "example": "ssh | 22 | 10.0.0.0/8",
+      "required": true,
+      "agent_usage": "Canal, puerto y origen de cada conexión remota quedan en la evidencia y en la traza.",
+      "engine_usage": "Acompaña al informe como política exigible. Hoy el veredicto del acceso remoto se decide por la cuenta (contra P-05), no por el canal: ninguna comprobación automática lo contrasta todavía.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "op.acc.4.5 se evalúa por las cuentas de P-05, pero el informe no recoge la política de canales."
+    },
+    "P-05": {
+      "class": "system",
+      "name": "usuarios_autorizados_acceso_remoto",
+      "label": "Usuarios autorizados acceso remoto",
+      "description": "Cuentas con autorización expresa y nominal para el acceso remoto (op.acc.4.5), una por línea; personas o identidades, no grupos. Solo el identificador de la cuenta, sin canal ni anotaciones: una línea con texto adicional no coincidiría y parecería que no hay hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.5"
+      ],
+      "type": "list",
+      "example": "jgomez",
+      "required": true,
+      "agent_usage": "Todo acceso remoto de una cuenta ausente de esta lista se presenta como acceso remoto sin autorización expresa.",
+      "engine_usage": "El agente emite cada acceso remoto con su cuenta (ssh y, en un servidor de directorio, binds LDAP correctos) y el motor comprueba que figure en la lista.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "op.acc.4.5 queda sin verificar: se registran los accesos remotos, pero no se distingue uno legítimo de uno no autorizado."
+    },
+    "P-06": {
+      "class": "platform",
+      "name": "grupos_privilegiados",
+      "label": "Grupos privilegiados",
+      "description": "Grupos del sistema o del directorio cuya pertenencia otorga privilegios elevados: administradores de dominio, wheel, sudo y equivalentes a root.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.2"
+      ],
+      "type": "list",
+      "example": "wheel",
+      "required": true,
+      "agent_usage": "Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.",
+      "engine_usage": "El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-08"
+      ],
+      "if_not_configured": "El informe pierde el criterio escrito de qué grupos son sensibles; el agente sigue recogiendo y contrastando con P-01."
+    },
+    "P-07": {
+      "class": "system",
+      "name": "recursos_sensibles_necesidad_conocer",
+      "label": "Recursos sensibles necesidad conocer",
+      "description": "Recursos con información sujeta a necesidad de conocer (directorios, ficheros o atributos del directorio) y perfiles con justificación de acceso a cada uno (op.acc.4.3).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.3"
+      ],
+      "type": "table",
+      "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh,direccion",
+      "columns": [
+        {
+          "name": "recurso",
+          "label": "Recurso",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "perfiles",
+          "label": "Perfiles",
+          "type": "multiselect",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "ENSFácil registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
+      "engine_usage": "El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "op.acc.4.3 queda NO EVALUABLE: no se distingue un acceso técnicamente posible de uno justificado."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "registro_revisiones_permisos",
+      "label": "Registro de revisiones de permisos",
+      "description": "Revisiones de permisos hechas, una por fila: fecha, alcance y responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.4.4"
+      ],
+      "type": "table",
+      "example": "2026-09-15 | servidores de producción | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee: la revisión es una decisión de la organización.",
+      "engine_usage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-03.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "op.acc.4.4 queda sin demostrar."
+    }
+  }
+}

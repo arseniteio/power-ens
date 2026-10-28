@@ -21,6 +21,7 @@ import type {
   ENSLevel,
 } from '../common/ens/configuration/types';
 import type { ENSEvidenceResolved } from '../common/ens/core/evidence/types';
+import { isEngineJudged } from '../common/ens/core/engine-judged';
 
 declare const process: { exit(code: number): void };
 declare const require: (id: string) => any;
@@ -157,9 +158,9 @@ section('1. Catalog: Availability, ALTO only, no facts and no runbook');
   );
   check('op.cont.2 does not wait for facts', controlExpectsFacts('op.cont.2') === false);
   check(
-    'and it is the only one: all other catalog controls wait for facts',
-    ENSCatalog.filter(c => c.id !== 'op.cont.2').every(c => controlExpectsFacts(c.id)),
-    ENSCatalog.filter(c => c.id !== 'op.cont.2' && !controlExpectsFacts(c.id)).map(c => c.id).join(', ')
+    'and it is the only one the plugin judges: all other catalog controls wait for facts',
+    ENSCatalog.filter(c => c.id !== 'op.cont.2' && !isEngineJudged(c.id)).every(c => controlExpectsFacts(c.id)),
+    ENSCatalog.filter(c => c.id !== 'op.cont.2' && !isEngineJudged(c.id) && !controlExpectsFacts(c.id)).map(c => c.id).join(', ')
   );
   check(
     'the policy declares the same levels and evidences as the catalog',

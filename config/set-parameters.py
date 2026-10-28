@@ -66,8 +66,8 @@ document without `configuration.templates` and with nothing to convert is marked
 with templates or types stored by 1.2.0 does not accept `template` until a change is saved from
 Configuración (the plugin converts it).
 
-REGULAR EXPRESSION (plugin 1.3.0). In parameters whose judgment compares a flat list (op.acc.1 P-03
-and P-04, op.acc.4 P-05, op.acc.6 P-08 and P-11), a value can be an RE2 regular expression, without
+REGULAR EXPRESSION (plugin 1.3.0). In the parameters the engine compares as names (op.acc.1 P-03
+and P-04), a value can be an RE2 regular expression, without
 slashes, compared with the whole value. It is declared with a `value` + `matchMode` object, in the
 organization or in an agent:
 
@@ -194,8 +194,8 @@ def agent_id(value):
 
 
 def classes():
-    """Parameter classification from its single source: the JSON object of
-    `parameter-classes.ts`. None if absent (script outside the repo)."""
+    """Parameter classification: the JSON object of `parameter-classes.ts` plus the
+    engine catalog copy in `common/ens/catalog/engine/`. None if absent (script outside the repo)."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens",
                         "configuration", "agents", "parameter-classes.ts")
     try:
@@ -203,9 +203,15 @@ def classes():
             source = f.read()
     except OSError:
         return None
-    start = source.index("{", source.index("ENS_PARAMETER_CLASSES:"))
+    start = source.index("{", source.index("HAND_PARAMETER_CLASSES:"))
     end = source.index("\n};", start)
-    return json.loads(source[start:end + 2])
+    found = json.loads(source[start:end + 2])
+    engine = os.path.join(os.path.dirname(path), "..", "..", "catalog", "engine")
+    for name in sorted(os.listdir(engine)) if os.path.isdir(engine) else []:
+        with open(os.path.join(engine, name), encoding="utf-8") as f:
+            entry = json.load(f)
+        found[entry["control"]] = {pid: p["class"] for pid, p in entry["parameters"].items()}
+    return found
 
 
 # Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
@@ -236,9 +242,7 @@ TEMPLATE_KEY = "template"
 # Parameters with the «Expresión regular» mode; tests/parameter-match-mode-levels.test.ts checks it against the
 # plugin.
 PATTERN_PARAMETERS = {
-    "op.acc.1": ["P-03", "P-04"],
-    "op.acc.4": ["P-05"],
-    "op.acc.6": ["P-08", "P-11"]
+    "op.acc.1": ["P-03", "P-04"]
 }
 MAX_PATTERN_LENGTH = 512
 ENTRY_KEYS = {"value", "matchMode"}

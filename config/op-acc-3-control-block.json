@@ -212,6 +212,12 @@
       "requirements": [],
       "type": "table",
       "example": "op.acc.3.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
+      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con documento y enlace en el informe, nunca como medido. No debe apuntar a un documento sin escribir.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado.",
       "columns": [
         {
           "name": "requisito",
@@ -243,13 +249,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
-      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con documento y enlace en el informe, nunca como medido. No debe apuntar a un documento sin escribir.",
-      "evidenceIds": [],
-      "ruleIds": [],
-      "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."
+      ]
     }
   ]
 }

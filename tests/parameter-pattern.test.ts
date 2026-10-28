@@ -13,10 +13,7 @@ import { buildClearedControlConfiguration } from '../common/ens/configuration/se
 import { applyENSControlParameterValues } from '../public/ens/configuration/engine';
 import { opAcc1Configuration } from '../common/ens/configuration/data/op-acc-1-parameters';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
-import { ENSEvidenceCatalog } from '../common/ens/core/evidence/catalog';
-import { judgeEvidence } from '../common/ens/core/evidence/judgment';
 import type { ENSControlParameter } from '../common/ens/configuration/types';
-import type { ENSNormalizedEvent } from '../common/ens/core/data-source/types';
 
 const account = opAcc1Configuration.parameters.find((p) => p.id === 'P-04')!;
 const service = opAcc1Configuration.parameters.find((p) => p.id === 'P-03')!;
@@ -116,93 +113,10 @@ assert(
 );
 assert.equal(regex.value, '^(admin|test|svc_.+)$');
 
-const evaluate = (
-  parameter: ENSControlParameter,
-  user?: string,
-  primitive?: 'TODOS_EN_LISTA' | 'NINGUNO_FUERA_DE_LISTA'
-) => {
-  const definition = ENSEvidenceCatalog.find(
-    (e) =>
-      e.controlId === 'op.acc.1' &&
-      e.id === (parameter.id === 'P-03' ? 'EV-05' : 'EV-03')
-  )!;
-  const judgment = {
-    ...definition.judgment!,
-    ...(primitive ? { primitive } : {}),
-  };
-  const events: ENSNormalizedEvent[] =
-    user === undefined
-      ? []
-      : [
-          {
-            id: 'login-1',
-            controlId: 'op.acc.1',
-            eventType: 'account_authenticated',
-            sourceType: 'WAZUH_ALERT',
-            timestamp: '2026-10-15T10:00:00Z',
-            attributes: { usuario: user },
-          },
-        ];
-  const { judgment: _, ...base } = definition;
-  return judgeEvidence(
-    definition,
-    judgment,
-    base,
-    events,
-    configured(parameter),
-    new Date('2026-10-15T10:01:00Z')
-  );
-};
-assert.equal(evaluate(regex, 'admin').status, 'NO_CUMPLE');
-assert.equal(evaluate(regex, 'svc_backup').status, 'NO_CUMPLE');
-assert.equal(evaluate(regex, 'maria').status, 'CUMPLE');
-assert.equal(
-  evaluate(regex, 'superadmin').status,
-  'CUMPLE',
-  'full match'
-);
-assert.equal(
-  evaluate(regex, 'ADMIN').status,
-  'CUMPLE',
-  'regex is case-sensitive'
-);
-assert.equal(
-  evaluate({ ...regex, value: '(?i)admin' }, 'ADMIN').status,
-  'NO_CUMPLE'
-);
-assert.equal(
-  evaluate({ ...service, matchMode: 'regex', value: '^svc_.*$' }, 'svc_backup')
-    .status,
-  'NO_CUMPLE'
-);
-assert.equal(evaluate(regex, 'admin', 'TODOS_EN_LISTA').status, 'CUMPLE');
-assert.equal(evaluate(regex, 'maria', 'TODOS_EN_LISTA').status, 'NO_CUMPLE');
-assert.equal(
-  evaluate(regex, 'maria', 'NINGUNO_FUERA_DE_LISTA').status,
-  'NO_CUMPLE'
-);
-assert.equal(
-  evaluate(regex).status,
-  'NO_EVALUABLE',
-  'no coverage, no compliance'
-);
-const invalid = evaluate({ ...regex, value: '[' }, 'admin');
-assert.equal(invalid.status, 'NO_EVALUABLE');
-assert.equal(invalid.gapCause, 'CONFIGURATION');
-assert(invalid.observations.some((text) => text.includes('regular')));
-assert.equal(
-  evaluate({ ...account, value: ['admin.*'] }, 'admin2').status,
-  'CUMPLE',
-  'stored values stay literal'
-);
-assert.equal(
-  evaluate({ ...account, value: ['admin.*'] }, 'admin.*').status,
-  'NO_CUMPLE'
-);
 assert.equal(
   compileParameterPattern('(a+)+$').matches('a'.repeat(20000) + '!'),
   false
 );
 console.log(
-  'ALL OK: multiple input, patterns, persistence, clearing and evidence judgment.'
+  'ALL OK: multiple input, patterns, persistence and clearing.'
 );

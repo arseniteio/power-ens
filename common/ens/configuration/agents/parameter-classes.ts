@@ -1,18 +1,14 @@
-// Single source of each parameter's class; set-parameters.py parses the object below as JSON, so it stays strict
-// JSON. The mp.* controls without collector (catalog/support/measurement-plan.ts) are all 'organisation' while they are
-// documentary: the wave that brings their collector decides which ones go per system or per platform, with their
-// built-in templates.
+// Classes of the controls the engine judges come from its catalog; the rest from the object below, which
+// set-parameters.py parses as JSON, so it stays strict JSON. The mp.* controls without collector
+// (catalog/support/measurement-plan.ts) are all 'organisation' while they are documentary: the wave that brings
+// their collector decides which ones go per system or per platform, with their built-in templates.
+import { ENGINE_CATALOG, toParameterClasses } from '../../catalog/engine-catalog';
+
 export type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
-export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
+const HAND_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
 {
   "mp.info.6": {"P-01": "system", "P-02": "organisation", "P-03": "organisation", "P-04": "system", "P-05": "organisation", "P-06": "system", "P-07": "platform", "P-08": "system", "P-09": "system", "P-10": "platform", "P-11": "platform", "P-12": "platform", "P-13": "platform", "P-14": "organisation", "P-ATT": "organisation"},
-  "op.acc.1": {"P-01": "platform", "P-02": "system", "P-03": "platform", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "system", "P-08": "organisation", "P-09": "organisation", "P-10": "platform", "P-11": "platform", "P-12": "organisation", "P-ATT": "organisation"},
-  "op.acc.2": {"P-01": "system", "P-02": "platform", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "system", "P-07": "organisation", "P-08": "system", "P-09": "system", "P-10": "platform", "P-11": "platform", "P-12": "platform"},
-  "op.acc.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "platform", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-ATT": "organisation"},
-  "op.acc.4": {"P-01": "system", "P-02": "organisation", "P-03": "organisation", "P-04": "platform", "P-05": "system", "P-06": "platform", "P-07": "system", "P-08": "organisation"},
-  "op.acc.5": {"P-01": "organisation", "P-02": "system", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-ATT": "organisation", "P-DA": "organisation"},
-  "op.acc.6": {"P-01": "organisation", "P-02": "organisation", "P-03": "platform", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "platform", "P-08": "platform", "P-09": "organisation", "P-10": "organisation", "P-11": "platform", "P-12": "organisation", "P-ATT": "organisation"},
   "op.cont.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation"},
   "op.cont.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "system"},
   "op.exp.1": {"P-01": "system", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "system", "P-08": "organisation", "P-ATT": "organisation"},
@@ -40,6 +36,11 @@ export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterCl
   "mp.s.2": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation"},
   "mp.s.3": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation", "P-09": "organisation", "P-10": "organisation", "P-11": "organisation"},
   "mp.s.4": {"P-01": "organisation", "P-02": "organisation", "P-03": "organisation", "P-04": "organisation", "P-05": "organisation", "P-06": "organisation", "P-07": "organisation", "P-08": "organisation"}
+};
+
+export const ENS_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> = {
+  ...Object.fromEntries(ENGINE_CATALOG.map(entry => [entry.control, toParameterClasses(entry) as Record<string, ENSParameterClass>])),
+  ...HAND_PARAMETER_CLASSES,
 };
 
 // Column that NAMES THE MACHINE in per-system tables; the migration distributes rows by it. Per-system tables

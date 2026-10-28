@@ -32,13 +32,13 @@
         "op.acc.5.r4.3"
       ],
       "type": "select",
+      "example": "R2",
       "options": [
         "R1",
         "R2",
         "R3",
         "R4"
       ],
-      "example": "R2",
       "required": true,
       "wazuhUsage": "EV-07 contrasta la clase de cada autenticación con éxito, deducida de los factores registrados, con este valor.",
       "ensfacilUsage": "Decide qué refuerzo cuenta en el denominador. En nivel MEDIO o ALTO con R1 hay incumplimiento directo: la contraseña sola no es admisible por encima de BAJO.",
@@ -67,6 +67,16 @@
       ],
       "type": "table",
       "example": "sede | sede.organismo.es | /var/log/sede/autenticacion.json",
+      "required": true,
+      "wazuhUsage": "Define los servicios del alcance. El agente lee el registro declarado en OPACC5_SERVICIOS y emite sus hechos con el mismo nombre de servicio.",
+      "ensfacilUsage": "EV-06 y EV-09 solo cuentan hallazgos de los servicios de esta tabla: un rechazo revelador o una laguna en un servicio declarado incumple.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-06",
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "No hay ingesta de eventos de autenticación externa y todas las evidencias quedan sin fuente.",
       "columns": [
         {
           "name": "servicio",
@@ -86,17 +96,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": true,
-      "wazuhUsage": "Define los servicios del alcance. El agente lee el registro declarado en OPACC5_SERVICIOS y emite sus hechos con el mismo nombre de servicio.",
-      "ensfacilUsage": "EV-06 y EV-09 solo cuentan hallazgos de los servicios de esta tabla: un rechazo revelador o una laguna en un servicio declarado incumple.",
-      "evidenceIds": [
-        "EV-01",
-        "EV-06",
-        "EV-09"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "No hay ingesta de eventos de autenticación externa y todas las evidencias quedan sin fuente."
+      ]
     },
     {
       "id": "P-03",
@@ -114,8 +114,8 @@
       ],
       "type": "number",
       "example": "5",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
       "ensfacilUsage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
       "evidenceIds": [
@@ -167,8 +167,8 @@
       ],
       "type": "duration_days",
       "example": "90",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
       "ensfacilUsage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
       "evidenceIds": [
@@ -194,8 +194,8 @@
       ],
       "type": "duration_hours",
       "example": "24",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
       "ensfacilUsage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
       "evidenceIds": [
@@ -221,6 +221,14 @@
       ],
       "type": "table",
       "example": "FNMT-RCM | ocsp",
+      "required": false,
+      "wazuhUsage": "EV-08 busca la fila del emisor de cada certificado aceptado y comprueba que la revocación consultada está entre las declaradas.",
+      "ensfacilUsage": "Un emisor sin fila no se da por bueno: queda sin demostrar hasta que se declare o se deje de aceptar.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "No se puede verificar que los certificados sean cualificados ni que se valide su revocación.",
       "columns": [
         {
           "name": "ac",
@@ -238,15 +246,7 @@
           ],
           "required": true
         }
-      ],
-      "required": false,
-      "wazuhUsage": "EV-08 busca la fila del emisor de cada certificado aceptado y comprueba que la revocación consultada está entre las declaradas.",
-      "ensfacilUsage": "Un emisor sin fila no se da por bueno: queda sin demostrar hasta que se declare o se deje de aceptar.",
-      "evidenceIds": [
-        "EV-08"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "No se puede verificar que los certificados sean cualificados ni que se valide su revocación."
+      ]
     },
     {
       "id": "P-08",
@@ -263,8 +263,8 @@
       ],
       "type": "duration_days",
       "example": "365",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "Configura la política de retención de índices en Wazuh Indexer.",
       "ensfacilUsage": "EV-01 exige que el registro de cada servicio conserve en origen al menos estos días; EV-09, que no tenga lagunas.",
       "evidenceIds": [
@@ -310,6 +310,12 @@
       "requirements": [],
       "type": "table",
       "example": "op.acc.5.1 | Procedimiento de registro de usuarios externos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "ensfacilUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple.",
       "columns": [
         {
           "name": "requisito",
@@ -341,13 +347,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
-      "ensfacilUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
-      "evidenceIds": [],
-      "ruleIds": [],
-      "ifNotConfigured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
+      ]
     },
     {
       "id": "P-DA",
@@ -363,6 +363,12 @@
       "requirements": [],
       "type": "table",
       "example": "El sistema no ofrece acceso a usuarios externos | Declaración de Aplicabilidad aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-09-01 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
+      "ensfacilUsage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "El control se evalúa normalmente: sin servicios de acceso externo, sus requisitos quedan sin demostrar y cuentan en contra.",
       "columns": [
         {
           "name": "motivo",
@@ -394,13 +400,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
-      "ensfacilUsage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
-      "evidenceIds": [],
-      "ruleIds": [],
-      "ifNotConfigured": "El control se evalúa normalmente: sin servicios de acceso externo, sus requisitos quedan sin demostrar y cuentan en contra."
+      ]
     }
   ]
 }

@@ -113,15 +113,21 @@ WITHOUT_RUNBOOK = {
 
 
 def catalog_states():
-    """(control -> `status`, unreadable files) from `common/ens/catalog`."""
+    """(control -> `status`, unreadable files) from `common/ens/catalog` and its engine catalog copy."""
     states = {}
     unreadable = []
     folder = os.path.join(PLUGIN, "common/ens/catalog")
+    for file in sorted(os.listdir(os.path.join(folder, "engine"))):
+        with open(os.path.join(folder, "engine", file), encoding="utf-8") as f:
+            entry = json.load(f)
+        states[entry["control"]] = entry["status"]
     for file in sorted(os.listdir(folder)):
-        if not file.endswith(".ts") or file in ("index.ts", "types.ts"):
+        if not file.endswith(".ts") or file in ("index.ts", "types.ts", "engine-catalog.ts"):
             continue
         with open(os.path.join(folder, file), encoding="utf-8") as f:
             text = f.read()
+        if "from './engine-catalog'" in text:
+            continue
         ident = re.search(r"^  id: '([^']+)',$", text, re.M)
         estado = re.search(r"^  status: '([A-Z]+)',$", text, re.M)
         if not ident or not estado:

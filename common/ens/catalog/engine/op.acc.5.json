@@ -1,0 +1,914 @@
+{
+  "framework": "ENS",
+  "control": "op.acc.5",
+  "title": "Mecanismo de autenticación (usuarios externos)",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Control de acceso",
+  "dimension": "Confidencialidad, Integridad, Trazabilidad y Autenticidad",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A"
+  ],
+  "annex_section": "4.2.5",
+  "description": "op.acc.5 regula la autenticación de usuarios que NO pertenecen a la organización: ciudadanos, empresas, terceros autorizados. Los refuerzos R1 a R4 son una elección declarada en P-01, no una acumulación: solo cuenta el elegido, y R1 no es admisible desde nivel MEDIO.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "ENSFacil_Plantilla_op.acc.5",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.acc.5.1",
+      "title": "Registro fidedigno previo a la entrega",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de proporcionar las credenciales de autenticación a las entidades, usuarios o procesos, estos deberán haberse identificado y registrado de manera fidedigna ante el sistema o ante un Prestador Cualificado de Servicios de Confianza o un proveedor de identidad electrónica reconocido por las administraciones públicas, de conformidad con lo dispuesto en la Ley 39/2015, de 1 de octubre.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.5.2",
+      "title": "Acuse de recibo y deber de custodia",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de activar el mecanismo de autenticación, el usuario reconocerá que las ha recibido y que conoce y acepta las obligaciones que implica su tenencia, en particular, el deber de custodia diligente, la protección de su confidencialidad y el deber de notificación inmediata en caso de pérdida.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.5.3",
+      "title": "Credencial bajo control exclusivo del usuario",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales estarán bajo el control exclusivo del usuario y se activarán una vez estén bajo su control efectivo.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.5.4",
+      "title": "Cambio periódico de credenciales",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales se cambiarán con una periodicidad marcada por la política de seguridad de la organización.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.acc.5.5",
+      "title": "Inhabilitación ante compromiso",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales serán inhabilitadas —pudiendo ser regeneradas, en su caso—, cuando conste o se sospeche su pérdida, compromiso o revelación a entidades (personas, equipos o procesos) no autorizadas.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.acc.5.6",
+      "title": "Inhabilitación al terminar la relación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las credenciales serán inhabilitadas cuando la entidad (persona, equipo o proceso) que autentican termina su relación con el sistema.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.acc.5.7",
+      "title": "Autenticación que no revela información",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Antes de autorizar el acceso, la información presentada por el sistema será la mínima imprescindible para que el usuario se autentique, evitando todo aquello que pueda, directa o indirectamente, revelar información sobre el sistema o la cuenta, sus características, su operación o su estado. Las credenciales solamente se validarán cuando se tengan todos los datos necesarios y, si se rechaza, no se informará del motivo del rechazo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.acc.5.8",
+      "title": "Límite de intentos y reactivación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El número de intentos permitidos será limitado, bloqueando la oportunidad de acceso una vez superado tal número, y requiriendo una intervención específica para reactivar la cuenta, que se describirá en la documentación.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03",
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.acc.5.9",
+      "title": "Información de derechos y obligaciones",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema informará al usuario de sus derechos u obligaciones inmediatamente después de obtener el acceso.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.5.r1.1",
+      "title": "Contraseña como mecanismo (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R1: solo cuenta si P-01 lo declara, y solo es admisible en nivel BAJO.",
+      "description": "Se empleará una contraseña como mecanismo de autenticación.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r1.2",
+      "title": "Complejidad mínima de la contraseña (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R1: solo cuenta si P-01 lo declara, y solo es admisible en nivel BAJO.",
+      "description": "Se impondrán normas de complejidad mínima y robustez frente a ataques de adivinación (ver guías CCN-STIC).",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.acc.5.r2.1",
+      "title": "Segundo factor OTP (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R2: solo cuenta si P-01 lo declara.",
+      "description": "Se requerirá una contraseña de un solo uso (OTP, en inglés) como complemento a la contraseña de usuario.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r3.1",
+      "title": "Certificado cualificado (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R3: solo cuenta si P-01 lo declara.",
+      "description": "Se emplearán certificados cualificados como mecanismo de autenticación.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.acc.5.r3.2",
+      "title": "Segundo factor sobre el certificado (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R3: solo cuenta si P-01 lo declara.",
+      "description": "El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r3.3",
+      "title": "Registro previo cualificado (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R3: solo cuenta si P-01 lo declara. Documental: se acredita en P-ATT.",
+      "description": "Las credenciales utilizadas deberán haber sido obtenidas tras un registro previo presencial, o bien telemático, usando un certificado electrónico cualificado.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r4.1",
+      "title": "Certificado en soporte físico autorizado (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R4: solo cuenta si P-01 lo declara.",
+      "description": "Se emplearán certificados cualificados como mecanismo de autenticación, en soporte físico (tarjeta o similar) usando algoritmos, parámetros y dispositivos autorizados por el CCN.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.acc.5.r4.2",
+      "title": "Segundo factor sobre el certificado (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R4: solo cuenta si P-01 lo declara.",
+      "description": "El uso del certificado estará protegido por un segundo factor, del tipo PIN o biométrico.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r4.3",
+      "title": "Registro previo cualificado (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo R4: solo cuenta si P-01 lo declara. Documental: se acredita en P-ATT.",
+      "description": "Las credenciales utilizadas deberán haber sido obtenidas tras un registro previo presencial, o bien telemático, usando certificado electrónico cualificado.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "op.acc.5.r5.1",
+      "title": "Registro de accesos con éxito y fallidos (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se registrarán los accesos con éxito y los fallidos.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.acc.5.r5.2",
+      "title": "Aviso del último acceso efectuado (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Documental: P-09 declara la funcionalidad y P-ATT la acredita.",
+      "description": "Se informará al usuario del último acceso efectuado con su identidad.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.acc.5.r6.1",
+      "title": "Renovación de la autenticación (R6)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "R6 no es obligatorio en ningún nivel de op.acc.5 (sí en op.acc.6 ALTO): fuera del denominador.",
+      "description": "Refuerzo R6 – Limitación de la ventana de acceso: Se definirán aquellos puntos en los que el sistema requerirá una renovación de la autenticación del usuario, mediante identificación singular, no bastando con la sesión establecida.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.acc.5.r7.1",
+      "title": "Suspensión por no utilización (R7)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "R7 no es obligatorio en ningún nivel de op.acc.5 (sí en op.acc.6 ALTO): fuera del denominador.",
+      "description": "Refuerzo R7 – Suspensión por no utilización: Las credenciales se suspenderán tras un periodo definido de no utilización.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registro de accesos con éxito y fallidos",
+      "description": "Ingesta y conservación de todos los eventos de autenticación de los servicios de P-02, tanto exitosos como fallidos. Es la evidencia central del Refuerzo R5, obligatorio en MEDIO y ALTO, y la base sobre la que se construyen el resto de detecciones del control.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r5.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se registran los accesos con éxito y fallidos de los servicios de P-02 y se conservan el periodo de P-08?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Superación del límite de intentos sin bloqueo efectivo",
+      "description": "Límite de intentos que el servicio aplica (su política de bloqueo) y rachas de fallos consecutivos por cuenta. Cualquiera de los dos por encima de P-03 demuestra que el límite exigido por op.acc.5.8 no es el declarado o no es operativo. La política de complejidad viaja en la misma evidencia para op.acc.5.r1.2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.8",
+        "op.acc.5.r1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El servicio limita los intentos a lo declarado en P-03 y el bloqueo es efectivo?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Ataques de fuerza bruta y credential stuffing contra el servicio externo",
+      "description": "Fallos de autenticación agregados por origen: cuántos intentos y contra cuántas cuentas llegan desde una misma dirección. Un origen por encima de P-03 es un ataque que el mecanismo de bloqueo no ha contenido. Es el riesgo que op.acc.5.8 pretende mitigar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.8"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Algún origen acumula más fallos de los que P-03 admite sin que se le contenga?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Antigüedad de las credenciales frente a la periodicidad exigida",
+      "description": "Cálculo del tiempo transcurrido desde el último cambio de credencial de cada usuario externo activo, y contraste con la periodicidad P-05 fijada por la política de la organización.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Ninguna credencial activa de usuario externo supera la periodicidad de cambio de P-05?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Reacción ante compromiso o fin de relación",
+      "description": "Medición del intervalo entre el evento de notificación de pérdida, compromiso o revelación de una credencial (o de fin de relación del usuario con el sistema) y el evento de inhabilitación efectiva de esa credencial. Contraste con el plazo máximo P-06.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.5",
+        "op.acc.5.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Las credenciales comprometidas o de relaciones terminadas se inhabilitan dentro de P-06?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Verificación de mensajes de error no informativos",
+      "description": "Detección de respuestas del servicio que revelan información sobre el sistema o la cuenta en los rechazos de autenticación: mensajes que distinguen «usuario inexistente» de «contraseña incorrecta», estado de la cuenta, trazas de error, versiones del software. Vulnera op.acc.5.7.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.7"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Algún servicio de acceso externo revela información sobre la cuenta o el sistema al rechazar una autenticación?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Mecanismo de autenticación efectivamente aplicado (R1 a R4)",
+      "description": "Verificación de que las autenticaciones con éxito usan efectivamente el mecanismo del refuerzo declarado en P-01: contraseña en R1, contraseña más OTP en R2, certificado con PIN o biometría en R3, certificado en soporte físico con PIN en R4. Detecta sesiones completadas sin el factor adicional.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r1.1",
+        "op.acc.5.r2.1",
+        "op.acc.5.r3.2",
+        "op.acc.5.r4.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Todas las autenticaciones con éxito usan el mecanismo del refuerzo declarado en P-01?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Validación de certificados y estado de revocación (R3, R4)",
+      "description": "Comprobación de que los certificados presentados provienen de las autoridades admitidas en P-07 y de que se ejecuta la consulta de revocación (OCSP o CRL) que P-07 declara para cada una. Detecta aceptación de certificados sin validar revocación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r3.1",
+        "op.acc.5.r4.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Los certificados aceptados son de las AC de P-07 y se comprueba su revocación como P-07 declara?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Continuidad e integridad del registro de accesos",
+      "description": "Verificación de que el registro exigido por R5 no presenta lagunas: el registro de un servicio declarado que desaparece, o que encoge sin haber rotado. Una laguna en el registro compromete la acreditación de R5.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r5.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿El registro de accesos de los servicios de P-02 se conserva sin lagunas?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "refuerzo_autenticacion_elegido",
+      "label": "Refuerzo autenticacion elegido",
+      "description": "Refuerzo de autenticación para usuarios externos, a elegir (no acumulativo): R1 contraseña (solo BAJO), R2 contraseña más OTP, R3 certificado cualificado con PIN o biometría, R4 certificado en soporte físico con PIN. Solo cuentan los requisitos del refuerzo elegido; los demás salen NO_APLICA.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r1.1",
+        "op.acc.5.r1.2",
+        "op.acc.5.r2.1",
+        "op.acc.5.r3.1",
+        "op.acc.5.r3.2",
+        "op.acc.5.r3.3",
+        "op.acc.5.r4.1",
+        "op.acc.5.r4.2",
+        "op.acc.5.r4.3"
+      ],
+      "type": "select",
+      "example": "R2",
+      "options": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "required": true,
+      "agent_usage": "EV-07 contrasta la clase de cada autenticación con éxito, deducida de los factores registrados, con este valor.",
+      "engine_usage": "Decide qué refuerzo cuenta en el denominador. En nivel MEDIO o ALTO con R1 hay incumplimiento directo: la contraseña sola no es admisible por encima de BAJO.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "El control es NO EVALUABLE: sin saber el mecanismo no se verifica ninguna condición."
+    },
+    "P-02": {
+      "class": "system",
+      "name": "servicios_acceso_externo",
+      "label": "Servicios acceso externo",
+      "description": "Portales, aplicaciones o endpoints donde se autentican usuarios externos (sede electrónica, portal del ciudadano, API pública, extranet de proveedores), una fila por servicio. La columna `servicio` debe ser EXACTAMENTE el nombre de OPACC5_SERVICIOS, que contrastan EV-06 y EV-09; si ninguna máquina publica servicios externos, no hay nada que declarar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.1",
+        "op.acc.5.7",
+        "op.acc.5.8",
+        "op.acc.5.r5.1"
+      ],
+      "type": "table",
+      "example": "sede | sede.organismo.es | /var/log/sede/autenticacion.json",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "host",
+          "label": "Host o URL",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "log",
+          "label": "Registro de autenticación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Define los servicios del alcance. El agente lee el registro declarado en OPACC5_SERVICIOS y emite sus hechos con el mismo nombre de servicio.",
+      "engine_usage": "EV-06 y EV-09 solo cuentan hallazgos de los servicios de esta tabla: un rechazo revelador o una laguna en un servicio declarado incumple.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-06",
+        "EV-09"
+      ],
+      "if_not_configured": "No hay ingesta de eventos de autenticación externa y todas las evidencias quedan sin fuente."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "max_intentos_fallidos",
+      "label": "Max intentos fallidos",
+      "description": "Máximo de intentos de autenticación fallidos consecutivos antes de bloquear el acceso. El ENS exige que sea limitado (op.acc.5.8) y deja la cifra a la organización.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.8"
+      ],
+      "type": "number",
+      "example": "5",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
+      "engine_usage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03"
+      ],
+      "if_not_configured": "No se puede verificar op.acc.5.8 ni distinguir un ataque de fuerza bruta de un bloqueo que funciona."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "procedimiento_reactivacion",
+      "label": "Procedimiento reactivacion",
+      "description": "Referencia al procedimiento documentado de reactivación de cuenta tras bloqueo. El ENS exige que la intervención para reactivar «se describirá en la documentación».",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.8"
+      ],
+      "type": "string",
+      "example": "PR-07 Reactivación de credenciales v1.2",
+      "required": true,
+      "agent_usage": "Referencia documental en el informe.",
+      "engine_usage": "Monitoriza los eventos de desbloqueo para verificar que hay intervención explícita y no un desbloqueo automático por tiempo.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03"
+      ],
+      "if_not_configured": "El informe no acredita la parte documental de op.acc.5.8."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "periodicidad_cambio_credenciales_dias",
+      "label": "Periodicidad cambio credenciales dias",
+      "description": "Cada cuántos días deben cambiarse las credenciales de usuarios externos. El ENS remite a la política de seguridad de la organización (op.acc.5.4) y no fija plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.4"
+      ],
+      "type": "duration_days",
+      "example": "90",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
+      "engine_usage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "No se puede verificar op.acc.5.4: la caducidad de credenciales queda sin control automático."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "plazo_max_inhabilitar_credencial_horas",
+      "label": "Plazo max inhabilitar credencial horas",
+      "description": "Tiempo máximo entre que consta o se sospecha el compromiso de una credencial y su inhabilitación efectiva (op.acc.5.5). También aplica al fin de relación con el sistema (op.acc.5.6).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.5",
+        "op.acc.5.6"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
+      "engine_usage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "No se mide la reacción ante compromiso: op.acc.5.5 y .5.6 quedan NO EVALUABLES."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "vigencia_certificados_admitidos",
+      "label": "Vigencia certificados admitidos",
+      "description": "Autoridades de certificación admitidas y revocación exigida a cada una (ocsp, crl o ambas) cuando el mecanismo es R3 o R4; `ac` es el emisor tal como lo registra el servicio. Solo se exige con P-01 = R3 o R4.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r3.1",
+        "op.acc.5.r4.1"
+      ],
+      "type": "table",
+      "example": "FNMT-RCM | ocsp",
+      "columns": [
+        {
+          "name": "ac",
+          "label": "Autoridad de certificación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "validacion",
+          "label": "Comprobación de revocación",
+          "type": "multiselect",
+          "options": [
+            "ocsp",
+            "crl"
+          ],
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "EV-08 busca la fila del emisor de cada certificado aceptado y comprueba que la revocación consultada está entre las declaradas.",
+      "engine_usage": "Un emisor sin fila no se da por bueno: queda sin demostrar hasta que se declare o se deje de aceptar.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "No se puede verificar que los certificados sean cualificados ni que se valide su revocación."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "retencion_registro_accesos_dias",
+      "label": "Retencion registro accesos dias",
+      "description": "Período de conservación del registro de accesos con éxito y fallidos exigido por R5 (obligatorio en MEDIO y ALTO). Debe ser coherente con la retención de op.acc.1.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r5.1"
+      ],
+      "type": "duration_days",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Configura la política de retención de índices en Wazuh Indexer.",
+      "engine_usage": "EV-01 exige que el registro de cada servicio conserve en origen al menos estos días; EV-09, que no tenga lagunas.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-09"
+      ],
+      "if_not_configured": "No se acredita la conservación exigida por R5: riesgo de pérdida de trazabilidad."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "notificacion_ultimo_acceso",
+      "label": "Notificacion ultimo acceso",
+      "description": "Indica si el servicio informa al usuario de su último acceso (op.acc.5.r5.2, MEDIO y ALTO). Es una función del portal, no detectable en logs.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.acc.5.r5.2"
+      ],
+      "type": "boolean",
+      "example": "sí",
+      "required": true,
+      "agent_usage": "Declaración que ENSFácil recoge en el informe. Wazuh no puede verificarla: se acredita documentalmente.",
+      "engine_usage": "No = incumplimiento de op.acc.5.r5.2. Sí = se acredita con la fila de op.acc.5.r5.2 en P-ATT (captura o referencia técnica); sin ella, sin demostrar.",
+      "evidence_ids": [],
+      "if_not_configured": "R5 queda parcialmente sin acreditar; op.acc.5.r5.2 pendiente de evidencia documental."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan un requisito que ninguna medida técnica puede demostrar, una fila por requisito con nombre del documento y enlace. Aquí acredita registro previo (.1), acuse de recibo de credenciales (.2), entrega bajo control exclusivo (.3), información de derechos (.9), registro cualificado de R3 y R4 (r3.3, r4.3) y aviso del último acceso (r5.2).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.acc.5.1 | Procedimiento de registro de usuarios externos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "engine_usage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "evidence_ids": [],
+      "if_not_configured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
+    },
+    "P-DA": {
+      "class": "organisation",
+      "name": "declaracion_aplicabilidad",
+      "label": "Declaración de Aplicabilidad",
+      "description": "Documento que excluye este control porque el sistema no tiene lo que regula: op.acc.5 solo aplica donde se autentican usuarios ajenos a la organización. Una única fila con motivo, referencia del documento aprobado y enlace.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "El sistema no ofrece acceso a usuarios externos | Declaración de Aplicabilidad aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-09-01 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
+      "engine_usage": "Con la declaración completa (motivo, referencia y enlace real) y nada medido ni acreditado en la máquina, los requisitos salen NO_APLICA con referencia y motivo, y el control queda fuera del índice sin número. Si se midió algo, la exclusión se contradice y no se aplica.",
+      "evidence_ids": [],
+      "if_not_configured": "El control se evalúa normalmente: sin servicios de acceso externo, sus requisitos quedan sin demostrar y cuentan en contra."
+    }
+  }
+}

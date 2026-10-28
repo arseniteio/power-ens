@@ -1,8 +1,7 @@
-// Operational SOC alerts of the panel (ENS-DASH-004, Francisco Caicedo): one row per incident, shown only where the engine's result makes it applicable; a multi-role row is rated by the engine's non-conformity, never by the agent's `estado`.
+// Operational SOC alerts of the panel (ENS-DASH-004, Francisco Caicedo): one row per incident, shown only where the engine's result makes it applicable.
 import { getENSCatalogControl } from '../../../catalog';
 import { ENSNormalizedEvent } from '../../data-source/types';
 import { ENSComplianceState } from '../../compliance-state/types';
-import { getEvidenceDefinitions } from '../../evidence/registry';
 import type { ENSComplianceResult } from '../../evaluation/types';
 import type { ENSAgentScope } from '../../scope/types';
 import {
@@ -20,7 +19,6 @@ import {
 export const OPERATIONAL_ALERT_KEY_FIELDS: Record<string, string[]> = {
   collector_warning: ['ensfacil', 'requisito', 'parametro', 'origen', 'objeto', 'motivo'],
   security_alert_observed: ['ensfacil', 'agente_id', 'sistema', 'regla', 'descripcion'],
-  multi_role_usage: ['ensfacil', 'requisito', 'usuario', 'motivo'],
 };
 
 // Rows the panel shows.
@@ -29,7 +27,6 @@ export const OPERATIONAL_ALERT_ROWS = 5;
 const FIXED_LABEL: Record<string, string> = {
   collector_warning: 'Advertencia del recolector ENS.',
   security_alert_observed: 'Alerta de seguridad observada por Wazuh.',
-  multi_role_usage: 'Uso de identificadores sin separación de privilegios.',
 };
 
 const SEVERITY_ORDER: Record<ImpactEventSeverity, number> = { error: 0, warning: 1, success: 2, info: 3 };
@@ -86,9 +83,7 @@ const labelOf = (incident: OperationalIncident): string => {
 const detailOf = (incident: OperationalIncident): string => {
   const f = (name: string) => (incident.fields[name] || '').trim();
   const parts =
-    incident.eventType === 'multi_role_usage'
-      ? [f('usuario') && `Cuenta ${f('usuario')}`, f('requisito') && `requisito ${f('requisito')}`]
-      : incident.eventType === 'security_alert_observed'
+    incident.eventType === 'security_alert_observed'
       ? [f('regla') && `Regla ${f('regla')}`, f('sistema') && `en ${f('sistema')}`]
       : [f('parametro') && `Parámetro ${f('parametro')}`, f('origen'), f('objeto'), f('requisito') && `requisito ${f('requisito')}`];
   return parts.filter(Boolean).join(' · ') || 'Sin más detalle del agente.';
@@ -137,29 +132,12 @@ const toRow = (
   if (!result) return undefined;
 
   const requirementId = f('requisito');
-  let severity: ImpactEventSeverity;
-  if (incident.eventType === 'multi_role_usage') {
-    // The engine judges: an error only if it holds a measured non-conformity of that requirement on that machine, raised by an evidence that listens to this fact (EV-06 on op.acc.1).
-    const listening = getEvidenceDefinitions(controlId)
-      .filter(evidence => evidence.expectedEventTypes.includes(incident.eventType))
-      .map(evidence => evidence.id);
-    const judged = (result.nonConformities || []).some(
-      nonConformity =>
-        nonConformity.requirementId === requirementId &&
-        nonConformity.origin === 'MEDIDA' &&
-        // `evidenceIds` lists the evidences that failed; `evidenceId` is only the card's anchor and proves nothing.
-        (nonConformity.evidenceIds || []).some(id => listening.includes(id))
-    );
-    if (!requirementId || !judged) return undefined;
-    severity = 'error';
-  } else {
-    // Only where the control has an applicable requirement: the one the fact names (a warning may carry `requisito`), otherwise any.
-    const applicable = requirementId
-      ? result.requirements.some(requirement => requirement.id === requirementId && requirement.status !== 'NO_APLICA')
-      : result.requirements.some(requirement => requirement.status !== 'NO_APLICA');
-    if (!applicable) return undefined;
-    severity = 'warning';
-  }
+  // Only where the control has an applicable requirement: the one the fact names (a warning may carry `requisito`), otherwise any.
+  const applicable = requirementId
+    ? result.requirements.some(requirement => requirement.id === requirementId && requirement.status !== 'NO_APLICA')
+    : result.requirements.some(requirement => requirement.status !== 'NO_APLICA');
+  if (!applicable) return undefined;
+  const severity: ImpactEventSeverity = 'warning';
 
   const key = [incident.eventType, agentId, controlId, ...OPERATIONAL_ALERT_KEY_FIELDS[incident.eventType]
     .filter(name => name !== 'ensfacil' && name !== 'agente_id' && name !== 'sistema')

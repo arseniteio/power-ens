@@ -182,6 +182,14 @@
       ],
       "type": "table",
       "example": "jgomez | srv01 | ops",
+      "required": true,
+      "wazuhUsage": "El inventario de cuentas activas se compara con esta lista y una cuenta activa que no figure en ella genera alerta.",
+      "ensfacilUsage": "Es la lista contra la que se juzga EV-07. Solo la columna de usuario se contrasta con las cuentas activas, de forma literal y sensible a mayúsculas; sistema y rol acompañan a la decisión en el informe.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta como incumplimiento en las categorías MEDIA y ALTA.",
       "columns": [
         {
           "name": "usuario",
@@ -201,15 +209,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": true,
-      "wazuhUsage": "El inventario de cuentas activas se compara con esta lista y una cuenta activa que no figure en ella genera alerta.",
-      "ensfacilUsage": "Es la lista contra la que se juzga EV-07. Solo la columna de usuario se contrasta con las cuentas activas, de forma literal y sensible a mayúsculas; sistema y rol acompañan a la decisión en el informe.",
-      "evidenceIds": [
-        "EV-07"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "EV-07 no acredita y el requisito op.acc.1.r1.3 cuenta como incumplimiento en las categorías MEDIA y ALTA."
+      ]
     },
     {
       "id": "P-08",
@@ -252,6 +252,14 @@
       ],
       "type": "table",
       "example": "mlopez | 2026-03-31",
+      "required": false,
+      "wazuhUsage": "Cada baja declarada se compara con la fecha de deshabilitación de su cuenta y una fuera de plazo genera el hecho correspondiente.",
+      "ensfacilUsage": "Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin integración con recursos humanos no hay fuente de fechas de baja y EV-04 no tiene qué medir.",
       "columns": [
         {
           "name": "usuario",
@@ -265,15 +273,7 @@
           "type": "date",
           "required": true
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Cada baja declarada se compara con la fecha de deshabilitación de su cuenta y una fuera de plazo genera el hecho correspondiente.",
-      "ensfacilUsage": "Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.",
-      "evidenceIds": [
-        "EV-04"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "Sin integración con recursos humanos no hay fuente de fechas de baja y EV-04 no tiene qué medir."
+      ]
     },
     {
       "id": "P-10",
@@ -318,14 +318,6 @@
       ],
       "type": "list",
       "example": "sudo",
-      "columns": [
-        {
-          "name": "grupo",
-          "label": "Grupo privilegiado",
-          "type": "identifier",
-          "required": true
-        }
-      ],
       "required": false,
       "wazuhUsage": "Define qué pertenencias se registran como uso de privilegios.",
       "ensfacilUsage": "Indica qué considera privilegio administrativo la organización. Un grupo que no administra nada marcaría como acumulación de roles a cuentas que no pueden cambiar el sistema.",
@@ -333,7 +325,15 @@
         "EV-06"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "El agente aplica su lista de fábrica (sudo, wheel y admin) y el informe cita un valor por defecto del producto, no una decisión del cliente."
+      "ifNotConfigured": "El agente aplica su lista de fábrica (sudo, wheel y admin) y el informe cita un valor por defecto del producto, no una decisión del cliente.",
+      "columns": [
+        {
+          "name": "grupo",
+          "label": "Grupo privilegiado",
+          "type": "identifier",
+          "required": true
+        }
+      ]
     },
     {
       "id": "P-12",
@@ -374,6 +374,12 @@
       "requirements": [],
       "type": "table",
       "example": "op.acc.1.5 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee: es la prueba documental de lo que la telemetría no alcanza. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
+      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y enlace en el informe, y nunca como medido. Declararla solo con el documento aprobado.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado.",
       "columns": [
         {
           "name": "requisito",
@@ -405,13 +411,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Ningún agente lo lee: es la prueba documental de lo que la telemetría no alcanza. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
-      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y enlace en el informe, y nunca como medido. Declararla solo con el documento aprobado.",
-      "evidenceIds": [],
-      "ruleIds": [],
-      "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."
+      ]
     }
   ]
 }

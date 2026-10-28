@@ -1,5 +1,7 @@
 import type { ENSControlParameter } from '../types';
 import { ENSEvidenceCatalog } from '../../core/evidence/catalog';
+import { isEngineJudged } from '../../core/engine-judged';
+import { engineCatalogEntry } from '../../catalog/engine-catalog';
 
 const PATTERN_PRIMITIVES = ['NINGUNO_EN_LISTA', 'TODOS_EN_LISTA', 'NINGUNO_FUERA_DE_LISTA'];
 
@@ -13,11 +15,17 @@ const flatListJudgments = (parameter: Pick<ENSControlParameter, 'controlId' | 'i
   );
 
 // Patterns only where the engine compares whole values with a flat list; a table, a threshold or a document has another contract.
+// The OSCompliance engine declares them in its catalog (`pattern`).
 export const supportsParameterPattern = (parameter: Pick<ENSControlParameter, 'controlId' | 'id' | 'type' | 'columns'>): boolean =>
-  ['list', 'string'].includes(parameter.type) && !parameter.columns?.length && flatListJudgments(parameter).length > 0;
+  ['list', 'string'].includes(parameter.type) &&
+  !parameter.columns?.length &&
+  (isEngineJudged(parameter.controlId)
+    ? engineCatalogEntry(parameter.controlId).parameters[parameter.id]?.pattern === true
+    : flatListJudgments(parameter).length > 0);
 
-// «Texto exacto» on a forbidden list ignores case (judgment.ts, normalizeForComparison); its regex proposal must too.
+// «Texto exacto» on a forbidden list ignores case, in the engine and in judgment.ts; its regex proposal must too.
 export const ignoresCaseInExactMode = (parameter: Pick<ENSControlParameter, 'controlId' | 'id'>): boolean => {
+  if (isEngineJudged(parameter.controlId)) return true;
   const judgments = flatListJudgments(parameter);
   return judgments.length > 0 && judgments.every(evidence => evidence.judgment!.primitive === 'NINGUNO_EN_LISTA');
 };

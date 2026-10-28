@@ -89,6 +89,14 @@
       ],
       "type": "list",
       "example": "local",
+      "required": true,
+      "wazuhUsage": "El agente emite un hueco de registro cuando una fuente no existe, nunca ha registrado nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).",
+      "ensfacilUsage": "Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "No se sabe qué fuentes deben registrar los accesos: op.acc.6.r5.1 queda sin demostrar.",
       "columns": [
         {
           "name": "fuente",
@@ -102,15 +110,7 @@
             "azure_ad"
           ]
         }
-      ],
-      "required": true,
-      "wazuhUsage": "El agente emite un hueco de registro cuando una fuente no existe, nunca ha registrado nada o su configuración no registra éxitos o fallos (LogLevel de sshd, olcLogLevel de slapd).",
-      "ensfacilUsage": "Un hueco de registro en una fuente declarada aquí incumple op.acc.6.r5.1.",
-      "evidenceIds": [
-        "EV-01"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "No se sabe qué fuentes deben registrar los accesos: op.acc.6.r5.1 queda sin demostrar."
+      ]
     },
     {
       "id": "P-04",
@@ -128,8 +128,8 @@
       ],
       "type": "duration_days",
       "example": "180",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "El agente emite la antigüedad en días de cada credencial (contraseña desde /etc/shadow; clave ssh desde la fecha de su fichero) y la caducidad que impone el sistema (99999 si ninguna).",
       "ensfacilUsage": "Una credencial más antigua que este plazo, o una caducidad configurada mayor, incumple op.acc.6.4.",
       "evidenceIds": [
@@ -154,8 +154,8 @@
       ],
       "type": "number",
       "example": "5",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "El agente emite la configuración de bloqueo de cada camino de autenticación con contraseña (pam_faillock, pam_tally2, ppolicy) y los fallos y bloqueos del log.",
       "ensfacilUsage": "Incumple op.acc.6.8 un camino en uso sin bloqueo, con umbral mayor que este valor o con desbloqueo automático, y una cuenta con más fallos que este valor en una pasada sin bloqueo registrado.",
       "evidenceIds": [
@@ -182,8 +182,8 @@
       ],
       "type": "duration_hours",
       "example": "24",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "La organización anota cada compromiso o baja en el registro del agente; el agente emite las horas hasta que observa la cuenta inhabilitada, o las que lleva habilitada.",
       "ensfacilUsage": "Una inhabilitación que tarda más que este plazo, o una cuenta que lo supera sin inhabilitar, incumple op.acc.6.5 y op.acc.6.6.",
       "evidenceIds": [
@@ -208,6 +208,15 @@
       ],
       "type": "table",
       "example": "ssh | si | Responsable de Seguridad | si",
+      "required": true,
+      "wazuhUsage": "El agente emite cada canal en escucha (con su cifrado observado y si arranca siempre) y cada acceso con su canal.",
+      "ensfacilUsage": "Incumple op.acc.6.r9.2 un acceso por un canal ausente de la tabla, un canal en escucha con cifrado distinto del de su fila, o uno que arranca siempre cuando su fila dice uso no constante. Un canal en escucha sin fila no se da por bueno.",
+      "evidenceIds": [
+        "EV-07",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "R9, obligatorio desde nivel BAJO, no se puede evaluar: op.acc.6.r9.2 queda sin demostrar.",
       "columns": [
         {
           "name": "canal",
@@ -241,16 +250,7 @@
             "no"
           ]
         }
-      ],
-      "required": true,
-      "wazuhUsage": "El agente emite cada canal en escucha (con su cifrado observado y si arranca siempre) y cada acceso con su canal.",
-      "ensfacilUsage": "Incumple op.acc.6.r9.2 un acceso por un canal ausente de la tabla, un canal en escucha con cifrado distinto del de su fila, o uno que arranca siempre cuando su fila dice uso no constante. Un canal en escucha sin fila no se da por bueno.",
-      "evidenceIds": [
-        "EV-07",
-        "EV-08"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "R9, obligatorio desde nivel BAJO, no se puede evaluar: op.acc.6.r9.2 queda sin demostrar."
+      ]
     },
     {
       "id": "P-08",
@@ -289,8 +289,8 @@
       ],
       "type": "duration_days",
       "example": "45",
-      "minValue": 1,
       "required": true,
+      "minValue": 1,
       "wazuhUsage": "El agente emite, por cuenta habilitada, los días desde su último acceso (lastlog, wtmp y accesos que anota del log de autenticación).",
       "ensfacilUsage": "Una cuenta habilitada con más días de inactividad que este valor incumple op.acc.6.r7.1.",
       "evidenceIds": [
@@ -315,6 +315,14 @@
       ],
       "type": "table",
       "example": "longitud_minima | 12",
+      "required": false,
+      "wazuhUsage": "El agente emite lo que impone la pila password de PAM (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.",
+      "ensfacilUsage": "Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Con R1 o R2, op.acc.6.r1.2 queda sin demostrar.",
       "columns": [
         {
           "name": "criterio",
@@ -334,15 +342,7 @@
           "type": "number",
           "required": true
         }
-      ],
-      "required": false,
-      "wazuhUsage": "El agente emite lo que impone la pila password de PAM (pam_pwquality, pam_cracklib, pam_unix, pam_pwhistory) y, en un directorio, su política de contraseñas.",
-      "ensfacilUsage": "Una medida observada por debajo del mínimo de su fila incumple op.acc.6.r1.2.",
-      "evidenceIds": [
-        "EV-11"
-      ],
-      "ruleIds": [],
-      "ifNotConfigured": "Con R1 o R2, op.acc.6.r1.2 queda sin demostrar."
+      ]
     },
     {
       "id": "P-11",
@@ -429,6 +429,12 @@
       "requirements": [],
       "type": "table",
       "example": "op.acc.6.1 | Política de seguridad aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "ensfacilUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple.",
       "columns": [
         {
           "name": "requisito",
@@ -460,13 +466,7 @@
           "type": "string",
           "required": false
         }
-      ],
-      "required": false,
-      "wazuhUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
-      "ensfacilUsage": "Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».",
-      "evidenceIds": [],
-      "ruleIds": [],
-      "ifNotConfigured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
+      ]
     }
   ]
 }
