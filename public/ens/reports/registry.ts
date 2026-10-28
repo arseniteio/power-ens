@@ -3,40 +3,13 @@ import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
 
-import { buildMpCom1ReportModel } from './mp-com-1-report-model';
-import { buildMpCom3ReportModel } from './mp-com-3-report-model';
-import { buildMpCom4ReportModel } from './mp-com-4-report-model';
-import { buildMpEq2ReportModel } from './mp-eq-2-report-model';
-import { buildMpEq3ReportModel } from './mp-eq-3-report-model';
-import { buildMpEq4ReportModel } from './mp-eq-4-report-model';
 import { buildMpInfo6ReportModel } from './report-model';
-import { buildMpS1ReportModel } from './mp-s-1-report-model';
-import { buildMpS2ReportModel } from './mp-s-2-report-model';
-import { buildMpS3ReportModel } from './mp-s-3-report-model';
-import { buildMpS4ReportModel } from './mp-s-4-report-model';
-import { buildMpSw2ReportModel } from './mp-sw-2-report-model';
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
 import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
 import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
 import { buildOpAcc4ReportModel } from './op-acc-4-report-model';
 import { buildOpAcc5ReportModel } from './op-acc-5-report-model';
 import { buildOpAcc6ReportModel } from './op-acc-6-report-model';
-import { buildOpCont2ReportModel } from './op-cont-2-report-model';
-import { buildOpCont3ReportModel } from './op-cont-3-report-model';
-import { buildOpExp1ReportModel } from './op-exp-1-report-model';
-import { buildOpExp2ReportModel } from './op-exp-2-report-model';
-import { buildOpExp3ReportModel } from './op-exp-3-report-model';
-import { buildOpExp4ReportModel } from './op-exp-4-report-model';
-import { buildOpExp5ReportModel } from './op-exp-5-report-model';
-import { buildOpExp6ReportModel } from './op-exp-6-report-model';
-import { buildOpExp7ReportModel } from './op-exp-7-report-model';
-import { buildOpExp8ReportModel } from './op-exp-8-report-model';
-import { buildOpExp9ReportModel } from './op-exp-9-report-model';
-import { buildOpExp10ReportModel } from './op-exp-10-report-model';
-import { buildOpMon1ReportModel } from './op-mon-1-report-model';
-import { buildOpMon2ReportModel } from './op-mon-2-report-model';
-import { buildOpMon3ReportModel } from './op-mon-3-report-model';
-import { buildOpNub1ReportModel } from './op-nub-1-report-model';
 
 export type ENSReportFieldStatus =
   | 'CUMPLE'

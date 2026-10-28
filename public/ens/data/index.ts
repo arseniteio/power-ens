@@ -1,38 +1,8 @@
-import { mpCom1Control } from './mp-com-1';
-import { mpCom3Control } from './mp-com-3';
-import { mpCom4Control } from './mp-com-4';
-import { mpEq2Control } from './mp-eq-2';
-import { mpEq3Control } from './mp-eq-3';
-import { mpEq4Control } from './mp-eq-4';
-import { mpInfo6Control } from './mp-info-6';
-import { mpS1Control } from './mp-s-1';
-import { mpS2Control } from './mp-s-2';
-import { mpS3Control } from './mp-s-3';
-import { mpS4Control } from './mp-s-4';
-import { mpSw2Control } from './mp-sw-2';
 import { opAcc1Control } from './op-acc-1';
 import { opAcc2Control } from './op-acc-2';
 import { opAcc3Control } from './op-acc-3';
 import { opAcc4Control } from './op-acc-4';
 import { opAcc5Control } from './op-acc-5';
 import { opAcc6Control } from './op-acc-6';
-import { opCont2Control } from './op-cont-2';
-import { opCont3Control } from './op-cont-3';
-import { opExp1Control } from './op-exp-1';
-import { opExp2Control } from './op-exp-2';
-import { opExp3Control } from './op-exp-3';
-import { opExp4Control } from './op-exp-4';
-import { opExp5Control } from './op-exp-5';
-import { opExp6Control } from './op-exp-6';
-import { opExp7Control } from './op-exp-7';
-import { opExp8Control } from './op-exp-8';
-import { opExp9Control } from './op-exp-9';
-import { opExp10Control } from './op-exp-10';
-import { opMon1Control } from './op-mon-1';
-import { opMon2Control } from './op-mon-2';
-import { opMon3Control } from './op-mon-3';
-import { opNub1Control } from './op-nub-1';
 
-const ENSControls = [mpCom1Control, mpCom3Control, mpCom4Control, mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, mpS1Control, mpS2Control, mpS3Control, mpS4Control, mpSw2Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control];
 
-export { mpCom1Control, mpCom3Control, mpCom4Control, mpEq2Control, mpEq3Control, mpEq4Control, mpInfo6Control, mpS1Control, mpS2Control, mpS3Control, mpS4Control, mpSw2Control, opAcc1Control, opAcc2Control, opAcc3Control, opAcc4Control, opAcc5Control, opAcc6Control, opCont2Control, opCont3Control, opExp1Control, opExp2Control, opExp3Control, opExp4Control, opExp5Control, opExp6Control, opExp7Control, opExp8Control, opExp9Control, opExp10Control, opMon1Control, opMon2Control, opMon3Control, opNub1Control, ENSControls };
