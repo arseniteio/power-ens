@@ -64,7 +64,7 @@ export const opAcc4CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-03', 'EV-04', 'EV-05'],
-      parameterIds: ['P-02', 'P-03'],
+      parameterIds: ['P-02', 'P-03', 'P-08'],
     },
     {
       id: 'op.acc.4.5',

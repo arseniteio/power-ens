@@ -67,7 +67,7 @@ console.log('1. Parameter classes');
   check('every parameter has a class', unclassified.length === 0, unclassified);
   check('no class is left over', extra.length === 0, extra);
   // The 91 of the eleven documentary mp.* (1.4.0) are common until their collector exists.
-  check('330 parameters: 254 common, 41 per system, 35 per platform', totals.organisation === 254 && totals.system === 41 && totals.platform === 35, totals);
+  check('332 parameters: 256 common, 41 per system, 35 per platform', totals.organisation === 256 && totals.system === 41 && totals.platform === 35, totals);
 
   const bad: string[] = [];
   Object.entries(ENS_SYSTEM_KEY_COLUMNS).forEach(([controlId, parameters]) =>

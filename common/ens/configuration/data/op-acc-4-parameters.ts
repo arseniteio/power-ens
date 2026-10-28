@@ -103,7 +103,7 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       wazuhUsage:
         'ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.',
       ensfacilUsage:
-        'El agente lee la fecha de la última revisión anotada en el registro de la máquina y el motor comprueba que no supere el plazo; si lo supera, la evidencia deja de acreditar. Una fecha posterior al reloj del sistema se descarta y el motivo lo indica.',
+        'El motor toma la última revisión de P-08 y comprueba que no supere este plazo.',
       evidenceIds: ['EV-03', 'EV-04', 'EV-05'],
       ruleIds: [],
       ifNotConfigured:
@@ -209,6 +209,43 @@ export const opAcc4Configuration: ENSControlConfiguration = {
       ruleIds: [],
       ifNotConfigured:
         'op.acc.4.3 queda NO EVALUABLE: no se distingue un acceso técnicamente posible de uno justificado.',
+    },
+    {
+      id: 'P-08',
+      controlId: 'op.acc.4',
+      name: 'registro_revisiones_permisos',
+      label: 'Registro de revisiones de permisos',
+      description: 'Revisiones de permisos hechas, una por fila: fecha, alcance y responsable.',
+      levels: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.acc.4.4'],
+      type: 'table',
+      example: '2026-09-15 | servidores de producción | Responsable de Seguridad',
+      columns: [
+        {
+          name: 'fecha',
+          label: 'Fecha',
+          type: 'date',
+          required: true,
+        },
+        {
+          name: 'alcance',
+          label: 'Alcance',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'responsable',
+          label: 'Responsable',
+          type: 'string',
+          required: true,
+        },
+      ],
+      required: true,
+      wazuhUsage: 'Ningún agente lo lee: la revisión es una decisión de la organización.',
+      ensfacilUsage: 'El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-03.',
+      evidenceIds: ['EV-05'],
+      ruleIds: [],
+      ifNotConfigured: 'op.acc.4.4 queda sin demostrar.',
     },
   ],
 };

@@ -264,6 +264,16 @@ export const opAcc4Control: ENSControl = {
       missingBehavior:
         'op.acc.4.3 NO EVALUABLE. No se puede distinguir acceso técnicamente posible de acceso justificado.',
     },
+    {
+      id: 'P-08',
+      name: 'registro_revisiones_permisos',
+      description: 'Revisiones de permisos hechas, una por fila: fecha, alcance y responsable.',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.acc.4.4'],
+      type: 'table',
+      usage: 'El motor toma la fecha más reciente y comprueba que no supere el plazo de P-03.',
+      missingBehavior: 'op.acc.4.4 queda sin demostrar.',
+    },
   ],
   events: ['evidence_state', 'control_state', 'score_snapshot'],
   presentationRules: {

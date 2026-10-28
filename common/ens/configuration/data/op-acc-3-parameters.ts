@@ -106,16 +106,16 @@ export const opAcc3Configuration: ENSControlConfiguration = {
       name: 'tareas_criticas_doble_persona',
       label: 'Tareas críticas con doble persona',
       description:
-        'Tareas críticas y número de personas distintas que exige cada una (despliegues, cambios en el cortafuegos, restauración de copias, cambios de privilegios), una por línea. Qué comando es cada tarea se declara en el fichero de tareas críticas del agente; ambas mitades se unen por el nombre en minúsculas.',
+        'Tareas críticas, una por línea: nombre, número de personas distintas que exige y, después, los comandos que la identifican.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3'],
       type: 'list',
-      example: 'despliegue en produccion | 2',
+      example: 'despliegue en produccion | 2 | ansible-playbook | kubectl apply',
       required: true,
       wazuhUsage:
-        'El agente emite una observación por cuenta distinta que ejecutó cada tarea del fichero de tareas críticas, no una por ejecución. No cuenta ni compara.',
+        'Wazuh registra los comandos ejecutados (auditd); el agente no lee este parámetro.',
       ensfacilUsage:
-        'El motor cuenta las cuentas distintas por tarea ejecutada en el periodo y las compara con el número declarado. Una tarea no ejecutada no incumple; una fila con menos de dos personas o sin número se ignora.',
+        'El motor reconoce cada tarea por sus comandos, cuenta las personas distintas que la ejecutaron en el periodo y las compara con el número declarado.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

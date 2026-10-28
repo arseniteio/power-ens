@@ -216,7 +216,7 @@ export const opAcc3Control: ENSControl = {
       id: 'P-04',
       name: 'tareas_criticas_doble_persona',
       description:
-        'Lista de tareas consideradas críticas que exigen la concurrencia de dos o más personas (enunciado general de op.acc.3): despliegues en producción, cambios en firewall, restauración de copias, modificación de privilegios, etc.',
+        'Tareas críticas, una por línea: nombre, número de personas distintas que exige y los comandos que la identifican.',
       level: ['MEDIO', 'ALTO'],
       requirements: ['op.acc.3'],
       type: 'list',

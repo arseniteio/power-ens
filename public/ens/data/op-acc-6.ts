@@ -513,6 +513,16 @@ export const opAcc6Control: ENSControl = {
         'op.acc.6.7 queda sin demostrar.',
     },
     {
+      id: 'P-12',
+      name: 'registro_inhabilitaciones',
+      description: 'Credenciales inhabilitadas por baja o incidencia, una por fila: usuario, fecha y motivo.',
+      level: ['BAJO', 'MEDIO', 'ALTO'],
+      requirements: ['op.acc.6.5', 'op.acc.6.6'],
+      type: 'table',
+      usage: 'El motor comprueba que cada cuenta del registro se inhabilitó dentro del plazo de P-06.',
+      missingBehavior: 'op.acc.6.5 y op.acc.6.6 quedan sin demostrar.',
+    },
+    {
       id: 'P-ATT',
       name: 'atestaciones_documentales',
       description:

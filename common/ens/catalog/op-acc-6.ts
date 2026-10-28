@@ -76,7 +76,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-06'],
-      parameterIds: ['P-06'],
+      parameterIds: ['P-06', 'P-12'],
     },
     {
       id: 'op.acc.6.6',
@@ -88,7 +88,7 @@ export const opAcc6CatalogDefinition: ENSControlDefinition = {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
       },
       evidenceIds: ['EV-06'],
-      parameterIds: ['P-06'],
+      parameterIds: ['P-06', 'P-12'],
     },
     {
       id: 'op.acc.6.7',
