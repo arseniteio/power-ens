@@ -49,7 +49,7 @@ const { hechos: facts, validos: valid, estadoVigente: currentStatus, degradacion
 
 const decide = decisionBuilderFor(POLICY);
 
-// Freshness of the ENGINE state, which arrives hourly. 26 h does not fit: ENSFácil facts reach the
+// Freshness of the ENGINE state, which arrives hourly. 26 h does not fit: Power ENS facts reach the
 // index THROUGH wazuh-analysisd, so if the engine dies its own state stops arriving and the last
 // one, «processing», would keep accrediting the control a whole day. 3 h tolerates two missed
 // hourly runs.
@@ -230,9 +230,9 @@ const ev01Base = (context: ENSPolicyContext, now: number): Measurement => {
   if (processed === undefined) {
     // Without counters (the engine's state file does not exist in this version or could not be
     // read), the other proof that it processes is that it writes alerts. `alertas_nuevas` does not
-    // count ENSFácil's: collectors' own facts do not prove the engine detects anything.
+    // count Power ENS's: collectors' own facts do not prove the engine detects anything.
     if (fresh !== undefined && fresh > 0) {
-      pieces.push(compliant(`El motor escribe alertas: ${fresh} alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil (sin contadores del motor: ${factField(actual, 'fuente_contadores') || '-'}).`));
+      pieces.push(compliant(`El motor escribe alertas: ${fresh} alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de Power ENS (sin contadores del motor: ${factField(actual, 'fuente_contadores') || '-'}).`));
     } else {
       pieces.push(
         degradation(context, 'EV-01', now, last + 1) ||

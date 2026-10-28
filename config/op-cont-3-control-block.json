@@ -22,8 +22,8 @@
       "type": "number",
       "example": "12",
       "required": true,
-      "wazuhUsage": "ENSFácil calcula los meses desde la última prueba registrada y alerta al aproximarse y al superarse P-01. Es la comprobación más elemental del control.",
-      "ensfacilUsage": "Al leer el registro de pruebas, mide cuánto hace de la última prueba, de la última de cada escenario de P-03 y de la última de cada tipo de P-02 sin periodicidad propia: más de P-01 meses incumple la primera obligación.",
+      "wazuhUsage": "Power ENS calcula los meses desde la última prueba registrada y alerta al aproximarse y al superarse P-01. Es la comprobación más elemental del control.",
+      "powerEnsUsage": "Al leer el registro de pruebas, mide cuánto hace de la última prueba, de la última de cada escenario de P-03 y de la última de cada tipo de P-02 sin periodicidad propia: más de P-01 meses incumple la primera obligación.",
       "evidenceIds": [
         "EV-02",
         "EV-04",
@@ -73,8 +73,8 @@
         }
       ],
       "required": true,
-      "wazuhUsage": "ENSFácil registra qué tipo de prueba se hizo en cada ocasión: no todas acreditan lo mismo, y una prueba de escritorio no demuestra que los medios alternativos funcionen.",
-      "ensfacilUsage": "Exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga una prueba de ese alcance (EV-01), y que cada tipo se haya hecho dentro de su periodicidad (EV-02).",
+      "wazuhUsage": "Power ENS registra qué tipo de prueba se hizo en cada ocasión: no todas acreditan lo mismo, y una prueba de escritorio no demuestra que los medios alternativos funcionen.",
+      "powerEnsUsage": "Exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga una prueba de ese alcance (EV-01), y que cada tipo se haya hecho dentro de su periodicidad (EV-02).",
       "evidenceIds": [
         "EV-01",
         "EV-02"
@@ -111,8 +111,8 @@
         }
       ],
       "required": true,
-      "wazuhUsage": "ENSFácil mantiene la matriz de escenarios y señala los nunca probados o cuya última prueba supera P-01.",
-      "ensfacilUsage": "Busca en el registro la última prueba de cada escenario: uno nunca probado, o probado hace más de P-01 meses, incumple (EV-02).",
+      "wazuhUsage": "Power ENS mantiene la matriz de escenarios y señala los nunca probados o cuya última prueba supera P-01.",
+      "powerEnsUsage": "Busca en el registro la última prueba de cada escenario: uno nunca probado, o probado hace más de P-01 meses, incumple (EV-02).",
       "evidenceIds": [
         "EV-02"
       ],
@@ -124,7 +124,7 @@
       "controlId": "op.cont.3",
       "name": "registro_pruebas_realizadas",
       "label": "Registro de las pruebas realizadas",
-      "description": "Dónde se registra cada prueba ejecutada. ENSFácil solo lee /etc/ensfacil/continuity-test-register.tsv en el manager (una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia; formato en la guía del runbook linux/op.cont.3); con otra herramienta, lo que depende del registro queda sin demostrar.",
+      "description": "Dónde se registra cada prueba ejecutada. Power ENS solo lee /etc/power-ens/continuity-test-register.tsv en el manager (una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia; formato en la guía del runbook linux/op.cont.3); con otra herramienta, lo que depende del registro queda sin demostrar.",
       "levels": [
         "ALTO"
       ],
@@ -133,13 +133,13 @@
       ],
       "type": "select",
       "options": [
-        "Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)",
+        "Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)",
         "Otra herramienta"
       ],
-      "example": "Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)",
+      "example": "Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)",
       "required": true,
-      "wazuhUsage": "ENSFácil conserva el histórico y lo presenta junto a la medición técnica de cada prueba para contrastar el resultado declarado con lo ocurrido en los sistemas.",
-      "ensfacilUsage": "El recolector del manager lee el registro en cada pasada y emite una fila por prueba con lo que midió de su ventana. Registro vacío: no consta ninguna prueba (incumple); ausente: sin demostrar, causa CONFIGURATION.",
+      "wazuhUsage": "Power ENS conserva el histórico y lo presenta junto a la medición técnica de cada prueba para contrastar el resultado declarado con lo ocurrido en los sistemas.",
+      "powerEnsUsage": "El recolector del manager lee el registro en cada pasada y emite una fila por prueba con lo que midió de su ventana. Registro vacío: no consta ninguna prueba (incumple); ausente: sin demostrar, causa CONFIGURATION.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -153,7 +153,7 @@
       "controlId": "op.cont.3",
       "name": "seguimiento_deficiencias",
       "label": "Registro del seguimiento de las deficiencias",
-      "description": "Dónde se registran las deficiencias de cada prueba, con estado de corrección, responsable y plazo; es la segunda obligación del requisito («localizar y, en su caso, corregir»). ENSFácil solo lee /etc/ensfacil/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).",
+      "description": "Dónde se registran las deficiencias de cada prueba, con estado de corrección, responsable y plazo; es la segunda obligación del requisito («localizar y, en su caso, corregir»). Power ENS solo lee /etc/power-ens/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).",
       "levels": [
         "ALTO"
       ],
@@ -162,13 +162,13 @@
       ],
       "type": "select",
       "options": [
-        "Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)",
+        "Registro Power ENS (/etc/power-ens/continuity-deficiency-register.tsv)",
         "Otra herramienta"
       ],
-      "example": "Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)",
+      "example": "Registro Power ENS (/etc/power-ens/continuity-deficiency-register.tsv)",
       "required": true,
-      "wazuhUsage": "ENSFácil sigue el cierre y alerta de deficiencias abiertas fuera de plazo o aún abiertas en la siguiente prueba, la señal más clara de que el ciclo no se cierra.",
-      "ensfacilUsage": "El recolector del manager emite una fila por deficiencia. Incumple la corrección una abierta fuera de plazo o tras la prueba siguiente, o una prueba que declara más deficiencias de las que el registro sigue (EV-05); las cerradas sin versión del plan se señalan (EV-07).",
+      "wazuhUsage": "Power ENS sigue el cierre y alerta de deficiencias abiertas fuera de plazo o aún abiertas en la siguiente prueba, la señal más clara de que el ciclo no se cierra.",
+      "powerEnsUsage": "El recolector del manager emite una fila por deficiencia. Incumple la corrección una abierta fuera de plazo o tras la prueba siguiente, o una prueba que declara más deficiencias de las que el registro sigue (EV-05); las cerradas sin versión del plan se señalan (EV-07).",
       "evidenceIds": [
         "EV-05",
         "EV-07"
@@ -181,7 +181,7 @@
       "controlId": "op.cont.3",
       "name": "ventanas_prueba",
       "label": "Ventanas previstas para las pruebas",
-      "description": "Franjas previstas para ejecutar pruebas, como información para el informe. ENSFácil no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 usa la ventana REAL de cada fila del registro de pruebas, no esta.",
+      "description": "Franjas previstas para ejecutar pruebas, como información para el informe. Power ENS no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 usa la ventana REAL de cada fila del registro de pruebas, no esta.",
       "levels": [
         "ALTO"
       ],
@@ -218,7 +218,7 @@
       ],
       "required": false,
       "wazuhUsage": "Permite etiquetar los eventos del periodo como parte de la prueba y suprimir la escalada de incidente.",
-      "ensfacilUsage": "Se muestra en el informe junto a la medición de cada prueba (EV-03). No decide ningún veredicto.",
+      "powerEnsUsage": "Se muestra en el informe junto a la medición de cada prueba (EV-03). No decide ningún veredicto.",
       "evidenceIds": [
         "EV-03"
       ],
@@ -260,8 +260,8 @@
         }
       ],
       "required": true,
-      "wazuhUsage": "ENSFácil mide la indisponibilidad de cada sistema durante la prueba con eventos reales y la compara con su objetivo, en lugar de la impresión de los participantes.",
-      "ensfacilUsage": "Por cada prueba parcial o simulacro del periodo compara la caída más larga de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).",
+      "wazuhUsage": "Power ENS mide la indisponibilidad de cada sistema durante la prueba con eventos reales y la compara con su objetivo, en lugar de la impresión de los participantes.",
+      "powerEnsUsage": "Por cada prueba parcial o simulacro del periodo compara la caída más larga de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).",
       "evidenceIds": [
         "EV-04"
       ],

@@ -41,8 +41,8 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Es la referencia de todo el control.',
-      ensfacilUsage:
-        'ENSFácil clasifica cada evento de red según el segmento de origen y destino, lo que permite verificar la separación sin inspeccionar la configuración de la electrónica.',
+      powerEnsUsage:
+        'Power ENS clasifica cada evento de red según el segmento de origen y destino, lo que permite verificar la separación sin inspeccionar la configuración de la electrónica.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-08', 'EV-09', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -87,9 +87,9 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
-      ensfacilUsage:
-        'ENSFácil contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
+        'Power ENS contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
+      powerEnsUsage:
+        'Power ENS contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-09', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -112,9 +112,9 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       example: 'R2',
       required: true,
       wazuhUsage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
-      ensfacilUsage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
+      powerEnsUsage:
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -159,9 +159,9 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
-      ensfacilUsage:
-        'ENSFácil verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
+        'Power ENS verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
+      powerEnsUsage:
+        'Power ENS verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:
@@ -207,7 +207,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Define de qué elementos ingiere Wazuh los registros del tráfico entre segmentos. Sin ellos, la verificación de la separación depende solo de lo que se vea desde los hosts, que es menos completo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define de qué elementos ingiere Wazuh los registros del tráfico entre segmentos. Sin ellos, la verificación de la separación depende solo de lo que se vea desde los hosts, que es menos completo.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
@@ -248,7 +248,7 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'ENSFáci ingiere los eventos de autenticación de red y verifica que la asignación de segmento se corresponde con la identidad del usuario. Usuario en segmento que no le corresponde → hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'ENSFáci ingiere los eventos de autenticación de red y verifica que la asignación de segmento se corresponde con la identidad del usuario. Usuario en segmento que no le corresponde → hallazgo.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
@@ -268,9 +268,9 @@ export const mpCom4Configuration: ENSControlConfiguration = {
       example: '180',
       required: true,
       wazuhUsage:
-        'ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
-      ensfacilUsage:
-        'ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
+        'Power ENS registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
+      powerEnsUsage:
+        'Power ENS registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-09', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:

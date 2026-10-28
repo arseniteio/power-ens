@@ -8,8 +8,8 @@ import { ENSControlConfiguration } from '../types';
 // registry); P-07 declares the RTO per system (or \`*\`).
 // P-06 decides nothing: the measurement uses the REAL window of each registry row; it serves op.exp.7 and the
 // report. \`required\` everywhere except P-06; no parameter has a default value.
-const REGISTRO_PRUEBAS = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
-const REGISTRO_DEFICIENCIAS = 'Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)';
+const REGISTRO_PRUEBAS = 'Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)';
+const REGISTRO_DEFICIENCIAS = 'Registro Power ENS (/etc/power-ens/continuity-deficiency-register.tsv)';
 
 export const opCont3Configuration: ENSControlConfiguration = {
   controlId: 'op.cont.3',
@@ -31,8 +31,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       example: '12',
       required: true,
       wazuhUsage:
-        'ENSFácil calcula los meses desde la última prueba registrada y alerta al aproximarse y al superarse P-01. Es la comprobación más elemental del control.',
-      ensfacilUsage:
+        'Power ENS calcula los meses desde la última prueba registrada y alerta al aproximarse y al superarse P-01. Es la comprobación más elemental del control.',
+      powerEnsUsage:
         'Al leer el registro de pruebas, mide cuánto hace de la última prueba, de la última de cada escenario de P-03 y de la última de cada tipo de P-02 sin periodicidad propia: más de P-01 meses incumple la primera obligación.',
       evidenceIds: ['EV-02', 'EV-04', 'EV-05'],
       ruleIds: [],
@@ -73,8 +73,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil registra qué tipo de prueba se hizo en cada ocasión: no todas acreditan lo mismo, y una prueba de escritorio no demuestra que los medios alternativos funcionen.',
-      ensfacilUsage:
+        'Power ENS registra qué tipo de prueba se hizo en cada ocasión: no todas acreditan lo mismo, y una prueba de escritorio no demuestra que los medios alternativos funcionen.',
+      powerEnsUsage:
         'Exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga una prueba de ese alcance (EV-01), y que cada tipo se haya hecho dentro de su periodicidad (EV-02).',
       evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: [],
@@ -108,8 +108,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil mantiene la matriz de escenarios y señala los nunca probados o cuya última prueba supera P-01.',
-      ensfacilUsage:
+        'Power ENS mantiene la matriz de escenarios y señala los nunca probados o cuya última prueba supera P-01.',
+      powerEnsUsage:
         'Busca en el registro la última prueba de cada escenario: uno nunca probado, o probado hace más de P-01 meses, incumple (EV-02).',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -122,7 +122,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
       name: 'registro_pruebas_realizadas',
       label: 'Registro de las pruebas realizadas',
       description:
-        'Dónde se registra cada prueba ejecutada. ENSFácil solo lee /etc/ensfacil/continuity-test-register.tsv en el manager (una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia; formato en la guía del runbook linux/op.cont.3); con otra herramienta, lo que depende del registro queda sin demostrar.',
+        'Dónde se registra cada prueba ejecutada. Power ENS solo lee /etc/power-ens/continuity-test-register.tsv en el manager (una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia; formato en la guía del runbook linux/op.cont.3); con otra herramienta, lo que depende del registro queda sin demostrar.',
       levels: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'select',
@@ -130,8 +130,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       example: REGISTRO_PRUEBAS,
       required: true,
       wazuhUsage:
-        'ENSFácil conserva el histórico y lo presenta junto a la medición técnica de cada prueba para contrastar el resultado declarado con lo ocurrido en los sistemas.',
-      ensfacilUsage:
+        'Power ENS conserva el histórico y lo presenta junto a la medición técnica de cada prueba para contrastar el resultado declarado con lo ocurrido en los sistemas.',
+      powerEnsUsage:
         'El recolector del manager lee el registro en cada pasada y emite una fila por prueba con lo que midió de su ventana. Registro vacío: no consta ninguna prueba (incumple); ausente: sin demostrar, causa CONFIGURATION.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-04'],
       ruleIds: [],
@@ -144,7 +144,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
       name: 'seguimiento_deficiencias',
       label: 'Registro del seguimiento de las deficiencias',
       description:
-        'Dónde se registran las deficiencias de cada prueba, con estado de corrección, responsable y plazo; es la segunda obligación del requisito («localizar y, en su caso, corregir»). ENSFácil solo lee /etc/ensfacil/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).',
+        'Dónde se registran las deficiencias de cada prueba, con estado de corrección, responsable y plazo; es la segunda obligación del requisito («localizar y, en su caso, corregir»). Power ENS solo lee /etc/power-ens/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).',
       levels: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'select',
@@ -152,8 +152,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       example: REGISTRO_DEFICIENCIAS,
       required: true,
       wazuhUsage:
-        'ENSFácil sigue el cierre y alerta de deficiencias abiertas fuera de plazo o aún abiertas en la siguiente prueba, la señal más clara de que el ciclo no se cierra.',
-      ensfacilUsage:
+        'Power ENS sigue el cierre y alerta de deficiencias abiertas fuera de plazo o aún abiertas en la siguiente prueba, la señal más clara de que el ciclo no se cierra.',
+      powerEnsUsage:
         'El recolector del manager emite una fila por deficiencia. Incumple la corrección una abierta fuera de plazo o tras la prueba siguiente, o una prueba que declara más deficiencias de las que el registro sigue (EV-05); las cerradas sin versión del plan se señalan (EV-07).',
       evidenceIds: ['EV-05', 'EV-07'],
       ruleIds: [],
@@ -166,7 +166,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
       name: 'ventanas_prueba',
       label: 'Ventanas previstas para las pruebas',
       description:
-        'Franjas previstas para ejecutar pruebas, como información para el informe. ENSFácil no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 usa la ventana REAL de cada fila del registro de pruebas, no esta.',
+        'Franjas previstas para ejecutar pruebas, como información para el informe. Power ENS no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 usa la ventana REAL de cada fila del registro de pruebas, no esta.',
       levels: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'table',
@@ -201,7 +201,7 @@ export const opCont3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Permite etiquetar los eventos del periodo como parte de la prueba y suprimir la escalada de incidente.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra en el informe junto a la medición de cada prueba (EV-03). No decide ningún veredicto.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -241,8 +241,8 @@ export const opCont3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil mide la indisponibilidad de cada sistema durante la prueba con eventos reales y la compara con su objetivo, en lugar de la impresión de los participantes.',
-      ensfacilUsage:
+        'Power ENS mide la indisponibilidad de cada sistema durante la prueba con eventos reales y la compara con su objetivo, en lugar de la impresión de los participantes.',
+      powerEnsUsage:
         'Por cada prueba parcial o simulacro del periodo compara la caída más larga de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).',
       evidenceIds: ['EV-04'],
       ruleIds: [],

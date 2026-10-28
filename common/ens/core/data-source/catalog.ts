@@ -26,7 +26,7 @@ export const ENSDataSourceCatalog: ENSDataSourceDefinition[] = [
     id: 'local-json',
     name: 'Local JSON',
     type: 'LOCAL_JSON',
-    description: 'Eventos JSON generados por scripts ENSFácil en agentes.',
+    description: 'Eventos JSON generados por scripts Power ENS en agentes.',
     enabled: true,
   },
 ];

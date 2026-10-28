@@ -31,7 +31,7 @@ check('7 days', Date.parse(w.to) - Date.parse(resolveEvaluationWindow('Últimos 
 check('an unknown period: 30 days, like the browser', Date.parse(w.to) - Date.parse(resolveEvaluationWindow('???', NOW).from) === 30 * 86400e3);
 const scope: ENSAgentScope[] = [{ id: '000', name: 'm', groups: [] }, { id: '024', name: 'r', groups: ['ens'] }];
 const filters = buildViewFilters(w, scope);
-check('filters: window, scope and ENS facts', JSON.stringify(filters[0]).includes('"@timestamp"') && JSON.stringify(filters[1]) === JSON.stringify({ terms: { 'agent.id': ['000', '024'] } }) && JSON.stringify(filters[2]).includes('data.ensfacil'));
+check('filters: window, scope and ENS facts', JSON.stringify(filters[0]).includes('"@timestamp"') && JSON.stringify(filters[1]) === JSON.stringify({ terms: { 'agent.id': ['000', '024'] } }) && JSON.stringify(filters[2]).includes('data.power_ens'));
 check('one machine\'s view: it and the manager', JSON.stringify(buildViewFilters(w, scope, '024')[1]) === JSON.stringify({ terms: { 'agent.id': ['024', '000'] } }));
 
 const probe = buildProbeRequest(filters, ['op.acc.1', 'op.exp.3']);
@@ -58,22 +58,22 @@ const doc = (agent: string, data: Record<string, unknown>, hours: number): FakeD
 const docs: FakeDoc[] = [];
 for (let h = 160; h >= 1; h -= 1) {
   for (const agent of ['024', '029', '033']) {
-    docs.push(doc(agent, { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: h % 24 === 0 ? 'EV-01' : 'EV-01,EV-04' }, h));
-    if (h % 3 === 0) docs.push(doc(agent, { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: `s${h % 5}` }, h - 0.01));
-    if (h % 7 === 0) docs.push(doc(agent, { ensfacil: 'op.exp.3', event: 'service_running', servicio: 'cron' }, h - 0.02));
+    docs.push(doc(agent, { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: h % 24 === 0 ? 'EV-01' : 'EV-01,EV-04' }, h));
+    if (h % 3 === 0) docs.push(doc(agent, { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: `s${h % 5}` }, h - 0.01));
+    if (h % 7 === 0) docs.push(doc(agent, { power_ens: 'op.exp.3', event: 'service_running', servicio: 'cron' }, h - 0.02));
   }
-  if (h % 10 === 0) docs.push(doc('024', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-99' }, h - 0.03));
-  if (h % 15 === 0) docs.push(doc('029', { ensfacil: 'op.exp.3', event: 'service_running', evidencias: 'EV-04' }, h - 0.04));
-  if (h % 15 === 0) docs.push(doc('033', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: ['EV-04', 'EV-77'] }, h - 0.04));
-  docs.push(doc('028', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01' }, h));
-  if (h % 2 === 0) docs.push(doc('028', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04' }, h - 0.01));
+  if (h % 10 === 0) docs.push(doc('024', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-99' }, h - 0.03));
+  if (h % 15 === 0) docs.push(doc('029', { power_ens: 'op.exp.3', event: 'service_running', evidencias: 'EV-04' }, h - 0.04));
+  if (h % 15 === 0) docs.push(doc('033', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: ['EV-04', 'EV-77'] }, h - 0.04));
+  docs.push(doc('028', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01' }, h));
+  if (h % 2 === 0) docs.push(doc('028', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04' }, h - 0.01));
   for (const origin of ['pbs', 'zimbra']) {
     if (origin === 'zimbra' && h % 2) continue;
-    docs.push(doc('024', { ensfacil: 'mp.info.6', origen: origin, event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03' }, h - (origin === 'pbs' ? 0 : 0.5)));
-    docs.push(doc('024', { ensfacil: 'mp.info.6', origen: origin, event: 'backup_run', evidence_id: 'EV-01', resultado: 'ok' }, h - (origin === 'pbs' ? 0.01 : 0.51)));
-    if (origin === 'pbs' || h > 80) docs.push(doc('024', { ensfacil: 'mp.info.6', origen: origin, event: 'backup_retention', evidence_id: 'EV-03', dias: 30 }, h - (origin === 'pbs' ? 0.02 : 0.52)));
+    docs.push(doc('024', { power_ens: 'mp.info.6', origen: origin, event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03' }, h - (origin === 'pbs' ? 0 : 0.5)));
+    docs.push(doc('024', { power_ens: 'mp.info.6', origen: origin, event: 'backup_run', evidence_id: 'EV-01', resultado: 'ok' }, h - (origin === 'pbs' ? 0.01 : 0.51)));
+    if (origin === 'pbs' || h > 80) docs.push(doc('024', { power_ens: 'mp.info.6', origen: origin, event: 'backup_retention', evidence_id: 'EV-03', dias: 30 }, h - (origin === 'pbs' ? 0.02 : 0.52)));
   }
-  if (h % 4 === 0) docs.push(doc('024', { ensfacil: 'mp.info.6', event: 'backup_run', evidence_id: 'EV-01' }, h - 0.2));
+  if (h % 4 === 0) docs.push(doc('024', { power_ens: 'mp.info.6', event: 'backup_run', evidence_id: 'EV-01' }, h - 0.2));
 }
 const index = createFakeIndexer(docs, { clock: () => NOW.getTime() });
 const window = resolveEvaluationWindow('Últimos 30 días', NOW);
@@ -81,7 +81,7 @@ const start = Date.parse(window.from);
 const hoy = Date.UTC(NOW.getUTCFullYear(), NOW.getUTCMonth(), NOW.getUTCDate());
 const instantes = [...Array.from({ length: 6 }, (_, i) => new Date(hoy - i * 86400e3 - 1)).reverse(), NOW];
 const allOf = (controlId: string, agent: string) => docs
-  .filter(d => d._source.data.ensfacil === controlId && d._source.agent.id === agent)
+  .filter(d => d._source.data.power_ens === controlId && d._source.agent.id === agent)
   .sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || a._id.localeCompare(b._id));
 
 const pruningOf = async (controlId: string, agent: string) => {

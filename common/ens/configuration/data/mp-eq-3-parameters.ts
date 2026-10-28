@@ -46,9 +46,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
-      ensfacilUsage:
-        'ENSFácil cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
+        'Power ENS cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
+      powerEnsUsage:
+        'Power ENS cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
       evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: [],
       ifNotConfigured:
@@ -67,9 +67,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       example: '90',
       required: true,
       wazuhUsage:
-        'ENSFácil registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
-      ensfacilUsage:
-        'ENSFácil registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
+        'Power ENS registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
+      powerEnsUsage:
+        'Power ENS registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
       evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: [],
       ifNotConfigured:
@@ -89,8 +89,8 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Referencia documental.',
-      ensfacilUsage:
-        'ENSFácil correlaciona los incidentes de pérdida registrados con las acciones posteriores: bloqueo remoto, borrado, revocación de credenciales del dispositivo.',
+      powerEnsUsage:
+        'Power ENS correlaciona los incidentes de pérdida registrados con las acciones posteriores: bloqueo remoto, borrado, revocación de credenciales del dispositivo.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -135,9 +135,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
-      ensfacilUsage:
-        'ENSFácil verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
+        'Power ENS verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
+      powerEnsUsage:
+        'Power ENS verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
       ifNotConfigured:
@@ -158,7 +158,7 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'FIM y Syscollector detectan la presencia de estos artefactos en los dispositivos de P-01. Es la comprobación de mayor valor del control y la que casi nunca se hace: la mayoría de los portátiles corporativos llevan claves que no deberían.',
-      ensfacilUsage:
+      powerEnsUsage:
         'FIM y Syscollector detectan la presencia de estos artefactos en los dispositivos de P-01. Es la comprobación de mayor valor del control y la que casi nunca se hace: la mayoría de los portátiles corporativos llevan claves que no deberían.',
       evidenceIds: ['EV-03', 'EV-06'],
       ruleIds: [],
@@ -205,8 +205,8 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'SCA verifica el estado real del cifrado en cada dispositivo.',
-      ensfacilUsage:
-        'ENSFácil marca como exigible todo dispositivo cuya confidencialidad declarada en P-01 sea MEDIA o ALTA, y contrasta con el estado efectivo.',
+      powerEnsUsage:
+        'Power ENS marca como exigible todo dispositivo cuya confidencialidad declarada en P-01 sea MEDIA o ALTA, y contrasta con el estado efectivo.',
       evidenceIds: ['EV-04', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -225,9 +225,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       example: '«NT-04 Uso de dispositivos portátiles», con acuse de recepción del personal',
       required: false,
       wazuhUsage:
-        'Es una norma de comportamiento, no una configuración: ENSFácil recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
-      ensfacilUsage:
-        'Es una norma de comportamiento, no una configuración: ENSFácil recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
+        'Es una norma de comportamiento, no una configuración: Power ENS recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
+      powerEnsUsage:
+        'Es una norma de comportamiento, no una configuración: Power ENS recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -266,9 +266,9 @@ export const mpEq3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
-      ensfacilUsage:
-        'ENSFácil verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
+        'Power ENS verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
+      powerEnsUsage:
+        'Power ENS verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
       evidenceIds: ['EV-03', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:

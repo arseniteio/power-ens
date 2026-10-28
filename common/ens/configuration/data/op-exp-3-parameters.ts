@@ -36,7 +36,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110402 (software_installed). El agente lee dpkg.log y el historial de apt y emite un hecho por paquete instalado de nuevo y pedido de forma explícita.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-03 con NINGUNO_FUERA_DE_LISTA: todo paquete introducido debe figurar aquí. Sin instalaciones en la ventana y con el recolector confirmando la lectura del registro, cumple.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -73,7 +73,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Regla 110403 (service_running). El agente emite cada servicio en ejecución con el perfil de la máquina; se reemite al cambiar la lista y, si no cambia, cada 20 horas.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 con CONFORME_A_TABLA: cada servicio observado debe estar en la celda de su perfil. Un perfil sin fila es una decisión sin escribir: NO_EVALUABLE con causa CONFIGURATION.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -102,7 +102,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Regla 110401 (config_file_modified). El agente lee auditd y emite cada edición de las rutas vigiladas con actor, operación, proceso e intervalo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 con NINGUNO_FUERA_DE_LISTA: ningún actor observado puede quedar fuera de esta lista. Sin ediciones y con todas las rutas vigiladas confirmadas, cumple.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -115,7 +115,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       name: 'rutas_configuracion_seguridad',
       label: 'Rutas de la configuración de seguridad',
       description:
-        'Ficheros y directorios con la configuración de seguridad vigilados con auditd, una ruta absoluta por línea, iguales a los del fichero de reglas del runbook (/etc/audit/rules.d/ensfacil-opexp3.rules): son las dos mitades de EV-02. El agente comprueba que el kernel vigila cada ruta en escritura; el motor no verifica que coincidan con esta lista.',
+        'Ficheros y directorios con la configuración de seguridad vigilados con auditd, una ruta absoluta por línea, iguales a los del fichero de reglas del runbook (/etc/audit/rules.d/power-ens-opexp3.rules): son las dos mitades de EV-02. El agente comprueba que el kernel vigila cada ruta en escritura; el motor no verifica que coincidan con esta lista.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.6', 'op.exp.3.1', 'op.exp.3.2'],
       type: 'list',
@@ -130,8 +130,8 @@ export const opExp3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Plantilla de reglas de auditd del runbook (clave ensfacil_opexp3_cfg). Es la política escrita de qué se vigila; ninguna primitiva la contrasta con un hecho.',
-      ensfacilUsage:
+        'Plantilla de reglas de auditd del runbook (clave power_ens_opexp3_cfg). Es la política escrita de qué se vigila; ninguna primitiva la contrasta con un hecho.',
+      powerEnsUsage:
         'Documental: indica al auditor qué configuración se considera de seguridad. EV-02 se juzga contra P-03.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -152,7 +152,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110406 (baseline_verification_performed): la verificación más reciente anotada, con su fecha.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-11 con ANTIGUEDAD_MAXIMA: la verificación más reciente no puede superar este plazo. Sin ninguna anotada, no cumple.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
@@ -173,7 +173,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguna regla. El agente declara EV-05 NO_EVALUABLE con causa COLLECTION por falta de integración con el sistema de gestión de cambios.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental hasta que exista la integración con el ITSM. No se juzga contra nada.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -208,7 +208,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Documental. La copia observada la emite la regla 110405 (config_backup_observed).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental: ninguna primitiva lo contrasta con un hecho.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -231,7 +231,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguna regla.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental. EV-03 aplica tolerancia cero.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -253,7 +253,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110404 (config_admins_observed): cuentas que editaron la configuración en la ventana, emitido solo si la ventana entera se observó sin huecos.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 con UMBRAL_MAXIMO: el recuento observado no puede superar este número.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -274,7 +274,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110405 (config_backup_observed): instante de la copia más reciente del alcance que peor está.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-09 con ANTIGUEDAD_MAXIMA: mide contra el reloj, así que la antigüedad crece sola si las copias se paran.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -327,7 +327,7 @@ export const opExp3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún agente lo lee: es la prueba documental de lo que la telemetría no alcanza.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

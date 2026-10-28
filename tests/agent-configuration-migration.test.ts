@@ -149,8 +149,8 @@ console.log('4. What each row sees');
   check('no loss, exact row: «Ana» and «ana» remain in the document', rowsAll(m).includes('Ana | web01 | Administrador') && rowsAll(m).includes('ana | web01 | Administrador'));
 }
 
-const LAB = process.env.ENSFACIL_LAB_DOC;
-const MON = process.env.ENSFACIL_LAB_MONITORING;
+const LAB = process.env.POWER_ENS_LAB_DOC;
+const MON = process.env.POWER_ENS_LAB_MONITORING;
 if (LAB && MON) {
   console.log('5. Real copy');
   const actual = JSON.parse(readFileSync(LAB, 'utf8'));

@@ -45,9 +45,9 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
       '@timestamp': ts,
       agent: { id: '024', name: 'wazuh-real' },
       rule: { id: '110700', description: 'op.exp.6' },
-      location: '/var/log/ensfacil/op_exp_6.json',
+      location: '/var/log/power-ens/op_exp_6.json',
       data: Object.fromEntries(
-        Object.entries({ ensfacil: 'op.exp.6', ...data }).map(([k, v]) => [k, String(v)])
+        Object.entries({ power_ens: 'op.exp.6', ...data }).map(([k, v]) => [k, String(v)])
       ),
     },
   };
@@ -406,7 +406,7 @@ section('12. Only op.exp.6 facts count');
     _source: {
       '@timestamp': ago(1),
       agent: { id: '024', name: 'wazuh-real' },
-      data: { ensfacil: 'op.exp.3', event: 'antimalware_status', evidence_id: 'EV-01', plano: 'sistema', equipo: 'wazuh-real', producto_activo: 'clamav' },
+      data: { power_ens: 'op.exp.3', event: 'antimalware_status', evidence_id: 'EV-01', plano: 'sistema', equipo: 'wazuh-real', producto_activo: 'clamav' },
     },
   }]);
   const r = evaluate(foreignOne, { 'P-02': P02, 'P-03': '48' });

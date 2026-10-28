@@ -366,10 +366,10 @@ console.log('4b. Validation and warnings');
     organizationValueWarnings(people, ['ana | mantenimiento, registros | servidores | lectura'])[0]?.startsWith('La fila de «ana» tiene varios usos (mantenimiento, registros) y comparte Ámbito y Detalle'));
   check('without them, no warning', organizationValueWarnings(people, ['root | configuracion, copias', 'ana | mantenimiento | srv']).length === 0);
   const tools = base();
-  set(tools, 'op.exp.9', 'P-01', 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)');
+  set(tools, 'op.exp.9', 'P-01', 'Registro Power ENS (/etc/power-ens/incident-register.tsv)');
   set(tools, 'op.exp.7', 'P-03', ['GLPI | https://glpi | RSEG']);
-  check('op.exp.9 P-01 and the incident tool of the item that disagree are warned about', /op\.exp\.9 P-01 dice «Registro ENSFácil/.test(organizationCrossChecks(tools, 'herramientas_gestion')[0] || ''));
-  set(tools, 'op.exp.7', 'P-03', ['Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv']);
+  check('op.exp.9 P-01 and the incident tool of the item that disagree are warned about', /op\.exp\.9 P-01 dice «Registro Power ENS/.test(organizationCrossChecks(tools, 'herramientas_gestion')[0] || ''));
+  set(tools, 'op.exp.7', 'P-03', ['Registro Power ENS del manager | /etc/power-ens/incident-register.tsv']);
   check('and agreeing ones are not', organizationCrossChecks(tools, 'herramientas_gestion').length === 0);
   check('no mapped parameter accepts a regular expression (a value is never read as a pattern)', ENS_ORGANIZATION_DATA_ITEMS.every(item => item.views.every(view =>
     !supportsParameterPattern(ENSConfigurationRegistry.find(control => control.controlId === view.controlId)!.parameters.find(parameter => parameter.id === view.parameterId)!))));
@@ -480,9 +480,9 @@ console.log('6. Verdict parity');
     ['op.acc.6', 'P-02', ['127.0.0.0/8 la propia máquina', '10.0.0.0/24 red interna']],
     ['op.acc.6', 'P-07', ['ssh | si | Responsable de Seguridad | si', 'vpn | si | Responsable de Seguridad | si']],
     ['op.acc.4', 'P-04', ['SSH publickey | 22 | cualquier origen', 'WinRM | 5985 | 10.0.0.20']],
-    ['op.exp.5', 'P-01', ['registro_tsv | /etc/ensfacil/change-register.tsv']],
-    ['op.exp.7', 'P-03', ['Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv']],
-    ['op.exp.9', 'P-01', 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)'],
+    ['op.exp.5', 'P-01', ['registro_tsv | /etc/power-ens/change-register.tsv']],
+    ['op.exp.7', 'P-03', ['Registro Power ENS del manager | /etc/power-ens/incident-register.tsv']],
+    ['op.exp.9', 'P-01', 'Registro Power ENS (/etc/power-ens/incident-register.tsv)'],
     ['op.exp.9', 'P-06', ['disciplinaria | 1095', 'contractual | 1825']],
   ].forEach(([controlId, parameterId, value]) => set(labShaped, controlId as string, parameterId as string, value));
   const shaped = parity('lab-shaped document', labShaped);
@@ -491,7 +491,7 @@ console.log('6. Verdict parity');
     JSON.stringify(shaped.conflicts) === '["canales_acceso_remoto","grupos_privilegiados"]' && JSON.stringify(shaped.written) === '["op.exp.5 P-05","mp.sw.2 P-03","mp.com.3 P-02"]', [shaped.conflicts, shaped.written]);
   channelChoice('lab-shaped document', shaped);
 
-  const path = process.env.ENSFACIL_LAB_DOC;
+  const path = process.env.POWER_ENS_LAB_DOC;
   if (path && existsSync(path)) {
     const raw = JSON.parse(readFileSync(path, 'utf8'));
     const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
@@ -503,7 +503,7 @@ console.log('6. Verdict parity');
     check('lab copy: every view of a moved item reproduces its parameter', states.filter(state => state.status === 'value').every(state =>
       state.views.filter(view => view.parameter).every(view => sameParameterValue(view.parameter!, organizationViewValue(state.item, view.view, view.parameter!, state.value), view.value))));
   } else {
-    console.log('    (lab copy skipped: ENSFACIL_LAB_DOC not set)');
+    console.log('    (lab copy skipped: POWER_ENS_LAB_DOC not set)');
   }
 }
 
@@ -532,7 +532,7 @@ console.log('7. Server');
   set(differ, 'op.acc.1', 'P-11', ['sudo']);
   set(differ, 'op.acc.4', 'P-06', ['root']);
   docs.set('active', { documentType: 'ACTIVE_CONFIGURATION', configuration: differ, updatedAt: '2026-10-18T09:00:00.000Z', updatedBy: 'admin' });
-  const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['ensfacil_admin'] } }) } };
+  const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['power_ens_admin'] } }) } };
   const context = { core: { opensearch: { client: { asInternalUser: index, asCurrentUser: user } } } };
   const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
   const logger = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };

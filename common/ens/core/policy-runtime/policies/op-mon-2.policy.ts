@@ -61,8 +61,8 @@ const decide = decisionBuilderFor(POLICY);
 
 const MANAGER = '000';
 
-const CYCLE_RECORD = '/etc/ensfacil/metrics-cycle-register.tsv';
-const INCIDENT_RECORD = '/etc/ensfacil/incident-register.tsv';
+const CYCLE_RECORD = '/etc/power-ens/metrics-cycle-register.tsv';
+const INCIDENT_RECORD = '/etc/power-ens/incident-register.tsv';
 
 // A collector is current if its last heartbeat is at most as old as the engine allows before
 // declaring the control stopped on that machine (`stale-collector.ts`), measured against the
@@ -770,10 +770,10 @@ const ev04Coverage = (context: ENSPolicyContext, now: number): Coverage => {
       const since = parseInstant(factField(heartbeat, 'observado_desde'));
 
       if (since !== undefined && read - since > CURRENT_HEARTBEAT_MS) {
-        uncovered.push(`${name}: ningún recolector de ENSFácil ha informado desde él desde ${date(since)}`);
+        uncovered.push(`${name}: ningún recolector de Power ENS ha informado desde él desde ${date(since)}`);
       } else {
         undetermined.push(
-          notMeasured(`${name}: todavía no ha informado ningún recolector de ENSFácil desde que op.mon.2 lee los latidos${since !== undefined ? ` (${iso(since)})` : ''}`)
+          notMeasured(`${name}: todavía no ha informado ningún recolector de Power ENS desde que op.mon.2 lee los latidos${since !== undefined ? ` (${iso(since)})` : ''}`)
         );
       }
 
@@ -1085,7 +1085,7 @@ const indicators = (context: ENSPolicyContext): string[] | Measurement => {
 
   if (bad.length) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-03')} tiene indicadores que ENSFácil no sabe calcular con el registro de incidentes: ${formatList(bad.map(x => `«${x}»`))}. Los que sabe: ${INCIDENT_INDICATORS.join(', ')}.`,
+      `${parameterDisplayName(context, 'P-03')} tiene indicadores que Power ENS no sabe calcular con el registro de incidentes: ${formatList(bad.map(x => `«${x}»`))}. Los que sabe: ${INCIDENT_INDICATORS.join(', ')}.`,
       'CONFIGURATION'
     );
   }
@@ -1284,7 +1284,7 @@ const ev06Facts = (context: ENSPolicyContext, now: number): Measurement => {
   } else {
     pieces.push(
       compliant(
-        `Ciclo ${last.periodo}, consolidado el ${date(last.fecha)}: ${figure(last.horasInternas as number)} h internas, ${figure(last.horasExternas as number)} h externas y ${figure(last.presupuesto as number)} € de presupuesto ejecutado, validado por ${last.validadoPor} (P-05). DATO DECLARADO: ENSFácil lo registra y lo presenta, pero no lo verifica.${notes}`
+        `Ciclo ${last.periodo}, consolidado el ${date(last.fecha)}: ${figure(last.horasInternas as number)} h internas, ${figure(last.horasExternas as number)} h externas y ${figure(last.presupuesto as number)} € de presupuesto ejecutado, validado por ${last.validadoPor} (P-05). DATO DECLARADO: Power ENS lo registra y lo presenta, pero no lo verifica.${notes}`
       )
     );
   }

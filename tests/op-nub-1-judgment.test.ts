@@ -129,8 +129,8 @@ const alert = (line: Line, control = 'op.nub.1') => {
       '@timestamp': ts,
       agent: MANAGER,
       rule: { id: RULE[String(data.event)] || '111500', description: 'op.nub.1' },
-      location: '/var/log/ensfacil/op_nub_1.json',
-      data: Object.fromEntries(Object.entries({ ensfacil: control, ...data }).map(([k, v]) => [k, String(v)])),
+      location: '/var/log/power-ens/op_nub_1.json',
+      data: Object.fromEntries(Object.entries({ power_ens: control, ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -761,7 +761,7 @@ section('7 bis. Without operations by people, EV-04 complies only if the module 
     onlyEntra.evidencia('EV-01')?.status === 'CUMPLE' &&
       stateOf(onlyEntra, 'EV-04') === 'NO_EVALUABLE EVIDENCE' &&
       /«Entra ID» \(ms-graph\): ninguna operación de administración de una persona/.test(ev04(onlyEntra)) &&
-      /ms-graph no trae ningún registro de administración que ENSFácil lea/.test(ev04(onlyEntra)),
+      /ms-graph no trae ningún registro de administración que Power ENS lea/.test(ev04(onlyEntra)),
     `${stateOf(onlyEntra, 'EV-01')} / ${stateOf(onlyEntra, 'EV-04')} ${ev04(onlyEntra)}`
   );
 
@@ -980,7 +980,7 @@ section('11. Volume: a simulated customer day fits the budget; lines, logcollect
     origenes: Array.from({ length: 10 }, (_, i) => `2001:db8:1234:5678:9abc:def0:1234:${String(i).padStart(4, '0')}`).join(','),
   });
   const postureShort = posture(`${COMPLETE}:12Z`, { fallidos: Array.from({ length: 20 }, (_, i) => `CloudFront.${i + 100}`).join(','), estandar: 'x'.repeat(120) });
-  const bytes = [long, postureShort].map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.nub.1', host: 'Wazuh-4', ...l })).length);
+  const bytes = [long, postureShort].map(l => new TextEncoder().encode(JSON.stringify({ power_ens: 'op.nub.1', host: 'Wazuh-4', ...l })).length);
   check('lines with lists at the cap do not exceed 8 KiB', Math.max(...bytes) <= 8192, Math.max(...bytes));
 }
 

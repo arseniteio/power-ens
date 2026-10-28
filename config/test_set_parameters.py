@@ -186,7 +186,7 @@ def main():
                   r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"]["templateId"] == "none"
                   and "controls" not in cfg["agents"]["024"] and "null" not in json.dumps(cfg["agents"]), json.dumps(cfg["agents"]))
         # A 1.1.0-shaped document (no agents, no templates) has nothing to convert: it is marked 1.3.0 on write.
-        lab = os.environ.get("ENSFACIL_LAB_DOC")
+        lab = os.environ.get("POWER_ENS_LAB_DOC")
         shapes = [("synthetic", {"configuration": {"controls": [json.loads(json.dumps(CONTROL))]}})]
         if lab and os.path.exists(lab):
             with open(lab, encoding="utf-8") as handle:
@@ -337,7 +337,7 @@ def main():
         # Only config/ copied somewhere else (Docker with config/ mounted): no items to read.
         alone = os.path.join(tmp, "solo-config")
         os.makedirs(alone, exist_ok=True)
-        for name in ("set-parameters.py", "ensfacil_history.py", "ensfacil_organization.py"):
+        for name in ("set-parameters.py", "power_ens_history.py", "power_ens_organization.py"):
             with open(os.path.join(HERE, name), encoding="utf-8") as src, open(os.path.join(alone, name), "w", encoding="utf-8") as dst:
                 dst.write(src.read())
         state["doc"] = json.loads(json.dumps(org_doc))

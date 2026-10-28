@@ -9,7 +9,7 @@ export const pbsBackupTemplate: ENSPlatformSource = {
   systemTypes: ['linux'],
   sources: [
     'ejemplos del bloque semilla de mp.info.6',
-    'mp.info.6-proxmox-backup-runbook (testigo /etc/ensfacil/mpinfo6-witness.txt)',
+    'mp.info.6-proxmox-backup-runbook (testigo /etc/power-ens/mpinfo6-witness.txt)',
   ],
   values: {
     'mp.info.6': {
@@ -18,7 +18,7 @@ export const pbsBackupTemplate: ENSPlatformSource = {
       'P-10': 'pbs',
       'P-11': '/root/.config/proxmox-backup/encryption-key.json',
       'P-12': 'root.pxar',
-      'P-13': '/etc/ensfacil/mpinfo6-witness.txt',
+      'P-13': '/etc/power-ens/mpinfo6-witness.txt',
     },
   },
 };

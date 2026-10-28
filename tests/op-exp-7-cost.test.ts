@@ -22,8 +22,8 @@ const fact = (data: Record<string, unknown>, ts = ago(1)) => ({
     '@timestamp': ts,
     agent: { id: '000', name: 'Wazuh-4' },
     rule: { id: '110800', description: 'op.exp.7' },
-    location: '/var/log/ensfacil/op_exp_7.json',
-    data: Object.fromEntries(Object.entries({ ensfacil: 'op.exp.7', ...data }).map(([k, v]) => [k, String(v)])),
+    location: '/var/log/power-ens/op_exp_7.json',
+    data: Object.fromEntries(Object.entries({ power_ens: 'op.exp.7', ...data }).map(([k, v]) => [k, String(v)])),
   },
 });
 const ALL = 'EV-01,EV-02,EV-03,EV-04,EV-05,EV-06,EV-07,EV-08,EV-09,EV-10,EV-11,EV-12';

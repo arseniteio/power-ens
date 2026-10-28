@@ -1,10 +1,10 @@
 import { ENSRequestTimeoutError, ENS_REQUEST_TIMEOUT_MS, withRequestTimeout } from '../../../platform/request-timeout';
-import { ENSFACIL_CONFIGURATION_PATH } from '../../../constants';
+import { POWER_ENS_CONFIGURATION_PATH } from '../../../constants';
 
 import { ENSConfigurationVersion } from '../types';
 import { normalizeOrganizationData } from '../organization/organization-data-migration';
 
-const ENS_CONFIGURATION_API_PATH = ENSFACIL_CONFIGURATION_PATH;
+const ENS_CONFIGURATION_API_PATH = POWER_ENS_CONFIGURATION_PATH;
 
 // HTTP client of the dashboard core. Lives in `common/` (shared with the server), which cannot import from
 // `public/`: the browser registers it at startup (`public/services.ts`).
@@ -24,7 +24,7 @@ export const getENSConfigurationHttp = (): ENSConfigurationHttp => getHttp();
 
 const getHttp = (): ENSConfigurationHttp => {
   if (!httpProvider) {
-    throw new Error('ENSFácil: el cliente HTTP de la configuración todavía no está disponible');
+    throw new Error('Power ENS: el cliente HTTP de la configuración todavía no está disponible');
   }
 
   return httpProvider();

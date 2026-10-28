@@ -1,7 +1,7 @@
 import { ENSControlConfiguration } from '../types';
 
 // op.mon.2 · Metrics system.
-// With the organization's registers (`/etc/ensfacil/metrics-cycle-register.tsv` and op.exp.7's
+// With the organization's registers (`/etc/power-ens/metrics-cycle-register.tsv` and op.exp.7's
 // `incident-register.tsv`), these tables DESCRIBE them instead of storing: cycle periodicity, consolidated
 // indicators, items in each resource column and who validates. The cells the policy compares (measures of P-01,
 // indicators of P-03, metrics of P-06) have a closed vocabulary: any other text leaves the requirement
@@ -54,8 +54,8 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'No se configura en Wazuh: es la Declaración de Aplicabilidad del sistema, el parámetro raíz de ENSFácil.',
-      ensfacilUsage:
+        'No se configura en Wazuh: es la Declaración de Aplicabilidad del sistema, el parámetro raíz de Power ENS.',
+      powerEnsUsage:
         'El informe de op.mon.2 calcula sobre esta relación, no sobre todo el catálogo del ENS, el grado de implantación de cada medida aplicable, por marco y global (EV-01, dato sin veredicto).',
       evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: [],
@@ -96,8 +96,8 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'No se configura en Wazuh. El recolector del manager lee el registro de ciclos (/etc/ensfacil/metrics-cycle-register.tsv) cada 6 h.',
-      ensfacilUsage:
+        'No se configura en Wazuh. El recolector del manager lee el registro de ciclos (/etc/power-ens/metrics-cycle-register.tsv) cada 6 h.',
+      powerEnsUsage:
         'Convierte la periodicidad en plazo: el último ciclo validado debe estar dentro (op.mon.2.1), los datos de incidentes se dan por consolidados si el último ciclo lo está (R1) y los recursos salen del último ciclo en plazo (R2). La ventana de los indicadores de incidentes es el periodo.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-06'],
       ruleIds: [],
@@ -133,8 +133,8 @@ export const opMon2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'No se configura en Wazuh. El recolector del manager reemite con la etiqueta op.mon.2 el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv), sin cambiar su formato.',
-      ensfacilUsage:
+        'No se configura en Wazuh. El recolector del manager reemite con la etiqueta op.mon.2 el registro de incidentes de op.exp.7 (/etc/power-ens/incident-register.tsv), sin cambiar su formato.',
+      powerEnsUsage:
         'Calcula cada indicador con las fases del registro y exige que cada incidente del periodo tenga los datos necesarios (clasificación, fase inicial, contención, datos personales). Sin incidentes los indicadores valen cero y R1 cumple si el registro existe y el último ciclo está en plazo.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -176,7 +176,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Entrada MANUAL: no se obtiene de Wazuh ni de ningún sistema técnico.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Exige que cada una de las tres columnas tenga al menos una partida y toma las cifras del último ciclo. Se presentan como DATO DECLARADO: se registran, no se verifican.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -218,7 +218,7 @@ export const opMon2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'No se configura en Wazuh.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Da un ciclo por validado solo si validado_por es un responsable de P-05 de su ámbito: da trazabilidad a un dato que se reporta fuera de la organización.',
       evidenceIds: ['EV-02', 'EV-06'],
       ruleIds: [],
@@ -266,8 +266,8 @@ export const opMon2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'No se configura en Wazuh.',
-      ensfacilUsage:
-        'El objetivo de cobertura_monitorizacion decide la fiabilidad de la medición (EV-04, op.mon.2.1): porcentaje de sistemas del alcance con el agente conectado y todos sus recolectores de ENSFácil al día. Los demás no deciden nada: el informe presenta cada métrica frente a su objetivo y marca las desviaciones.',
+      powerEnsUsage:
+        'El objetivo de cobertura_monitorizacion decide la fiabilidad de la medición (EV-04, op.mon.2.1): porcentaje de sistemas del alcance con el agente conectado y todos sus recolectores de Power ENS al día. Los demás no deciden nada: el informe presenta cada métrica frente a su objetivo y marca las desviaciones.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
       ifNotConfigured:

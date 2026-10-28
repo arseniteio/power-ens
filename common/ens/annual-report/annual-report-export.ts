@@ -34,7 +34,7 @@ const headerValue = (report: ENSAnnualReport, id: string): ENSAnnualValue => rep
 
 export const annualReportFileName = (report: ENSAnnualReport, extension: 'json' | 'csv'): string => {
   const revision = headerValue(report, 'header.revision');
-  return `ensfacil-informe-art32-${report.period}${typeof revision === 'number' ? `-r${revision}` : ''}.${extension}`;
+  return `power-ens-informe-art32-${report.period}${typeof revision === 'number' ? `-r${revision}` : ''}.${extension}`;
 };
 
 const find = (data: ENSAnnualDatum[], id: string, key?: string): ENSAnnualValue =>
@@ -55,7 +55,7 @@ export const describeAnnualReport = (report: ENSAnnualReport): string[] => {
     h('header.frozen')
       ? `Congelado el ${h('header.frozen_at')} por ${h('header.frozen_by')} (revisión ${h('header.revision')}${h('header.freeze_reason') ? `: ${h('header.freeze_reason')}` : ''}).`
       : `Sin congelar: calculado el ${h('header.generated_at')}.`,
-    `Grado de implantación de la organización: ${figure(i('implementation.global_pct'), '%')} (motor de ENSFácil sobre ${i('implementation.measures_measured')} de ${i('implementation.measures_applicable')} medidas aplicables de la DA, P-01, con el mismo cálculo que el campo 2; ${i('implementation.measures_declared')} con madurez declarada, ${i('implementation.measures_without_data')} sin dato y ${i('implementation.measures_applicable_outside_soa')} aplicables fuera de la DA).`,
+    `Grado de implantación de la organización: ${figure(i('implementation.global_pct'), '%')} (motor de Power ENS sobre ${i('implementation.measures_measured')} de ${i('implementation.measures_applicable')} medidas aplicables de la DA, P-01, con el mismo cálculo que el campo 2; ${i('implementation.measures_declared')} con madurez declarada, ${i('implementation.measures_without_data')} sin dato y ${i('implementation.measures_applicable_outside_soa')} aplicables fuera de la DA).`,
     `Madurez de las medidas aplicables: ${levels}; ${find(report.maturity, 'maturity.not_assessed')} sin nivel; ${find(report.maturity, 'maturity.below_target')} por debajo del objetivo.`,
     `Incidentes del periodo: ${figure(n('incidents.total'))}; MTTD ${figure(n('incidents.mttd_hours'), 'h')} con fecha de ocurrencia (${figure(n('incidents.mttd_from_occurrence'))} incidentes) y cota inferior ${figure(n('incidents.mttd_lower_bound_hours'), 'h')} con la primera alerta conciliada (${figure(n('incidents.mttd_from_alert'))}); MTTC ${figure(n('incidents.mttc_hours'), 'h')}, MTTR ${figure(n('incidents.mttr_hours'), 'h')}; notificados al CCN-CERT ${figure(n('incidents.notified_ccn_cert'))}, a la AEPD ${figure(n('incidents.notified_aepd'))} de ${figure(n('incidents.with_personal_data'))} con datos personales (registro de incidentes de op.exp.7).`,
     n('incidents.alerts_window') === 'FUERA'

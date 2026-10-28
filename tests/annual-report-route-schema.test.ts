@@ -12,7 +12,7 @@ const check = (name: string, ok: boolean, detail: unknown = '') => {
 
 // Always the stand-in; and the dashboard's own package when reachable (build image, a dashboard install, the variable).
 const REAL = [
-  process.env.ENSFACIL_OSD_CONFIG_SCHEMA,
+  process.env.POWER_ENS_OSD_CONFIG_SCHEMA,
   '/osd/node_modules/@osd/config-schema',
   '/usr/share/wazuh-dashboard/node_modules/@osd/config-schema',
 ].find(path => path && existsSync(path));
@@ -34,7 +34,7 @@ Module._load = function (request: string, ...rest: unknown[]) {
 const http = require('../common/ens/configuration/services/configuration-http-client');
 const annual = require('../common/ens/annual-report/annual-report-http-client');
 const maturityClient = require('../common/ens/maturity/maturity-http-client');
-const { ENSFACIL_ANNUAL_REPORT_PATH, ENSFACIL_MATURITY_PATH } = require('../common/constants');
+const { POWER_ENS_ANNUAL_REPORT_PATH, POWER_ENS_MATURITY_PATH } = require('../common/constants');
 const ANNUAL_ROUTES = require.resolve('../server/routes/annual-report');
 const MATURITY_ROUTES = require.resolve('../server/routes/maturity');
 
@@ -84,9 +84,9 @@ http.setENSConfigurationHttp(() => ({
     const logger = { info() {}, warn() {}, error() {}, debug() {} };
     require(ANNUAL_ROUTES).registerAnnualReportRoutes(router, { logger, securityEnabled: true, annualReport: {} });
     require(MATURITY_ROUTES).registerMaturityRoutes(router, { logger, securityEnabled: true, maturity: {} });
-    const read = routes.find(route => route.method === 'GET' && route.path === ENSFACIL_ANNUAL_REPORT_PATH);
-    const freeze = routes.find(route => route.method === 'POST' && route.path === `${ENSFACIL_ANNUAL_REPORT_PATH}/freeze`);
-    const save = routes.find(route => route.method === 'PUT' && route.path === ENSFACIL_MATURITY_PATH);
+    const read = routes.find(route => route.method === 'GET' && route.path === POWER_ENS_ANNUAL_REPORT_PATH);
+    const freeze = routes.find(route => route.method === 'POST' && route.path === `${POWER_ENS_ANNUAL_REPORT_PATH}/freeze`);
+    const save = routes.find(route => route.method === 'PUT' && route.path === POWER_ENS_MATURITY_PATH);
     const run = (validator: any, value: unknown, where: string): { value?: any; error?: string } => {
       try {
         return { value: validator.validate(value, {}, where) };

@@ -7,7 +7,7 @@ export const mpS1CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de los servicios',
   dimension: 'Todas',
   annexSection: '5.8.1',
-  source: { template: 'ENSFacil_Plantilla_mp.s.1', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.s.1', version: '2.0', date: '2026-10-15' },
   description:
     'mp.s.1 reúne siete requisitos de tres naturalezas: protección de la información del correo, defensa frente a amenazas y normas de uso para el personal.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

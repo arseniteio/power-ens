@@ -1,5 +1,5 @@
 <!-- op.acc.3 rules · Segregation of duties and tasks.
-     Reserved range 107000-107099. Deployable copy of plugin-wazuh-ens/agent/rules/ensfacil_op_acc_3_json_rules.xml: if one is modified the other and the catalog `relatedRules` must be synced; plugin-wazuh-ens/tests/check-consistency.py checks it.
+     Reserved range 107000-107099. Deployable copy of plugin-wazuh-ens/agent/rules/power_ens_op_acc_3_json_rules.xml: if one is modified the other and the catalog `relatedRules` must be synced; plugin-wazuh-ens/tests/check-consistency.py checks it.
 
      They only collect FACTS, the heartbeat and the degradation: there is no CUMPLE or NO_CUMPLE rule because in this control the verdict is set by the plugin policy evaluator.
 
@@ -7,12 +7,12 @@
        EV-03                               107002   critical_task_run
        EV-07                               107003   security_info_access
 -->
-<group name="ensfacil,op_acc_3,score,">
+<group name="power_ens,op_acc_3,score,">
 
   <rule id="107000" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.3</field>
-    <description>op.acc.3 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.3</field>
+    <description>op.acc.3 · evento Power ENS base</description>
   </rule>
 
   <!-- Level 3: a single action is not a finding, it is raw material. Higher would fill the index with every `systemctl restart` of a healthy machine. -->

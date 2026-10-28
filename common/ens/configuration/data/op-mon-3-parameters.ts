@@ -69,7 +69,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Reglas 111402 (log_source_observed), 111403 (agent_forwarding_observed) y 111404 (syslog_source_observed): cada 6 h el recolector de cada agente, y el del manager para sí, lee de wazuh-logcollector.state eventos, bytes y descartes de cada localfile y de wazuh-agentd.state su conexión; el del manager resume por emisor las alertas de las fuentes syslog.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 cruza cada fuente con su hecho: una que el logcollector no lee, que descarta eventos o supera max_horas_sin_eventos es un punto ciego. Cada fuente de agente se juzga en la fila de su máquina (y en la del manager, que el agente exista y esté conectado); las syslog, en la del manager.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -82,7 +82,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'reglas_correlacion',
       label: 'Conjuntos de reglas de correlación',
       description:
-        'Conjuntos de reglas de correlación que deben estar desplegados: R1 exige que la recolección permita correlacionar, y desde MEDIA no basta recolectar. Se nombran como los agrupa ENSFácil: «wazuh» para ruleset/rules y, para etc/rules, el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
+        'Conjuntos de reglas de correlación que deben estar desplegados: R1 exige que la recolección permita correlacionar, y desde MEDIA no basta recolectar. Se nombran como los agrupa Power ENS: «wazuh» para ruleset/rules y, para etc/rules, el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.3.r1.1'],
       type: 'table',
@@ -110,7 +110,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111405 (correlation_rules_inventory): cada 6 h el recolector del manager cuenta por conjunto las reglas que correlacionan (frequency y timeframe, o if_matched_sid / if_matched_group) y sus técnicas MITRE ATT&CK. La 111406 resume las alertas de correlación del periodo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-03 exige que cada conjunto de P-02 esté cargado con al menos una regla de correlación que pueda alertar. Las detecciones por correlación del periodo se informan.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -151,7 +151,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Reglas 111407 (config_assessment_observed) y 111408 (package_inventory_observed): cada 6 h el recolector del manager lee de la base de cada agente (queue/db/NNN.db) el fin de su última pasada SCA por política y la fecha de su inventario de paquetes, del que se alimenta el detector de vulnerabilidades.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 (y EV-10, EV-11 en ALTA) exige SCA e inventario de cada activo dentro de P-11 horas. El recuento de vulnerabilidades vive en el indexer y no se mide sin credenciales: se informa «sin medir».',
       evidenceIds: ['EV-04', 'EV-10', 'EV-11'],
       ruleIds: [],
@@ -192,7 +192,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Sin hecho propio: la anomalía no se mide desde fuera de quien la define.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra al auditor en EV-05 y en el informe. R3.1 es documental y se acredita con P-ATT (línea base validada y procedimiento de detección).',
       evidenceIds: [],
       ruleIds: [],
@@ -233,7 +233,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111410 (network_detection_observed): cada 6 h el recolector del manager informa de los NIDS cuyos eventos llegan (syslog, localfile de un grupo o grupos de las alertas) y de su última alerta.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 exige que el manager ingiera alertas de cada producto declarado y, si la fila lo dice, que la última sea más reciente que max_dias_sin_alertas. Sin ninguna detección en red, R3.2 no se cumple.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -274,7 +274,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111411 (ioc_list_observed): cada 6 h el recolector del manager informa de las listas CDB cargadas, sus entradas, su fecha y las reglas que las usan, que es donde acaban los indicadores del servicio.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra en EV-07 y en el apartado de componentes externos del informe. R4 es documental: se acredita con P-ATT (contrato o servicio vigente).',
       evidenceIds: [],
       ruleIds: [],
@@ -327,7 +327,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111412 (query_volume_rules_observed): cada 6 h el recolector del manager informa de los ids de las reglas de umbral cargadas (con frequency y que pueden alertar). La 111406 resume sus alertas.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 exige que cada fila tenga al menos una de sus reglas cargada como regla de umbral. Las superaciones del periodo se informan.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -374,7 +374,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111413 (notification_channel_configured): cada 6 h el recolector del manager informa del correo (email_notification, email_alert_level, número de destinatarios) y de cada <integration> de ossec.conf (nombre, nivel, grupos y errores en integrations.log), nunca de su hook_url ni de su api_key.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-09 exige que cada canal exista, esté habilitado, avise desde el nivel declarado y no registre errores de envío en 24 h. La latencia alerta → aviso no es medible: Wazuh no anota los envíos correctos.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -416,7 +416,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'La verificación de configuración y el análisis de vulnerabilidades continuos se miden con los hechos de EV-04 (111407, 111408 y 111409); las inspecciones puntuales, con las filas del registro de inspecciones (111414).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Una inspección continua se acredita con SCA (EV-10) o con el detector de vulnerabilidades (EV-11); una periódica, con su última fila del registro dentro de la periodicidad (EV-12) o con la medida continua si la hay.',
       evidenceIds: ['EV-10', 'EV-11', 'EV-12'],
       ruleIds: [],
@@ -429,11 +429,11 @@ export const opMon3Configuration: ENSControlConfiguration = {
       name: 'registro_inspecciones_realizadas',
       label: 'Registro de inspecciones realizadas',
       description:
-        'Dónde se registran las inspecciones realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las posteriores a incidentes, y quién mantiene el registro. ENSFácil lee /etc/ensfacil/security-inspection-register.tsv en el manager, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
+        'Dónde se registran las inspecciones realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las posteriores a incidentes, y quién mantiene el registro. Power ENS lee /etc/power-ens/security-inspection-register.tsv en el manager, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
       levels: ['ALTO'],
       requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
       type: 'table',
-      example: 'Registro ENSFácil del manager | /etc/ensfacil/security-inspection-register.tsv | Responsable de Seguridad',
+      example: 'Registro Power ENS del manager | /etc/power-ens/security-inspection-register.tsv | Responsable de Seguridad',
       columns: [
         {
           name: 'registro',
@@ -457,7 +457,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111414 (security_inspection_recorded): cada 6 h el recolector del manager reemite el registro entero, fila a fila, sin juzgarlo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra al auditor. No se compara: se juzga el registro del manager (EV-12).',
       evidenceIds: ['EV-12'],
       ruleIds: [],
@@ -478,7 +478,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Reglas 111407, 111408 y 111409: el recolector del manager emite instantes (fin de la pasada SCA, fecha del inventario, fecha de la fuente del detector), nunca edades.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04, EV-10 y EV-11 miden cada antigüedad en el instante en que el recolector la leyó y la comparan con P-11.',
       evidenceIds: ['EV-04', 'EV-10', 'EV-11'],
       ruleIds: [],
@@ -506,7 +506,7 @@ export const opMon3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Sin hecho propio: un documento no deja rastro en Wazuh.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica (R3.1 y R4), por lo que nunca tapa una medida fallida. Se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

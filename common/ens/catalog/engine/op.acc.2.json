@@ -24,7 +24,7 @@
     "manager"
   ],
   "source": {
-    "template": "ENSFacil_Plantilla_op.acc.2",
+    "template": "PowerENS_Plantilla_op.acc.2",
     "version": "1.0"
   },
   "version": "1.0.0",
@@ -363,7 +363,7 @@
         "Otro"
       ],
       "required": false,
-      "agent_usage": "ENSFácil verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.",
+      "agent_usage": "Power ENS verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.",
       "engine_usage": "Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).",
       "evidence_ids": [
         "EV-05"
@@ -410,7 +410,7 @@
         }
       ],
       "required": false,
-      "agent_usage": "ENSFácil cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.",
+      "agent_usage": "Power ENS cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.",
       "engine_usage": "Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.",
       "evidence_ids": [
         "EV-04",

@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_3_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_mon_3_json_rules.xml
      Byte-identical in two places: the plugin source and manager/ of the Linux
      op.mon.3 runbook. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_mon_3,">
+<group name="power_ens,op_mon_3,">
 
   <!-- ================================================================
        op.mon.3 · Monitoring
@@ -42,8 +42,8 @@
 
   <rule id="111400" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">^op.mon.3$</field>
-    <description>op.mon.3 · evento ENSFácil base</description>
+    <field name="power_ens">^op.mon.3$</field>
+    <description>op.mon.3 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.mon.3.1 · collection ===== -->

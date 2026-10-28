@@ -51,7 +51,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Declara el producto y dónde registra su actividad. El agente lee los logs de ClamAV; de otros productos detecta si están instalados y en ejecución.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental: no se juzga por sí mismo. op.exp.6.2 lo decide la fila de cada equipo en P-02.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
@@ -100,7 +100,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Equipo y plano cuyo antimalware en ejecución no es el declarado (o no hay ninguno): incumplimiento de op.exp.6.2.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-01 busca la fila por equipo y plano y compara «producto_esperado» con el producto EN EJECUCIÓN: instalado y parado no protege y cuenta como «ninguno».',
       evidenceIds: ['EV-01'],
       ruleIds: [],
@@ -122,7 +122,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Firmas publicadas hace más de P-03 horas en algún plano con antimalware: incumplimiento de op.exp.6.4.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 mide con el reloj la antigüedad de las firmas de CADA plano con antimalware en ejecución; manda el peor.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -165,7 +165,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Ajuste observado distinto del declarado (por ejemplo, protección en tiempo real desactivada): incumplimiento de op.exp.6.5.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-03 busca la fila por plano y ajuste y compara «valor_esperado» con el observado. Un ajuste observado sin fila queda sin juzgar.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -201,7 +201,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Vía declarada sin análisis observable en la máquina: op.exp.6.3 no demostrado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-12 comprueba cada vía declarada con lo que observa la máquina: análisis del correo y dispositivos extraíbles contra P-10.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
@@ -223,7 +223,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Último escaneo completo más antiguo que P-06 días, o ninguno: incumplimiento de R1.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-05 mide con el reloj el fin del escaneo completo más reciente.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -258,7 +258,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ruta crítica no analizada en el último arranque, o análisis de arranque sin terminar: incumplimiento de R2.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 contrasta las rutas del equipo (las suyas y las de «*») con las que el agente vigilaba en su último arranque y exige que el análisis terminara.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -305,7 +305,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Sin mecanismo de lista blanca en modo aplicación, o ejecución no bloqueada de una ruta ausente de la lista: incumplimiento de R3.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-07 exige el mecanismo activo y en modo aplicación, y contrasta la ruta de cada ejecución permitida con la columna «ruta».',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -348,7 +348,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Capacidad declarada como no activada, o declarada y no desplegada en el equipo: incumplimiento de R4.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 a EV-11 contrastan la fila de cada capacidad con lo que observa el agente: respuesta activa y YARA configuradas por el manager y presentes en la máquina, rootcheck ejecutándose con sus bases.',
       evidenceIds: ['EV-08', 'EV-09', 'EV-10', 'EV-11'],
       ruleIds: [],
@@ -370,7 +370,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Dispositivo extraíble conectado donde están bloqueados, o sin antimalware que lo analice: incumplimiento de op.exp.6.3.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-12 contrasta cada conexión de un disco extraíble que registra el kernel con esta política.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
@@ -423,7 +423,7 @@ export const opExp6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

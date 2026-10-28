@@ -12,7 +12,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     status: 'CUMPLE',
     timestamp: new Date().toISOString(),
-    tool: 'ENSFácil test',
+    tool: 'Power ENS test',
     ruleId: '106650',
   },
   {
@@ -25,7 +25,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     status: 'CUMPLE',
     timestamp: new Date().toISOString(),
-    tool: 'ENSFácil test',
+    tool: 'Power ENS test',
     ruleId: '106651',
   },
   {
@@ -37,7 +37,7 @@ const events: ENSNormalizedEvent[] = [
     sourceType: 'WAZUH_ALERT',
     status: 'CUMPLE',
     timestamp: new Date().toISOString(),
-    tool: 'ENSFácil test',
+    tool: 'Power ENS test',
     ruleId: '106662',
   },
 ];

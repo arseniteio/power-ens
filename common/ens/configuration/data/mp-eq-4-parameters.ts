@@ -53,8 +53,8 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Es el alcance del control. Comparte contenido con op.exp.1 P-02 (activos sin agente) y conviene gestionarlo de forma unificada.',
-      ensfacilUsage:
-        'ENSFácil lo contrasta con los dispositivos efectivamente descubiertos en la red y señala los no inventariados.',
+      powerEnsUsage:
+        'Power ENS lo contrasta con los dispositivos efectivamente descubiertos en la red y señala los no inventariados.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -99,9 +99,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
-      ensfacilUsage:
-        'ENSFácil verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
+        'Power ENS verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
+      powerEnsUsage:
+        'Power ENS verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -113,7 +113,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       name: 'fuentes_descubrimiento_red',
       label: 'Fuentes descubrimiento red',
       description:
-        'Fuentes de las que ENSFácil obtiene la presencia de dispositivos en la red: servidor DHCP, tablas de la electrónica de red, autenticación 802.1X, NAC si existe, barridos de descubrimiento.',
+        'Fuentes de las que Power ENS obtiene la presencia de dispositivos en la red: servidor DHCP, tablas de la electrónica de red, autenticación 802.1X, NAC si existe, barridos de descubrimiento.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1', 'mp.eq.4.r2.1'],
       type: 'table',
@@ -141,7 +141,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Sin agente en el dispositivo, estas fuentes son la única forma de saber qué hay conectado. Cubren además de facto la primera parte de R2 (visualizar los dispositivos presentes en la red), no exigible pero alcanzable.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Sin agente en el dispositivo, estas fuentes son la única forma de saber qué hay conectado. Cubren además de facto la primera parte de R2 (visualizar los dispositivos presentes en la red), no exigible pero alcanzable.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07'],
       ruleIds: [],
@@ -188,7 +188,7 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Activa la ingesta en Wazuh con el decodificador correspondiente. Permite ver accesos al panel de administración del dispositivo, trabajos procesados, cambios de configuración y errores. Muchas multifunción corporativas lo soportan y casi nadie lo aprovecha.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Activa la ingesta en Wazuh con el decodificador correspondiente. Permite ver accesos al panel de administración del dispositivo, trabajos procesados, cambios de configuración y errores. Muchas multifunción corporativas lo soportan y casi nadie lo aprovecha.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07'],
       ruleIds: [],
@@ -234,9 +234,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
-      ensfacilUsage:
-        'ENSFácil registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
+        'Power ENS registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
+      powerEnsUsage:
+        'Power ENS registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
       evidenceIds: ['EV-04', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -255,9 +255,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       example: 'Invitados solo en una VLAN aislada con salida a internet; BYOD no admitido en la red interna',
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
-      ensfacilUsage:
-        'ENSFácil verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
+        'Power ENS verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
+      powerEnsUsage:
+        'Power ENS verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -302,9 +302,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'Registro documental en ENSFácil con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
-      ensfacilUsage:
-        'Registro documental en ENSFácil con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
+        'Registro documental en Power ENS con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
+      powerEnsUsage:
+        'Registro documental en Power ENS con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
@@ -323,9 +323,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       example: '802.1X en toda la red cableada; port security en los conmutadores de acceso',
       required: false,
       wazuhUsage:
-        'ENSFácil ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
-      ensfacilUsage:
-        'ENSFácil ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
+        'Power ENS ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
+      powerEnsUsage:
+        'Power ENS ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
       evidenceIds: ['EV-01', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -376,9 +376,9 @@ export const mpEq4Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      powerEnsUsage:
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

@@ -9,7 +9,7 @@ export const mpS4CatalogDefinition: ENSControlDefinition = {
   // Governed by the dimension LEVEL, not the system category: evaluated with `availabilityLevel` of the global configuration and, if not declared, with the ENS level.
   levelDimension: 'D',
   annexSection: '5.8.4',
-  source: { template: 'ENSFacil_Plantilla_mp.s.4', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.s.4', version: '2.0', date: '2026-10-15' },
   description:
     'mp.s.4 pide capacidad holgada y tecnologías de prevención, y en nivel ALTO detección y procedimientos de reacción con el proveedor.',
   levels: ['MEDIO', 'ALTO'],

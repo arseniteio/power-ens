@@ -64,7 +64,7 @@ export const implementationDegree = (applicable: string[], results: ENSComplianc
     const r = byControl.get(measure);
 
     if (!r) {
-      lines.push(`${measure}: sin evaluar en ENSFácil (no cuenta en la cifra)`);
+      lines.push(`${measure}: sin evaluar en Power ENS (no cuenta en la cifra)`);
     } else if (isPendingMeasurement(getENSCatalogControl(measure))) {
       // In the catalog without collector yet: its NO_APLICA is not a level decision, so P-01 is not to be reviewed.
       lines.push(`${measure}: sin medición todavía, documental hasta que su recolector emita (no cuenta en la cifra)`);

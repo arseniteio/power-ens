@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.com.4 (Separación de flujos de información en la red).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -121,7 +121,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Mapa de segmentos y segregación mínima  ·  fuente: Syscollector + ENSFácil (EV-08)
+  // Mapa de segmentos y segregación mínima  ·  fuente: Syscollector + Power ENS (EV-08)
   const campo3 = field(
     'mp.com.4.campo3',
     'Mapa de segmentos y segregación mínima',
@@ -131,7 +131,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Matriz de tráfico observado entre segmentos  ·  fuente: Log + ENSFácil (EV-01)
+  // Matriz de tráfico observado entre segmentos  ·  fuente: Log + Power ENS (EV-01)
   const campo4 = field(
     'mp.com.4.campo4',
     'Matriz de tráfico observado entre segmentos',
@@ -151,7 +151,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Equipos puente entre segmentos  ·  fuente: Syscollector + ENSFácil (EV-03)
+  // Equipos puente entre segmentos  ·  fuente: Syscollector + Power ENS (EV-03)
   const campo6 = field(
     'mp.com.4.campo6',
     'Equipos puente entre segmentos',
@@ -161,7 +161,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Separación de las comunicaciones inalámbricas  ·  fuente: Log + ENSFácil (EV-04)
+  // Separación de las comunicaciones inalámbricas  ·  fuente: Log + Power ENS (EV-04)
   const campo7 = field(
     'mp.com.4.campo7',
     'Separación de las comunicaciones inalámbricas',
@@ -195,7 +195,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Encapsulamiento de incidentes  ·  fuente: Log + ENSFácil (EV-09)
+  // Encapsulamiento de incidentes  ·  fuente: Log + Power ENS (EV-09)
   const campo10 = field(
     'mp.com.4.campo10',
     'Encapsulamiento de incidentes',
@@ -205,7 +205,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-09'),
   );
 
-  // Vigencia de la matriz de flujos  ·  fuente: Log + ENSFácil (EV-10)
+  // Vigencia de la matriz de flujos  ·  fuente: Log + Power ENS (EV-10)
   const campo11 = field(
     'mp.com.4.campo11',
     'Vigencia de la matriz de flujos',
@@ -215,7 +215,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento mp.com.4  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.com.4  ·  fuente: Motor Power ENS
   const campo12 = field(
     'mp.com.4.campo12',
     'Puntuación de cumplimiento mp.com.4',
@@ -225,7 +225,7 @@ export const buildMpCom4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo13 = field(
     'mp.com.4.campo13',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

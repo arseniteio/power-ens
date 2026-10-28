@@ -49,8 +49,8 @@ const reading = (ts: string, event: string, evidence: string, file: string, rows
   fichero: file, presente: 'si', legible: 'si', cabecera: 'ok', filas: rows, filas_invalidas: 0, lineas_invalidas: '-', ...extra,
 });
 
-const TEST_FILE = '/etc/ensfacil/continuity-test-register.tsv';
-const DEFICIENCY_FILE = '/etc/ensfacil/continuity-deficiency-register.tsv';
+const TEST_FILE = '/etc/power-ens/continuity-test-register.tsv';
+const DEFICIENCY_FILE = '/etc/power-ens/continuity-deficiency-register.tsv';
 
 const test = (ts: string, line: number, start: string, end: string, type: string, scenario: string, systems: string, result: string, deficiencies: number, extra: Line = {}): Line => ({
   ts, event: 'continuity_test_recorded', evidence_id: 'EV-01', ...common,
@@ -135,8 +135,8 @@ const alert = (line: Line) => {
       '@timestamp': ts,
       agent: MANAGER,
       rule: { id: RULE[String(data.event)] || '111700', description: 'op.cont.3' },
-      location: '/var/log/ensfacil/op_cont_3.json',
-      data: Object.fromEntries(Object.entries({ ensfacil: 'op.cont.3', ...data }).map(([k, v]) => [k, String(v)])),
+      location: '/var/log/power-ens/op_cont_3.json',
+      data: Object.fromEntries(Object.entries({ power_ens: 'op.cont.3', ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -167,8 +167,8 @@ const configuration = (values: Values): ENSControlConfiguration => ({
   }),
 });
 
-const TEST_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
-const DEFICIENCY_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)';
+const TEST_RECORD = 'Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)';
+const DEFICIENCY_RECORD = 'Registro Power ENS (/etc/power-ens/continuity-deficiency-register.tsv)';
 
 const BASE: Values = {
   'P-01': '12',
@@ -673,7 +673,7 @@ section('9. Without a collector or with the source broken: NO_EVALUABLE by RECOG
   const unreadable = evaluate(hoy(l => (l.event === 'continuity_test_register_read' ? { ...l, legible: 'no' } : l)));
   check('record present but unreadable → RECOGIDA', unreadable.evidencia('EV-01')?.gapCause === 'COLLECTION', estado(unreadable, 'EV-01'));
 
-  const foreignOne = normalizeWazuhAlerts([alert({ ...pass()[0] })].map(a => ({ ...a, _source: { ...a._source, data: { ...a._source.data, ensfacil: 'op.cont.2' } } })));
+  const foreignOne = normalizeWazuhAlerts([alert({ ...pass()[0] })].map(a => ({ ...a, _source: { ...a._source, data: { ...a._source.data, power_ens: 'op.cont.2' } } })));
   check('a fact from another control does not accredit op.cont.3', evaluate(foreignOne).evidencia('EV-01')?.status !== 'CUMPLE');
 }
 
@@ -986,7 +986,7 @@ section('14. Volume: the fact budget');
   check(`an organization with history: ${perPass} per pass, ${perPass * 4} per day (≤ 300)`, perPass * 4 <= 300, perPass * 4);
 
   const cuarenta = Array.from({ length: 40 }, (_, k) => `${k % 2 ? 'arranque' : 'parada'}@2026-09-17T2${k % 4}:${String(k).padStart(2, '0')}:00Z`).join(',');
-  const bytes = new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.cont.3', host: 'Wazuh-4', ...availability(`${PASS}:04Z`, DRILL, DRILL_END, 'wazuh-real', '024', 'wazuh-real', cuarenta) })).length;
+  const bytes = new TextEncoder().encode(JSON.stringify({ power_ens: 'op.cont.3', host: 'Wazuh-4', ...availability(`${PASS}:04Z`, DRILL, DRILL_END, 'wazuh-real', '024', 'wazuh-real', cuarenta) })).length;
   check(`a 40-event chronology takes ${bytes} bytes, far from logcollector's 64 KiB`, bytes < 4096, bytes);
 }
 

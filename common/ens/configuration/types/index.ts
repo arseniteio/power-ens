@@ -125,7 +125,7 @@ export interface ENSControlParameter {
   defaultValue?: string | number | boolean | string[];
   value?: string | number | boolean | string[];
   wazuhUsage: string;
-  ensfacilUsage: string;
+  powerEnsUsage: string;
   evidenceIds: string[];
   ruleIds: string[];
   ifNotConfigured: string;

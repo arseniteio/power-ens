@@ -285,7 +285,7 @@ export const opMon3Control: ENSControl = {
       expectedStatus: 'NO_APLICA',
       title: 'Registro y seguimiento de las inspecciones de seguridad (R6)',
       description:
-        'Filas del registro de inspecciones del manager (/etc/ensfacil/security-inspection-register.tsv): fecha, tipo (verificación de configuración, análisis de vulnerabilidades o prueba de penetración), alcance, ejecutor, hallazgos, estado de su remediación, motivo (periódica o tras incidente) e incidente. La última de cada tipo se contrasta con la periodicidad de P-09.',
+        'Filas del registro de inspecciones del manager (/etc/power-ens/security-inspection-register.tsv): fecha, tipo (verificación de configuración, análisis de vulnerabilidades o prueba de penetración), alcance, ejecutor, hallazgos, estado de su remediación, motivo (periódica o tras incidente) e incidente. La última de cada tipo se contrasta con la periodicidad de P-09.',
       format: 'json_line',
       events: ['evidence_state', 'security_inspection_recorded'],
       wazuhRuleIds: ['111414'],
@@ -323,7 +323,7 @@ export const opMon3Control: ENSControl = {
       id: 'P-02',
       name: 'reglas_correlacion',
       description:
-        'Conjuntos de reglas de correlación que tienen que estar desplegados. R1 exige que el sistema de recolección permita la correlación de los eventos: recolectar sin correlacionar no basta desde categoría MEDIA. El conjunto se nombra como lo agrupa ENSFácil: «wazuh» para el ruleset oficial (ruleset/rules) y, para las reglas propias (etc/rules), el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
+        'Conjuntos de reglas de correlación que tienen que estar desplegados. R1 exige que el sistema de recolección permita la correlación de los eventos: recolectar sin correlacionar no basta desde categoría MEDIA. El conjunto se nombra como lo agrupa Power ENS: «wazuh» para el ruleset oficial (ruleset/rules) y, para las reglas propias (etc/rules), el prefijo del fichero hasta el primer «_», «.» o «-» (quersystem_mariadb_rules.xml → quersystem; local_rules.xml → local).',
       level: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.3.r1.1'],
       type: 'table',
@@ -427,7 +427,7 @@ export const opMon3Control: ENSControl = {
       id: 'P-10',
       name: 'registro_inspecciones_realizadas',
       description:
-        'Dónde se registran las inspecciones efectivamente realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las hechas tras incidentes, y quién mantiene el registro. ENSFácil lee el registro del manager /etc/ensfacil/security-inspection-register.tsv, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
+        'Dónde se registran las inspecciones efectivamente realizadas (fecha, tipo, alcance, ejecutor, hallazgos, estado, motivo e incidente), incluidas las hechas tras incidentes, y quién mantiene el registro. Power ENS lee el registro del manager /etc/power-ens/security-inspection-register.tsv, que la organización mantiene aunque use otra herramienta, con una fila por inspección y la referencia a su informe.',
       level: ['ALTO'],
       requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
       type: 'table',
@@ -458,7 +458,7 @@ export const opMon3Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'Sin hecho propio: un documento no deja rastro en Wazuh. ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica (R3.1 y R4), así que una atestación nunca puede tapar una medida que ha fallado. En pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Sin hecho propio: un documento no deja rastro en Wazuh. Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica (R3.1 y R4), así que una atestación nunca puede tapar una medida que ha fallado. En pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control (R3.1 y R4) se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

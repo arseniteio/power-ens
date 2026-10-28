@@ -124,17 +124,17 @@ http.setENSConfigurationHttp(() => ({
   await h.click(/^Guardar$/);
   p = await h.rerender();
   const sent = puts[0]?.body;
-  check('with it: sent to the maturity route with the level as a number and the version the screen showed', puts[0]?.path === '/api/ensfacil/maturity' && sent.kind === 'assessment' && sent.entry.level === 4 && sent.entry.reviewer === 'Luis Pérez' && /Auditoría/.test(sent.entry.justification) && JSON.stringify(sent.expectedVersion) === '{"seqNo":3,"primaryTerm":1}', sent);
+  check('with it: sent to the maturity route with the level as a number and the version the screen showed', puts[0]?.path === '/api/powerEns/maturity' && sent.kind === 'assessment' && sent.entry.level === 4 && sent.entry.reviewer === 'Luis Pérez' && /Auditoría/.test(sent.entry.justification) && JSON.stringify(sent.expectedVersion) === '{"seqNo":3,"primaryTerm":1}', sent);
   check('...and the view refreshed, the form closed', retries === 1 && !/Valorar la madurez · op\.acc\.1/.test(p));
   check('the configuration in the browser is untouched (its own document)', !('maturity' in ensConfigurationRepository.getActive()));
 
-  putAnswer = async () => Promise.reject({ body: { message: 'Hace falta el rol ensfacil_admin o all_access para registrar la madurez.' } });
+  putAnswer = async () => Promise.reject({ body: { message: 'Hace falta el rol power_ens_admin o all_access para registrar la madurez.' } });
   await h.click(/Registrar una revisión/);
   h.findAll('EuiFieldText').find(f => f.props.list)!.props.onChange({ target: { value: 'Ana' } });
   await h.rerender();
   await h.click(/^Guardar$/);
   p = await h.rerender();
-  check('without the role the server refuses and the form says why', /Hace falta el rol ensfacil_admin/.test(p) && puts[1]?.body.kind === 'review', { puts: puts.map(x => x.body.kind), p: p.slice(p.indexOf('Registrar una revisión ·'), p.indexOf('Registrar una revisión ·') + 900) });
+  check('without the role the server refuses and the form says why', /Hace falta el rol power_ens_admin/.test(p) && puts[1]?.body.kind === 'review', { puts: puts.map(x => x.body.kind), p: p.slice(p.indexOf('Registrar una revisión ·'), p.indexOf('Registrar una revisión ·') + 900) });
   check('the review offers «Desviación en tratamiento»', h.findAll('EuiSelect').some(select => (select.props.options || []).some((o: any) => o.text === 'Desviación en tratamiento')));
   check('the form\'s day is the local one (Madrid after midnight)', view.initialMaturityDraft('review', undefined, new Date('2026-10-19T23:30:00Z'), 'Europe/Madrid').date === '2026-10-20' && view.initialMaturityDraft('review', undefined, new Date('2026-10-19T23:30:00Z')).date === '2026-10-20');
 

@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.com.1 (Perímetro seguro).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -121,7 +121,7 @@ export const buildMpCom1ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Flujos observados frente a autorizados  ·  fuente: Log + ENSFácil (EV-02)
+  // Flujos observados frente a autorizados  ·  fuente: Log + Power ENS (EV-02)
   const campo3 = field(
     'mp.com.1.campo3',
     'Flujos observados frente a autorizados',
@@ -151,7 +151,7 @@ export const buildMpCom1ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Estado del conjunto de reglas  ·  fuente: Log + ENSFácil (EV-06)
+  // Estado del conjunto de reglas  ·  fuente: Log + Power ENS (EV-06)
   const campo6 = field(
     'mp.com.1.campo6',
     'Estado del conjunto de reglas',
@@ -161,7 +161,7 @@ export const buildMpCom1ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Puntuación de cumplimiento mp.com.1  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.com.1  ·  fuente: Motor Power ENS
   const campo7 = field(
     'mp.com.1.campo7',
     'Puntuación de cumplimiento mp.com.1',
@@ -171,7 +171,7 @@ export const buildMpCom1ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo8 = field(
     'mp.com.1.campo8',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

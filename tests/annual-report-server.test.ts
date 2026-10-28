@@ -103,7 +103,7 @@ const maturity: any = { forReport: async () => maturityMap() };
 const warnings: string[] = [];
 const logger: any = { info() {}, warn(message: string) { warnings.push(message); }, debug() {}, error() {} };
 
-const ADMIN = { user_name: 'rsis', roles: ['ensfacil_admin'] };
+const ADMIN = { user_name: 'rsis', roles: ['power_ens_admin'] };
 const READER = { user_name: 'ana', roles: ['readall'] };
 const context = (internal: any, user: any, refuseSnapshots = false) => ({
   core: {
@@ -255,14 +255,14 @@ const freezeIds = (internal: any) => [...internal.store.keys()].filter((id: stri
     const factDoc = (data: Record<string, unknown>): FakeDoc => ({
       _id: `f${(n += 1)}`,
       _index: 'wazuh-alerts-4.x-2026.01.10',
-      _source: { '@timestamp': readAt, timestamp: readAt, id: `1768003500.${n}`, agent: { id: '000', name: 'Wazuh-4' }, rule: { id: '111304', groups: ['ENS'] }, data: Object.fromEntries(Object.entries({ ensfacil: 'op.mon.2', evidence_id: 'EV-03', ...data }).map(([k, v]) => [k, String(v)])) },
+      _source: { '@timestamp': readAt, timestamp: readAt, id: `1768003500.${n}`, agent: { id: '000', name: 'Wazuh-4' }, rule: { id: '111304', groups: ['ENS'] }, data: Object.fromEntries(Object.entries({ power_ens: 'op.mon.2', evidence_id: 'EV-03', ...data }).map(([k, v]) => [k, String(v)])) },
     });
     const day = (i: number) => new Date(Date.parse('2025-01-01T08:00:00Z') + Math.floor((i * 364) / 600) * 86400e3).toISOString();
     const rows: FakeDoc[] = [];
     for (let i = 0; i < 600; i += 1) rows.push(factDoc({ event: 'incident_registered', incidente_id: `INC-${i}`, fase: 'inicial', fecha: day(i), severidad: 'media', clasificacion: 'phishing', datos_personales: 'no', notificacion_ccn_cert: '-', notificado_a: '-', linea: i + 2 }));
     rows.push(factDoc({ event: 'incident_registered', incidente_id: 'INC-2024', fase: 'inicial', fecha: '2024-12-20T08:00:00Z', severidad: 'media', clasificacion: 'phishing', datos_personales: 'no', linea: 700 }));
     for (let i = 0; i < 5; i += 1) rows.push(factDoc({ event: 'incident_registered', incidente_id: `INC-FUT-${i}`, fase: 'inicial', fecha: '2027-03-01T08:00:00Z', severidad: 'alta', clasificacion: 'phishing', datos_personales: 'no', linea: 800 + i }));
-    const read = factDoc({ event: 'incident_register_read', fichero: '/etc/ensfacil/incident-register.tsv', presente: 'si', legible: 'si', formato: 'ok', filas_validas: rows.length, filas_descartadas: 0, filas_emitidas: rows.length });
+    const read = factDoc({ event: 'incident_register_read', fichero: '/etc/power-ens/incident-register.tsv', presente: 'si', legible: 'si', formato: 'ok', filas_validas: rows.length, filas_descartadas: 0, filas_emitidas: rows.length });
     const facts = createFakeIndexer([read, ...rows], { clock: () => Date.parse('2026-01-10T01:30:00Z') });
     const freezeStore = createStore(facts);
     const now = new Date('2026-01-10T01:30:00Z');

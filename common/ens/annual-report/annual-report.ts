@@ -183,10 +183,10 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
     engine,
     'NONE',
     engine === 'MEDIDO'
-      ? 'en el catálogo de ENSFácil, medida por el motor'
+      ? 'en el catálogo de Power ENS, medida por el motor'
       : engine === 'SIN_MEDICION'
-      ? 'en el catálogo de ENSFácil en borrador: sin medición todavía'
-      : 'fuera del catálogo de ENSFácil: sin motor'
+      ? 'en el catálogo de Power ENS en borrador: sin medición todavía'
+      : 'fuera del catálogo de Power ENS: sin motor'
   );
   push('axis', axis, 'ANNEX_II', `Anexo II: se aplica por ${measure.axis === 'CATEGORIA' ? 'la categoría' : `las dimensiones ${axis}`}`);
   push(
@@ -217,7 +217,7 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
 
   // Status and implementation: only the engine measures.
   if (engine === 'MEDIDO') {
-    push('status', result ? result.status : null, 'ENGINE', result ? `motor de ENSFácil, evaluación del ${result.evaluatedAt}` : 'sin resultado del motor');
+    push('status', result ? result.status : null, 'ENGINE', result ? `motor de Power ENS, evaluación del ${result.evaluatedAt}` : 'sin resultado del motor');
     push(
       'implementation_pct',
       result && typeof result.score === 'number' ? round(result.score) : null,
@@ -225,7 +225,7 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
       !result
         ? 'sin resultado del motor'
         : typeof result.score === 'number'
-        ? `motor de ENSFácil: ${result.applicableRequirements} requisitos aplicables en nivel ${result.level}, ${result.measuredRequirements} demostrados`
+        ? `motor de Power ENS: ${result.applicableRequirements} requisitos aplicables en nivel ${result.level}, ${result.measuredRequirements} demostrados`
         : `sin puntuación: ${statusLabel(result.status)} en nivel ${result.level}`,
       '%'
     );
@@ -233,11 +233,11 @@ const buildMeasure = (measure: ENSAnnexMeasure, ctx: MeasureContext): ENSAnnualM
       'coverage_pct',
       result && typeof result.coverage === 'number' ? round(result.coverage) : null,
       'ENGINE',
-      result ? 'motor de ENSFácil: requisitos con evidencia sobre los aplicables' : 'sin resultado del motor',
+      result ? 'motor de Power ENS: requisitos con evidencia sobre los aplicables' : 'sin resultado del motor',
       '%'
     );
   } else {
-    const why = engine === 'SIN_MEDICION' ? 'sin medición todavía: ningún recolector la mide' : 'sin motor: ENSFácil no la mide';
+    const why = engine === 'SIN_MEDICION' ? 'sin medición todavía: ningún recolector la mide' : 'sin motor: Power ENS no la mide';
     push('status', engine, 'NONE', why);
     push('implementation_pct', null, 'NONE', why, '%');
     push('coverage_pct', null, 'NONE', why, '%');
@@ -327,7 +327,7 @@ const implementationOf = (measures: ENSAnnualMeasure[], applicable: string[], re
         'implementation.framework_pct',
         own.score === undefined ? null : round(own.score),
         own.score === undefined ? 'NONE' : 'ENGINE',
-        own.score === undefined ? 'ninguna medida aplicable de P-01 de este marco con porcentaje del motor' : `media de ${own.measures} medidas aplicables de P-01 medidas por ENSFácil`,
+        own.score === undefined ? 'ninguna medida aplicable de P-01 de este marco con porcentaje del motor' : `media de ${own.measures} medidas aplicables de P-01 medidas por Power ENS`,
         { key: framework, unit: '%' }
       );
     }),
@@ -765,7 +765,7 @@ export const buildAnnualReport = (input: ENSAnnualReportInput): ENSAnnualReport 
       datum('header.period_open', open, 'NONE', open ? 'el periodo no ha cerrado: las cifras son las de hoy' : 'periodo cerrado'),
       datum('header.category', ENS_CATEGORY_NAMES[systemCategory(global)], 'CONFIGURATION', 'la de category.category: el mayor nivel de las dimensiones (Anexo I)'),
       datum('header.generated_at', iso(now.getTime()), 'NONE', 'instante de la evaluación con la que se generó'),
-      datum('header.plugin_version', input.pluginVersion, 'NONE', 'versión de ENSFácil que lo generó'),
+      datum('header.plugin_version', input.pluginVersion, 'NONE', 'versión de Power ENS que lo generó'),
       datum('header.frozen', Boolean(freeze), 'FREEZE', freeze ? 'conjunto congelado en wazuh-ens-snapshots' : 'conjunto calculado ahora, sin congelar'),
       datum('header.frozen_at', freeze?.frozenAt ?? null, freeze ? 'FREEZE' : 'NONE', freeze ? 'instante del congelado' : 'sin congelar'),
       datum('header.frozen_by', freeze?.frozenBy ?? null, freeze ? 'FREEZE' : 'NONE', freeze ? 'quién lo congeló' : 'sin congelar'),

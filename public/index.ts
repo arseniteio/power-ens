@@ -1,5 +1,5 @@
-import { EnsfacilPlugin } from './plugin';
+import { PowerEnsPlugin } from './plugin';
 
 export function plugin() {
-  return new EnsfacilPlugin();
+  return new PowerEnsPlugin();
 }

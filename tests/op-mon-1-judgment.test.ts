@@ -131,8 +131,8 @@ const alert = (line: Line) => {
       '@timestamp': ts,
       agent: MANAGER,
       rule: { id: RULE[String(data.event)] || '111200', description: 'op.mon.1' },
-      location: '/var/log/ensfacil/op_mon_1.json',
-      data: Object.fromEntries(Object.entries({ ensfacil: 'op.mon.1', ...data }).map(([k, v]) => [k, String(v)])),
+      location: '/var/log/power-ens/op_mon_1.json',
+      data: Object.fromEntries(Object.entries({ power_ens: 'op.mon.1', ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -441,12 +441,12 @@ section('5. Red: each axis with its reversal');
   const down = evaluate(hoy(l => (l.event === 'detection_engine_status' && String(l.ts).startsWith(COMPLETE) ? { ...l, activo: 'no' } : l)));
   check('wazuh-manager not active → NO_CUMPLE', down.evidencia('EV-01')?.status === 'NO_CUMPLE' && /no está activo/.test(down.motivo('op.mon.1.1')), down.motivo('op.mon.1.1'));
   const withoutCounters = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-' } : l)));
-  check('without engine counters, alerts.json grows → CUMPLE by the alerts', withoutCounters.evidencia('EV-01')?.status === 'CUMPLE' && /812 alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de ENSFácil/.test(withoutCounters.motivo('op.mon.1.1')), withoutCounters.motivo('op.mon.1.1'));
-  const ensfacilOnly = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: 0 } : l)));
+  check('without engine counters, alerts.json grows → CUMPLE by the alerts', withoutCounters.evidencia('EV-01')?.status === 'CUMPLE' && /812 alertas de detección nuevas en alerts.json desde la pasada anterior, sin contar las de Power ENS/.test(withoutCounters.motivo('op.mon.1.1')), withoutCounters.motivo('op.mon.1.1'));
+  const powerEnsOnly = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: 0 } : l)));
   check(
-    'without counters and without new detection alerts (ENSFácil facts do not count) → NO_EVALUABLE, never CUMPLE',
-    ensfacilOnly.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /no hay alertas de detección nuevas/.test(ensfacilOnly.motivo('op.mon.1.1')),
-    ensfacilOnly.motivo('op.mon.1.1')
+    'without counters and without new detection alerts (Power ENS facts do not count) → NO_EVALUABLE, never CUMPLE',
+    powerEnsOnly.evidencia('EV-01')?.status === 'NO_EVALUABLE' && /no hay alertas de detección nuevas/.test(powerEnsOnly.motivo('op.mon.1.1')),
+    powerEnsOnly.motivo('op.mon.1.1')
   );
   const blindOne = evaluate(hoy(l => (l.event === 'detection_engine_status' ? { ...l, eventos_procesados: '-', fuente_contadores: '-', alertas_nuevas: '-' } : l)));
   check('without counters or readable alerts → NO_EVALUABLE by COLLECTION, never CUMPLE', blindOne.evidencia('EV-01')?.status === 'NO_EVALUABLE' && blindOne.evidencia('EV-01')?.gapCause === 'COLLECTION', `${blindOne.evidencia('EV-01')?.status} ${blindOne.evidencia('EV-01')?.gapCause}`);
@@ -591,7 +591,7 @@ section('7. Without a collector or with the source broken: NO_EVALUABLE by COLLE
     _source: {
       '@timestamp': `${COMPLETE}:14Z`,
       agent: MANAGER,
-      data: { ensfacil: 'op.exp.8', event: 'detection_coverage_observed', evidence_id: 'EV-02', agente_id: '024', agente: 'wazuh-real', estado_conexion: 'active' },
+      data: { power_ens: 'op.exp.8', event: 'detection_coverage_observed', evidence_id: 'EV-02', agente_id: '024', agente: 'wazuh-real', estado_conexion: 'active' },
     },
   }]);
   check('a fact from another control does not accredit op.mon.1', evaluate(foreignOne).evidencia('EV-02')?.status !== 'CUMPLE');
@@ -710,7 +710,7 @@ section('10. Volume: the ids of a large set fit in logcollector lines');
   const chunks = part(compresses(ids));
   const ts = `${COMPLETE}:18Z`;
   const lines = chunks.map((s, k) => whole(ts, 'wazuh', '/var/ossec/ruleset/rules', s, ids.length, k + 1, chunks.length));
-  const bytes = lines.map(l => new TextEncoder().encode(JSON.stringify({ ensfacil: 'op.mon.1', host: 'Wazuh-4', ...l })).length);
+  const bytes = lines.map(l => new TextEncoder().encode(JSON.stringify({ power_ens: 'op.mon.1', host: 'Wazuh-4', ...l })).length);
 
   check(
     `${chunks.length} parts, no line exceeds 8 KiB (logcollector cuts at 64 KiB; the indexer does not index a term over 32 KiB)`,

@@ -98,7 +98,7 @@ const EVIDENCE: Record<string, string> = {
 type Line = Record<string, string | number>;
 
 const line = (event: string, fields: Line = {}, ts: string = PASS): Line => ({
-  ensfacil: CONTROL,
+  power_ens: CONTROL,
   ts,
   host: 'srv-01',
   event,
@@ -152,7 +152,7 @@ const alert = (l: Line, agent: Agent2) => {
       '@timestamp': l.ts,
       agent: agent,
       rule: { id: RULE[String(l.event)] || '106600', description: 'mp.info.6' },
-      location: '/var/log/ensfacil/mp_info_6.json',
+      location: '/var/log/power-ens/mp_info_6.json',
       data: Object.fromEntries(Object.entries(l).map(([k, v]) => [k, String(v)])),
     },
   };
@@ -276,7 +276,7 @@ section('4. Solo evidence_state NO_EVALUABLE (CONFIGURATION) para EV-01');
     evidence_id: 'EV-01',
     estado: 'NO_EVALUABLE',
     causa: 'CONFIGURATION',
-    motivo: 'no hay datastore del PBS declarado en /etc/ensfacil/mpinfo6.env',
+    motivo: 'no hay datastore del PBS declarado en /etc/power-ens/mpinfo6.env',
   });
   const r = evaluate(events([degraded, heartbeat()]));
 
@@ -462,7 +462,7 @@ section('9. Scope by P-04');
           '@timestamp': PASS,
           agent: SRV02,
           rule: { id: '110299', description: 'op.exp.1' },
-          data: { ensfacil: 'op.exp.1', event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-05' },
+          data: { power_ens: 'op.exp.1', event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-05' },
         },
       },
     ]),
@@ -913,7 +913,7 @@ section('17. Degradations without backup_id belong to the pair (origin and objec
 section('18. EV-05 · the deadline first, and the window without tests');
 
 {
-  const test = line('restore_test', { fecha: ago(3 * 24), testigo: '/etc/ensfacil/mpinfo6-witness.txt', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, ago(3 * 24));
+  const test = line('restore_test', { fecha: ago(3 * 24), testigo: '/etc/power-ens/mpinfo6-witness.txt', resultado: 'ok', coincide: 'si', limpieza: 'ok' }, ago(3 * 24));
 
   const withoutDeadline = evaluate(events([test, heartbeat()]), { ...BASE, 'P-05': undefined });
   check('without P-05 → EV-05 NO_EVALUABLE by CONFIGURACIÓN even if there are tests', withoutDeadline.estado('EV-05') === 'NO_EVALUABLE' && withoutDeadline.causa('EV-05') === 'CONFIGURATION', `${withoutDeadline.estado('EV-05')} ${withoutDeadline.causa('EV-05')}`);
@@ -974,7 +974,7 @@ section('20. Ramas de EV-03, EV-04, EV-06 y EV-07');
 
 {
   const access = (accounts: string, mode = '0640') =>
-    line('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo: mode, propietario: 'root', grupo: 'root', cuentas_con_lectura: accounts, clave_ruta: '-', clave_modo: '-' });
+    line('backup_access', { ruta: '/etc/power-ens/mpinfo6.env', modo: mode, propietario: 'root', grupo: 'root', cuentas_con_lectura: accounts, clave_ruta: '-', clave_modo: '-' });
 
   const anyOne = evaluate(events([access('root,*'), heartbeat()]));
   check('cuentas_con_lectura with * → EV-04 NO_CUMPLE (any account)', anyOne.estado('EV-04') === 'NO_CUMPLE' && /cualquier cuenta/.test(anyOne.motivo('EV-04')), anyOne.motivo('EV-04'));
@@ -1204,14 +1204,14 @@ section('25. A machine updated with heartbeats from the earlier collector');
     fresh('backup_run', { backup_id: 'r', ultima_correcta: ago(10), ultima_fallida: '-', resultado_ultima: 'ok', tipo: 'completa' }),
     fresh('backup_schedule', { planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
     fresh('backup_retention', { backup_id: 'r', retencion_dias: '-', copia_mas_antigua: ago(24 * 40) }),
-    fresh('backup_access', { ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
+    fresh('backup_access', { ruta: '/etc/power-ens/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
     fresh('backup_storage', { destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
     fresh('restore_test', { backup_id: 'r', fecha: ago(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
     heartbeat(T, { host: MACHINE.name }),
   ];
   const oldOnes = normalizeWazuhAlerts([
-    { _id: 'viejo-latido', _source: { '@timestamp': ago(72), agent: MACHINE, rule: { id: '106608' }, data: { ensfacil: 'mp.info.6', event: 'collector_run', version: '1', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02,EV-07' } } },
-    { _id: 'viejo-estado', _source: { '@timestamp': ago(72), agent: MACHINE, rule: { id: '106700' }, data: { ensfacil: 'mp.info.6', event: 'evidence_state', evidence_id: 'EV-07', estado: 'CUMPLE' } } },
+    { _id: 'viejo-latido', _source: { '@timestamp': ago(72), agent: MACHINE, rule: { id: '106608' }, data: { power_ens: 'mp.info.6', event: 'collector_run', version: '1', resultado: 'completada', evidencias_cubiertas: 'EV-01,EV-02,EV-07' } } },
+    { _id: 'viejo-estado', _source: { '@timestamp': ago(72), agent: MACHINE, rule: { id: '106700' }, data: { power_ens: 'mp.info.6', event: 'evidence_state', evidence_id: 'EV-07', estado: 'CUMPLE' } } },
   ]);
 
   ensConfigurationRepository.replaceActive({
@@ -1264,7 +1264,7 @@ section('26. EV-05 by origin and object: each backup must account for its test')
       copy({ backup_id: 'srv01_root' }),
       copy({ backup_id: 'srv01_opt-zimbra' }),
       heartbeat(),
-      test('pbs', 'fichero', { backup_id: 'srv01_root', testigo: '/etc/ensfacil/mpinfo6-witness.txt' }),
+      test('pbs', 'fichero', { backup_id: 'srv01_root', testigo: '/etc/power-ens/mpinfo6-witness.txt' }),
     ])
   );
   check('PBS with two backup-ids and the witness on one of them → CUMPLE (the test belongs to the pair)', pbsTwo.estado('EV-05') === 'CUMPLE', `${pbsTwo.estado('EV-05')} ${pbsTwo.motivo('EV-05')}`);
@@ -1297,7 +1297,7 @@ section('27. P-04 with a machine that is not in the ENS scope');
         copy({ host: agent.name, backup_id: 'r' }),
         line('backup_schedule', { host: agent.name, planificacion: '17 2 * * *', intervalo_horas: '24', fuente: 'cron' }),
         line('backup_retention', { host: agent.name, backup_id: 'r', retencion_dias: '-', copia_mas_antigua: ago(24 * 40) }),
-        line('backup_access', { host: agent.name, ruta: '/etc/ensfacil/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
+        line('backup_access', { host: agent.name, ruta: '/etc/power-ens/mpinfo6.env', modo: '0640', propietario: 'root', grupo: 'root', cuentas_con_lectura: 'root', clave_ruta: '-', clave_modo: '-' }),
         line('backup_storage', { host: agent.name, destino: 'pbs:ds', misma_maquina: 'no', tipo: 'remoto', activo: 'si' }),
         line('restore_test', { host: agent.name, backup_id: 'r', fecha: ago(24), testigo: '/etc/w', resultado: 'ok', coincide: 'si', limpieza: 'ok' }),
         heartbeat(PASS, { host: agent.name }),
@@ -1473,7 +1473,7 @@ section('32. EV-05 · A6, the test declared by the organization on Zimbra Open S
       resultado: 'ok',
       coincide: 'si',
       limpieza: 'no_aplica',
-      detalle: 'declarada: se abrió el buzón ensfacil_testigo y se comprobaron los últimos 5 correos',
+      detalle: 'declarada: se abrió el buzón power_ens_testigo y se comprobaron los últimos 5 correos',
     },
     ago(3 * 24)
   );
@@ -1491,7 +1491,7 @@ section('32. EV-05 · A6, the test declared by the organization on Zimbra Open S
   );
   check(
     'citing what was checked',
-    /se abrió el buzón ensfacil_testigo/.test(r.motivo('EV-05')),
+    /se abrió el buzón power_ens_testigo/.test(r.motivo('EV-05')),
     r.motivo('EV-05')
   );
 
@@ -1672,7 +1672,7 @@ section('35. Without P-06: the backup path is reported by each collector');
   const withoutRetention = [
     ...lines.filter(l => l.event !== 'backup_retention'),
     {
-      ensfacil: CONTROL,
+      power_ens: CONTROL,
       ts: ultimo,
       host: machine.name,
       event: 'evidence_state',
@@ -1771,7 +1771,7 @@ section('11. No other control changes');
 
 {
   const fs = require('fs');
-  const folder = process.env.ENSFACIL_REAL_DATA;
+  const folder = process.env.POWER_ENS_REAL_DATA;
   const reales = Boolean(folder && fs.existsSync(`${folder}/data/now.txt`));
 
   let base: ENSConfigurationVersion = defaultENSConfigurationTemplate;
@@ -1815,7 +1815,7 @@ section('11. No other control changes');
             '@timestamp': PASS,
             agent: agent,
             rule: { id: '110299' },
-            data: { ensfacil: 'op.exp.1', event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-05' },
+            data: { power_ens: 'op.exp.1', event: 'collector_run', resultado: 'completada', evidencias_cubiertas: 'EV-05' },
           },
         },
         {
@@ -1824,7 +1824,7 @@ section('11. No other control changes');
             '@timestamp': PASS,
             agent: agent,
             rule: { id: '110901' },
-            data: { ensfacil: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', fuente: 'auditd', activo: 'si', reglas_cargadas: '80' },
+            data: { power_ens: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', fuente: 'auditd', activo: 'si', reglas_cargadas: '80' },
           },
         },
       ])

@@ -23,14 +23,14 @@ const fact = (agent: string, name: string, data: Record<string, unknown>, hours:
 const docs: FakeDoc[] = [];
 for (const [agent, name, list] of [['101', 'srv-web01', ['ssh.service', 'telnet.service']], ['102', 'ldap01', ['ssh.service']]] as [string, string, string[]][]) {
   for (const h of [50, 5, 1]) {
-    docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-    list.forEach(service => docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: service, estado: 'CUMPLE' }, h - 0.01)));
+    docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+    list.forEach(service => docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: service, estado: 'CUMPLE' }, h - 0.01)));
   }
 }
-docs.push(fact('101', 'srv-web01', { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
-docs.push(fact('102', 'ldap01', { ensfacil: 'op.acc.3', event: 'collector_run' }, 40));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'collector_run' }, 2));
+docs.push(fact('101', 'srv-web01', { power_ens: 'op.acc.3', event: 'collector_run' }, 1));
+docs.push(fact('102', 'ldap01', { power_ens: 'op.acc.3', event: 'collector_run' }, 40));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'collector_run' }, 2));
 const monitor = (id: string, name: string): FakeDoc => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.17',
   _source: { id, name, group: ['ens'], status: 'active', timestamp: hora(0.1), manager: 'manager' },
@@ -87,8 +87,8 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   const general = await request({ include: 'overview' });
   check('the same as summary in controls and machines', JSON.stringify(general.controls) === JSON.stringify(summary.controls) && JSON.stringify(general.agents) === JSON.stringify(summary.agents));
   const cell = (c: string, a: string) => general.freshness.cells.find((x: any) => x.controlId === c && x.agentId === a);
-  const count = (c: string, a: string) => docs.filter(d => d._source.data.ensfacil === c && d._source.agent.id === a).length;
-  const ultimo = (c: string, a: string) => docs.filter(d => d._source.data.ensfacil === c && d._source.agent.id === a).map(d => d._source['@timestamp']).sort().pop();
+  const count = (c: string, a: string) => docs.filter(d => d._source.data.power_ens === c && d._source.agent.id === a).length;
+  const ultimo = (c: string, a: string) => docs.filter(d => d._source.data.power_ens === c && d._source.agent.id === a).map(d => d._source['@timestamp']).sort().pop();
   check('freshness by control and machine: count and last fact', [['op.exp.3', '101'], ['op.exp.3', '102'], ['op.acc.3', '102'], ['op.mon.3', '000']].every(([c, a]) =>
     cell(c, a)?.count === count(c, a) && Date.parse(cell(c, a)?.newest) === Date.parse(ultimo(c, a)!)), general.freshness.cells);
   check('op.acc.3 on 102: last fact 40 h ago', Date.parse(cell('op.acc.3', '102').newest) === Date.parse(hora(40)));

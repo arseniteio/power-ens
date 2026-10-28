@@ -26,14 +26,14 @@ RUNBOOK="${1:-$(runbook_by_origin linux/mp.info.6 mp.info.6-proxmox-backup-runbo
 RUNBOOK="$(cd "$RUNBOOK" && pwd)"
 OUTPUT="$HERE/mp-info-6-pbs-pass.ndjson"
 
-docker build -q -t ensfacil-mpinfo6-fixture:debian12 - >/dev/null <<'DOCKERFILE'
+docker build -q -t power-ens-mpinfo6-fixture:debian12 - >/dev/null <<'DOCKERFILE'
 FROM debian:12
 RUN apt-get update && apt-get install -y --no-install-recommends jq acl procps \
  && rm -rf /var/lib/apt/lists/*
 DOCKERFILE
 
 docker run --rm -i --hostname srv-pbs01 --add-host pbs.ejemplo.invalido:192.0.2.10 \
-  -v "$RUNBOOK:/runbook:ro" ensfacil-mpinfo6-fixture:debian12 bash -s > "$OUTPUT" <<'INSIDE'
+  -v "$RUNBOOK:/runbook:ro" power-ens-mpinfo6-fixture:debian12 bash -s > "$OUTPUT" <<'INSIDE'
 set -eu
 B=/work/bin; P=/work/pass; mkdir -p "$B" "$P"
 NOW="$(date -u +%s)"
@@ -75,31 +75,31 @@ jq -n --argjson h10 $((NOW - 36000)) --argjson h12 $((NOW - 43200)) \
    "files":[{"filename":"zimbra.pxar.didx","size":4096}]}
 ]' > /work/snapshots.json
 
-mkdir -p /etc/ensfacil /etc/cron.d /srv/copias
-printf 'clave' > /etc/ensfacil/mpinfo6.key; chmod 600 /etc/ensfacil/mpinfo6.key
-printf '%s' "$TESTIGO" > /etc/ensfacil/mpinfo6-witness.txt
+mkdir -p /etc/power-ens /etc/cron.d /srv/copias
+printf 'clave' > /etc/power-ens/mpinfo6.key; chmod 600 /etc/power-ens/mpinfo6.key
+printf '%s' "$TESTIGO" > /etc/power-ens/mpinfo6-witness.txt
 chown root:backup /srv/copias; chmod 750 /srv/copias
-cat > /etc/ensfacil/mpinfo6.env <<ENV
-PBS_REPOSITORY="ensfacil@pbs!copias@pbs.ejemplo.invalido:datastore1"
+cat > /etc/power-ens/mpinfo6.env <<ENV
+PBS_REPOSITORY="power_ens@pbs!copias@pbs.ejemplo.invalido:datastore1"
 PBS_PASSWORD="secreto-de-prueba"
 PBS_BACKUPS="
 srv01_root        root.pxar:/ --exclude /proc --exclude /sys
 srv01_opt-zimbra  zimbra.pxar:/opt/zimbra
 "
-PBS_KEYFILE="/etc/ensfacil/mpinfo6.key"
-RESTORE_WITNESS_PATH="/etc/ensfacil/mpinfo6-witness.txt"
+PBS_KEYFILE="/etc/power-ens/mpinfo6.key"
+RESTORE_WITNESS_PATH="/etc/power-ens/mpinfo6-witness.txt"
 RESTORE_WITNESS_SHA256="$(printf '%s' "$TESTIGO" | sha256sum | cut -d' ' -f1)"
 RESTORE_EVERY_DAYS="7"
 MPINFO6_LOCAL_BACKUP_DIRS="/srv/copias"
 ENV
-chmod 640 /etc/ensfacil/mpinfo6.env
-cat > /etc/cron.d/ensfacil-mpinfo6 <<'CRON'
+chmod 640 /etc/power-ens/mpinfo6.env
+cat > /etc/cron.d/power-ens-mpinfo6 <<'CRON'
 17 2 * * * root /usr/local/bin/pxbackup.sh >/dev/null 2>&1
 53 * * * * root /usr/local/bin/ens_mpinfo6_collect.sh >/dev/null 2>&1
 CRON
-printf '%s\n' "$FP" > /etc/ensfacil/mpinfo6.pbs-fingerprint
+printf '%s\n' "$FP" > /etc/power-ens/mpinfo6.pbs-fingerprint
 
-export PATH="$B:$PATH" MPINFO6_SCHEDULE_FILES=/etc/cron.d/ensfacil-mpinfo6
+export PATH="$B:$PATH" MPINFO6_SCHEDULE_FILES=/etc/cron.d/power-ens-mpinfo6
 bash /runbook/scripts/ens_mpinfo6_restore_test.sh --prueba "$P" >&2
 bash /runbook/scripts/ens_mpinfo6_collect.sh --prueba "$P" >&2
 cat "$P/log/mp_info_6.json"

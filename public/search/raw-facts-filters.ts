@@ -10,6 +10,6 @@ export const buildRawFactsAgentFilter = (agents: ENSAgentScope[], agentId?: stri
 
 // Deterministic: the same agents and machine give the same JSON, so `useEsSearch` does not search on every render.
 export const buildRawFactsFilters = (agents: ENSAgentScope[], agentId?: string): unknown[] => [
-  { match_phrase: { 'rule.groups': 'ensfacil' } },
+  { match_phrase: { 'rule.groups': 'power_ens' } },
   buildRawFactsAgentFilter(agents, agentId),
 ];

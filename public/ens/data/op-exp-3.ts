@@ -319,7 +319,7 @@ export const opExp3Control: ENSControl = {
       id: 'P-04',
       name: 'rutas_configuracion_seguridad',
       description:
-        'Ficheros y directorios que contienen la configuración de seguridad y se vigilan con auditd, una ruta absoluta por línea. Tienen que ser las mismas que declara el fichero de reglas de auditd del runbook (/etc/audit/rules.d/ensfacil-opexp3.rules): lo que se declara aquí y lo que se vigila allí son las dos mitades de EV-02. El agente comprueba ruta a ruta que el kernel la vigila en escritura; el motor no puede comprobar que coincidan con esta lista, así que mantenerlas iguales es responsabilidad de quien las declara.',
+        'Ficheros y directorios que contienen la configuración de seguridad y se vigilan con auditd, una ruta absoluta por línea. Tienen que ser las mismas que declara el fichero de reglas de auditd del runbook (/etc/audit/rules.d/power-ens-opexp3.rules): lo que se declara aquí y lo que se vigila allí son las dos mitades de EV-02. El agente comprueba ruta a ruta que el kernel la vigila en escritura; el motor no puede comprobar que coincidan con esta lista, así que mantenerlas iguales es responsabilidad de quien las declara.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.6', 'op.exp.3.1', 'op.exp.3.2'],
       type: 'list',
@@ -345,7 +345,7 @@ export const opExp3Control: ENSControl = {
       id: 'P-06',
       name: 'procedimiento_autorizacion_cambios',
       description:
-        'Referencia al procedimiento de autorización previa de cambios de configuración y al sistema de gestión de cambios donde se aprueban (Jira, GLPI, ServiceNow). op.exp.3.3 exige que cada cambio esté previamente autorizado, y eso solo se puede medir correlacionando cada edición que registra EV-02 con su cambio aprobado. Esa integración no existe todavía en ENSFácil: mientras tanto este parámetro deja escrita la referencia, pero no desbloquea ninguna medida.',
+        'Referencia al procedimiento de autorización previa de cambios de configuración y al sistema de gestión de cambios donde se aprueban (Jira, GLPI, ServiceNow). op.exp.3.3 exige que cada cambio esté previamente autorizado, y eso solo se puede medir correlacionando cada edición que registra EV-02 con su cambio aprobado. Esa integración no existe todavía en Power ENS: mientras tanto este parámetro deja escrita la referencia, pero no desbloquea ninguna medida.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.3.3'],
       type: 'string',
@@ -415,7 +415,7 @@ export const opExp3Control: ENSControl = {
       requirements: ['op.exp.3.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'op.exp.3.r1.1 queda sin acreditar y cuenta en contra en MEDIO y ALTO: lo que no se puede demostrar, no cumple.',
     },

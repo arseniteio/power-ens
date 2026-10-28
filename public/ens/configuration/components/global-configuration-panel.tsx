@@ -486,7 +486,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Idioma de informes'
-        helpText='Idioma utilizado en los informes ENSFácil.'
+        helpText='Idioma utilizado en los informes Power ENS.'
         fullWidth
       >
         <EuiSelect

@@ -167,7 +167,7 @@ console.log('4. Parity with 1.2.0 (synthetic profiles)');
 
 console.log('5. Parity with 1.2.0 (lab copy)');
 {
-  const path = process.env.ENSFACIL_LAB_DOC;
+  const path = process.env.POWER_ENS_LAB_DOC;
   if (path && existsSync(path)) {
     const raw = JSON.parse(readFileSync(path, 'utf8'));
     const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
@@ -181,7 +181,7 @@ console.log('5. Parity with 1.2.0 (lab copy)');
     };
     parity('lab document with 1.2.0 profiles', { ...lab, agents: profiles });
   } else {
-    console.log('    (skipped: ENSFACIL_LAB_DOC not set)');
+    console.log('    (skipped: POWER_ENS_LAB_DOC not set)');
   }
 }
 

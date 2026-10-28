@@ -105,7 +105,7 @@ const response: any = {
   check('worst first: NO_CUMPLE before NO_EVALUABLE; without those that comply', r101.worst.map(w => w.controlId).join() === 'mp.info.6,op.exp.3', r101.worst);
   const names: Record<string, string> = { '101': 'srv-web01', '102': 'ldap01' };
   const cola = m.buildWorkQueue(response.nonConformities, undefined, () => true, id => names[id]);
-  check('the queue, by owner and in action order', cola.map(g => g.owner).join(' | ') === 'Sistema auditado | Responsable ENS | Operación Wazuh | Producto ENSFácil', cola.map(g => g.owner));
+  check('the queue, by owner and in action order', cola.map(g => g.owner).join(' | ') === 'Sistema auditado | Responsable ENS | Operación Wazuh | Producto Power ENS', cola.map(g => g.owner));
   check('the server headline, with its evidence and state', cola[0].items[0].title === 'Faltan scripts de respuesta.' && cola[0].items[0].evidenceId === 'EV-11' && cola[0].items[0].status === 'NO_CUMPLE');
   check('without a culprit evidence, only the headline', cola[2].items[0].evidenceId === undefined);
   const unregistered = m.buildWorkQueue(response.nonConformities, undefined, id => id !== 'op.acc.1', id => names[id]);

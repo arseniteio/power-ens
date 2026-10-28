@@ -225,7 +225,7 @@ export const mpS4Control: ENSControl = {
       requirements: ['mp.s.4.1'],
       type: 'table',
       usage:
-        'ENSFácil compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
+        'Power ENS compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
       missingBehavior:
         'mp.s.4.1 NO EVALUABLE. No hay referencia de carga prevista ni de capacidad contra la que medir la holgura.',
     },
@@ -238,7 +238,7 @@ export const mpS4Control: ENSControl = {
       requirements: ['mp.s.4.2'],
       type: 'table',
       usage:
-        'ENSFácil verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
+        'Power ENS verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
       missingBehavior:
         'mp.s.4.2 NO ACREDITADO. No consta qué tecnologías previenen los ataques conocidos ni si operan.',
     },
@@ -264,7 +264,7 @@ export const mpS4Control: ENSControl = {
       requirements: ['mp.s.4.r1.2'],
       type: 'string',
       usage:
-        'ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
+        'Power ENS correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
       missingBehavior:
         'R1 parcialmente NO EVALUABLE. Puede haber detección sin respuesta pautada.',
     },
@@ -277,7 +277,7 @@ export const mpS4Control: ENSControl = {
       requirements: ['mp.s.4.r1.2'],
       type: 'string',
       usage:
-        'ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
+        'Power ENS recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
       missingBehavior:
         'R1 incompleto. La parte del procedimiento que depende del proveedor queda sin acreditar.',
     },
@@ -290,7 +290,7 @@ export const mpS4Control: ENSControl = {
       requirements: ['mp.s.4.r1.1'],
       type: 'string',
       usage:
-        'ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
+        'Power ENS puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
       missingBehavior:
         'La detección depende de umbrales absolutos, que producen falsos positivos en picos legítimos y pasan por alto ataques lentos.',
     },

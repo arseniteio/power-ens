@@ -49,9 +49,9 @@ const WINDOWS = { platform: 'windows', name: 'Microsoft Windows Server 2022 Stan
   {
     const q: any = buildPlatformFactsRequest();
     check('an aggregation with no documents', q.body.size === 0 && q.body.aggs.agentes.terms.field === 'agent.id');
-    check('30 days and only ENSFácil facts', JSON.stringify(q.body.query).includes('now-30d') && JSON.stringify(q.body.query).includes('data.ensfacil'));
+    check('30 days and only Power ENS facts', JSON.stringify(q.body.query).includes('now-30d') && JSON.stringify(q.body.query).includes('data.power_ens'));
     check('planes per agent', q.body.aggs.agentes.aggs.planos.terms.field === 'data.plano');
-    check('origins only from mp.info.6', q.body.aggs.agentes.aggs.copias.filter.term['data.ensfacil'] === 'mp.info.6');
+    check('origins only from mp.info.6', q.body.aggs.agentes.aggs.copias.filter.term['data.power_ens'] === 'mp.info.6');
     const f = platformFactsFromAggregations({
       agentes: {
         buckets: [

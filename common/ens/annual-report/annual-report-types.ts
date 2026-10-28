@@ -1,6 +1,6 @@
 // Data set of the art. 32 annual report: every figure has a stable field id, its value, its source and its trace.
 
-export const ENS_ANNUAL_REPORT_SCHEMA = 'ensfacil.art32.v1';
+export const ENS_ANNUAL_REPORT_SCHEMA = 'power-ens.art32.v1';
 
 // Where a figure comes from. Codes are stable (exports); the guide «Informe anual del artículo 32» explains each.
 export type ENSAnnualSource =
@@ -93,7 +93,7 @@ export interface ENSAnnualFrozenPeriod extends ENSAnnualFreezeEntry {
   history: ENSAnnualFreezeEntry[];
 }
 
-// What `GET /api/ensfacil/annual-report` returns.
+// What `GET /api/powerEns/annual-report` returns.
 export interface ENSAnnualReportResponse {
   period: string;
   currentPeriod: string;
@@ -117,7 +117,7 @@ export interface ENSAnnualReportResponse {
   maturityVersion: { seqNo: number; primaryTerm: number } | null;
 }
 
-// What `POST /api/ensfacil/annual-report/freeze` takes: the revision read (null when the period had none).
+// What `POST /api/powerEns/annual-report/freeze` takes: the revision read (null when the period had none).
 export interface ENSAnnualFreezeRequest {
   period: string;
   reason: string;

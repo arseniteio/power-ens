@@ -7,7 +7,7 @@ export const mpS3CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de los servicios',
   dimension: 'Todas',
   annexSection: '5.8.3',
-  source: { template: 'ENSFacil_Plantilla_mp.s.3', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.s.3', version: '2.0', date: '2026-10-15' },
   description:
     'mp.s.3 protege la navegación de los usuarios internos.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

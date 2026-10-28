@@ -456,7 +456,7 @@ const p01Coverage = (
     if (!key) {
       pieces.push(
         notMeasured(
-          `P-01 declara auditable «${declared}», y ENSFácil no sabe qué observar en la máquina para esa categoría: no se puede afirmar que se registre. Nómbrala con una de las reconocidas (${CATEGORIES.map(c => c.nombre).join(', ')}).`,
+          `P-01 declara auditable «${declared}», y Power ENS no sabe qué observar en la máquina para esa categoría: no se puede afirmar que se registre. Nómbrala con una de las reconocidas (${CATEGORIES.map(c => c.nombre).join(', ')}).`,
           'CONFIGURATION'
         )
       );
@@ -548,7 +548,7 @@ const p01Coverage = (
       );
     } else if (!watched.length) {
       pieces.push(
-        notMeasured(`«${declared}»: ninguna de las rutas que ENSFácil vigila para esa categoría existe en este servidor, así que no hay qué contrastar.`)
+        notMeasured(`«${declared}»: ninguna de las rutas que Power ENS vigila para esa categoría existe en este servidor, así que no hay qué contrastar.`)
       );
     } else {
       pieces.push(compliant(`«${declared}»: auditd registra ${object} ${formatList(watched, 8)}.`));

@@ -78,7 +78,7 @@ section('3. Annex II section and template source per control (auditor\'s index)'
   const wrong = ENSCatalog.filter((c: any) => c.annexSection !== expected[c.id]).map((c: any) => `${c.id}=${c.annexSection}`);
   check('the 34 sections', ENSCatalog.length === 34 && wrong.length === 0, wrong);
   const badSource = ENSCatalog.filter((c: any) =>
-    c.source?.template !== `ENSFacil_Plantilla_${c.id}` ||
+    c.source?.template !== `PowerENS_Plantilla_${c.id}` ||
     c.source?.version !== (c.id === 'op.acc.2' ? '1.0' : '2.0') ||
     (c.id === 'op.acc.2' ? c.source?.date !== undefined : !/^\d{4}-\d{2}-\d{2}$/.test(c.source?.date))
   ).map((c: any) => c.id);
@@ -118,7 +118,7 @@ section('5. The Controls view and the report carry the provenance');
   check('report line of op.exp.1 (by category)', describeReportControlLine('op.exp.1') === 'Anexo II, apdo. 4.3.1 · Se aplica por la categoría del sistema · Plantilla del auditor v2.0 (15/10/2026)');
   const runs = pdfProvenanceRuns(reportRequirementTexts('mp.info.6', 'mp.info.6.r2.1'));
   const plain = runs.map((run: any) => run.text).join('');
-  check('PDF: label in front of each text', /Norma ENS: Al menos una de las copias/.test(plain) && /Criterio de aplicación: ENSFácil lo acredita con los destinos/.test(plain), plain);
+  check('PDF: label in front of each text', /Norma ENS: Al menos una de las copias/.test(plain) && /Criterio de aplicación: Power ENS lo acredita con los destinos/.test(plain), plain);
   check('PDF: the criterion note for fields and parameters', /^Criterio de aplicación: /.test(REPORT_CRITERION_NOTE));
   check('PDF: a label per field and parameter row, like the screen', (pdfRowLabel() as any).text === 'Criterio de aplicación\n' && (pdfRowLabel('BOE') as any).text === 'Norma ENS\n');
 }
@@ -153,7 +153,7 @@ section('6b. v2.0 wording: op.exp.10 reads by auditd, op.exp.3 EV-11 declared as
   const ev = (control: string, id: string) => ENSEvidenceCatalog.find((e: any) => e.controlId === control && e.id === id);
   check('op.exp.10 EV-01 says reads are audited with auditd and FIM only sees integrity changes', /lecturas auditadas con auditd/.test(ev('op.exp.10', 'EV-01').description) && /FIM solo detecta cambios de integridad/.test(ev('op.exp.10', 'EV-01').description));
   check('op.exp.10 EV-01 covers Windows with a read SACL (event 4663)', /con una SACL de lectura en Windows \(evento 4663\)/.test(ev('op.exp.10', 'EV-01').description));
-  check('op.exp.3 EV-11 is ENSFácil\'s own evidence', /Evidencia propia de ENSFácil/.test(ev('op.exp.3', 'EV-11').description));
+  check('op.exp.3 EV-11 is Power ENS\'s own evidence', /Evidencia propia de Power ENS/.test(ev('op.exp.3', 'EV-11').description));
 }
 
 (async () => {

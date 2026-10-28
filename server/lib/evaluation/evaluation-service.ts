@@ -133,7 +133,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
   const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
   const controlId = text(query.controlId);
   if (controlId && !ENSCatalog.some(control => control.id === controlId)) {
-    throw new ENSBadRequestError(`El control «${controlId}» no está en el catálogo de ENSFácil.`);
+    throw new ENSBadRequestError(`El control «${controlId}» no está en el catálogo de Power ENS.`);
   }
   const agentName = text(query.agentId);
   const agentId = agentName ? normalizeAgentId(agentName) : undefined;
@@ -852,7 +852,7 @@ export const createEvaluationService = ({
 
   // --- 3. one stream per machine ---
   // A machine's other rows are read together: a stream sorted by control (or several, by control groups, if the
-  // machine has many facts) and, once per machine, what the stream does not carry (facts without `data.ensfacil`
+  // machine has many facts) and, once per machine, what the stream does not carry (facts without `data.power_ens`
   // or with an old control field), its heartbeats and the last state fact of each control (for pruning). Each
   // control is evaluated as soon as its stretch ends, with its facts in the SAME order as reading it alone
   // (`mergeFactsInOrder`).
@@ -985,8 +985,8 @@ export const createEvaluationService = ({
           buildAgentStreamQuery(ctx.filters, agentId, controlList, prunings),
           async page => {
             for (const hit of page) {
-              const value = hit?._source?.data?.ensfacil;
-              // A fact with several controls in `data.ensfacil`: the stream cannot distribute it like the
+              const value = hit?._source?.data?.power_ens;
+              // A fact with several controls in `data.power_ens`: the stream cannot distribute it like the
               // per-row read; they are read alone.
               if (Array.isArray(value)) throw new StreamFallbackError();
               const controlId = String(value);
@@ -1007,7 +1007,7 @@ export const createEvaluationService = ({
         );
       } catch (error: any) {
         if (!indexerRejection(error)) throw error;
-        logger.warn(`ENSFácil: the indexer rejected the facts read of ${agentId} (${error?.message}); its rows are read one by one.`);
+        logger.warn(`Power ENS: the indexer rejected the facts read of ${agentId} (${error?.message}); its rows are read one by one.`);
         throw new StreamFallbackError(error?.message);
       }
       if (span) await closes(span.controlId, span.hits, stats.searchMs - span.desde, stats.pages - span.paginas + 1);
@@ -1338,7 +1338,7 @@ export const createEvaluationService = ({
         seriesFailures.set(w.need.key, { failures, nextAt: clock().getTime() + waitAfterFailureMs(failures) });
         seriesWanted.set(key, w);
       }
-      logger.warn(`ENSFácil: could not compute the series (${chosen.length} rows): ${error?.message || error}`);
+      logger.warn(`Power ENS: could not compute the series (${chosen.length} rows): ${error?.message || error}`);
     } finally {
       seriesBusy = false;
       kickSeries();
@@ -1501,7 +1501,7 @@ export const createEvaluationService = ({
         read = readOperationalIncidents(body?.aggregations);
       } catch (error: any) {
         // Only the alerts panel degrades, and the failure is not cached: the next request reads again.
-        logger.warn(`ENSFácil: could not read the operational alerts: ${error?.message || error}`);
+        logger.warn(`Power ENS: could not read the operational alerts: ${error?.message || error}`);
         return unreadOperationalAlertsModel();
       }
       impacts.set(key, fingerprint, read);
@@ -1546,7 +1546,7 @@ export const createEvaluationService = ({
           refreshFailures.set(need.key, { failures, nextAt: clock().getTime() + waitAfterFailureMs(failures) });
           const actual = rows.peek(need.key);
           if (actual) actual.value.refreshError = { message: String(error?.message || error), at: clock().toISOString() };
-          logger.warn(`ENSFácil: could not refresh ${need.key}: ${error?.message || error}`);
+          logger.warn(`Power ENS: could not refresh ${need.key}: ${error?.message || error}`);
         },
       });
     }

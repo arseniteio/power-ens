@@ -274,7 +274,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.1'],
       type: 'table',
       usage:
-        'ENSFácil clasifica automáticamente las alertas de Wazuh según estos criterios y las presenta ya categorizadas, lo que reduce el trabajo manual de triaje y hace medible el cumplimiento del proceso.',
+        'Power ENS clasifica automáticamente las alertas de Wazuh según estos criterios y las presenta ya categorizadas, lo que reduce el trabajo manual de triaje y hace medible el cumplimiento del proceso.',
       missingBehavior:
         'op.exp.7.1 NO EVALUABLE en su parte de clasificación. Las alertas llegan sin categoría ENS asignada.',
     },
@@ -287,7 +287,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.1', 'op.exp.7.r2.3'],
       type: 'table',
       usage:
-        'ENSFácil verifica que cada incidente detectado fue escalado al destinatario correcto dentro del plazo. Requiere que el escalado deje registro en el sistema de P-03 o en el canal declarado.',
+        'Power ENS verifica que cada incidente detectado fue escalado al destinatario correcto dentro del plazo. Requiere que el escalado deje registro en el sistema de P-03 o en el canal declarado.',
       missingBehavior:
         'No se puede verificar el escalado. op.exp.7.1 y op.exp.7.r2.3 quedan sin acreditación automática.',
     },
@@ -300,9 +300,9 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.1', 'op.exp.9.1'],
       type: 'select',
       usage:
-        'ENSFácil correlaciona cada alerta de severidad relevante con su ticket de incidente. Alerta crítica sin ticket asociado → hallazgo de alerta huérfana, que es el hallazgo estrella de este control.',
+        'Power ENS correlaciona cada alerta de severidad relevante con su ticket de incidente. Alerta crítica sin ticket asociado → hallazgo de alerta huérfana, que es el hallazgo estrella de este control.',
       missingBehavior:
-        'No se puede medir la conexión entre detección y gestión. La aportación diferencial de ENSFácil se pierde.',
+        'No se puede medir la conexión entre detección y gestión. La aportación diferencial de Power ENS se pierde.',
     },
     {
       id: 'P-04',
@@ -313,7 +313,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r2.3'],
       type: 'table',
       usage:
-        'ENSFácil identifica automáticamente a quién debía informarse según los sistemas afectados por cada incidente y verifica que consta esa comunicación. Puede compartirse con el P-01 de op.exp.1.',
+        'Power ENS identifica automáticamente a quién debía informarse según los sistemas afectados por cada incidente y verifica que consta esa comunicación. Puede compartirse con el P-01 de op.exp.1.',
       missingBehavior:
         'op.exp.7.r2.3 NO EVALUABLE. No se puede verificar que se informó a los responsables correctos.',
     },
@@ -326,7 +326,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r2.2'],
       type: 'table',
       usage:
-        'ENSFácil mide el tiempo desde la alerta de Wazuh hasta el registro de contención y de cierre en P-03, y lo contrasta con estos plazos. Es la métrica que un auditor pedirá para valorar la eficacia del proceso.',
+        'Power ENS mide el tiempo desde la alerta de Wazuh hasta el registro de contención y de cierre en P-03, y lo contrasta con estos plazos. Es la métrica que un auditor pedirá para valorar la eficacia del proceso.',
       missingBehavior:
         'No se puede valorar si la respuesta fue diligente. op.exp.7.r2.2 solo acreditable de forma cualitativa.',
     },
@@ -339,7 +339,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r1.1'],
       type: 'select',
       usage:
-        'ENSFácil registra qué incidentes debían notificarse al CCN-CERT según su clasificación y verifica que consta la notificación. La integración técnica con la plataforma del CCN-CERT es lo ideal; si no, se registra la referencia de la notificación manualmente.',
+        'Power ENS registra qué incidentes debían notificarse al CCN-CERT según su clasificación y verifica que consta la notificación. La integración técnica con la plataforma del CCN-CERT es lo ideal; si no, se registra la referencia de la notificación manualmente.',
       missingBehavior:
         'R1 NO EVALUABLE y es obligatorio desde categoría MEDIA. La notificación al CCN-CERT queda sin acreditar.',
     },
@@ -352,7 +352,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.2'],
       type: 'string',
       usage:
-        'ENSFácil marca los incidentes que afectan a sistemas con datos personales, activa el contador de 72 horas y verifica que consta la valoración de brecha y, en su caso, la notificación a la AEPD y a los interesados.',
+        'Power ENS marca los incidentes que afectan a sistemas con datos personales, activa el contador de 72 horas y verifica que consta la valoración de brecha y, en su caso, la notificación a la AEPD y a los interesados.',
       missingBehavior:
         'op.exp.7.2 NO EVALUABLE. Riesgo doble: incumplimiento del ENS y de la normativa de protección de datos.',
     },
@@ -365,7 +365,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r2.1', 'op.exp.9.2'],
       type: 'list',
       usage:
-        'ENSFácil verifica que ante cada incidente se exportaron y preservaron los registros del período y sistemas afectados, con sellado de integridad. La protección de los registros frente a alteración es requisito expreso.',
+        'Power ENS verifica que ante cada incidente se exportaron y preservaron los registros del período y sistemas afectados, con sellado de integridad. La protección de los registros frente a alteración es requisito expreso.',
       missingBehavior:
         'op.exp.7.r2.1 parcialmente NO EVALUABLE. Riesgo de perder evidencia utilizable en sede jurisdiccional.',
     },
@@ -391,7 +391,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica que existen los mecanismos y que se han ejercitado: cambios de configuración en estos elementos correlacionados con incidentes activos. Enlaza con op.exp.3 y op.exp.5 para su trazabilidad.',
+        'Power ENS verifica que existen los mecanismos y que se han ejercitado: cambios de configuración en estos elementos correlacionados con incidentes activos. Enlaza con op.exp.3 y op.exp.5 para su trazabilidad.',
       missingBehavior:
         'R3 NO EVALUABLE y es obligatorio en categoría ALTA. Sin capacidad de reconfiguración los daños no se acotan.',
     },
@@ -404,7 +404,7 @@ export const opExp7Control: ENSControl = {
       requirements: ['op.exp.7.r3.2'],
       type: 'select',
       usage:
-        'ENSFácil registra la recepción de avisos y verifica que van seguidos de adaptación de reglas de detección o de configuración. Los IoC de los avisos pueden cargarse como CDB lists en Wazuh para detección directa.',
+        'Power ENS registra la recepción de avisos y verifica que van seguidos de adaptación de reglas de detección o de configuración. Los IoC de los avisos pueden cargarse como CDB lists en Wazuh para detección directa.',
       missingBehavior:
         'R3 parcialmente NO EVALUABLE. Los avisos del CCN-CERT no se traducen en capacidad de detección efectiva.',
     },
@@ -417,7 +417,7 @@ export const opExp7Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

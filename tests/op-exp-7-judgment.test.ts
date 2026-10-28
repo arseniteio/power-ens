@@ -46,9 +46,9 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
       '@timestamp': ts,
       agent: { id: '000', name: 'Wazuh-4' },
       rule: { id: '110800', description: 'op.exp.7' },
-      location: '/var/log/ensfacil/op_exp_7.json',
+      location: '/var/log/power-ens/op_exp_7.json',
       data: Object.fromEntries(
-        Object.entries({ ensfacil: 'op.exp.7', ...data }).map(([k, v]) => [k, String(v)])
+        Object.entries({ power_ens: 'op.exp.7', ...data }).map(([k, v]) => [k, String(v)])
       ),
     },
   };
@@ -231,7 +231,7 @@ section('2. Without a collector pass, or without an incident record');
 
   const absent = events(
     heartbeat('ausente'),
-    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de incidentes /etc/ensfacil/incident-register.tsv' }, ago(0.5)),
+    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de incidentes /etc/power-ens/incident-register.tsv' }, ago(0.5)),
     observed('wazuh-real', 13, '23506', 10, ago(48)),
   );
   const r = evaluate(absent, BASE);
@@ -582,7 +582,7 @@ section('15. The gap cause reaches the evidence');
 
   const absent = evaluate(events(
     heartbeat('ausente'),
-    alert({ event: 'evidence_state', evidence_id: 'EV-04', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de incidentes /etc/ensfacil/incident-register.tsv' }, ago(0.5)),
+    alert({ event: 'evidence_state', evidence_id: 'EV-04', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de incidentes /etc/power-ens/incident-register.tsv' }, ago(0.5)),
   ), BASE);
   const absentTable = applyPolicyDecisionsToEvidences(absent.evidencias, absent.decisions, opExp7CatalogDefinition.requirements);
   const ev04 = absentTable.find(e => e.id === 'EV-04');
@@ -606,7 +606,7 @@ section('13. Only op.exp.7 facts count');
       '@timestamp': ago(1),
       agent: { id: '000', name: 'Wazuh-4' },
       rule: { id: '110900' },
-      data: { ensfacil: 'op.exp.9', event: 'security_alert_observed', sistema: 'wazuh-real', nivel: '13', regla: '1', alertas: '5', primera: ago(48), ultima: ago(48) },
+      data: { power_ens: 'op.exp.9', event: 'security_alert_observed', sistema: 'wazuh-real', nivel: '13', regla: '1', alertas: '5', primera: ago(48), ultima: ago(48) },
     },
   }]);
   const r = evaluate([...events(heartbeat('vacio')), ...foreignOne], BASE);

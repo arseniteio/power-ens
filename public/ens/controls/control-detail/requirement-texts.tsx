@@ -56,7 +56,7 @@ export const RequirementTextsPanel = ({ controlId }: { controlId: string }) => {
     >
       <EuiText size='xs' color='subdued'>
         <p>
-          «{ENS_TEXT_PROVENANCE_LABELS.BOE}»: literal del BOE. «{ENS_TEXT_PROVENANCE_LABELS.CRITERION}»: cómo lo mide ENSFácil, sin valor normativo.
+          «{ENS_TEXT_PROVENANCE_LABELS.BOE}»: literal del BOE. «{ENS_TEXT_PROVENANCE_LABELS.CRITERION}»: cómo lo mide Power ENS, sin valor normativo.
         </p>
       </EuiText>
       <EuiSpacer size='s' />
@@ -129,13 +129,13 @@ export const TemplateCorrespondencePanel = ({ controlId }: { controlId: string }
       paddingSize='s'
     >
       <ProvenancedText provenance='CRITERION' text={correspondence.summary} />
-      {table('Requisitos', correspondence.requirements, 'ENSFácil')}
-      {table('Parámetros', correspondence.parameters, 'ENSFácil')}
-      {table('Evidencias', correspondence.evidences, 'ENSFácil')}
+      {table('Requisitos', correspondence.requirements, 'Power ENS')}
+      {table('Parámetros', correspondence.parameters, 'Power ENS')}
+      {table('Evidencias', correspondence.evidences, 'Power ENS')}
       <EuiSpacer size='s' />
       <EuiText size='xs'>
         <p>
-          <strong>Solo en ENSFácil:</strong>{' '}
+          <strong>Solo en Power ENS:</strong>{' '}
           {correspondence.ownOnly.map(item => `${item.id} (${item.note})`).join(' · ')}
         </p>
       </EuiText>

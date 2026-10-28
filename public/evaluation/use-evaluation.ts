@@ -20,7 +20,7 @@ const warns = (text: string) => {
   if ((notices.get(text) || 0) > now - 60000) return;
   notices.set(text, now);
   try {
-    getCore().notifications.toasts.addDanger({ title: 'ENSFácil: no se pudo evaluar', text: text });
+    getCore().notifications.toasts.addDanger({ title: 'Power ENS: no se pudo evaluar', text: text });
   } catch {
   }
 };

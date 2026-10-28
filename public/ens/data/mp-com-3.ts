@@ -284,7 +284,7 @@ export const mpCom3Control: ENSControl = {
       requirements: ['mp.com.3.2'],
       type: 'string',
       usage:
-        'ENSFácil correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
+        'Power ENS correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
       missingBehavior:
         'No se puede acreditar que la detección activa el procedimiento. El requisito queda cumplido a medias.',
     },
@@ -297,7 +297,7 @@ export const mpCom3Control: ENSControl = {
       requirements: ['mp.com.3.3'],
       type: 'table',
       usage:
-        'ENSFácil verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
+        'Power ENS verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
       missingBehavior:
         'mp.com.3.3 NO EVALUABLE. Puede estarse rechazando un mecanismo legalmente admisible sin saberlo.',
     },
@@ -349,7 +349,7 @@ export const mpCom3Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

@@ -20,7 +20,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       required: true,
       minValue: 1,
       wazuhUsage: 'Alimenta la correlación temporal. Si no llega evento de backup exitoso dentro del umbral, se genera incumplimiento.',
-      ensfacilUsage: 'Calcula si la periodicidad de copias cumple la política definida por el cliente.',
+      powerEnsUsage: 'Calcula si la periodicidad de copias cumple la política definida por el cliente.',
       evidenceIds: ['EV-01', 'EV-02'],
       ruleIds: ['106601', '106602'],
       ifNotConfigured: 'El control mp.info.6 queda NO EVALUABLE para periodicidad de copias.',
@@ -39,7 +39,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       minValue: 0,
       defaultValue: 0,
       wazuhUsage: 'Se suma a P-01 para calcular el umbral efectivo.',
-      ensfacilUsage: 'Evita falsos positivos por retrasos operativos menores.',
+      powerEnsUsage: 'Evita falsos positivos por retrasos operativos menores.',
       evidenceIds: ['EV-02'],
       ruleIds: ['106601'],
       ifNotConfigured: 'Se aplica sin margen de tolerancia.',
@@ -57,7 +57,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       required: true,
       minValue: 1,
       wazuhUsage: 'Puede alimentar reglas FIM para detectar borrados antes del plazo definido.',
-      ensfacilUsage: 'Documenta y evalúa la política de retención en el informe ENS.',
+      powerEnsUsage: 'Documenta y evalúa la política de retención en el informe ENS.',
       evidenceIds: ['EV-03'],
       // The configured retention is reported by 106603 (`backup_retention`); the policy applies the threshold.
       ruleIds: ['106603'],
@@ -75,7 +75,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: 'srv-bd01 | ALTA',
       required: true,
       wazuhUsage: 'Permite detectar sistemas esperados que no envían eventos de backup.',
-      ensfacilUsage: 'Define el alcance real auditado del control.',
+      powerEnsUsage: 'Define el alcance real auditado del control.',
       evidenceIds: ['EV-01', 'EV-05'],
       // No rule: this is the control scope in the engine (`scopeParameter` of the catalog). A declared machine
       // that sends nothing shows "sin datos"; an undeclared one has no result.
@@ -95,7 +95,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       required: true,
       minValue: 1,
       wazuhUsage: 'Compara la fecha de último restore exitoso contra el umbral configurado.',
-      ensfacilUsage: 'Evalúa el refuerzo R1 para nivel MEDIO y ALTO.',
+      powerEnsUsage: 'Evalúa el refuerzo R1 para nivel MEDIO y ALTO.',
       evidenceIds: ['EV-05'],
       ruleIds: ['106606'],
       ifNotConfigured: 'R1 queda NO EVALUABLE en MEDIO/ALTO.',
@@ -114,7 +114,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       // uses that path.
       required: false,
       wazuhUsage: 'Ningún agente lo lee. En el PBS, los directorios locales de copia se declaran en MPINFO6_LOCAL_BACKUP_DIRS del .env del agente.',
-      ensfacilUsage: 'Documenta dónde dice la organización que están sus copias. EV-03 y EV-04 se juzgan con la ruta real que informa cada recolector.',
+      powerEnsUsage: 'Documenta dónde dice la organización que están sus copias. EV-03 y EV-04 se juzgan con la ruta real que informa cada recolector.',
       // No evidences on purpose: a pending evidence counts as a CONFIGURATION gap when a parameter is empty, and
       // the finding would ask to fill P-06, which measures nothing.
       evidenceIds: [],
@@ -135,7 +135,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: 'root',
       required: true,
       wazuhUsage: 'Se puede cargar como CDB list para detectar accesos no autorizados.',
-      ensfacilUsage: 'Permite justificar quién puede acceder a las copias.',
+      powerEnsUsage: 'Permite justificar quién puede acceder a las copias.',
       evidenceIds: ['EV-04'],
       ruleIds: ['106604'],
       ifNotConfigured: 'No se pueden detectar accesos no autorizados.',
@@ -152,7 +152,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: 'sí',
       required: false,
       wazuhUsage: 'Ningún agente lo lee: el recolector informa los destinos de cada copia (backup_storage, regla 106605).',
-      ensfacilUsage: 'Solo en ALTO y solo en el motivo de EV-06: si declara sí y ningún destino está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado.',
+      powerEnsUsage: 'Solo en ALTO y solo en el motivo de EV-06: si declara sí y ningún destino está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -171,7 +171,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: '/mnt/s3-backup',
       required: false,
       wazuhUsage: 'Ningún agente lo lee: los destinos de cada copia los informa el recolector (backup_storage).',
-      ensfacilUsage: 'Documenta la ubicación alternativa declarada; el informe la cita junto a los destinos observados.',
+      powerEnsUsage: 'Documenta la ubicación alternativa declarada; el informe la cita junto a los destinos observados.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -205,7 +205,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       // Not required: the judgment does not read it (each fact carries its origin).
       required: false,
       wazuhUsage: 'Cada hecho lleva su origen y las reglas son las mismas para ambos sistemas: no cambia qué se decodifica.',
-      ensfacilUsage: 'Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor.',
+      powerEnsUsage: 'Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -214,7 +214,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       ifNotConfigured: 'El informe no cita con qué sistema se hacen las copias.',
     },
     // --- What the agent reads from its .env, documented on the screen ---
-    // P-11 to P-14 document what each agent reads from its own .env (/etc/ensfacil/mpinfo6.env on PBS,
+    // P-11 to P-14 document what each agent reads from its own .env (/etc/power-ens/mpinfo6.env on PBS,
     // mpinfo6zimbra.env on Zimbra). No agent or policy reads these values, and the CREDENTIAL must never be
     // here: `wazuh-ens-configuration` is readable by anyone with dashboard access and ends up quoted in the
     // report.
@@ -230,7 +230,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: '/root/.config/proxmox-backup/encryption-key.json',
       required: false,
       wazuhUsage: 'Ningún agente lo lee: el del PBS mide la clave de PBS_KEYFILE (vacía, la del cliente por defecto si existe) e informa ruta y modo en backup_access.',
-      ensfacilUsage: 'Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.',
+      powerEnsUsage: 'Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -250,7 +250,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       example: 'root.pxar',
       required: false,
       wazuhUsage: 'Ningún agente lo lee. Cada prueba llega en restore_test (regla 106606).',
-      ensfacilUsage: 'Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.',
+      powerEnsUsage: 'Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -266,10 +266,10 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       levels: ['MEDIO', 'ALTO'],
       requirements: [],
       type: 'path',
-      example: '/etc/ensfacil/mpinfo6-witness.txt',
+      example: '/etc/power-ens/mpinfo6-witness.txt',
       required: false,
       wazuhUsage: 'Ningún agente lo lee: el del PBS restaura RESTORE_WITNESS_PATH y compara su SHA-256 con RESTORE_WITNESS_SHA256; restore_test informa si coincide.',
-      ensfacilUsage: 'Distingue una restauración validada de una que solo terminó sin error.',
+      powerEnsUsage: 'Distingue una restauración validada de una que solo terminó sin error.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -290,7 +290,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       required: false,
       minValue: 1,
       wazuhUsage: 'Ningún agente lo lee: el del PBS restaura al pasar RESTORE_EVERY_DAYS días desde la última prueba correcta; el de Zimbra, cada domingo desde su cron.',
-      ensfacilUsage: 'Una cadencia mayor que el plazo de P-05 degrada el control antes de la siguiente prueba; declararla lo hace visible.',
+      powerEnsUsage: 'Una cadencia mayor que el plazo de P-05 degrada el control antes de la siguiente prueba; declararla lo hace visible.',
       // No requirements or evidences on purpose, as P-06: the judgment does not read this value, and an empty
       // parameter linked to a pending evidence would show as a CONFIGURATION gap.
       evidenceIds: [],
@@ -344,7 +344,7 @@ export const mpInfo6Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
-      ensfacilUsage:
+      powerEnsUsage:
         'El requisito pasa a CUMPLE marcado como acreditado documentalmente, con documento y enlace en el informe; nunca como medido.',
       evidenceIds: [],
       ruleIds: [],

@@ -16,12 +16,12 @@ const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ?
 check(
   'today\'s columns, in their order',
   ENS_EVENT_COLUMNS.map(c => c.id).join() ===
-    'timestamp,agent.name,data.ensfacil,data.event,data.control,data.requisito,data.evidence_id,data.evidencias,data.estado,data.nivel,rule.description,rule.level,rule.id',
+    'timestamp,agent.name,data.power_ens,data.event,data.control,data.requisito,data.evidence_id,data.evidencias,data.estado,data.nivel,rule.description,rule.level,rule.id',
   ENS_EVENT_COLUMNS.map(c => c.id)
 );
 check('each column with its label', ENS_EVENT_COLUMNS.every(c => !!c.label));
 const f: any[] = buildEventsFilters([{ id: '024', groups: ['ens'] }, { id: '028', groups: ['ens'] }], undefined);
-check('only ENS facts', JSON.stringify(f[0]) === '{"match_phrase":{"rule.groups":"ensfacil"}}');
+check('only ENS facts', JSON.stringify(f[0]) === '{"match_phrase":{"rule.groups":"power_ens"}}');
 check('only scope machines', JSON.stringify(f[1]) === '{"terms":{"agent.id":["024","028"]}}');
 const g: any[] = buildEventsFilters([{ id: '024', groups: ['ens'] }], '024');
 check('a chosen machine', JSON.stringify(g[1]) === '{"match_phrase":{"agent.id":"024"}}');

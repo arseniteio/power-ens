@@ -15,7 +15,7 @@ export interface ENSRequirementCount {
 
 const LIST_FIELD = 'data.requisito';
 const EVIDENCE_FIELD = 'data.evidence_id';
-const FACT_CONTROL_FIELD = 'data.ensfacil';
+const FACT_CONTROL_FIELD = 'data.power_ens';
 const LEGACY_FIELD = 'data.control';
 
 // Distinct combinations, not facts: tens or hundreds today.

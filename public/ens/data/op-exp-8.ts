@@ -284,7 +284,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.2'],
       type: 'list',
       usage:
-        'ENSFácil contrasta esta lista contra los agentes activos que efectivamente reportan. Servidor declarado sin agente o con agente desconectado → hallazgo directo de op.exp.8.2.',
+        'Power ENS contrasta esta lista contra los agentes activos que efectivamente reportan. Servidor declarado sin agente o con agente desconectado → hallazgo directo de op.exp.8.2.',
       missingBehavior:
         'No se puede verificar la cobertura de servidores. op.exp.8.2 sin acreditación, siendo requisito base.',
     },
@@ -297,7 +297,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.1'],
       type: 'list',
       usage:
-        'ENSFácil audita una muestra de eventos por fuente y verifica la presencia de los cinco campos. Fuente cuyos eventos carecen de alguno → hallazgo de decodificador incompleto, que es un hallazgo técnico muy concreto y fácil de corregir.',
+        'Power ENS audita una muestra de eventos por fuente y verifica la presencia de los cinco campos. Fuente cuyos eventos carecen de alguno → hallazgo de decodificador incompleto, que es un hallazgo técnico muy concreto y fácil de corregir.',
       missingBehavior:
         'No se puede verificar la suficiencia del registro de auditoría. op.exp.8.1 acreditable solo por muestreo manual.',
     },
@@ -310,7 +310,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.r1.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra cada revisión realizada —quién, cuándo, qué alcance y qué se encontró— y alerta al superarse P-04. El término «informalmente» del ENS no exime de dejar constancia de que se hizo.',
+        'Power ENS registra cada revisión realizada —quién, cuándo, qué alcance y qué se encontró— y alerta al superarse P-04. El término «informalmente» del ENS no exime de dejar constancia de que se hizo.',
       missingBehavior:
         'R1 NO EVALUABLE. La revisión puede estar haciéndose pero sin constancia no es acreditable ante un auditor.',
     },
@@ -336,7 +336,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.r2.1'],
       type: 'number',
       usage:
-        'ENSFácil compara la marca temporal del evento en origen con la de recepción en el Manager y detecta desviaciones superiores a P-06. También vigila los eventos de cambio manual de hora, que R2 califica como función de administración.',
+        'Power ENS compara la marca temporal del evento en origen con la de recepción en el Manager y detecta desviaciones superiores a P-06. También vigila los eventos de cambio manual de hora, que R2 califica como función de administración.',
       missingBehavior:
         'No se detectan desviaciones de reloj. La correlación entre sistemas puede ser errónea sin que nadie lo advierta.',
     },
@@ -375,7 +375,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.r4.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica la existencia y frescura de los snapshots del Indexer y que el destino tiene acceso restringido al personal de P-08. Una copia de registros accesible a cualquiera vulnera R4 igual que el índice.',
+        'Power ENS verifica la existencia y frescura de los snapshots del Indexer y que el destino tiene acceso restringido al personal de P-08. Una copia de registros accesible a cualquiera vulnera R4 igual que el índice.',
       missingBehavior:
         'No se puede verificar la protección de las copias, que R4 protege con el mismo rigor que los registros originales.',
     },
@@ -388,7 +388,7 @@ export const opExp8Control: ENSControl = {
       requirements: ['op.exp.8.r5.1'],
       type: 'string',
       usage:
-        'ENSFácil documenta qué reglas están activas, qué técnicas MITRE ATT&CK cubren y qué categorías de P-01 quedan sin regla asociada. Es la acreditación directa de op.exp.8.r5.1.',
+        'Power ENS documenta qué reglas están activas, qué técnicas MITRE ATT&CK cubren y qué categorías de P-01 quedan sin regla asociada. Es la acreditación directa de op.exp.8.r5.1.',
       missingBehavior:
         'R5 parcialmente NO EVALUABLE. No se puede documentar la capacidad de análisis desplegada.',
     },
@@ -414,7 +414,7 @@ export const opExp8Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

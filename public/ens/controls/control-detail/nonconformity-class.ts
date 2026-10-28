@@ -25,7 +25,7 @@ export const classifyNonConformity = (
     return { etiqueta: 'Medido', icono: 'inspect', color: '#BD271E', badgeColor: 'danger', accion: 'Corregir la máquina', responsable: 'Sistema auditado', orden: 1 };
   }
   if (item.cause === 'CATALOG') {
-    return { etiqueta: 'No evidenciado · catálogo', icono: 'package', color: '#98A2B3', badgeColor: 'default', accion: 'Declarar la evidencia', responsable: 'Producto ENSFácil', orden: 6 };
+    return { etiqueta: 'No evidenciado · catálogo', icono: 'package', color: '#98A2B3', badgeColor: 'default', accion: 'Declarar la evidencia', responsable: 'Producto Power ENS', orden: 6 };
   }
   if (item.cause === 'CONFIGURATION') {
     return { etiqueta: 'No evidenciado · sin configurar', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Declarar la decisión', responsable: 'Responsable ENS', orden: 3 };

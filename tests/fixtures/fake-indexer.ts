@@ -1,4 +1,4 @@
-/** In-memory indexer with the subset of the DSL used by the ENSFácil server. */
+/** In-memory indexer with the subset of the DSL used by the Power ENS server. */
 
 import { startOfDayIn } from '../../common/ens/core/timeline/timeline-cuts';
 

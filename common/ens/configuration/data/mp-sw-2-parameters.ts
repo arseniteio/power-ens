@@ -47,8 +47,8 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define el alcance.',
-      ensfacilUsage:
-        'ENSFácil vincula cada puesta en servicio detectada con la aplicación correspondiente y con los sistemas en que debe medirse el deterioro de seguridad.',
+      powerEnsUsage:
+        'Power ENS vincula cada puesta en servicio detectada con la aplicación correspondiente y con los sistemas en que debe medirse el deterioro de seguridad.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -67,9 +67,9 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       example: 'sin vulnerabilidades críticas\nautenticación conforme a op.acc.5\nregistro de actividad activo\nTLS 1.2 o superior',
       required: true,
       wazuhUsage:
-        'ENSFácil verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
-      ensfacilUsage:
-        'ENSFácil verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
+        'Power ENS verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
+      powerEnsUsage:
+        'Power ENS verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -108,9 +108,9 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
-      ensfacilUsage:
-        'ENSFácil correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
+        'Power ENS correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
+      powerEnsUsage:
+        'Power ENS correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
       evidenceIds: ['EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -122,7 +122,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       name: 'ventana_medicion_deterioro_dias',
       label: 'Ventana medicion deterioro dias',
       description:
-        'Días antes y después de la puesta en servicio que ENSFácil compara para determinar si se ha deteriorado la seguridad de otros componentes del servicio, como exige mp.sw.2.1 b).',
+        'Días antes y después de la puesta en servicio que Power ENS compara para determinar si se ha deteriorado la seguridad de otros componentes del servicio, como exige mp.sw.2.1 b).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'duration_days',
@@ -130,7 +130,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define la ventana del análisis diferencial: cumplimiento SCA, puertos abiertos, servicios en ejecución y vulnerabilidades antes y después. Es la forma de medir el deterioro en lugar de declararlo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define la ventana del análisis diferencial: cumplimiento SCA, puertos abiertos, servicios en ejecución y vulnerabilidades antes y después. Es la forma de medir el deterioro en lugar de declararlo.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
@@ -165,7 +165,7 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define cuándo el diferencial de EV-03 es hallazgo. Para vulnerabilidades críticas lo razonable es tolerancia cero; para puertos, admitir los declarados como necesarios por la aplicación.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define cuándo el diferencial de EV-03 es hallazgo. Para vulnerabilidades críticas lo razonable es tolerancia cero; para puertos, admitir los declarados como necesarios por la aplicación.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
@@ -205,9 +205,9 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
-      ensfacilUsage:
-        'ENSFácil contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
+        'Power ENS contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
+      powerEnsUsage:
+        'Power ENS contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -258,9 +258,9 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
-      ensfacilUsage:
-        'ENSFácil conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
+        'Power ENS conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
+      powerEnsUsage:
+        'Power ENS conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -311,9 +311,9 @@ export const mpSw2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
-      ensfacilUsage:
-        'ENSFácil registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
+        'Power ENS registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
+      powerEnsUsage:
+        'Power ENS registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
       ifNotConfigured:

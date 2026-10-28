@@ -178,7 +178,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.1'],
       type: 'select',
       usage:
-        'ENSFácil verifica que cada incidente cuenta con los tres tipos de reporte que exige op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
+        'Power ENS verifica que cada incidente cuenta con los tres tipos de reporte que exige op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
       missingBehavior:
         'op.exp.9.1 NO EVALUABLE. No se puede verificar la completitud del registro de la gestión.',
     },
@@ -191,7 +191,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica la presencia de los tres reportes por incidente y su cumplimentación. Incidente con solo reporte de cierre → hallazgo, porque el requisito distingue expresamente tres momentos.',
+        'Power ENS verifica la presencia de los tres reportes por incidente y su cumplimentación. Incidente con solo reporte de cierre → hallazgo, porque el requisito distingue expresamente tres momentos.',
       missingBehavior:
         'No se puede verificar que existan los tres reportes exigidos ni su suficiencia.',
     },
@@ -204,7 +204,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.2'],
       type: 'table',
       usage:
-        'Define qué exporta y sella ENSFácil automáticamente al abrirse un incidente con potencial relevancia jurídica. La determinación de la lista NO es técnica: el ENS remite a asesoramiento legal especializado.',
+        'Define qué exporta y sella Power ENS automáticamente al abrirse un incidente con potencial relevancia jurídica. La determinación de la lista NO es técnica: el ENS remite a asesoramiento legal especializado.',
       missingBehavior:
         'op.exp.9.2 NO EVALUABLE. Riesgo real de que la evidencia recogida no sea admisible cuando haga falta.',
     },
@@ -217,7 +217,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.2'],
       type: 'list',
       usage:
-        'ENSFácil marca automáticamente los incidentes que cumplen estos criterios y activa la recogida sellada de las evidencias de P-03, además de alertar de que el caso requiere tratamiento probatorio reforzado.',
+        'Power ENS marca automáticamente los incidentes que cumplen estos criterios y activa la recogida sellada de las evidencias de P-03, además de alertar de que el caso requiere tratamiento probatorio reforzado.',
       missingBehavior:
         'No se activa el régimen probatorio reforzado. La evidencia puede perderse antes de saber que se necesitaba.',
     },
@@ -230,7 +230,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.2'],
       type: 'table',
       usage:
-        'ENSFácil deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son los dos elementos que más refuerzan la admisibilidad.',
+        'Power ENS deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son los dos elementos que más refuerzan la admisibilidad.',
       missingBehavior:
         'La evidencia queda sin cadena de custodia acreditable, lo que puede hacerla inservible en sede judicial.',
     },
@@ -243,7 +243,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.2'],
       type: 'table',
       usage:
-        'ENSFácil aplica la política de retención al repositorio de custodia. Es un parámetro que debe fijarse con el mismo asesoramiento legal de P-03: la retención general de op.exp.8 suele ser insuficiente aquí.',
+        'Power ENS aplica la política de retención al repositorio de custodia. Es un parámetro que debe fijarse con el mismo asesoramiento legal de P-03: la retención general de op.exp.8 suele ser insuficiente aquí.',
       missingBehavior:
         'Riesgo de destruir evidencia antes de que prescriba la responsabilidad que podría acreditar.',
     },
@@ -256,7 +256,7 @@ export const opExp9Control: ENSControl = {
       requirements: ['op.exp.9.3', 'op.exp.8.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil correlaciona el cierre de incidentes con modificaciones posteriores en la lista de eventos auditables (P-01 de op.exp.8) y en las reglas de detección. Permite demostrar que el sistema aprende.',
+        'Power ENS correlaciona el cierre de incidentes con modificaciones posteriores en la lista de eventos auditables (P-01 de op.exp.8) y en las reglas de detección. Permite demostrar que el sistema aprende.',
       missingBehavior:
         'op.exp.9.3 NO EVALUABLE. El registro de eventos auditables queda estático y no se realimenta.',
     },
@@ -264,7 +264,7 @@ export const opExp9Control: ENSControl = {
       id: 'P-08',
       name: 'nivel_alerta_sin_expediente',
       description:
-        'Nivel mínimo de regla de Wazuh a partir del cual una alerta ajena a ENSFácil no puede quedar sin ningún expediente. Solo se usa cuando el registro de incidentes está vacío.',
+        'Nivel mínimo de regla de Wazuh a partir del cual una alerta ajena a Power ENS no puede quedar sin ningún expediente. Solo se usa cuando el registro de incidentes está vacío.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.1'],
       type: 'number',
@@ -295,7 +295,7 @@ export const opExp9Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

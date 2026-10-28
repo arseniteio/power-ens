@@ -179,7 +179,7 @@ export const buildOpMon3ReportModel = (
     'Superficie de exposición (R2)',
     average ? requirementStatus('op.mon.3.r2.1') : 'NO_APLICA',
     average
-      ? 'Se acredita por capacidad: por activo de P-03, su última evaluación de configuración (SCA, con su puntuación) y su inventario de paquetes frente a P-11; del detector de vulnerabilidades, que está habilitado, con su fuente al día y escribiendo sin errores. Vulnerabilidades por activo: sin medir (viven en el indexer y ENSFácil no usa credenciales).'
+      ? 'Se acredita por capacidad: por activo de P-03, su última evaluación de configuración (SCA, con su puntuación) y su inventario de paquetes frente a P-11; del detector de vulnerabilidades, que está habilitado, con su fuente al día y escribiendo sin errores. Vulnerabilidades por activo: sin medir (viven en el indexer y Power ENS no usa credenciales).'
       : 'R2 solo se exige en categorías MEDIA y ALTA.',
     ['EV-04'],
     average

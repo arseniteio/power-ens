@@ -21,7 +21,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define los decodificadores y el módulo de integración. Para correo en la nube se emplea el conector correspondiente; para infraestructura propia, log collection del MTA y del filtro. Es el parámetro que habilita todo lo demás.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define los decodificadores y el módulo de integración. Para correo en la nube se emplea el conector correspondiente; para infraestructura propia, log collection del MTA y del filtro. Es el parámetro que habilita todo lo demás.',
       evidenceIds: [],
       ruleIds: [],
@@ -67,9 +67,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
-      ensfacilUsage:
-        'ENSFácil verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
+        'Power ENS verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
+      powerEnsUsage:
+        'Power ENS verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
       evidenceIds: ['EV-06', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -89,7 +89,7 @@ export const mpS1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'SCA verifica la configuración del MTA y los logs permiten comprobar qué porcentaje del correo viaja cifrado y con qué versión. Correo en claro hacia destinos que admiten TLS → hallazgo de mp.s.1.1.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica la configuración del MTA y los logs permiten comprobar qué porcentaje del correo viaja cifrado y con qué versión. Correo en claro hacia destinos que admiten TLS → hallazgo de mp.s.1.1.',
       evidenceIds: ['EV-06', 'EV-07', 'EV-08'],
       ruleIds: [],
@@ -123,9 +123,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
-      ensfacilUsage:
-        'ENSFácil recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
+        'Power ENS recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
+      powerEnsUsage:
+        'Power ENS recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -144,9 +144,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       example: 'SpamAssassin con cuarentena a partir de 5 puntos',
       required: true,
       wazuhUsage:
-        'ENSFácil mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
-      ensfacilUsage:
-        'ENSFácil mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
+        'Power ENS mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
+      powerEnsUsage:
+        'Power ENS mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -165,9 +165,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       example: 'Análisis de anexos con ClamAV y sandbox; reescritura de URL',
       required: true,
       wazuhUsage:
-        'ENSFácil mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
-      ensfacilUsage:
-        'ENSFácil mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
+        'Power ENS mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
+      powerEnsUsage:
+        'Power ENS mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04'],
       ruleIds: [],
       ifNotConfigured:
@@ -186,9 +186,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       example: 'Bloqueo de anexos con macros, HTML saneado y ejecutables en cuarentena',
       required: true,
       wazuhUsage:
-        'ENSFácil verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
-      ensfacilUsage:
-        'ENSFácil verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
+        'Power ENS verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
+      powerEnsUsage:
+        'Power ENS verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
       evidenceIds: ['EV-01', 'EV-05'],
       ruleIds: [],
       ifNotConfigured:
@@ -208,8 +208,8 @@ export const mpS1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Acreditación documental. No es verificable técnicamente: el uso privado del correo corporativo no se detecta con un SIEM, y pretender medirlo plantearía además problemas de proporcionalidad.',
-      ensfacilUsage:
-        'ENSFácil recoge la referencia y el registro de difusión.',
+      powerEnsUsage:
+        'Power ENS recoge la referencia y el registro de difusión.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
@@ -254,9 +254,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Registro documental en ENSFácil, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
-      ensfacilUsage:
-        'Registro documental en ENSFácil, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
+        'Registro documental en Power ENS, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
+      powerEnsUsage:
+        'Registro documental en Power ENS, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -307,9 +307,9 @@ export const mpS1Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      powerEnsUsage:
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

@@ -67,7 +67,7 @@ const versionedIndex = () => {
 const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
 const logger = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };
 const context = (index: any, user = 'rsis') => ({
-  core: { opensearch: { client: { asInternalUser: index, asCurrentUser: { transport: { request: async () => ({ body: { user_name: user, roles: ['ensfacil_admin'] } }) } } } } },
+  core: { opensearch: { client: { asInternalUser: index, asCurrentUser: { transport: { request: async () => ({ body: { user_name: user, roles: ['power_ens_admin'] } }) } } } } },
 });
 const withLevel = (doc: any, level: string) => ({ ...doc, global: { ...doc.global, ensLevel: level } });
 

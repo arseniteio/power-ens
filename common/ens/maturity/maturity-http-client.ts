@@ -1,5 +1,5 @@
 // Browser client of the maturity routes; `tests/maturity-route-schema.test.ts` runs its bodies through the route schema.
-import { ENSFACIL_MATURITY_PATH } from '../../constants';
+import { POWER_ENS_MATURITY_PATH } from '../../constants';
 import { withRequestTimeout } from '../../platform/request-timeout';
 import { getENSConfigurationHttp, withServerReason } from '../configuration/services/configuration-http-client';
 import type { ENSControlMaturityRecord, ENSControlSnapshot, ENSMaturityRecordKind, ENSMaturityVersion } from './types';
@@ -21,7 +21,7 @@ export interface ENSMaturitySaveResponse {
 
 const dataOf = <T>(response: any): T => {
   if (!response || response.statusCode !== 200 || response.error !== 0 || !response.data) {
-    throw new Error('El servidor de ENSFácil devolvió una respuesta no válida.');
+    throw new Error('El servidor de Power ENS devolvió una respuesta no válida.');
   }
   return response.data as T;
 };
@@ -34,7 +34,7 @@ export async function saveMaturityEntry(request: ENSMaturitySaveRequest): Promis
     expectedVersion: request.expectedVersion,
   };
   const response = await withRequestTimeout(
-    signal => getENSConfigurationHttp().put(ENSFACIL_MATURITY_PATH, { body: JSON.stringify(body), signal }),
+    signal => getENSConfigurationHttp().put(POWER_ENS_MATURITY_PATH, { body: JSON.stringify(body), signal }),
     'registro de la madurez'
   ).catch(error => {
     throw withServerReason(error);
@@ -45,7 +45,7 @@ export async function saveMaturityEntry(request: ENSMaturitySaveRequest): Promis
 export async function fetchMaturitySnapshots(query: { from: string; to: string; controlId?: string }): Promise<ENSControlSnapshot[]> {
   const params: Record<string, string> = { from: query.from, to: query.to, ...(query.controlId ? { controlId: query.controlId } : {}) };
   const response = await withRequestTimeout(
-    signal => getENSConfigurationHttp().get(`${ENSFACIL_MATURITY_PATH}/snapshots`, { query: params, signal }),
+    signal => getENSConfigurationHttp().get(`${POWER_ENS_MATURITY_PATH}/snapshots`, { query: params, signal }),
     'instantáneas de madurez'
   ).catch(error => {
     throw withServerReason(error);

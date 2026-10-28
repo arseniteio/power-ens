@@ -40,7 +40,7 @@ const alert = (control: string, agent: { id: string; name: string }, data: Recor
       '@timestamp': '2026-09-26T23:26:50.000Z',
       agent: agent,
       rule: { id: '110950', description: control },
-      data: Object.fromEntries(Object.entries({ ensfacil: control, ...data }).map(([k, v]) => [k, String(v)])),
+      data: Object.fromEntries(Object.entries({ power_ens: control, ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -72,7 +72,7 @@ section('1. A NO_EVALUABLE evidence_state arrives with the cause the collector d
   const events = normalizeWazuhAlerts([
     alert('op.exp.8', MANAGER, {
       event: 'evidence_state', evidence_id: 'EV-05', requisito: 'op.exp.8.r1.1', plano: 'central', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION',
-      motivo: 'no existe el registro de revisiones de los registros /etc/ensfacil/log-review-register.tsv: no consta donde anota la organizacion sus revisiones',
+      motivo: 'no existe el registro de revisiones de los registros /etc/power-ens/log-review-register.tsv: no consta donde anota la organizacion sus revisiones',
     }),
   ]);
   const ev05 = resolveEvidenceForControl('op.exp.8', events, '000', 'MEDIO', opExp8Configuration, NOW).find(e => e.id === 'EV-05');

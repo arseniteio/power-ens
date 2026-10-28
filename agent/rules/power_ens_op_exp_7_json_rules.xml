@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_7_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_7_json_rules.xml
      Byte-identical in three places: the plugin source and manager/ of the Linux
      and LDAP op.exp.7 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_7,score,">
+<group name="power_ens,op_exp_7,score,">
 
   <!-- ================================================================
        op.exp.7 · Incident management
@@ -36,8 +36,8 @@
 
   <rule id="110800" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.7</field>
-    <description>op.exp.7 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.7</field>
+    <description>op.exp.7 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== Detection (manager alerts.json) ===== -->
@@ -45,7 +45,7 @@
   <!-- EV-01, EV-02 and EV-03. Count of alerts of ONE rule and ONE level produced by
        ONE system in ONE hour, with the first and last. Aggregated because there are
        thousands per day; the level is raw and the ENS severity is set by the engine
-       with P-01. Alerts of ENSFácil itself (`data.ensfacil` or group `ensfacil`) are
+       with P-01. Alerts of Power ENS itself (`data.power_ens` or group `power_ens`) are
        excluded: they are measurements, not security events. -->
   <rule id="110801" level="3">
     <if_sid>110800</if_sid>
@@ -53,7 +53,7 @@
     <description>op.exp.7 · EV-01 · $(alertas) alerta(s) de nivel $(nivel) regla $(regla) en $(sistema) ($(primera))</description>
   </rule>
 
-  <!-- ===== Incident register (/etc/ensfacil/incident-register.tsv) =====
+  <!-- ===== Incident register (/etc/power-ens/incident-register.tsv) =====
 
        Maintained by the organization; the collector only READS it. Re-emitted IN FULL
        on every run (state fact): a corrected row corrects the fact on the next run. -->

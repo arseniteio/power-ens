@@ -71,7 +71,7 @@ export const pdfRowLabel = (provenance: ENSTextProvenance = ENS_PROPOSAL_TEXT_PR
 });
 
 // Line under the «Campos del informe» and «Parámetros» headings: they are the template's proposal, not the norm.
-export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por ENSFácil, sin valor normativo.`;
+export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por Power ENS, sin valor normativo.`;
 
 const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]): object[] => [
   { text: title, bold: true, fontSize: 9, margin: [0, 8, 0, 4] },
@@ -80,7 +80,7 @@ const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]
       headerRows: 1,
       widths: ['auto', '*', 'auto', 'auto', '*'],
       body: [
-        ['Plantilla', 'Nombre en la plantilla', 'ENSFácil', 'Cobertura', 'Nota'].map(text => ({ text, style: 'th' })),
+        ['Plantilla', 'Nombre en la plantilla', 'Power ENS', 'Cobertura', 'Nota'].map(text => ({ text, style: 'th' })),
         ...rows.map(row => [
           { text: row.template, style: 'td' },
           { text: row.templateName, style: 'td' },
@@ -114,7 +114,7 @@ export const buildTemplateCorrespondencePdf = (controlId: string): object[] => {
     ...correspondenceTable('Parámetros', correspondence.parameters),
     ...correspondenceTable('Evidencias', correspondence.evidences),
     {
-      text: `Solo en ENSFácil: ${correspondence.ownOnly.map(item => `${item.id} (${item.note})`).join(' · ')}`,
+      text: `Solo en Power ENS: ${correspondence.ownOnly.map(item => `${item.id} (${item.note})`).join(' · ')}`,
       fontSize: 8,
       color: CRITERION_COLOR,
       margin: [0, 6, 0, 0],

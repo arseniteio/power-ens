@@ -9,7 +9,7 @@ declare const process: { exit(code: number): void };
 const failures: string[] = [];
 const check = (n: string, c: boolean, d: unknown = '') => { console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${!c && d !== '' ? ` — ${JSON.stringify(d)}` : ''}`); if (!c) failures.push(n); };
 
-const MOTIVE = 'Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.';
+const MOTIVE = 'Hace falta el rol power_ens_admin o all_access para cambiar la configuración ENS o ver su historial.';
 
 const coreError = (statusText: string, status: number, body?: unknown) =>
   Object.assign(new Error(statusText), { name: 'Error', body, response: { status } });

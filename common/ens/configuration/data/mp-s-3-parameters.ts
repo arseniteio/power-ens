@@ -21,8 +21,8 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Acreditación documental. Es el requisito del que cuelga la legitimidad de todo lo demás: sin normativa difundida, el registro de navegación de R1 carece de base informativa frente al personal.',
-      ensfacilUsage:
-        'ENSFácil recoge la referencia y el registro de difusión.',
+      powerEnsUsage:
+        'Power ENS recoge la referencia y el registro de difusión.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
       ifNotConfigured:
@@ -42,7 +42,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Habilita la ingesta y los decodificadores. Sin registros del proxy no hay evidencia de que el filtrado opere ni de qué se bloquea, y el control queda reducido a la configuración declarada.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Habilita la ingesta y los decodificadores. Sin registros del proxy no hay evidencia de que el filtrado opere ni de qué se bloquea, y el control queda reducido a la configuración declarada.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-06', 'EV-11'],
       ruleIds: [],
@@ -76,9 +76,9 @@ export const mpS3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
-      ensfacilUsage:
-        'ENSFácil verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
+        'Power ENS verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
+      powerEnsUsage:
+        'Power ENS verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-06', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
@@ -97,9 +97,9 @@ export const mpS3Configuration: ENSControlConfiguration = {
       example: 'Resolutores internos obligatorios; DNS externo bloqueado en el perímetro; filtrado en el resolutor',
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
-      ensfacilUsage:
-        'ENSFácil verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
+        'Power ENS verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
+      powerEnsUsage:
+        'Power ENS verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
       evidenceIds: ['EV-05', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
@@ -119,7 +119,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'SCA verifica la configuración del navegador gestionado. Es un requisito peculiar del ENS y poco habitual en otros marcos, de modo que conviene no pasarlo por alto: pide política ejecutiva, no recomendación.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica la configuración del navegador gestionado. Es un requisito peculiar del ENS y poco habitual en otros marcos, de modo que conviene no pasarlo por alto: pide política ejecutiva, no recomendación.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -160,8 +160,8 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Registro documental. No es verificable técnicamente, aunque el descenso de clics en destinos bloqueados tras una campaña es un indicador indirecto aprovechable.',
-      ensfacilUsage:
-        'ENSFácil controla la periodicidad y enlaza con mp.per.3.',
+      powerEnsUsage:
+        'Power ENS controla la periodicidad y enlaza con mp.per.3.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
       ifNotConfigured:
@@ -207,7 +207,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Registro documental enlazado con mp.per.4. Es un requisito que se confunde a menudo con la concienciación de mp.s.3.2, pero tiene destinatario y contenido distintos: va dirigido a quien administra, y sobre monitorización y respuesta a incidentes.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Registro documental enlazado con mp.per.4. Es un requisito que se confunde a menudo con la concienciación de mp.s.3.2, pero tiene destinatario y contenido distintos: va dirigido a quien administra, y sobre monitorización y respuesta a incidentes.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
@@ -228,7 +228,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Configura la ingesta y la política de retención, y queda recogido en el informe como declaración. Es además la base de información al personal: los tres extremos que el ENS pide declarar coinciden con lo que exige la transparencia en materia de protección de datos.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Configura la ingesta y la política de retención, y queda recogido en el informe como declaración. Es además la base de información al personal: los tres extremos que el ENS pide declarar coinciden con lo que exige la transparencia en materia de protección de datos.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -249,8 +249,8 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Configura la inspección y, sobre todo, sus exclusiones. El propio ENS prevé la salvedad de los accesos cifrados singulares a destinos de confianza, y es el parámetro que acota una medida con implicaciones que van más allá del ENS.',
-      ensfacilUsage:
-        'ENSFácil verifica que la inspección respeta las exclusiones declaradas.',
+      powerEnsUsage:
+        'Power ENS verifica que la inspección respeta las exclusiones declaradas.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -270,7 +270,7 @@ export const mpS3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Se carga en el proxy y como CDB list en Wazuh para detectar también los intentos que no pasen por el proxy. Enlaza con op.exp.7 R3: los indicadores de los avisos del CCN-CERT alimentan esta lista de forma natural.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se carga en el proxy y como CDB list en Wazuh para detectar también los intentos que no pasen por el proxy. Enlaza con op.exp.7 R3: los indicadores de los avisos del CCN-CERT alimentan esta lista de forma natural.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
@@ -290,9 +290,9 @@ export const mpS3Configuration: ENSControlConfiguration = {
       example: 'sede.org.es\nboe.es',
       required: false,
       wazuhUsage:
-        'ENSFácil verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
-      ensfacilUsage:
-        'ENSFácil verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
+        'Power ENS verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
+      powerEnsUsage:
+        'Power ENS verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

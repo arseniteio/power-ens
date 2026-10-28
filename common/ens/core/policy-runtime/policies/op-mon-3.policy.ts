@@ -49,7 +49,7 @@ const { validos: valid, estadoVigente: currentStatus, degradacion: degradation, 
 
 const decide = decisionBuilderFor(POLICY);
 
-// Freshness of CENTRAL COLLECTION state, which arrives hourly. 26 h does not fit: ENSFácil facts
+// Freshness of CENTRAL COLLECTION state, which arrives hourly. 26 h does not fit: Power ENS facts
 // reach the index through the collection system itself, so if it stops its state stops arriving and
 // the last one, «collecting», would keep accrediting the control a whole day. 3 h tolerates two
 // missed hourly runs.

@@ -247,7 +247,7 @@ export const mpCom4Control: ENSControl = {
       requirements: ['mp.com.4.1'],
       type: 'table',
       usage:
-        'ENSFácil contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
+        'Power ENS contrasta cada flujo observado con esta matriz. Flujo entre segmentos no autorizado → hallazgo de fuga de segmentación. Es la comprobación central y la que revela si la segmentación funciona de verdad.',
       missingBehavior:
         'mp.com.4.1 NO EVALUABLE. Se ven los flujos pero no se puede juzgar si cruzan segmentos indebidamente.',
     },
@@ -260,7 +260,7 @@ export const mpCom4Control: ENSControl = {
       requirements: ['mp.com.4.r1.1', 'mp.com.4.r2.1', 'mp.com.4.r3.1'],
       type: 'select',
       usage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-03 = R1, se emite incumplimiento directo sin más comprobaciones: la VLAN deja de ser opción válida al subir de MEDIA a ALTA.',
       missingBehavior:
         'No se puede determinar qué refuerzo es aplicable ni verificar su admisibilidad para la categoría.',
     },
@@ -273,7 +273,7 @@ export const mpCom4Control: ENSControl = {
       requirements: ['mp.com.4.2'],
       type: 'table',
       usage:
-        'ENSFácil verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
+        'Power ENS verifica que el tráfico originado en los rangos inalámbricos permanece en su segmento y solo alcanza lo autorizado en P-02. Enlaza con mp.eq.4 P-06 para el tratamiento de invitados y BYOD.',
       missingBehavior:
         'mp.com.4.2 NO EVALUABLE. No se puede verificar la separación de las comunicaciones inalámbricas.',
     },
@@ -312,7 +312,7 @@ export const mpCom4Control: ENSControl = {
       requirements: ['mp.com.4.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
+        'Power ENS registra las revisiones y alerta al superarse P-07. Señala además los flujos de P-02 sin tráfico observado, candidatos a retirada, y los flujos observados que no estaban previstos.',
       missingBehavior:
         'La matriz envejece sin control. La segmentación se degrada por acumulación de excepciones.',
     },

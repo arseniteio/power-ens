@@ -1,7 +1,7 @@
 <!-- op.exp.1 · Asset inventory · manager rules.
-     Canonical source: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_1_json_rules.xml; copied byte for byte
+     Canonical source: plugin-wazuh-ens/agent/rules/power_ens_op_exp_1_json_rules.xml; copied byte for byte
      into manager/ of the Linux and LDAP op.exp.1 runbooks (checked by plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_exp_1,">
+<group name="power_ens,op_exp_1,">
 
   <!-- ================================================================
        op.exp.1 · Asset inventory
@@ -24,14 +24,14 @@
 
        Outside the map: 110200 (level 0, never alerts) and the diagnostics 110295-110299.
 
-       Linux and LDAP runbooks write to the same file (/var/log/ensfacil/op_exp_1.json) with the
+       Linux and LDAP runbooks write to the same file (/var/log/power-ens/op_exp_1.json) with the
        same rule IDs; directory hosts add the `plano` and `directorio_*` fields.
        ================================================================ -->
 
   <rule id="110200" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">^op.exp.1$</field>
-    <description>op.exp.1 · evento ENSFácil base</description>
+    <field name="power_ens">^op.exp.1$</field>
+    <description>op.exp.1 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== Technical asset inventory ===== -->

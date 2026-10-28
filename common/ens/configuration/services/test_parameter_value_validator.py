@@ -219,7 +219,7 @@ SYNTHETIC_BASE = {
     "id": "P-XX", "controlId": "sintetico", "name": "sintetico",
     "label": "Sintético", "description": "", "levels": ["BAJO"],
     "requirements": [], "required": True, "wazuhUsage": "",
-    "ensfacilUsage": "", "evidenceIds": [], "ruleIds": [],
+    "powerEnsUsage": "", "evidenceIds": [], "ruleIds": [],
     "ifNotConfigured": "",
 }
 

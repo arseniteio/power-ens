@@ -425,7 +425,7 @@ const sources = (
       ? notMeasured(motive.motivo, motive.causa)
       : record === 'ausente'
       ? notMeasured(
-          'No existe el registro de incidentes del manager (/etc/ensfacil/incident-register.tsv): la organización no ha empezado a registrar incidentes.',
+          'No existe el registro de incidentes del manager (/etc/power-ens/incident-register.tsv): la organización no ha empezado a registrar incidentes.',
           'CONFIGURATION'
         )
       : notMeasured(`El registro de incidentes no se ha podido leer en la última pasada (${record || 'sin dato'}).`, 'COLLECTION');
@@ -674,7 +674,7 @@ const ev01 = (context: ENSPolicyContext, now: number): Measurement => {
 
   if (since !== undefined && c.relevanteDesde !== undefined && since > c.relevanteDesde) {
     return notMeasured(
-      `El recolector observa alertas desde nivel ${since} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/ensfacil/opexp7.env del manager.`,
+      `El recolector observa alertas desde nivel ${since} y P-01 declara Alta o Crítica desde nivel ${c.relevanteDesde}: las alertas relevantes entre esos niveles no se ven. Baja OPEXP7_NIVEL_OBSERVADO en /etc/power-ens/opexp7.env del manager.`,
       'CONFIGURATION'
     );
   }
@@ -1277,7 +1277,7 @@ const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
     .map(f => f.tipo_evidencia)
     .filter(t => t && !/registro|log|alerta/i.test(t));
   const noteOther = other.length
-    ? ` Sin verificación técnica (se acreditan fuera de ENSFácil): ${other.join(', ')}.`
+    ? ` Sin verificación técnica (se acreditan fuera de Power ENS): ${other.join(', ')}.`
     : '';
 
   if (failures.length) {

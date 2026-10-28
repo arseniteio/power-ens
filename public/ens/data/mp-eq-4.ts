@@ -187,7 +187,7 @@ export const mpEq4Control: ENSControl = {
       requirements: ['mp.eq.4.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
+        'Power ENS verifica en los logs de cortafuegos y de la electrónica de red que los flujos observados se ajustan a esta definición. Flujo no previsto —una impresora hablando con internet— → hallazgo. Es la vía realista de verificar mp.eq.4.1 sin agente en el dispositivo.',
       missingBehavior:
         'mp.eq.4.1 NO EVALUABLE. No se puede juzgar si un flujo observado está autorizado o no.',
     },
@@ -195,7 +195,7 @@ export const mpEq4Control: ENSControl = {
       id: 'P-03',
       name: 'fuentes_descubrimiento_red',
       description:
-        'Fuentes de las que ENSFácil obtiene la presencia de dispositivos en la red: servidor DHCP, tablas de la electrónica de red, autenticación 802.1X, NAC si existe, barridos de descubrimiento.',
+        'Fuentes de las que Power ENS obtiene la presencia de dispositivos en la red: servidor DHCP, tablas de la electrónica de red, autenticación 802.1X, NAC si existe, barridos de descubrimiento.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.eq.4.1', 'mp.eq.4.r2.1'],
       type: 'table',
@@ -226,7 +226,7 @@ export const mpEq4Control: ENSControl = {
       requirements: ['mp.eq.4.2'],
       type: 'table',
       usage:
-        'ENSFácil registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
+        'Power ENS registra la capacidad declarada y, cuando el dispositivo envíe logs (P-04), puede verificar la ejecución del borrado. La disponibilidad de la funcionalidad es una característica del producto y se acredita documentalmente.',
       missingBehavior:
         'mp.eq.4.2 NO ACREDITADO. Riesgo real: discos de multifunción retirados con documentos recuperables.',
     },
@@ -239,7 +239,7 @@ export const mpEq4Control: ENSControl = {
       requirements: ['mp.eq.4.1'],
       type: 'select',
       usage:
-        'ENSFácil verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
+        'Power ENS verifica que los dispositivos no corporativos detectados están en el segmento previsto y no alcanzan recursos internos. Enlaza directamente con mp.com.4 (separación de flujos).',
       missingBehavior:
         'No se puede distinguir un dispositivo de invitado legítimo de una conexión no autorizada a la red interna.',
     },
@@ -252,7 +252,7 @@ export const mpEq4Control: ENSControl = {
       requirements: ['mp.eq.4.r1.1'],
       type: 'table',
       usage:
-        'Registro documental en ENSFácil con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
+        'Registro documental en Power ENS con control de vigencia. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh. Lo que sí aporta valor es registrar y conservar la justificación cuando no fue posible, porque el refuerzo la admite expresamente.',
       missingBehavior:
         'R1 NO ACREDITADO. Ni la certificación ni la justificación de su ausencia constan.',
     },
@@ -265,7 +265,7 @@ export const mpEq4Control: ENSControl = {
       requirements: ['mp.eq.4.r2.1'],
       type: 'select',
       usage:
-        'ENSFácil ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
+        'Power ENS ingiere los eventos de autenticación de red y de violación de port security, lo que permite detectar la conexión de dispositivos no autorizados en el momento en que ocurre y no en la siguiente revisión de inventario.',
       missingBehavior:
         'R2 sin cubrir. Un dispositivo no autorizado puede conectarse a la red sin que nada lo impida ni lo registre.',
     },
@@ -278,7 +278,7 @@ export const mpEq4Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

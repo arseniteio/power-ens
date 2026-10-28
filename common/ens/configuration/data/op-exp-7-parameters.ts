@@ -66,7 +66,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Clasifica las alertas de Wazuh por severidad ENS a partir de su nivel de regla y decide cuáles deben acabar en incidente registrado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Da a cada alerta la severidad de la fila de nivel mínimo más alto que alcanza y exige incidente registrado para las Alta o Crítica. La columna «criterio» es referencia documental: no se compara.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-08'],
       ruleIds: [],
@@ -115,7 +115,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Da el plazo en que una alerta relevante debe estar convertida en incidente y el destinatario al que debe haberse escalado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Una alerta Alta o Crítica sin incidente de su sistema abierto a menos de «plazo» horas es una alerta huérfana (EV-02). Un incidente cuyo escalado no nombra al destinatario de su severidad, o llega tarde, incumple EV-04.',
       evidenceIds: ['EV-02', 'EV-04', 'EV-08'],
       ruleIds: [],
@@ -128,11 +128,11 @@ export const opExp7Configuration: ENSControlConfiguration = {
       name: 'sistema_gestion_incidentes',
       label: 'Sistema de gestión de incidentes',
       description:
-        'Herramienta donde se gestionan los incidentes con su ciclo de vida, dónde se consulta y quién la mantiene; ENSFácil no se conecta a ella ni guarda credenciales. Lee el registro del manager (/etc/ensfacil/incident-register.tsv), que la organización mantiene aunque use otra herramienta, con una fila por fase y la referencia al expediente.',
+        'Herramienta donde se gestionan los incidentes con su ciclo de vida, dónde se consulta y quién la mantiene; Power ENS no se conecta a ella ni guarda credenciales. Lee el registro del manager (/etc/power-ens/incident-register.tsv), que la organización mantiene aunque use otra herramienta, con una fila por fase y la referencia al expediente.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.7.1'],
       type: 'table',
-      example: 'Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv | Responsable de Seguridad',
+      example: 'Registro Power ENS del manager | /etc/power-ens/incident-register.tsv | Responsable de Seguridad',
       columns: [
         {
           name: 'herramienta',
@@ -156,7 +156,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Documenta dónde vive el ciclo de vida de los incidentes. Ninguna credencial se guarda en la pantalla de Configuración.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra al auditor junto a la conciliación de EV-02. No se compara: se juzga el registro de incidentes del manager.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -197,7 +197,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Asocia cada sistema del alcance a quien hay que informar cuando un incidente lo afecta.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Para cada incidente reúne los responsables de todos sus sistemas y exige que figuren en alguna fila de notificado_a del registro.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -240,7 +240,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Da los plazos contra los que se miden contención y resolución de cada incidente.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Calcula, por severidad, el tiempo medio de contención y de resolución de los incidentes de la ventana (los abiertos cuentan con lo que llevan) y lo compara con esta tabla. Informa también del tiempo medio de detección (de la primera alerta relevante al registro).',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -275,7 +275,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Declara por dónde se notifica al CCN-CERT. La notificación de cada incidente consta en el registro (columna notificacion_ccn_cert).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Sin plataforma declarada, R1 no se acredita. Con ella, cada incidente de una severidad que P-01 marca como notificable debe tener fecha de notificación al CCN-CERT dentro del plazo de P-02.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -310,7 +310,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Marca los sistemas cuyos incidentes arrastran las obligaciones del RGPD.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Marca los incidentes que afectan a estos sistemas y exige valoración de brecha y, si procede, notificación a la AEPD en 72 horas desde la fase inicial.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -323,7 +323,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       name: 'evidencias_a_preservar',
       label: 'Evidencias a preservar',
       description:
-        'Evidencias que deben recogerse y protegerse ante un incidente y dónde se custodian (op.exp.7.r2.1; enlaza con op.exp.9.2). ENSFácil verifica los registros de alertas del SIEM (conservados y con sello íntegro); un volcado de memoria o una imagen de disco no dejan huella observable.',
+        'Evidencias que deben recogerse y protegerse ante un incidente y dónde se custodian (op.exp.7.r2.1; enlaza con op.exp.9.2). Power ENS verifica los registros de alertas del SIEM (conservados y con sello íntegro); un volcado de memoria o una imagen de disco no dejan huella observable.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.7.r2.1'],
       type: 'table',
@@ -345,7 +345,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Declara qué se preserva. De lo declarado, los registros de alertas del manager se comprueban día a día contra su sello.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Por cada día que abarca un incidente exige que el registro de alertas se conserve y que su SHA-256 actual coincida con el sellado por Wazuh al rotarlo, con la cadena de sellos intacta. El resto de la tabla se muestra al auditor sin verificación técnica.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -392,7 +392,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Configura Active Response de Wazuh. Cada acción necesita condición de disparo, alcance limitado y reversión: una respuesta automática mal calibrada causa más indisponibilidad que el incidente.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Una respuesta activa con un comando de esta tabla en un sistema afectado durante el incidente cuenta como contención (EV-06). Las de comandos ausentes se muestran aparte y no cuentan.',
       evidenceIds: ['EV-06', 'EV-09', 'EV-11'],
       ruleIds: [],
@@ -433,7 +433,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Declara los elementos cuya reconfiguración ante un ataque debe poder demostrarse.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Una respuesta activa de un comando de P-09 sobre uno de estos elementos es reconfiguración dinámica ejercitada. Un elemento sin agente no se observa y queda sin demostrar.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -481,7 +481,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Los IoC de los avisos se cargan como listas CDB en Wazuh para detección directa.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Exige que cada lista declarada exista, esté cargada en el ossec.conf, la use al menos una regla y no lleve más de «plazo» días sin actualizarse. No ve la recepción de cada aviso: es un canal externo.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
@@ -516,7 +516,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Declara, con su motivo, qué detecciones se gestionan por otro proceso y no por el de incidentes.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Las alertas de estas reglas no cuentan como huérfanas en EV-02. El motivo y el número de alertas excluidas aparecen en el veredicto: la exclusión nunca es silenciosa.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -569,7 +569,7 @@ export const opExp7Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

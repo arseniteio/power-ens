@@ -17,7 +17,7 @@ const buildControlFilter = (controlId: string) => ({
   bool: {
     should: [
       { term: { 'data.control': controlId } },
-      { term: { 'data.ensfacil': controlId } },
+      { term: { 'data.power_ens': controlId } },
     ],
     minimum_should_match: 1,
   },

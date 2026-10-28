@@ -316,7 +316,7 @@ const provider = (
 
 
 // Each security service of P-05 with its op.pl.5 verification declared, reference and validity.
-// ENSFácil has no op.pl.5: the declaration is judged against the evaluation date, like a
+// Power ENS has no op.pl.5: the declaration is judged against the evaluation date, like a
 // certification.
 const security = (context: ENSPolicyContext, now: number, p05: Record<string, string>[]): Measurement => {
   const byService = p05.map((row): Measurement => {
@@ -781,13 +781,13 @@ const MODULE_SOURCE: Record<string, string> = {
   'aws-s3': 'CloudTrail (un bucket de tipo cloudtrail en aws-s3)',
   'azure-logs': 'el registro de actividad de Azure (AzureActivity, por Log Analytics en azure-logs)',
   'gcp-pubsub': 'los Cloud Audit Logs de Admin Activity (una suscripción de Pub/Sub en gcp-pubsub)',
-  'gcp-bucket': 'los Cloud Audit Logs de Admin Activity, que ENSFácil lee por gcp-pubsub',
+  'gcp-bucket': 'los Cloud Audit Logs de Admin Activity, que Power ENS lee por gcp-pubsub',
 };
 
 const toEnable = (module: string): string =>
   MODULE_SOURCE[module]
     ? `Para medirlo, activa ${MODULE_SOURCE[module]}.`
-    : `${module} no trae ningún registro de administración que ENSFácil lea: para medirlo, integra el del proveedor con CloudTrail (aws-s3), el registro de actividad de Azure (AzureActivity, por azure-logs) o los Cloud Audit Logs de Admin Activity (gcp-pubsub).`;
+    : `${module} no trae ningún registro de administración que Power ENS lea: para medirlo, integra el del proveedor con CloudTrail (aws-s3), el registro de actividad de Azure (AzureActivity, por azure-logs) o los Cloud Audit Logs de Admin Activity (gcp-pubsub).`;
 
 // Without operations by people and with live ingestion: only a measurement if the module brings an
 // administration record read in 30 days.

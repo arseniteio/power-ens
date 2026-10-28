@@ -235,7 +235,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.2'],
       type: 'table',
       usage:
-        'ENSFácil verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
+        'Power ENS verifica la existencia y coherencia de estos registros y vigila su alteración. Protegen la información de encaminamiento y previenen la suplantación del dominio propio, que es la vía más común de fraude por correo.',
       missingBehavior:
         'mp.s.1.2 acreditado solo parcialmente. El dominio queda expuesto a suplantación sin detección.',
     },
@@ -261,7 +261,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.1'],
       type: 'table',
       usage:
-        'ENSFácil recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
+        'Power ENS recoge el criterio y, cuando la pasarela lo registre, verifica su aplicación en los envíos que cumplan el supuesto. Es un requisito que la mayoría de las implantaciones resuelve solo con TLS, lo que deja el mensaje sin proteger en reposo.',
       missingBehavior:
         'mp.s.1.1 acreditado solo en tránsito. El contenido queda sin protección en los buzones y servidores intermedios.',
     },
@@ -274,7 +274,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.3'],
       type: 'string',
       usage:
-        'ENSFácil mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
+        'Power ENS mide el volumen filtrado y la eficacia a partir de los logs: mensajes clasificados como spam, entregados, en cuarentena y liberados. Un filtro con tasa de liberación muy alta está mal calibrado.',
       missingBehavior:
         'mp.s.1.3 NO EVALUABLE. No se puede acreditar que el filtro de correo no solicitado opere.',
     },
@@ -287,7 +287,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.4'],
       type: 'string',
       usage:
-        'ENSFácil mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
+        'Power ENS mide las detecciones por tipo de amenaza y verifica que el análisis se ejecuta sobre todos los mensajes con anexo. Enlaza con op.exp.6: el correo es la vía de entrada principal de código dañino y mp.s.1.4 es su control específico.',
       missingBehavior:
         'mp.s.1.4 NO EVALUABLE. La principal vía de entrada de código dañino queda sin verificación.',
     },
@@ -300,7 +300,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.5'],
       type: 'select',
       usage:
-        'ENSFácil verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
+        'Power ENS verifica en los logs de la pasarela que el contenido activo se bloquea o neutraliza, y mide el volumen afectado. Es el requisito más olvidado de los tres de amenazas, pese a que las macros siguen siendo un vector habitual.',
       missingBehavior:
         'mp.s.1.5 NO EVALUABLE. El código móvil en el correo queda sin tratamiento verificable.',
     },
@@ -326,7 +326,7 @@ export const mpS1Control: ENSControl = {
       requirements: ['mp.s.1.7'],
       type: 'table',
       usage:
-        'Registro documental en ENSFácil, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
+        'Registro documental en Power ENS, enlazado con mp.per.3 y mp.per.4. Si se realizan campañas de phishing simulado, sus resultados sí son datos aprovechables y dan una métrica de eficacia de la concienciación.',
       missingBehavior:
         'mp.s.1.7 NO ACREDITADO. Es, junto a mp.s.1.6, la pata normativa del control.',
     },
@@ -339,7 +339,7 @@ export const mpS1Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

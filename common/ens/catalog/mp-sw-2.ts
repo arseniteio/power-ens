@@ -7,7 +7,7 @@ export const mpSw2CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de las aplicaciones informáticas',
   dimension: 'Todas',
   annexSection: '5.6.2',
-  source: { template: 'ENSFacil_Plantilla_mp.sw.2', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.sw.2', version: '2.0', date: '2026-10-15' },
   description:
     'mp.sw.2 exige comprobar antes de producción que la aplicación cumple los criterios de seguridad y que no deteriora la seguridad de lo que ya había.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

@@ -23,67 +23,67 @@ BASE = os.environ.get("RUNBOOKS_BASE") or os.path.dirname(PLUGIN)
 RUNBOOKS = {
     "mp.info.6": (
         ("linux/mp.info.6", "zimbra/zimbra-mta/mp.info.6"),
-        ["ensfacil_mp_info_6_json_rules.xml"],
+        ["power_ens_mp_info_6_json_rules.xml"],
     ),
     "op.exp.1": (
         ("linux/op.exp.1",),
-        ["ensfacil_op_exp_1_json_rules.xml"],
+        ["power_ens_op_exp_1_json_rules.xml"],
     ),
     "op.exp.2": (
         ("linux/op.exp.2",),
-        ["ensfacil_op_exp_2_json_rules.xml"],
+        ["power_ens_op_exp_2_json_rules.xml"],
     ),
     "op.exp.3": (
         ("linux/op.exp.3",),
-        ["ensfacil_op_exp_3_json_rules.xml"],
+        ["power_ens_op_exp_3_json_rules.xml"],
     ),
     "op.exp.4": (
         ("linux/op.exp.4",),
-        ["ensfacil_op_exp_4_json_rules.xml"],
+        ["power_ens_op_exp_4_json_rules.xml"],
     ),
     "op.exp.5": (
         ("linux/op.exp.5",),
-        ["ensfacil_op_exp_5_json_rules.xml"],
+        ["power_ens_op_exp_5_json_rules.xml"],
     ),
     "op.exp.6": (
         ("linux/op.exp.6",),
-        ["ensfacil_op_exp_6_json_rules.xml"],
+        ["power_ens_op_exp_6_json_rules.xml"],
     ),
     "op.exp.7": (
         ("linux/op.exp.7",),
-        ["ensfacil_op_exp_7_json_rules.xml"],
+        ["power_ens_op_exp_7_json_rules.xml"],
     ),
     "op.exp.8": (
         ("linux/op.exp.8",),
-        ["ensfacil_op_exp_8_json_rules.xml"],
+        ["power_ens_op_exp_8_json_rules.xml"],
     ),
     "op.exp.9": (
         ("linux/op.exp.9",),
-        ["ensfacil_op_exp_9_json_rules.xml"],
+        ["power_ens_op_exp_9_json_rules.xml"],
     ),
     "op.exp.10": (
         ("linux/op.exp.10",),
-        ["ensfacil_op_exp_10_json_rules.xml"],
+        ["power_ens_op_exp_10_json_rules.xml"],
     ),
     "op.mon.1": (
         ("linux/op.mon.1",),
-        ["ensfacil_op_mon_1_json_rules.xml"],
+        ["power_ens_op_mon_1_json_rules.xml"],
     ),
     "op.mon.2": (
         ("linux/op.mon.2",),
-        ["ensfacil_op_mon_2_json_rules.xml"],
+        ["power_ens_op_mon_2_json_rules.xml"],
     ),
     "op.mon.3": (
         ("linux/op.mon.3",),
-        ["ensfacil_op_mon_3_json_rules.xml"],
+        ["power_ens_op_mon_3_json_rules.xml"],
     ),
     "op.nub.1": (
         ("linux/op.nub.1",),
-        ["ensfacil_op_nub_1_json_rules.xml"],
+        ["power_ens_op_nub_1_json_rules.xml"],
     ),
     "op.cont.3": (
         ("linux/op.cont.3",),
-        ["ensfacil_op_cont_3_json_rules.xml"],
+        ["power_ens_op_cont_3_json_rules.xml"],
     ),
 }
 
@@ -984,7 +984,7 @@ _bases = []
 _with_clashes = 0
 
 for _ruta in _canonical:
-    _bases += [(os.path.basename(_ruta), r, v) for r, v in _fields(lee(_ruta), "ensfacil")]
+    _bases += [(os.path.basename(_ruta), r, v) for r, v in _fields(lee(_ruta), "power_ens")]
     _clashes = event_clashes(_ruta)
     if _clashes:
         _with_clashes += 1

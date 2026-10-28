@@ -47,7 +47,7 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define de qué fuentes ingiere Wazuh los registros del perímetro. Sin ellos no hay forma de verificar qué flujos pasan, y el control queda sin evidencia más allá de la declaración de que el cortafuegos existe.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define de qué fuentes ingiere Wazuh los registros del perímetro. Sin ellos no hay forma de verificar qué flujos pasan, y el control queda sin evidencia más allá de la declaración de que el cortafuegos existe.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-07', 'EV-08'],
       ruleIds: [],
@@ -105,9 +105,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
-      ensfacilUsage:
-        'ENSFácil contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
+        'Power ENS contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
+      powerEnsUsage:
+        'Power ENS contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-06', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -146,9 +146,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
-      ensfacilUsage:
-        'ENSFácil detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
+        'Power ENS detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
+      powerEnsUsage:
+        'Power ENS detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -167,9 +167,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       example: '180',
       required: true,
       wazuhUsage:
-        'ENSFácil registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
-      ensfacilUsage:
-        'ENSFácil registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
+        'Power ENS registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
+      powerEnsUsage:
+        'Power ENS registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-06', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -188,9 +188,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       example: 'any → red interna en cualquier puerto\nRDP o SSH expuestos a internet\ntelnet/FTP/SMBv1 salientes',
       required: true,
       wazuhUsage:
-        'ENSFácil analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
-      ensfacilUsage:
-        'ENSFácil analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
+        'Power ENS analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
+      powerEnsUsage:
+        'Power ENS analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08'],
       ruleIds: [],
       ifNotConfigured:
@@ -209,9 +209,9 @@ export const mpCom1Configuration: ENSControlConfiguration = {
       example: 'ITS de Interconexión de Sistemas de Información: requisitos del perímetro para la categoría MEDIA',
       required: true,
       wazuhUsage:
-        'ENSFácil recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
-      ensfacilUsage:
-        'ENSFácil recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
+        'Power ENS recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
+      powerEnsUsage:
+        'Power ENS recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

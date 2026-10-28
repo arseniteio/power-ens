@@ -7,7 +7,7 @@ export const mpCom4CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de las comunicaciones',
   dimension: 'Todas',
   annexSection: '5.4.4',
-  source: { template: 'ENSFacil_Plantilla_mp.com.4', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.com.4', version: '2.0', date: '2026-10-15' },
   description:
     'mp.com.4 exige segmentar la red para que cada equipo solo alcance la información que necesita.',
   levels: ['MEDIO', 'ALTO'],

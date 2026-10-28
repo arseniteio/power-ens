@@ -34,7 +34,7 @@
       "example": "usuario",
       "required": true,
       "wazuhUsage": "No configura nada en Wazuh: decide qué requisitos aplican. Como prestador, op.nub.1.1 se acredita con la conformidad en vigor de lo prestado (P-03); como usuario, op.nub.1.2 y R1 juzgan los servicios de terceros de P-02.",
-      "ensfacilUsage": "prestador: aplican op.nub.1.1 (conformidad en P-03) y R2. usuario: op.nub.1.2, R1 y R2. ambos: todos, y P-02 separa cada servicio por su columna «uso». ninguno: todo el control NO_APLICA.",
+      "powerEnsUsage": "prestador: aplican op.nub.1.1 (conformidad en P-03) y R2. usuario: op.nub.1.2, R1 y R2. ambos: todos, y P-02 separa cada servicio por su columna «uso». ninguno: todo el control NO_APLICA.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -113,7 +113,7 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh. Los servicios utilizados sin fila en P-06 (o con módulo «ninguno») se señalan en el informe como puntos ciegos de trazabilidad: es un hallazgo, no un incumplimiento (el ENS no exige integrarlos).",
-      "ensfacilUsage": "Cada servicio utilizado necesita su expediente (P-03, P-08, P-09 y P-10, en EV-09) y, desde MEDIA, su certificación (P-04, en EV-08); con P-01 = ambos, «uso» es obligatoria. Los servicios en uso ausentes de la tabla (shadow IT) no se detectan con ficheros locales: se informa.",
+      "powerEnsUsage": "Cada servicio utilizado necesita su expediente (P-03, P-08, P-09 y P-10, en EV-09) y, desde MEDIA, su certificación (P-04, en EV-08); con P-01 = ambos, «uso» es obligatoria. Los servicios en uso ausentes de la tabla (shadow IT) no se detectan con ficheros locales: se informa.",
       "evidenceIds": [
         "EV-08",
         "EV-09"
@@ -171,8 +171,8 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "No configura nada en Wazuh: es una declaración de la organización. ENSFácil valida su vigencia, no el documento.",
-      "ensfacilUsage": "EV-09: cada servicio utilizado debe tener aquí su conformidad, vigente en la fecha de evaluación y, si es ENS, de categoría no inferior a la del sistema; vencida o ausente incumple op.nub.1.2 y vigente la acredita documentalmente. Con P-01 = prestador o ambos, cada servicio prestado necesita la suya para op.nub.1.1, con el mismo criterio.",
+      "wazuhUsage": "No configura nada en Wazuh: es una declaración de la organización. Power ENS valida su vigencia, no el documento.",
+      "powerEnsUsage": "EV-09: cada servicio utilizado debe tener aquí su conformidad, vigente en la fecha de evaluación y, si es ENS, de categoría no inferior a la del sistema; vencida o ausente incumple op.nub.1.2 y vigente la acredita documentalmente. Con P-01 = prestador o ambos, cada servicio prestado necesita la suya para op.nub.1.1, con el mismo criterio.",
       "evidenceIds": [
         "EV-09"
       ],
@@ -221,8 +221,8 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "No configura nada en Wazuh: es una declaración de la organización. ENSFácil valida su vigencia, no el certificado.",
-      "ensfacilUsage": "EV-08 (R1, desde MEDIA): cada servicio utilizado de P-02 debe tener aquí su certificación, con metodología y número, vigente en la fecha de evaluación; vigente la acredita documentalmente y vencida o ausente incumple. El informe indica los días que le quedan.",
+      "wazuhUsage": "No configura nada en Wazuh: es una declaración de la organización. Power ENS valida su vigencia, no el certificado.",
+      "powerEnsUsage": "EV-08 (R1, desde MEDIA): cada servicio utilizado de P-02 debe tener aquí su certificación, con metodología y número, vigente en la fecha de evaluación; vigente la acredita documentalmente y vencida o ausente incumple. El informe indica los días que le quedan.",
       "evidenceIds": [
         "EV-08"
       ],
@@ -281,8 +281,8 @@
         }
       ],
       "required": false,
-      "wazuhUsage": "No configura nada en Wazuh. ENSFácil no tiene op.pl.5: se juzga la verificación declarada, con su referencia y vigencia.",
-      "ensfacilUsage": "Una fila «ninguno»: R1.2 no aplica. Con servicios, «cumple op.pl.5 = sí» con referencia y vigencia acredita R1.2 documentalmente y «no» o verificación vencida incumple; vacío, «ninguno» junto a servicios, o fila sin referencia o fecha, deja R1.2 sin evaluar (causa CONFIGURATION).",
+      "wazuhUsage": "No configura nada en Wazuh. Power ENS no tiene op.pl.5: se juzga la verificación declarada, con su referencia y vigencia.",
+      "powerEnsUsage": "Una fila «ninguno»: R1.2 no aplica. Con servicios, «cumple op.pl.5 = sí» con referencia y vigencia acredita R1.2 documentalmente y «no» o verificación vencida incumple; vacío, «ninguno» junto a servicios, o fila sin referencia o fecha, deja R1.2 sin evaluar (causa CONFIGURATION).",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "R1.2 queda sin evaluar (causa CONFIGURATION): no consta si se usa algún servicio de seguridad en la nube."
@@ -292,7 +292,7 @@
       "controlId": "op.nub.1",
       "name": "integraciones_cloud_wazuh",
       "label": "Integraciones cloud en Wazuh",
-      "description": "Por cada servicio de P-02, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github) o «ninguno», y su ámbito (cuenta, suscripción, proyecto, tipos de registro). El cliente pone la credencial del proveedor en un agente dedicado, nunca en el manager ni en un agent.conf compartido: ENSFácil solo lee la presencia del módulo y sus alertas.",
+      "description": "Por cada servicio de P-02, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github) o «ninguno», y su ámbito (cuenta, suscripción, proyecto, tipos de registro). El cliente pone la credencial del proveedor en un agente dedicado, nunca en el manager ni en un agent.conf compartido: Power ENS solo lee la presencia del módulo y sus alertas.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -336,7 +336,7 @@
       ],
       "required": false,
       "wazuhUsage": "Regla 111501 (cloud_integration_observed): cada 6 h el recolector del manager informa, por módulo cloud, de dónde está configurado (ossec.conf del manager, agent.conf de un grupo o, si solo se ve por sus alertas, el agente dedicado), si está habilitado, su última alerta, las de 24 h y sus errores en ossec.log.",
-      "ensfacilUsage": "EV-01: cada servicio con módulo debe tenerlo configurado y habilitado, sin errores en 24 h y con registros más recientes que P-13 horas; EV-04 y EV-07 se juzgan sobre esos servicios. Un servicio sin integración es un hallazgo del informe, no un incumplimiento; en ALTA, R2 lee los hallazgos de postura del módulo.",
+      "powerEnsUsage": "EV-01: cada servicio con módulo debe tenerlo configurado y habilitado, sin errores en 24 h y con registros más recientes que P-13 horas; EV-04 y EV-07 se juzgan sobre esos servicios. Un servicio sin integración es un hallazgo del informe, no un incumplimiento; en ALTA, R2 lee los hallazgos de postura del módulo.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -382,7 +382,7 @@
       ],
       "required": false,
       "wazuhUsage": "Regla 111502 (cloud_posture_finding_observed): cada 6 h el recolector del manager resume, por módulo, fuente y estándar, el último resultado de cada control de postura enviado por el proveedor.",
-      "ensfacilUsage": "EV-02 (R2, solo ALTA): cada servicio de P-07 se juzga con los hallazgos de postura del módulo que le asigna P-06 (y, si se declara, solo los de ese estándar). Un control fallido incumple R2; sin hallazgos del proveedor, R2 no es automatizable y queda sin evaluar.",
+      "powerEnsUsage": "EV-02 (R2, solo ALTA): cada servicio de P-07 se juzga con los hallazgos de postura del módulo que le asigna P-06 (y, si se declara, solo los de ese estándar). Un control fallido incumple R2; sin hallazgos del proveedor, R2 no es automatizable y queda sin evaluar.",
       "evidenceIds": [
         "EV-02"
       ],
@@ -433,7 +433,7 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh: es una declaración. Wazuh 4.14 no lee la región configurada en el proveedor sin credenciales, así que EV-06 la informa sin veredicto.",
-      "ensfacilUsage": "EV-09: cada servicio utilizado debe tener aquí la región de sus datos, la de sus copias y la jurisdicción. Una fila ausente o incompleta deja el expediente incompleto (op.nub.1.2 d).",
+      "powerEnsUsage": "EV-09: cada servicio utilizado debe tener aquí la región de sus datos, la de sus copias y la jurisdicción. Una fila ausente o incompleta deja el expediente incompleto (op.nub.1.2 d).",
       "evidenceIds": [
         "EV-09"
       ],
@@ -478,7 +478,7 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh: es una declaración. Wazuh 4.14 no tiene SCA cloud para verificar el cifrado, así que EV-05 lo informa sin veredicto; las claves cloud son material criptográfico de op.exp.10.",
-      "ensfacilUsage": "EV-09: cada servicio utilizado debe tener aquí su cifrado y modelo de claves. Una fila ausente, o un cifrado «no» o «ninguno», incumple op.nub.1.2 c); una fila incompleta queda sin evaluar (causa CONFIGURATION).",
+      "powerEnsUsage": "EV-09: cada servicio utilizado debe tener aquí su cifrado y modelo de claves. Una fila ausente, o un cifrado «no» o «ninguno», incumple op.nub.1.2 c); una fila incompleta queda sin evaluar (causa CONFIGURATION).",
       "evidenceIds": [
         "EV-09"
       ],
@@ -529,7 +529,7 @@
       ],
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh: es una declaración de la organización.",
-      "ensfacilUsage": "EV-09: cada servicio utilizado debe tener aquí su último informe de pentest, con fecha no más vieja que P-12 meses en la fecha de evaluación. Ausente o más viejo: expediente incompleto (op.nub.1.2 a).",
+      "powerEnsUsage": "EV-09: cada servicio utilizado debe tener aquí su último informe de pentest, con fecha no más vieja que P-12 meses en la fecha de evaluación. Ausente o más viejo: expediente incompleto (op.nub.1.2 a).",
       "evidenceIds": [
         "EV-09"
       ],
@@ -568,7 +568,7 @@
       ],
       "required": false,
       "wazuhUsage": "Regla 111503 (cloud_admin_operation_observed): en cada pasada el recolector del manager agrupa por módulo, cuenta y actor las operaciones de administración con éxito de las alertas de los módulos cloud (CloudTrail, registro de actividad de Azure, Cloud Audit Logs).",
-      "ensfacilUsage": "EV-04: cada actor humano de una operación de administración en la ventana debe figurar aquí para su servicio; si no, incumple op.nub.1.2. Las acciones de los propios servicios del proveedor no se contrastan.",
+      "powerEnsUsage": "EV-04: cada actor humano de una operación de administración en la ventana debe figurar aquí para su servicio; si no, incumple op.nub.1.2. Las acciones de los propios servicios del proveedor no se contrastan.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -593,7 +593,7 @@
       "example": "12",
       "required": false,
       "wazuhUsage": "No configura nada en Wazuh.",
-      "ensfacilUsage": "EV-09: compara la fecha de cada informe de P-10 con la de la evaluación; uno más viejo que P-12 meses deja incompleto el expediente del servicio (op.nub.1.2 a).",
+      "powerEnsUsage": "EV-09: compara la fecha de cada informe de P-10 con la de la evaluación; uno más viejo que P-12 meses deja incompleto el expediente del servicio (op.nub.1.2 a).",
       "evidenceIds": [
         "EV-09"
       ],
@@ -617,8 +617,8 @@
       "type": "duration_hours",
       "example": "24",
       "required": false,
-      "wazuhUsage": "Regla 111501 (cloud_integration_observed): el recolector del manager anota por módulo cloud el instante de su última alerta en alerts.json (sin las de ENSFácil).",
-      "ensfacilUsage": "EV-01: la integración de un servicio de P-06 está parada si su última alerta tiene más de P-13 horas al observarla.",
+      "wazuhUsage": "Regla 111501 (cloud_integration_observed): el recolector del manager anota por módulo cloud el instante de su última alerta en alerts.json (sin las de Power ENS).",
+      "powerEnsUsage": "EV-01: la integración de un servicio de P-06 está parada si su última alerta tiene más de P-13 horas al observarla.",
       "evidenceIds": [
         "EV-01"
       ],

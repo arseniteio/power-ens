@@ -213,7 +213,7 @@ export const normalizeWazuhAlert = (hit: any): ENSNormalizedEvent => {
     id: hit?._id || source.id || `${agent.id || 'unknown'}-${source['@timestamp'] || Date.now()}`,
 
     controlId:
-      data.ensfacil ||
+      data.power_ens ||
       data.ens ||
       data.control_id ||
       data.control ||

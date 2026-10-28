@@ -256,7 +256,7 @@ export const opNub1Control: ENSControl = {
       id: 'P-06',
       name: 'integraciones_cloud_wazuh',
       description:
-        'Por cada servicio de P-02, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github) o «ninguno», y su ámbito (cuenta, suscripción, proyecto, tipos de registro). La credencial del proveedor la pone el cliente en un agente dedicado, nunca en el manager ni en un agent.conf compartido: ENSFácil solo lee la presencia del módulo y sus alertas. Es la pieza que añade a lo documental la medida técnica.',
+        'Por cada servicio de P-02, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github) o «ninguno», y su ámbito (cuenta, suscripción, proyecto, tipos de registro). La credencial del proveedor la pone el cliente en un agente dedicado, nunca en el manager ni en un agent.conf compartido: Power ENS solo lee la presencia del módulo y sus alertas. Es la pieza que añade a lo documental la medida técnica.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.nub.1.2', 'op.nub.1.r2.1'],
       type: 'table',
@@ -339,7 +339,7 @@ export const opNub1Control: ENSControl = {
       requirements: ['op.nub.1.2'],
       type: 'number',
       usage:
-        'EV-09: ENSFácil compara la fecha de cada informe de P-10 con la fecha de la evaluación; un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
+        'EV-09: Power ENS compara la fecha de cada informe de P-10 con la fecha de la evaluación; un informe más viejo que P-12 meses deja el expediente del servicio incompleto (op.nub.1.2 a).',
       missingBehavior:
         'El eje del pentest del expediente (EV-09) queda sin evaluar (causa CONFIGURATION): no hay contra qué medir la antigüedad de los informes.',
     },

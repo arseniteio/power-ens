@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_1_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_mon_1_json_rules.xml
      Byte-identical in two places: the plugin source and manager/ of the Linux
      op.mon.1 runbook. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_mon_1,">
+<group name="power_ens,op_mon_1,">
 
   <!-- ================================================================
        op.mon.1 · Intrusion detection
@@ -31,8 +31,8 @@
 
   <rule id="111200" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.mon.1</field>
-    <description>op.mon.1 · evento ENSFácil base</description>
+    <field name="power_ens">op.mon.1</field>
+    <description>op.mon.1 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.mon.1.1 and op.mon.1.r1.1 · the detection engine ===== -->
@@ -67,7 +67,7 @@
   </rule>
 
   <!-- EV-03. Every 6 h, one fact per registered agent. Its last own alert in
-       alerts.json (without ENSFácil's) and the volume of the last 24 h. Never
+       alerts.json (without Power ENS's) and the volume of the last 24 h. Never
        one fact per alert or per rule. -->
   <rule id="111204" level="3">
     <if_sid>111200</if_sid>

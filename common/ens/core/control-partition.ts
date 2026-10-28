@@ -21,7 +21,7 @@ import { isControlMeasuredOnAgent } from './scope/measurement-planes';
 import { isPendingMeasurement } from '../catalog/support/measurement-plan';
 import type { ENSAgentScope } from './scope/types';
 
-export const ENS_PRESENCE_CONTROL_ID = '__ensfacil_presence__';
+export const ENS_PRESENCE_CONTROL_ID = '__power_ens_presence__';
 export const ENS_PRESENCE_EVENT_TYPE = 'agent_presence';
 
 export interface ENSAgentPresence {
@@ -44,7 +44,7 @@ export const buildENSPresenceEvents = (
       status: 'NO_EVALUABLE',
       eventType: ENS_PRESENCE_EVENT_TYPE,
       sourceType: 'WAZUH_ALERT' as const,
-      source: 'ensfacil-presence',
+      source: 'power-ens-presence',
       // The exact instant: as of any cut, the machine "exists" if it already had some fact.
       timestamp: new Date(entry.earliest).toISOString(),
       attributes: {},

@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_9_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_9_json_rules.xml
      Byte-identical in three places: the plugin source and manager/ of the Linux and
      LDAP op.exp.9 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_9,score,">
+<group name="power_ens,op_exp_9,score,">
 
   <!-- ================================================================
        op.exp.9 · Incident management records
@@ -11,7 +11,7 @@
        The subject of the control is the MANAGER: all these facts are written by the
        manager collector (ens_opexp9_manager_collect.sh) and arrive with agent.id=000.
        It reads local files only, with no credentials: the registers the organization
-       maintains in /etc/ensfacil/, the alerts in /var/ossec/logs/alerts/ and the
+       maintains in /etc/power-ens/, the alerts in /var/ossec/logs/alerts/ and the
        configuration in /var/ossec/etc/.
 
        Fact -> rule ID -> evidence map (`relatedRules` in
@@ -41,16 +41,16 @@
 
   <rule id="111000" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.9</field>
-    <description>op.exp.9 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.9</field>
+    <description>op.exp.9 · evento Power ENS base</description>
   </rule>
 
-  <!-- ===== What the organization records (TSV in /etc/ensfacil) ===== -->
+  <!-- ===== What the organization records (TSV in /etc/power-ens) ===== -->
 
   <!-- EV-02 and EV-09. One row of the incident register
-       (/etc/ensfacil/incident-register.tsv), one per phase of each incident. The same
+       (/etc/power-ens/incident-register.tsv), one per phase of each incident. The same
        register is read by op.exp.7, which emits its own fact in its band: the engine
-       filters by `ensfacil`, so each control needs its own. -->
+       filters by `power_ens`, so each control needs its own. -->
   <rule id="111001" level="3">
     <if_sid>111000</if_sid>
     <field name="event">incident_report_registered</field>
@@ -58,7 +58,7 @@
   </rule>
 
   <!-- EV-03, EV-04 and EV-08. An action the organization links to an incident
-       (/etc/ensfacil/incident-actions.tsv): an emergency action, a derived
+       (/etc/power-ens/incident-actions.tsv): an emergency action, a derived
        modification or a review of the auditable events. -->
   <rule id="111005" level="3">
     <if_sid>111000</if_sid>
@@ -67,7 +67,7 @@
   </rule>
 
   <!-- EV-05 and EV-06. An exported and sealed evidence the organization declares
-       deposited in custody (/etc/ensfacil/evidence-custody.tsv), with its SHA-256 at
+       deposited in custody (/etc/power-ens/evidence-custody.tsv), with its SHA-256 at
        collection time. -->
   <rule id="111006" level="3">
     <if_sid>111000</if_sid>
@@ -76,7 +76,7 @@
   </rule>
 
   <!-- EV-06. An access to a custodied evidence, noted in the chain-of-custody
-       register (/etc/ensfacil/evidence-custody-log.tsv). -->
+       register (/etc/power-ens/evidence-custody-log.tsv). -->
   <rule id="111008" level="3">
     <if_sid>111000</if_sid>
     <field name="event">custody_access_recorded</field>
@@ -138,7 +138,7 @@
     <description>op.exp.9 · EV-08 · $(fichero) modificado el $(modificado) ($(origen))</description>
   </rule>
 
-  <!-- EV-02, only when the incident register is empty. How many non-ENSFácil alerts the
+  <!-- EV-02, only when the incident register is empty. How many non-Power ENS alerts the
        manager generated in the last 30 days, per level: it is the contrast to «zero
        incidents recorded». -->
   <rule id="111011" level="3">

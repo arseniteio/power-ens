@@ -7,7 +7,7 @@ export const mpEq3CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de los equipos',
   dimension: 'Todas',
   annexSection: '5.3.3',
-  source: { template: 'ENSFacil_Plantilla_mp.eq.3', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.eq.3', version: '2.0', date: '2026-10-15' },
   description:
     'mp.eq.3 protege los equipos que salen de las instalaciones.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

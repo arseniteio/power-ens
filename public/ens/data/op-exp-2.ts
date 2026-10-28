@@ -162,7 +162,7 @@ export const opExp2Control: ENSControl = {
       requirements: ['op.exp.2.1', 'op.exp.2.2', 'op.exp.2.3'],
       type: 'table',
       usage:
-        'ENSFácil despliega la política SCA correspondiente a cada agente según su perfil. Sin esta asignación, SCA evalúa con la política genérica del SO y pierde precisión en los servicios concretos del activo.',
+        'Power ENS despliega la política SCA correspondiente a cada agente según su perfil. Sin esta asignación, SCA evalúa con la política genérica del SO y pierde precisión en los servicios concretos del activo.',
       missingBehavior:
         'SCA evalúa solo con la política base del sistema operativo. La cobertura de op.exp.2 queda parcial.',
     },
@@ -175,7 +175,7 @@ export const opExp2Control: ENSControl = {
       requirements: ['op.exp.2.2'],
       type: 'table',
       usage:
-        'ENSFácil cruza los servicios y puertos detectados por Syscollector contra esta tabla. Todo servicio en ejecución o puerto en escucha no justificado genera hallazgo de funcionalidad excesiva.',
+        'Power ENS cruza los servicios y puertos detectados por Syscollector contra esta tabla. Todo servicio en ejecución o puerto en escucha no justificado genera hallazgo de funcionalidad excesiva.',
       missingBehavior:
         'op.exp.2.2 NO EVALUABLE. Wazuh ve los servicios activos pero no puede juzgar si están justificados.',
     },
@@ -201,7 +201,7 @@ export const opExp2Control: ENSControl = {
       requirements: ['op.exp.2.3'],
       type: 'table',
       usage:
-        'ENSFácil excluye estos checks del cómputo de incumplimiento en los activos afectados, pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+        'Power ENS excluye estos checks del cómputo de incumplimiento en los activos afectados, pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
       missingBehavior:
         'Las desviaciones justificadas se contabilizan como incumplimiento, distorsionando el semáforo del control.',
     },
@@ -227,7 +227,7 @@ export const opExp2Control: ENSControl = {
       requirements: ['op.exp.2.4'],
       type: 'table',
       usage:
-        'ENSFácil verifica que los anfitriones tienen agente y política SCA propia de hipervisor, y que las VM reciben el mismo tratamiento de parcheado, cuentas y antivirus que las máquinas físicas.',
+        'Power ENS verifica que los anfitriones tienen agente y política SCA propia de hipervisor, y que las VM reciben el mismo tratamiento de parcheado, cuentas y antivirus que las máquinas físicas.',
       missingBehavior:
         'op.exp.2.4 NO EVALUABLE. No se puede verificar que los anfitriones reciben el mismo tratamiento.',
     },
@@ -240,7 +240,7 @@ export const opExp2Control: ENSControl = {
       requirements: [],
       type: 'select',
       usage:
-        'ENSFácil correlaciona la fecha de alta del agente con la fecha del primer scan SCA conforme. Si un activo entra en producción antes de superar la línea base, genera hallazgo.',
+        'Power ENS correlaciona la fecha de alta del agente con la fecha del primer scan SCA conforme. Si un activo entra en producción antes de superar la línea base, genera hallazgo.',
       missingBehavior:
         'No se puede verificar la exigencia de configuración PREVIA a la entrada en operación.',
     },
@@ -253,7 +253,7 @@ export const opExp2Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

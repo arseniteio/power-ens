@@ -14,7 +14,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
   // Backups are measured only on the machines the organisation declares in P-04: not every ENS scope machine makes or keeps backups.
   scopeParameter: 'P-04',
   annexSection: '5.7.6',
-  source: { template: 'ENSFacil_Plantilla_mp.info.6', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.info.6', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [
@@ -24,7 +24,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Se realizarán copias de seguridad que permitan recuperar datos perdidos, accidental o intencionadamente. La periodicidad y los plazos de retención de estas copias de seguridad se determinarán en la normativa interna de la organización relativa a copias de seguridad.',
       interpretation:
-        'ENSFácil acredita que cada copia declarada terminó bien en la última pasada del recolector (EV-01), que la última correcta no supera la frecuencia de P-01 más el margen de P-02 (EV-02) y que el recolector informa (EV-07). La periodicidad y la retención que remite a la normativa interna se declaran en P-01 y P-03.',
+        'Power ENS acredita que cada copia declarada terminó bien en la última pasada del recolector (EV-01), que la última correcta no supera la frecuencia de P-01 más el margen de P-02 (EV-02) y que el recolector informa (EV-07). La periodicidad y la retención que remite a la normativa interna se declaran en P-01 y P-03.',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
@@ -38,7 +38,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Los procedimientos de respaldo establecidos indicarán: a) Frecuencia de las copias.',
       interpretation:
-        'ENSFácil comprueba la planificación real de cada copia (cron o zmschedulebackup) frente a P-01 y la antigüedad de la última copia correcta frente a P-01 más el margen de P-02 (EV-01, EV-02).',
+        'Power ENS comprueba la planificación real de cada copia (cron o zmschedulebackup) frente a P-01 y la antigüedad de la última copia correcta frente a P-01 más el margen de P-02 (EV-01, EV-02).',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
@@ -52,7 +52,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Los procedimientos de respaldo establecidos indicarán: b) Requisitos de almacenamiento en el propio lugar.',
       interpretation:
-        'ENSFácil lo acredita con la retención configurada de cada copia en su repositorio frente a P-03, con la copia más antigua que se conserva (EV-03), y con el latido del recolector (EV-07). No mide el soporte ni el cifrado del almacenamiento local.',
+        'Power ENS lo acredita con la retención configurada de cada copia en su repositorio frente a P-03, con la copia más antigua que se conserva (EV-03), y con el latido del recolector (EV-07). No mide el soporte ni el cifrado del almacenamiento local.',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
@@ -66,7 +66,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Los procedimientos de respaldo establecidos indicarán: c) Requisitos de almacenamiento en otros lugares.',
       interpretation:
-        'ENSFácil lo acredita con el recolector de copias (EV-07) y con los destinos de cada copia (EV-06); la copia físicamente separada solo se exige en nivel ALTO, donde también la acredita R2.',
+        'Power ENS lo acredita con el recolector de copias (EV-07) y con los destinos de cada copia (EV-06); la copia físicamente separada solo se exige en nivel ALTO, donde también la acredita R2.',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
@@ -80,7 +80,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Los procedimientos de respaldo establecidos indicarán: d) Controles para el acceso autorizado a las copias de respaldo.',
       interpretation:
-        'ENSFácil comprueba quién puede leer el repositorio de cada copia frente a P-07 y que la clave de cifrado de las copias solo la puede leer su dueño (EV-04), junto con la retención configurada (EV-03). No observa los accesos uno a uno.',
+        'Power ENS comprueba quién puede leer el repositorio de cada copia frente a P-07 y que la clave de cifrado de las copias solo la puede leer su dueño (EV-04), junto con la retención configurada (EV-03). No observa los accesos uno a uno.',
       kind: 'BASE',
       applicability: {
         levels: ['BAJO', 'MEDIO', 'ALTO'],
@@ -94,7 +94,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Los procedimientos de copia de seguridad y restauración deben probarse regularmente. Su frecuencia dependerá de la criticidad de los datos y del impacto que cause la falta de disponibilidad.',
       interpretation:
-        'ENSFácil exige una restauración periódica de un testigo con su contenido comprobado dentro del plazo de P-05 (EV-05): en el PBS, un fichero comparado con su SHA-256; en Zimbra, la cuenta testigo y una entrada testigo del directorio. El plazo es único para todas las copias, no graduado por criticidad.',
+        'Power ENS exige una restauración periódica de un testigo con su contenido comprobado dentro del plazo de P-05 (EV-05): en el PBS, un fichero comparado con su SHA-256; en Zimbra, la cuenta testigo y una entrada testigo del directorio. El plazo es único para todas las copias, no graduado por criticidad.',
       kind: 'REFUERZO',
       applicability: {
         levels: ['MEDIO', 'ALTO'],
@@ -108,7 +108,7 @@ export const mpInfo6CatalogDefinition: ENSControlDefinition = {
       description:
         'Al menos una de las copias de seguridad se almacenará de forma separada en lugar diferente, de tal manera que un incidente no pueda afectar tanto al repositorio original como a la copia simultáneamente.',
       interpretation:
-        'ENSFácil lo acredita con los destinos de cada copia (EV-06): al menos uno fuera de la máquina y activo. Solo se exige en nivel ALTO de Disponibilidad.',
+        'Power ENS lo acredita con los destinos de cada copia (EV-06): al menos uno fuera de la máquina y activo. Solo se exige en nivel ALTO de Disponibilidad.',
       kind: 'REFUERZO',
       applicability: {
         levels: ['ALTO'],

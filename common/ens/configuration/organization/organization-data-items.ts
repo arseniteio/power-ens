@@ -113,7 +113,7 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.exp.7", "parameterId": "P-03", "where": {"uso": "incidentes"}, "columns": ["herramienta", "ubicacion", "detalle"]}
     ],
     "unmapped": [
-      {"controlId": "op.exp.9", "parameterId": "P-01", "reason": "Es una lista cerrada que indica si ENSFácil lee su registro de incidentes; una fila de texto libre no la reproduce."},
+      {"controlId": "op.exp.9", "parameterId": "P-01", "reason": "Es una lista cerrada que indica si Power ENS lee su registro de incidentes; una fila de texto libre no la reproduce."},
       {"controlId": "mp.com.3", "parameterId": "P-04", "reason": "Es el procedimiento de respuesta a un ataque activo, no la herramienta donde se registran los incidentes."}
     ]
   },
@@ -231,9 +231,9 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "registro_pruebas",
     "label": "Registro de pruebas periódicas",
-    "description": "Dónde se registra cada prueba ejecutada. ENSFácil solo lee /etc/ensfacil/continuity-test-register.tsv en el manager.",
+    "description": "Dónde se registra cada prueba ejecutada. Power ENS solo lee /etc/power-ens/continuity-test-register.tsv en el manager.",
     "type": "select",
-    "options": ["Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)", "Otra herramienta"],
+    "options": ["Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)", "Otra herramienta"],
     "views": [
       {"controlId": "op.cont.3", "parameterId": "P-04"}
     ],

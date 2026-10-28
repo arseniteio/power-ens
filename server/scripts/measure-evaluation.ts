@@ -1,5 +1,5 @@
 /**
- * Measures the ENSFácil server evaluation against a real indexer, with the same service as the
+ * Measures the Power ENS server evaluation against a real indexer, with the same service as the
  * route (`createEvaluationService`) and without the HTTP layer. Maintenance tool: the plugin does not load it.
  *
  * READ-ONLY BY CONSTRUCTION. The client given to the service can only `POST /<index>/_search` (closed
@@ -12,8 +12,8 @@
  *     --ca /path/root-ca.pem --cert /path/admin.pem --key /path/admin-key.pem \
  *     [--tz Europe/Madrid] [--control op.acc.1] [--agent 000]
  *
- * The same options by environment: ENSFACIL_INDEXER_URL, ENSFACIL_INDEXER_CA, ENSFACIL_INDEXER_CERT,
- * ENSFACIL_INDEXER_KEY, ENSFACIL_TZ. `--insecure` (or ENSFACIL_INDEXER_INSECURE=1) skips the indexer
+ * The same options by environment: POWER_ENS_INDEXER_URL, POWER_ENS_INDEXER_CA, POWER_ENS_INDEXER_CERT,
+ * POWER_ENS_INDEXER_KEY, POWER_ENS_TZ. `--insecure` (or POWER_ENS_INDEXER_INSECURE=1) skips the indexer
  * certificate check.
  *
  * Sequence of the 1.2.0 controller: cold control list (first partial response, and when all rows exist),
@@ -40,16 +40,16 @@ const argument = (name: string, environmentVariable: string): string | undefined
   return i >= 0 ? process.argv[i + 1] : process.env[environmentVariable];
 };
 const options = {
-  url: argument('url', 'ENSFACIL_INDEXER_URL') || 'https://127.0.0.1:9200',
-  ca: argument('ca', 'ENSFACIL_INDEXER_CA'),
-  cert: argument('cert', 'ENSFACIL_INDEXER_CERT'),
-  key: argument('key', 'ENSFACIL_INDEXER_KEY'),
-  tz: argument('tz', 'ENSFACIL_TZ') || 'Europe/Madrid',
-  control: argument('control', 'ENSFACIL_CONTROL') || 'op.acc.1',
-  agent: argument('agent', 'ENSFACIL_AGENT') || '000',
-  insecure: process.argv.includes('--insecure') || process.env.ENSFACIL_INDEXER_INSECURE === '1',
-  wait: Number(argument('wait', 'ENSFACIL_WAIT') || 300),
-  timeout: Number(argument('timeout', 'ENSFACIL_TIMEOUT') || 900),
+  url: argument('url', 'POWER_ENS_INDEXER_URL') || 'https://127.0.0.1:9200',
+  ca: argument('ca', 'POWER_ENS_INDEXER_CA'),
+  cert: argument('cert', 'POWER_ENS_INDEXER_CERT'),
+  key: argument('key', 'POWER_ENS_INDEXER_KEY'),
+  tz: argument('tz', 'POWER_ENS_TZ') || 'Europe/Madrid',
+  control: argument('control', 'POWER_ENS_CONTROL') || 'op.acc.1',
+  agent: argument('agent', 'POWER_ENS_AGENT') || '000',
+  insecure: process.argv.includes('--insecure') || process.env.POWER_ENS_INDEXER_INSECURE === '1',
+  wait: Number(argument('wait', 'POWER_ENS_WAIT') || 300),
+  timeout: Number(argument('timeout', 'POWER_ENS_TIMEOUT') || 900),
 };
 
 // Each line at once: synchronous write to standard output (unbuffered, even through a pipe).
@@ -66,7 +66,7 @@ const watchdog = setTimeout(() => {
 }, options.timeout * 1000);
 (watchdog as any).unref?.();
 if (!options.cert || !options.key) {
-  line('Missing --cert and --key (or ENSFACIL_INDEXER_CERT and ENSFACIL_INDEXER_KEY): the certificate used to read the indexer.');
+  line('Missing --cert and --key (or POWER_ENS_INDEXER_CERT and POWER_ENS_INDEXER_KEY): the certificate used to read the indexer.');
   process.exit(2);
 }
 const target = new URL(options.url);
@@ -159,7 +159,7 @@ const classOf = (controlId: string, event: string): string =>
   event === 'collector_run' ? 'heartbeats' : GENERIC.includes(event) ? 'generic' : getStateFactEventTypes(controlId).has(event) ? 'state' : 'actions';
 const annotate = (body: any) => {
   for (const hit of body?.hits?.hits || []) {
-    const control = String(hit?._source?.data?.ensfacil || '(no control)');
+    const control = String(hit?._source?.data?.power_ens || '(no control)');
     const counts = factsRead.get(control) || {};
     const factClass = classOf(control, String(hit?._source?.data?.event || ''));
     counts[factClass] = (counts[factClass] || 0) + 1;
@@ -275,8 +275,8 @@ const breakdown = (title: string) => {
     index: 'wazuh-alerts-*',
     body: {
       size: 0,
-      query: { bool: { filter: [{ range: { '@timestamp': { gte: window.from, lte: window.to } } }, { exists: { field: 'data.ensfacil' } }] } },
-      aggs: { c: { terms: { field: 'data.ensfacil', size: 200 }, aggs: { e: { terms: { field: 'data.event', size: 500 } } } } },
+      query: { bool: { filter: [{ range: { '@timestamp': { gte: window.from, lte: window.to } } }, { exists: { field: 'data.power_ens' } }] } },
+      aggs: { c: { terms: { field: 'data.power_ens', size: 200 }, aggs: { e: { terms: { field: 'data.event', size: 500 } } } } },
     },
   });
   line('== per control: read (cold load and series) / in the window (state, actions, generic, heartbeats)');

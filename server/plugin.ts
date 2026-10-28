@@ -8,11 +8,11 @@ import { createEvaluationService } from './lib/evaluation/evaluation-service';
 import { createMaturityService, ENSMaturityService } from './lib/maturity/maturity-service';
 import { createDailySnapshotJob } from './lib/maturity/daily-snapshot-job';
 
-export interface EnsfacilServerSetupDeps {
+export interface PowerEnsServerSetupDeps {
   securityDashboards?: unknown;
 }
 
-export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupDeps> {
+export class PowerEnsServerPlugin implements Plugin<{}, {}, PowerEnsServerSetupDeps> {
   private readonly logger: Logger;
   private securityEnabled = false;
   private maturity?: ENSMaturityService;
@@ -23,7 +23,7 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
     this.logger = initializerContext.logger.get();
   }
 
-  public setup(core: CoreSetup, deps: EnsfacilServerSetupDeps): {} {
+  public setup(core: CoreSetup, deps: PowerEnsServerSetupDeps): {} {
     const router = core.http.createRouter();
     this.securityEnabled = Boolean(deps.securityDashboards);
     const securityEnabled = this.securityEnabled;
@@ -36,7 +36,7 @@ export class EnsfacilServerPlugin implements Plugin<{}, {}, EnsfacilServerSetupD
     this.annualReport = createAnnualReportService({ logger: this.logger, evaluation: service, maturity: this.maturity });
     registerAnnualReportRoutes(router, { logger: this.logger, securityEnabled, annualReport: this.annualReport });
 
-    this.logger.debug('ENSFácil: server ready');
+    this.logger.debug('Power ENS: server ready');
 
     return {};
   }

@@ -271,9 +271,9 @@ check('CSV: no value cell starts with = + - @', rows.slice(1).every(row => !/^[=
   );
 }
 check('JSON: the data set as is', JSON.stringify(JSON.parse(toAnnualReportJson(report))) === JSON.stringify(report));
-check('file names', annualReportFileName(report, 'csv') === 'ensfacil-informe-art32-2027.csv' && annualReportFileName(markAnnualReportFrozen(report, { revision: 2, frozenAt: 'x', frozenBy: 'y' }), 'json') === 'ensfacil-informe-art32-2027-r2.json');
+check('file names', annualReportFileName(report, 'csv') === 'power-ens-informe-art32-2027.csv' && annualReportFileName(markAnnualReportFrozen(report, { revision: 2, frozenAt: 'x', frozenBy: 'y' }), 'json') === 'power-ens-informe-art32-2027-r2.json');
 check('same inputs, same data set (reproducible)', JSON.stringify(build()) === JSON.stringify(report));
-const frozen = markAnnualReportFrozen(report, { revision: 1, frozenAt: '2027-04-01T00:30:00.000Z', frozenBy: 'ENSFácil (tarea diaria)' });
+const frozen = markAnnualReportFrozen(report, { revision: 1, frozenAt: '2027-04-01T00:30:00.000Z', frozenBy: 'Power ENS (tarea diaria)' });
 check('marking it frozen changes only the header', h(frozen, 'header.frozen') === true && h(frozen, 'header.revision') === 1 && JSON.stringify({ ...frozen, header: [] }) === JSON.stringify({ ...report, header: [] }));
 check(
   'field 8 summary: implementation on the DA as field 2, MTTD exact and lower bound apart',
@@ -294,7 +294,7 @@ check('resources: the year and at least one total', validateMaturityEntry('resou
 check('resources: security staff not above ICT staff', validateMaturityEntry('resources', { period: '2027', ictStaff: 2, securityStaff: 3, reference: 'x', owner: 'y' }, now).errors.some(e => /no puede superar/.test(e)));
 check('resources: numbers stored as numbers', (validateMaturityEntry('resources', { period: '2027', ictBudget: '1000,5', reference: 'x', owner: 'y' }, now).entry as any)?.ictBudget === 1000.5);
 check('a declared entry is for a measure without engine', maturityRecordTargetError('org.1', 'declaration') === undefined && maturityRecordTargetError('mp.eq.2', 'declaration') === undefined);
-check('a measured control is refused a declared entry', /lo mide ENSFácil/.test(maturityRecordTargetError('op.acc.1', 'declaration') || ''));
+check('a measured control is refused a declared entry', /lo mide Power ENS/.test(maturityRecordTargetError('op.acc.1', 'declaration') || ''));
 check('an unknown measure is refused', /no es una medida del Anexo II/.test(maturityRecordTargetError('op.xx.1', 'declaration') || ''));
 check('resources only in op.mon.2; maturity only for catalog controls', Boolean(maturityRecordTargetError('op.acc.1', 'resources')) && Boolean(maturityRecordTargetError('org.1', 'assessment')) && !maturityRecordTargetError('op.acc.1', 'assessment'));
 check('records keep declarations and resources lists', readControlMaturityRecord(records(), 'org.1').declarations.length === 2 && readControlMaturityRecord(records(), 'op.mon.2').resources.length === 1);

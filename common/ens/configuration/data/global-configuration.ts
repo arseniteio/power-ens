@@ -58,7 +58,7 @@ export const ENSGlobalConfigurationFields = [
   {
     key: 'reportLanguage',
     label: 'Idioma de informes',
-    description: 'Idioma usado para generar informes ENSFácil.',
+    description: 'Idioma usado para generar informes Power ENS.',
     required: true,
   },
   {

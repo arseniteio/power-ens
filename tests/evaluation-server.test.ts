@@ -1,4 +1,4 @@
-/** Server evaluation (`/api/ensfacil/evaluation`) end to end against an in-memory indexer. */
+/** Server evaluation (`/api/powerEns/evaluation`) end to end against an in-memory indexer. */
 import * as fs from 'fs';
 import * as path from 'path';
 declare const require: any;
@@ -37,20 +37,20 @@ for (const line of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-
   docs.push(fact('024', 'wazuh-real', JSON.parse(line), 3));
 }
 for (let h = 200; h >= 1; h -= 1) {
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: h > 100 ? 'telnet' : 'sshd', estado: 'CUMPLE' }, h - 0.01));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: h > 100 ? 'telnet' : 'sshd', estado: 'CUMPLE' }, h - 0.01));
 }
 for (let i = 0; i < FACTS_PAGE_SIZE + 1300; i++) {
-  docs.push(fact(i % 6 ? '024' : '028', i % 6 ? 'wazuh-real' : 'zimbraHldap', { ensfacil: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + (i % 500) / 10));
+  docs.push(fact(i % 6 ? '024' : '028', i % 6 ? 'wazuh-real' : 'zimbraHldap', { power_ens: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + (i % 500) / 10));
 }
-for (const [a, nm] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) docs.push(fact(a, nm, { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'collector_run' }, 2));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'viejo', funcion: 'operacion' }, 40 * 24));
-docs.push(fact('099', 'fuera', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'x', funcion: 'operacion' }, 2));
+for (const [a, nm] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) docs.push(fact(a, nm, { power_ens: 'op.acc.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'collector_run' }, 2));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'viejo', funcion: 'operacion' }, 40 * 24));
+docs.push(fact('099', 'fuera', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'x', funcion: 'operacion' }, 2));
 
 const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.17',
@@ -103,7 +103,7 @@ const reference = () => {
   const withoutRow = whole.meta.stats.rows.filter((r: any) => r.agentId === '*').map((r: any) => r.controlId);
   const wholeReads = index.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts') && !JSON.stringify(l.body.query).includes('{"term":{"agent.id":'));
   check('each fact read is of ONE machine, except controls without a row (pruning does not grow with machines)',
-    wholeReads.every(l => withoutRow.some((id: string) => JSON.stringify(l.body.query).includes(`"data.ensfacil":"${id}"`))), [withoutRow, wholeReads.length]);
+    wholeReads.every(l => withoutRow.some((id: string) => JSON.stringify(l.body.query).includes(`"data.power_ens":"${id}"`))), [withoutRow, wholeReads.length]);
   check('nobody asks Wazuh indices for partial results', index.log.filter(l => /^wazuh-(alerts|monitoring)/.test(l.index || '')).every(l => l.params?.allow_partial_search_results === false));
   check('no read sorts by `_id`', index.log.every(l => !JSON.stringify(l.body?.sort || []).includes('"_id"')));
   check('no read asks for more than one page at a time', index.log.every(l => (l.body?.size ?? 0) <= FACTS_PAGE_SIZE));
@@ -128,7 +128,7 @@ const reference = () => {
   const probe: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   check('the probe: few bytes', JSON.stringify(probe).length < 400, JSON.stringify(probe).length);
   check('the probe states the same fingerprint as the evaluation', probe.data.fingerprint === other.meta.fingerprint);
-  index.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'nuevo', funcion: 'desarrollo' }, 0.5));
+  index.docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'nuevo', funcion: 'desarrollo' }, 0.5));
   const probe2: any = await h.probe(ctx, { query: { timeZone: 'UTC' } }, resp);
   check('a new fact changes the fingerprint', probe2.data.fingerprint !== probe.data.fingerprint);
   const after2 = await service.run(clients2, { include: 'summary', timeZone: 'UTC' });

@@ -1,4 +1,4 @@
-/** Configuration is saved as in the integrated version and changed only by `ensfacil_admin` or `all_access`. */
+/** Configuration is saved as in the integrated version and changed only by `power_ens_admin` or `all_access`. */
 import { createConfigurationHandlers } from '../server/lib/configuration-handlers';
 
 declare const process: { exit(code: number): void };
@@ -52,7 +52,7 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   check('GET without configuration: null, 200', r.status === 200 && r.body.data.configuration === null && r.body.statusCode === 200 && r.body.error === 0);
 
   r = await h.save(context(ix, user({ user_name: 'ana', roles: ['readall'] })) as any, { body: { configuration: config } } as any, responses as any);
-  check('without the administration role: 403', r.status === 403 && /ensfacil_admin/.test(r.body.message), r);
+  check('without the administration role: 403', r.status === 403 && /power_ens_admin/.test(r.body.message), r);
   check('and nothing is saved', ix.docs.size === 0);
   check('the attempt stays in the log with the user', notices.length === 1 && /ana/.test(notices[0]) && /save/.test(notices[0]), notices);
   check('without the request body', !/MEDIO|ensLevel|"configuration"/.test(notices[0]), notices[0]);
@@ -62,8 +62,8 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   check('also in the log', notices.length === 2 && /ana/.test(notices[1]) && /history/.test(notices[1]), notices);
   notices.length = 0;
 
-  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, responses as any);
-  check('ensfacil_admin saves: 200', r.status === 200, r);
+  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['power_ens_admin'] })) as any, { body: { configuration: config, changeReason: 'alta' } } as any, responses as any);
+  check('power_ens_admin saves: 200', r.status === 200, r);
   const active2 = ix.docs.get('active');
   check('active document', active2?.documentType === 'ACTIVE_CONFIGURATION' && active2?.updatedBy === 'rsis');
   check('y su historial', [...ix.docs.values()].filter(d => d.documentType === 'CONFIGURATION_HISTORY').length === 1);
@@ -79,7 +79,7 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
   check('history with role: two versions', r.status === 200 && r.body.data.length === 2);
   check('what is allowed leaves no warning', notices.length === 0, notices);
 
-  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: [1, 2] } } as any, responses as any);
+  r = await h.save(context(ix, user({ user_name: 'rsis', roles: ['power_ens_admin'] })) as any, { body: { configuration: [1, 2] } } as any, responses as any);
   check('invalid body: 400', r.status === 400);
 
   const withoutSession = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
@@ -109,7 +109,7 @@ const config = { version: '1.0.0', global: { ensLevel: 'MEDIO' }, controls: [] }
 
   const ix4 = index();
   const fake = { ...config, createdBy: 'x', updatedBy: 'y', createdAt: '2000-01-01', updatedAt: '2000-01-01', changeReason: 'cliente', auditTrail: [{ action: 'FAKE' }] };
-  r = await h.save(context(ix4, user({ user_name: 'rsis', roles: ['ensfacil_admin'] })) as any, { body: { configuration: fake, changeReason: 'real' } } as any, responses as any);
+  r = await h.save(context(ix4, user({ user_name: 'rsis', roles: ['power_ens_admin'] })) as any, { body: { configuration: fake, changeReason: 'real' } } as any, responses as any);
   const c4 = ix4.docs.get('active')?.configuration;
   check('server fields overwrite the client\'s', c4?.createdBy === 'rsis' && c4?.updatedBy === 'rsis' && c4?.createdAt !== '2000-01-01' && c4?.updatedAt !== '2000-01-01' && c4?.changeReason === 'real' && c4?.auditTrail?.length === 1 && c4?.auditTrail[0].action === 'CREATED', c4);
 

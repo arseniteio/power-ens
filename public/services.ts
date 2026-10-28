@@ -1,12 +1,12 @@
 // Dashboard core services, kept at plugin start. This is what Wazuh's `kibana-services` gave the integrated version.
 import type { CoreStart } from '../../../src/core/public';
-import type { EnsfacilStartDeps } from './types';
+import type { PowerEnsStartDeps } from './types';
 import { setENSConfigurationHttp } from '../common/ens/configuration/services/configuration-http-client';
 
 let core: CoreStart | undefined;
-let plugins: EnsfacilStartDeps | undefined;
+let plugins: PowerEnsStartDeps | undefined;
 
-export const setServices = (coreStart: CoreStart, deps: EnsfacilStartDeps): void => {
+export const setServices = (coreStart: CoreStart, deps: PowerEnsStartDeps): void => {
   core = coreStart;
   plugins = deps;
   setENSConfigurationHttp(() => getHttp());
@@ -14,7 +14,7 @@ export const setServices = (coreStart: CoreStart, deps: EnsfacilStartDeps): void
 
 const available = <T>(value: T | undefined, name: string): T => {
   if (!value) {
-    throw new Error(`ENSFácil: ${name} todavía no está disponible`);
+    throw new Error(`Power ENS: ${name} todavía no está disponible`);
   }
 
   return value;

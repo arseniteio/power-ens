@@ -54,7 +54,7 @@ const configuration = (rows: string[]): ENSControlConfiguration =>
         example: '',
         required: false,
         wazuhUsage: '',
-        ensfacilUsage: '',
+        powerEnsUsage: '',
         evidenceIds: [],
         ruleIds: [],
         ifNotConfigured: '',

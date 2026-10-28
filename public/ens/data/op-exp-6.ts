@@ -295,7 +295,7 @@ export const opExp6Control: ENSControl = {
       requirements: ['op.exp.6.2'],
       type: 'list',
       usage:
-        'ENSFácil contrasta esta lista contra la presencia real del producto detectada por Syscollector y por los eventos del propio antimalware. Equipo sin protección → hallazgo. Los elementos perimetrales suelen ser el hueco.',
+        'Power ENS contrasta esta lista contra la presencia real del producto detectada por Syscollector y por los eventos del propio antimalware. Equipo sin protección → hallazgo. Los elementos perimetrales suelen ser el hueco.',
       missingBehavior:
         'No se puede verificar la cobertura completa. op.exp.6.2 solo acreditable parcialmente.',
     },
@@ -308,7 +308,7 @@ export const opExp6Control: ENSControl = {
       requirements: ['op.exp.6.4'],
       type: 'duration_hours',
       usage:
-        'ENSFácil extrae de los eventos del antimalware la fecha de la última actualización de firmas por equipo y alerta cuando supera P-03. Es una de las comprobaciones más productivas y de hallazgo más frecuente.',
+        'Power ENS extrae de los eventos del antimalware la fecha de la última actualización de firmas por equipo y alerta cuando supera P-03. Es una de las comprobaciones más productivas y de hallazgo más frecuente.',
       missingBehavior:
         'op.exp.6.4 NO EVALUABLE. Equipos con firmas obsoletas pasan desapercibidos.',
     },
@@ -334,7 +334,7 @@ export const opExp6Control: ENSControl = {
       requirements: ['op.exp.6.3'],
       type: 'table',
       usage:
-        'ENSFácil verifica que cada vía declarada cuenta con análisis efectivo, contrastando con los logs de la pasarela de correo, del proxy y con eventos de montaje de dispositivos extraíbles seguidos de análisis.',
+        'Power ENS verifica que cada vía declarada cuenta con análisis efectivo, contrastando con los logs de la pasarela de correo, del proxy y con eventos de montaje de dispositivos extraíbles seguidos de análisis.',
       missingBehavior:
         'op.exp.6.3 NO EVALUABLE. No se puede acreditar que los ficheros externos se analizan antes de su uso.',
     },
@@ -347,7 +347,7 @@ export const opExp6Control: ENSControl = {
       requirements: ['op.exp.6.r1.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra la fecha del último escaneo completo por equipo a partir de los eventos del antimalware y alerta cuando se supera P-06. Distinguir escaneo completo de escaneo rápido en la decodificación.',
+        'Power ENS registra la fecha del último escaneo completo por equipo a partir de los eventos del antimalware y alerta cuando se supera P-06. Distinguir escaneo completo de escaneo rápido en la decodificación.',
       missingBehavior:
         'R1 NO EVALUABLE. No se puede acreditar la regularidad del escaneo exigida desde categoría MEDIA.',
     },
@@ -386,7 +386,7 @@ export const opExp6Control: ENSControl = {
       requirements: ['op.exp.6.r4.1'],
       type: 'select',
       usage:
-        'Determina qué módulos activa ENSFácil: integración VirusTotal sobre eventos FIM, escaneo YARA sobre ficheros nuevos, Active Response para contención. Es el refuerzo que Wazuh cubre con más ventaja competitiva.',
+        'Determina qué módulos activa Power ENS: integración VirusTotal sobre eventos FIM, escaneo YARA sobre ficheros nuevos, Active Response para contención. Es el refuerzo que Wazuh cubre con más ventaja competitiva.',
       missingBehavior:
         'R4 NO EVALUABLE y es obligatorio en categoría ALTA. Se pierde la mayor aportación de Wazuh a este control.',
     },
@@ -412,7 +412,7 @@ export const opExp6Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

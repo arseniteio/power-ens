@@ -1,6 +1,6 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_2_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_acc_2_json_rules.xml
      Deployable copy for servers without access to the plugin repository; keep both in sync. -->
-<group name="ensfacil,op_acc_2,score,">
+<group name="power_ens,op_acc_2,score,">
 
   <!-- op.acc.2 · Access requirements. Reserved range 106900-106999:
        base 106900 · events 106901-106949 · evidence_state 106950-106953
@@ -10,8 +10,8 @@
 
   <rule id="106900" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.2</field>
-    <description>op.acc.2 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.2</field>
+    <description>op.acc.2 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.acc.2.1 · Resource protection (EV-01, EV-03, EV-07) ===== -->
@@ -128,7 +128,7 @@
   </rule>
 
   <!-- Native Wazuh FIM over the critical P-02 paths; adjust the pcre2 to the customer real paths.
-       INERT FOR THE PLUGIN (do not delete): syscheck alerts carry neither `ensfacil` nor `control`, so the data provider does not fetch them and they do not accredit EV-02. Kept because it has value for the SOC. -->
+       INERT FOR THE PLUGIN (do not delete): syscheck alerts carry neither `power_ens` nor `control`, so the data provider does not fetch them and they do not accredit EV-02. Kept because it has value for the SOC. -->
   <rule id="106923" level="10">
     <if_group>syscheck</if_group>
     <field name="file" type="pcre2">/etc/passwd|/etc/shadow|/etc/sudoers|/etc/ssh/sshd_config|/etc/crontab</field>

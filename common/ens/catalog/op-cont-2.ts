@@ -15,7 +15,7 @@ export const opCont2CatalogDefinition: ENSControlDefinition = {
     'op.cont.2 es un control de planificación y su acreditación es documental: existe el plan, identifica funciones, contempla medios alternativos contratados, se ha formado a las personas y está integrado con los demás planes de la organización.',
   levels: ['ALTO'],
   annexSection: '4.6.2',
-  source: { template: 'ENSFacil_Plantilla_op.cont.2', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.cont.2', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // The evidences of each requirement are the design's, not the template's. Each requirement is a plan content, so all five rest on EV-01 (the plan and its validity) besides their own declaration: 2.3 on EV-04 (contracts), 2.4 on EV-06 (training); 2.1, 2.2 and 2.5 judge P-03, P-02 and P-06 in the requirement decision.

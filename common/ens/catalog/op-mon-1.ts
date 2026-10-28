@@ -12,7 +12,7 @@ export const opMon1CatalogDefinition: ENSControlDefinition = {
     'op.mon.1 es uno de los controles que Wazuh cubre por naturaleza: es un HIDS con motor de reglas, de modo que el requisito base y R1 quedan satisfechos con el propio despliegue.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.7.1',
-  source: { template: 'ENSFacil_Plantilla_op.mon.1', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.mon.1', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // The evidences of each requirement are the design's, not the template's: op.mon.1.1 is decided with EV-01 to EV-05 and R1 with EV-01 and EV-08. R2 is documentary (no technical evidence: accredited by P-05 or P-ATT) and EV-06 stays as report data with no requirement judging it. R3 is required in no category.

@@ -21,7 +21,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'SCA verifica el valor configurado en la política de cada equipo y alerta si es superior a P-01 o si el bloqueo está deshabilitado. Es la comprobación central del control.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica el valor configurado en la política de cada equipo y alerta si es superior a P-01 o si el bloqueo está deshabilitado. Es la comprobación central del control.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],
@@ -42,8 +42,8 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'SCA verifica los límites de sesión configurados.',
-      ensfacilUsage:
-        'ENSFácil valida además la coherencia: si P-02 ≤ P-01 la configuración es incorrecta por definición, porque el refuerzo exige un tiempo superior.',
+      powerEnsUsage:
+        'Power ENS valida además la coherencia: si P-02 ≤ P-01 la configuración es incorrecta por definición, porque el refuerzo exige un tiempo superior.',
       evidenceIds: ['EV-02', 'EV-04'],
       ruleIds: [],
       ifNotConfigured:
@@ -83,8 +83,8 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define el alcance de las comprobaciones SCA.',
-      ensfacilUsage:
-        'ENSFácil contrasta la lista con los equipos que efectivamente reportan y señala los que quedan sin verificar.',
+      powerEnsUsage:
+        'Power ENS contrasta la lista con los equipos que efectivamente reportan y señala los que quedan sin verificar.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -129,9 +129,9 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
-      ensfacilUsage:
-        'ENSFácil excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+        'Power ENS excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+      powerEnsUsage:
+        'Power ENS excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -166,7 +166,7 @@ export const mpEq2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Syscollector detecta estos procesos y ejecutables instalados. Es un vector de incumplimiento silencioso: la política está bien, el usuario la elude y ningún check de configuración lo revela.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Syscollector detecta estos procesos y ejecutables instalados. Es un vector de incumplimiento silencioso: la política está bien, el usuario la elude y ningún check de configuración lo revela.',
       evidenceIds: ['EV-01', 'EV-03', 'EV-04', 'EV-05', 'EV-06'],
       ruleIds: [],

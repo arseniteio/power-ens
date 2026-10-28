@@ -1,7 +1,7 @@
 {
-  "name": "ensfacil",
+  "name": "powerEns",
   "version": "1.4.0",
-  "description": "ENSFácil: cumplimiento del Esquema Nacional de Seguridad sobre los datos de Wazuh",
+  "description": "Power ENS: cumplimiento del Esquema Nacional de Seguridad sobre los datos de Wazuh",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "opensearchDashboards": {

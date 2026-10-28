@@ -53,7 +53,7 @@ section('1. A column without a boolean `required` does not pass, and it says whi
       ruleIds: [],
       evidenceIds: [],
       wazuhUsage: '-',
-      ensfacilUsage: '-',
+      powerEnsUsage: '-',
       ifNotConfigured: '-',
       value: [],
       columns: columns,

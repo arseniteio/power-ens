@@ -60,7 +60,7 @@ const configuration = (
         example: '',
         required: false,
         wazuhUsage: '',
-        ensfacilUsage: '',
+        powerEnsUsage: '',
         evidenceIds: [],
         ruleIds: [],
         ifNotConfigured: '',

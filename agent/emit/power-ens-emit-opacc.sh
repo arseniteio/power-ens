@@ -1,25 +1,25 @@
 #!/bin/bash
-# ensfacil-emit-opacc.sh — emisor de eventos ENSFácil para op.acc.1 / op.acc.2
-# Escribe ndjson en /var/log/ensfacil/<control>.json con bloqueo y rotación.
+# power-ens-emit-opacc.sh — emisor de eventos Power ENS para op.acc.1 / op.acc.2
+# Escribe ndjson en /var/log/power-ens/<control>.json con bloqueo y rotación.
 # Mismo contrato que el emisor de mp.info.6.
 #
 # Uso:
-#   ensfacil_emit op.acc.1 account_inventory EV-01 op.acc.1.3 CUMPLE BAJO '"total_cuentas":42'
-#   ensfacil_emit op.acc.2 world_writable    EV-01 op.acc.2.1 NO_CUMPLE BAJO '"ruta":"/tmp/x","permisos":"777"'
+#   power_ens_emit op.acc.1 account_inventory EV-01 op.acc.1.3 CUMPLE BAJO '"total_cuentas":42'
+#   power_ens_emit op.acc.2 world_writable    EV-01 op.acc.2.1 NO_CUMPLE BAJO '"ruta":"/tmp/x","permisos":"777"'
 
-ENSFACIL_LOG_DIR="${ENSFACIL_LOG_DIR:-/var/log/ensfacil}"
-ENSFACIL_MAX_BYTES="${ENSFACIL_MAX_BYTES:-10485760}"   # 10 MB
-ENSFACIL_OP_ACC_1_COLLECTOR="${ENSFACIL_OP_ACC_1_COLLECTOR:-/opt/ensfacil/repo/agent/collectors/ens_op_acc1_audit.py}"
-ENSFACIL_FLOCK_BIN="${ENSFACIL_FLOCK_BIN:-flock}"
+POWER_ENS_LOG_DIR="${POWER_ENS_LOG_DIR:-/var/log/power-ens}"
+POWER_ENS_MAX_BYTES="${POWER_ENS_MAX_BYTES:-10485760}"   # 10 MB
+POWER_ENS_OP_ACC_1_COLLECTOR="${POWER_ENS_OP_ACC_1_COLLECTOR:-/opt/power-ens/repo/agent/collectors/ens_op_acc1_audit.py}"
+POWER_ENS_FLOCK_BIN="${POWER_ENS_FLOCK_BIN:-flock}"
 
-ensfacil_emit_raw() (
+power_ens_emit_raw() (
   umask 027
 
   local control="${1:-}"
   local input_temporary=""
   local file=""
   local lock_file=""
-  local flock_bin="$ENSFACIL_FLOCK_BIN"
+  local flock_bin="$POWER_ENS_FLOCK_BIN"
 
   cleanup_raw() {
     [ -z "$input_temporary" ] || rm -f "$input_temporary"
@@ -29,39 +29,39 @@ ensfacil_emit_raw() (
 
   case "$control" in
     "")
-      echo "ensfacil_emit_raw: falta control" >&2
+      echo "power_ens_emit_raw: falta control" >&2
       return 1
       ;;
     *[!A-Za-z0-9._-]*)
-      echo "ensfacil_emit_raw: control inválido: $control" >&2
+      echo "power_ens_emit_raw: control inválido: $control" >&2
       return 1
       ;;
   esac
 
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "ensfacil_emit_raw: python3 no disponible" >&2
+    echo "power_ens_emit_raw: python3 no disponible" >&2
     return 1
   fi
 
   if ! command -v "$flock_bin" >/dev/null 2>&1; then
-    echo "ensfacil_emit_raw: flock es obligatorio para publicación atómica" >&2
+    echo "power_ens_emit_raw: flock es obligatorio para publicación atómica" >&2
     return 1
   fi
 
   input_temporary="$(
-    mktemp "${TMPDIR:-/tmp}/ensfacil-raw-input.XXXXXX"
+    mktemp "${TMPDIR:-/tmp}/power-ens-raw-input.XXXXXX"
   )" || {
-    echo "ensfacil_emit_raw: no se pudo crear temporal" >&2
+    echo "power_ens_emit_raw: no se pudo crear temporal" >&2
     return 1
   }
 
   if ! cat > "$input_temporary"; then
-    echo "ensfacil_emit_raw: no se pudo recibir NDJSON" >&2
+    echo "power_ens_emit_raw: no se pudo recibir NDJSON" >&2
     return 1
   fi
 
   if [ ! -s "$input_temporary" ]; then
-    echo "ensfacil_emit_raw: entrada NDJSON vacía" >&2
+    echo "power_ens_emit_raw: entrada NDJSON vacía" >&2
     return 1
   fi
 
@@ -79,7 +79,7 @@ required = {
     "schema_version",
     "event_id",
     "execution_id",
-    "ensfacil",
+    "power_ens",
     "event",
     "event_class",
     "mode",
@@ -141,7 +141,7 @@ for number, line in enumerate(lines, start=1):
             f"Línea {number}: faltan campos: {missing}"
         )
 
-    if payload["ensfacil"] != control:
+    if payload["power_ens"] != control:
         raise SystemExit(
             f"Línea {number}: control inesperado."
         )
@@ -266,45 +266,45 @@ print(
 , file=sys.stderr)
 PY_VALIDATE_RAW
   then
-    echo "ensfacil_emit_raw: validación rechazada" >&2
+    echo "power_ens_emit_raw: validación rechazada" >&2
     return 1
   fi
 
-  file="${ENSFACIL_LOG_DIR}/$(echo "$control" | tr '.' '_').json"
+  file="${POWER_ENS_LOG_DIR}/$(echo "$control" | tr '.' '_').json"
   lock_file="${file}.lock"
 
-  case "$ENSFACIL_MAX_BYTES" in
+  case "$POWER_ENS_MAX_BYTES" in
     ""|*[!0-9]*)
-      echo "ensfacil_emit_raw: ENSFACIL_MAX_BYTES inválido" >&2
+      echo "power_ens_emit_raw: POWER_ENS_MAX_BYTES inválido" >&2
       return 1
       ;;
   esac
 
-  if ! mkdir -p "$ENSFACIL_LOG_DIR"; then
-    echo "ensfacil_emit_raw: no se pudo crear el directorio" >&2
+  if ! mkdir -p "$POWER_ENS_LOG_DIR"; then
+    echo "power_ens_emit_raw: no se pudo crear el directorio" >&2
     return 1
   fi
 
-  chmod 750 "$ENSFACIL_LOG_DIR" 2>/dev/null || true
+  chmod 750 "$POWER_ENS_LOG_DIR" 2>/dev/null || true
 
   if [ -L "$file" ]; then
-    echo "ensfacil_emit_raw: se rechaza destino simbólico" >&2
+    echo "power_ens_emit_raw: se rechaza destino simbólico" >&2
     return 1
   fi
 
   if ! exec 200>"$lock_file"; then
-    echo "ensfacil_emit_raw: no se pudo abrir el bloqueo" >&2
+    echo "power_ens_emit_raw: no se pudo abrir el bloqueo" >&2
     return 1
   fi
 
   if ! "$flock_bin" -x 200; then
-    echo "ensfacil_emit_raw: no se pudo adquirir flock" >&2
+    echo "power_ens_emit_raw: no se pudo adquirir flock" >&2
     return 1
   fi
 
   if [ ! -e "$file" ]; then
     if ! : > "$file"; then
-      echo "ensfacil_emit_raw: no se pudo crear el fichero" >&2
+      echo "power_ens_emit_raw: no se pudo crear el fichero" >&2
       return 1
     fi
   fi
@@ -321,14 +321,14 @@ PY_VALIDATE_RAW
   )"
 
   if [ "$current_size" -gt 0 ] && \
-    [ $((current_size + input_size)) -gt "$ENSFACIL_MAX_BYTES" ]; then
+    [ $((current_size + input_size)) -gt "$POWER_ENS_MAX_BYTES" ]; then
     if ! mv -f "$file" "${file}.1"; then
-      echo "ensfacil_emit_raw: no se pudo rotar el fichero" >&2
+      echo "power_ens_emit_raw: no se pudo rotar el fichero" >&2
       return 1
     fi
 
     if ! : > "$file"; then
-      echo "ensfacil_emit_raw: no se pudo crear el fichero posterior a la rotación" >&2
+      echo "power_ens_emit_raw: no se pudo crear el fichero posterior a la rotación" >&2
       return 1
     fi
   fi
@@ -390,17 +390,17 @@ if written != len(payload):
 print(f"APPEND_BYTES={written}", file=sys.stderr)
 PY_APPEND
   then
-    echo "ensfacil_emit_raw: falló el append serializado" >&2
+    echo "power_ens_emit_raw: falló el append serializado" >&2
     return 1
   fi
 
   chmod 640 "$file" 2>/dev/null || true
   return 0
 )
-ensfacil_collect_op_acc_1() (
+power_ens_collect_op_acc_1() (
   umask 077
 
-  local collector="$ENSFACIL_OP_ACC_1_COLLECTOR"
+  local collector="$POWER_ENS_OP_ACC_1_COLLECTOR"
   local run_temporary=""
   local evidence_temporary=""
 
@@ -412,7 +412,7 @@ ensfacil_collect_op_acc_1() (
   trap cleanup_collect EXIT HUP INT TERM
 
   if [ ! -x "$collector" ]; then
-    echo "ensfacil_collect_op_acc_1: recolector no ejecutable: $collector" >&2
+    echo "power_ens_collect_op_acc_1: recolector no ejecutable: $collector" >&2
     return 1
   fi
 
@@ -421,7 +421,7 @@ ensfacil_collect_op_acc_1() (
   for argument in "$@"; do
     case "$argument" in
       --execution-id|--execution-id=*|--evidence|--evidence=*)
-        echo "ensfacil_collect_op_acc_1: no se permite proporcionar $argument" >&2
+        echo "power_ens_collect_op_acc_1: no se permite proporcionar $argument" >&2
         return 1
         ;;
     esac
@@ -442,9 +442,9 @@ PY_UUID
   fi
 
   run_temporary="$(
-    mktemp "${TMPDIR:-/tmp}/ensfacil-op-acc-1-run.XXXXXX"
+    mktemp "${TMPDIR:-/tmp}/power-ens-op-acc-1-run.XXXXXX"
   )" || {
-    echo "ensfacil_collect_op_acc_1: no se pudo crear temporal" >&2
+    echo "power_ens_collect_op_acc_1: no se pudo crear temporal" >&2
     return 1
   }
 
@@ -461,9 +461,9 @@ PY_UUID
     EV-08
   do
     evidence_temporary="$(
-      mktemp "${TMPDIR:-/tmp}/ensfacil-op-acc-1-${evidence}.XXXXXX"
+      mktemp "${TMPDIR:-/tmp}/power-ens-op-acc-1-${evidence}.XXXXXX"
     )" || {
-      echo "ensfacil_collect_op_acc_1: no se pudo crear temporal para $evidence" >&2
+      echo "power_ens_collect_op_acc_1: no se pudo crear temporal para $evidence" >&2
       return 1
     }
 
@@ -473,12 +473,12 @@ PY_UUID
       --execution-id "$execution_id" \
       > "$evidence_temporary"
     then
-      echo "ensfacil_collect_op_acc_1: falló $evidence; ejecución descartada" >&2
+      echo "power_ens_collect_op_acc_1: falló $evidence; ejecución descartada" >&2
       return 1
     fi
 
     if [ ! -s "$evidence_temporary" ]; then
-      echo "ensfacil_collect_op_acc_1: $evidence no produjo eventos" >&2
+      echo "power_ens_collect_op_acc_1: $evidence no produjo eventos" >&2
       return 1
     fi
 
@@ -523,7 +523,7 @@ for number, line in enumerate(lines, start=1):
             f"{expected_evidence}: objeto inválido."
         )
 
-    if payload.get("ensfacil") != "op.acc.1":
+    if payload.get("power_ens") != "op.acc.1":
         raise SystemExit(
             f"{expected_evidence}: control incorrecto."
         )
@@ -598,12 +598,12 @@ print(
 , file=sys.stderr)
 PY_VALIDATE_EVIDENCE
     then
-      echo "ensfacil_collect_op_acc_1: validación rechazada para $evidence" >&2
+      echo "power_ens_collect_op_acc_1: validación rechazada para $evidence" >&2
       return 1
     fi
 
     if ! cat "$evidence_temporary" >> "$run_temporary"; then
-      echo "ensfacil_collect_op_acc_1: no se pudo acumular $evidence" >&2
+      echo "power_ens_collect_op_acc_1: no se pudo acumular $evidence" >&2
       return 1
     fi
 
@@ -715,12 +715,12 @@ print(
 , file=sys.stderr)
 PY_VALIDATE_RUN
   then
-    echo "ensfacil_collect_op_acc_1: lote completo inválido" >&2
+    echo "power_ens_collect_op_acc_1: lote completo inválido" >&2
     return 1
   fi
 
-  if ! ensfacil_emit_raw op.acc.1 < "$run_temporary"; then
-    echo "ensfacil_collect_op_acc_1: no se pudo publicar la ejecución" >&2
+  if ! power_ens_emit_raw op.acc.1 < "$run_temporary"; then
+    echo "power_ens_collect_op_acc_1: no se pudo publicar la ejecución" >&2
     return 1
   fi
 
@@ -731,22 +731,22 @@ PY_VALIDATE_RUN
   return 0
 )
 
-ensfacil_emit() {
+power_ens_emit() {
   local control="$1" event="$2" evidence="$3" requisito="$4"
   local estado="$5" nivel="$6" extra="$7"
 
   [ -z "$control" ] || [ -z "$event" ] && {
-    echo "ensfacil_emit: faltan control y/o event" >&2; return 1; }
+    echo "power_ens_emit: faltan control y/o event" >&2; return 1; }
 
-  local file="${ENSFACIL_LOG_DIR}/$(echo "$control" | tr '.' '_').json"
+  local file="${POWER_ENS_LOG_DIR}/$(echo "$control" | tr '.' '_').json"
   local ts host line
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   host="$(hostname)"
 
-  mkdir -p "$ENSFACIL_LOG_DIR"
-  chmod 750 "$ENSFACIL_LOG_DIR" 2>/dev/null
+  mkdir -p "$POWER_ENS_LOG_DIR"
+  chmod 750 "$POWER_ENS_LOG_DIR" 2>/dev/null
 
-  line="{\"ensfacil\":\"${control}\",\"event\":\"${event}\",\"ts\":\"${ts}\",\"host\":\"${host}\""
+  line="{\"power_ens\":\"${control}\",\"event\":\"${event}\",\"ts\":\"${ts}\",\"host\":\"${host}\""
   [ -n "$evidence"  ] && line="${line},\"evidence_id\":\"${evidence}\""
   [ -n "$requisito" ] && line="${line},\"requisito\":\"${requisito}\""
   [ -n "$estado"    ] && line="${line},\"estado\":\"${estado}\""
@@ -757,13 +757,13 @@ ensfacil_emit() {
   # Validar JSON antes de escribir (si hay jq o python3)
   if command -v jq >/dev/null 2>&1; then
     echo "$line" | jq -e . >/dev/null 2>&1 || {
-      echo "ensfacil_emit: JSON inválido, no se emite: $line" >&2; return 1; }
+      echo "power_ens_emit: JSON inválido, no se emite: $line" >&2; return 1; }
   fi
 
   # Rotación simple
   if [ -f "$file" ]; then
     local size; size=$(stat -c%s "$file" 2>/dev/null || echo 0)
-    [ "$size" -gt "$ENSFACIL_MAX_BYTES" ] && mv "$file" "${file}.1"
+    [ "$size" -gt "$POWER_ENS_MAX_BYTES" ] && mv "$file" "${file}.1"
   fi
 
   # Escritura con bloqueo
@@ -783,19 +783,19 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   case "${1:-}" in
     --raw)
       shift
-      ensfacil_emit_raw "$@"
+      power_ens_emit_raw "$@"
       ;;
     --collect-op-acc-1)
       shift
-      ensfacil_collect_op_acc_1 "$@"
+      power_ens_collect_op_acc_1 "$@"
       ;;
     *)
       if [ "${1:-}" = "op.acc.1" ]; then
-        echo "ensfacil-emit-opacc: op.acc.1 exige --raw o --collect-op-acc-1; ruta legacy bloqueada" >&2
+        echo "power-ens-emit-opacc: op.acc.1 exige --raw o --collect-op-acc-1; ruta legacy bloqueada" >&2
         exit 2
       fi
 
-      ensfacil_emit "$@"
+      power_ens_emit "$@"
       ;;
   esac
 fi

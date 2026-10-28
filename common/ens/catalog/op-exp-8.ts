@@ -14,7 +14,7 @@ export const opExp8CatalogDefinition: ENSControlDefinition = {
     'op.exp.8 es el control que Wazuh cubre de forma más completa y, a la vez, el que exige más rigor en la propia configuración de Wazuh, porque aquí la herramienta no observa el control: la herramienta ES el control.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.3.8',
-  source: { template: 'ENSFacil_Plantilla_op.exp.8', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.exp.8', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

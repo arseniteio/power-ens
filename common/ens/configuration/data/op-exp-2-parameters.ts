@@ -2,7 +2,7 @@ import { ENSControlConfiguration } from '../types';
 
 // op.exp.2 · each parameter a judgment contrasts says here HOW it is written, because the comparison is literal.
 // `ruleIds` are the rules whose facts are judged against the parameter (they exist in
-// ensfacil_op_exp_2_json_rules.xml); P-07 and P-ATT have none because no fact is contrasted with them.
+// power_ens_op_exp_2_json_rules.xml); P-07 and P-ATT have none because no fact is contrasted with them.
 export const opExp2Configuration: ENSControlConfiguration = {
   controlId: 'op.exp.2',
   controlName: 'Configuración de seguridad',
@@ -41,7 +41,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'El recolector lee del ossec.log del agente qué políticas SCA evaluó en las últimas 36 horas y las emite como `sca_evaluation` (regla 110301).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-01 casa las políticas evaluadas con la fila del perfil (CONFORME_A_TABLA). Un perfil sin fila no incumple: es una decisión sin escribir y sale NO_EVALUABLE.',
       evidenceIds: ['EV-01'],
       ruleIds: ['110301'],
@@ -82,7 +82,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'El recolector emite cada socket en escucha y cada función expuesta del directorio como `service_exposed` (regla 110304), con servicio, protocolo, puerto y si escucha en local o en red.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-03 casa cada función expuesta con la fila de su perfil (CONFORME_A_TABLA): servicio y puerto deben estar justificados. Lo que sobra incumple op.exp.2.2.',
       evidenceIds: ['EV-03'],
       ruleIds: ['110304'],
@@ -117,7 +117,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'El recolector emite las cuentas no retiradas (shell interactiva, contraseña utilizable o claves ssh) como `login_account` (regla 110302) y cada autenticación correcta como `account_authenticated` (regla 110303). No prueba contraseñas.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 comprueba que ninguna de esas cuentas figura en P-03 (NINGUNO_EN_LISTA). Con el latido confirmado, no observar ninguna es cumplimiento.',
       evidenceIds: ['EV-02'],
       ruleIds: ['110302', '110303'],
@@ -170,7 +170,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'El recolector emite cada valor por defecto inseguro como `insecure_default` (regla 110305), con `desviacion` = <máquina>:<comprobación>.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 comprueba que toda desviación observada figura en la columna Comprobación (NINGUNO_FUERA_DE_LISTA). Sin desviaciones y con latido confirmado, cumple.',
       evidenceIds: ['EV-04'],
       ruleIds: ['110305'],
@@ -193,7 +193,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Solo el manager guarda la puntuación SCA. El recolector la lee de la API de Wazuh con un usuario de solo lectura declarado en su .env y la emite como `sca_score` (regla 110307).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 comprueba que ninguna puntuación de la serie queda por debajo del umbral (UMBRAL_MINIMO). Las excepciones de P-04 no se descuentan de la puntuación.',
       evidenceIds: ['EV-06'],
       ruleIds: ['110307'],
@@ -238,7 +238,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'El recolector emite `virtualization_role` (regla 110306) si la máquina es virtual o aloja máquinas virtuales.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-05 comprueba que toda VM o anfitrión observado consta en la columna Máquina (NINGUNO_FUERA_DE_LISTA). Que el anfitrión esté gestionado lo afirma quien declara la fila; lo mide el agente del anfitrión, no el de la VM.',
       evidenceIds: ['EV-05'],
       ruleIds: ['110306'],
@@ -260,7 +260,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún agente lo lee.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se muestra en el informe junto a EV-07. No cambia ningún veredicto.',
       evidenceIds: [],
       ruleIds: [],
@@ -313,7 +313,7 @@ export const opExp2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún agente lo lee.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
       evidenceIds: [],
       ruleIds: [],

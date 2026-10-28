@@ -7,7 +7,7 @@ export const mpS2CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de los servicios',
   dimension: 'Todas',
   annexSection: '5.8.2',
-  source: { template: 'ENSFacil_Plantilla_mp.s.2', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.s.2', version: '2.0', date: '2026-10-15' },
   description:
     'mp.s.2 enumera seis amenazas web concretas que deben prevenirse, y todas dejan rastro en los registros del servidor.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

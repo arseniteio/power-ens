@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Recolector técnico ENSFácil para op.acc.1.
+Recolector técnico Power ENS para op.acc.1.
 
 Evidencias implementadas:
     EV-01 - Inventario de cuentas y unicidad de identificadores.
@@ -20,13 +20,13 @@ Este componente solamente observa hechos técnicos. No calcula:
     - control_state;
     - score_snapshot.
 
-La evaluación corresponde al motor común de ENSFácil.
+La evaluación corresponde al motor común de Power ENS.
 
 Reglas del manager que emparejan estos hechos:
-    agent/rules/ensfacil_op_acc_1_technical_fact_rules.xml
+    agent/rules/power_ens_op_acc_1_technical_fact_rules.xml
 
 HOY NO SE DESPLIEGA. Lo que instala `install-manager.sh` del runbook es el otro
-juego de reglas de op.acc.1 (`ensfacil_op_acc_1_json_rules.xml`), que empareja
+juego de reglas de op.acc.1 (`power_ens_op_acc_1_json_rules.xml`), que empareja
 los eventos del recolector bash. Este recolector y sus reglas son el punto de
 partida del modelo nuevo, del que ya ha migrado op.acc.1/EV-03.
 """
@@ -54,7 +54,7 @@ except ImportError:
 
 
 SCHEMA_VERSION = "2.0"
-COLLECTOR_NAME = "ensfacil-opacc1-linux"
+COLLECTOR_NAME = "power-ens-opacc1-linux"
 COLLECTOR_VERSION = "2.0.0-dev.1"
 CONTROL_ID = "op.acc.1"
 
@@ -1004,7 +1004,7 @@ def create_event(
         "schema_version": SCHEMA_VERSION,
         "event_id": str(uuid.uuid4()),
         "execution_id": execution_id,
-        "ensfacil": CONTROL_ID,
+        "power_ens": CONTROL_ID,
         "event": event,
         "event_class": "technical_fact",
         "mode": mode,
@@ -3135,7 +3135,7 @@ def collect_ev08(
     desde la deshabilitación.
 
     La ausencia en el inventario no se considera prueba de eliminación.
-    La evaluación del período P-06 corresponde al motor ENSFácil.
+    La evaluación del período P-06 corresponde al motor Power ENS.
     """
     source_system = str(
         config["fuente_identidad"]
@@ -3586,7 +3586,7 @@ def collect_ev08(
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Recolector técnico ENSFácil para op.acc.1. "
+            "Recolector técnico Power ENS para op.acc.1. "
             "Evidencias disponibles: EV-01, EV-02, EV-03, EV-04, EV-05, EV-06, EV-07 y EV-08."
         )
     )
@@ -3595,7 +3595,7 @@ def parse_arguments() -> argparse.Namespace:
         "--config",
         type=Path,
         default=Path(
-            "/etc/ensfacil/op_acc_1.json"
+            "/etc/power-ens/op_acc_1.json"
         ),
         help=(
             "Configuración JSON. "
@@ -3625,7 +3625,7 @@ def parse_arguments() -> argparse.Namespace:
         "--baseline",
         type=Path,
         default=Path(
-            "/var/lib/ensfacil/"
+            "/var/lib/power-ens/"
             "op_acc_1_ev02_baseline.json"
         ),
         help=(
@@ -3639,7 +3639,7 @@ def parse_arguments() -> argparse.Namespace:
         "--cursor",
         type=Path,
         default=Path(
-            "/var/lib/ensfacil/"
+            "/var/lib/power-ens/"
             "op_acc_1_ev03_cursor.json"
         ),
         help=(
@@ -3653,7 +3653,7 @@ def parse_arguments() -> argparse.Namespace:
         "--service-cursor",
         type=Path,
         default=Path(
-            "/var/lib/ensfacil/"
+            "/var/lib/power-ens/"
             "op_acc_1_ev05_cursor.json"
         ),
         help=(

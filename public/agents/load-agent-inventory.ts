@@ -26,7 +26,7 @@ export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
 
   if (inventory.stale) {
     getCore().notifications.toasts.addWarning({
-      title: 'ENSFácil: inventario de agentes antiguo',
+      title: 'Power ENS: inventario de agentes antiguo',
       text: staleInventoryMessage(inventory.newestTimestamp),
     });
   }

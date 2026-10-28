@@ -1,4 +1,4 @@
-// Shape of the `/api/ensfacil/evaluation` responses the screens read.
+// Shape of the `/api/powerEns/evaluation` responses the screens read.
 import type { ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
 import type { ENSControlMaturity, ENSControlMaturitySummary, ENSMaturityDistribution, ENSMaturityVersion } from '../maturity/types';

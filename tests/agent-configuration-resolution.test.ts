@@ -172,7 +172,7 @@ console.log('3. Parity');
   ];
   const ev = (agentId: string, agentName: string, controlId: string, eventType: string, status: string, extra: any = {}): ENSNormalizedEvent => ({
     id: `${agentId}-${controlId}-${eventType}`, agentId, agentName, controlId, eventType, sourceType: 'WAZUH_ALERT', status,
-    timestamp: new Date(NOW.getTime() - 3600_000).toISOString(), tool: 'ENSFácil', ruleId: '0', ...extra,
+    timestamp: new Date(NOW.getTime() - 3600_000).toISOString(), tool: 'Power ENS', ruleId: '0', ...extra,
   } as any);
   const facts = [
     ev('101', 'srv-a', 'mp.info.6', 'backup_ok', 'CUMPLE'),
@@ -215,9 +215,9 @@ console.log('4. The engine uses the row\'s value');
   check('row 101: P-01 from the organization', applied('101', 'P-01') === 'Local', applied('101', 'P-01'));
 }
 
-const GF = (process as any).env?.ENSFACIL_GOLDEN_FACTS;
-const GD = (process as any).env?.ENSFACIL_GOLDEN_DOC;
-const GI = (process as any).env?.ENSFACIL_GOLDEN_INVENTORY;
+const GF = (process as any).env?.POWER_ENS_GOLDEN_FACTS;
+const GD = (process as any).env?.POWER_ENS_GOLDEN_DOC;
+const GI = (process as any).env?.POWER_ENS_GOLDEN_INVENTORY;
 if (GF && GD && GI) {
   console.log('5. Real facts');
   const { readFileSync: leer } = require('fs');
@@ -226,7 +226,7 @@ if (GF && GD && GI) {
   const { resolveENSScopeAgents } = require('../common/ens/core/scope/runtime');
   const actual = JSON.parse(leer(GD, 'utf8'));
   const config = actual._source ? actual._source.configuration : actual.configuration || actual;
-  const instant = new Date((process as any).env?.ENSFACIL_GOLDEN_AT || Date.now());
+  const instant = new Date((process as any).env?.POWER_ENS_GOLDEN_AT || Date.now());
   const inv = inventoryFromMonitoring(JSON.parse(leer(GI, 'utf8')).aggregations, instant.getTime()).agents;
   const scope = resolveENSScopeAgents(inv, config.scope);
   const facts = String(leer(GF, 'utf8')).split('\n').filter(Boolean).map((l: string) => normalizeWazuhAlert(JSON.parse(l)));

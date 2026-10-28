@@ -59,8 +59,8 @@ export const opCont2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Ninguno: op.cont.2 no tiene recolector ni reglas. El plan se audita leyéndolo; ENSFácil solo vigila su existencia y vigencia.',
-      ensfacilUsage:
+        'Ninguno: op.cont.2 no tiene recolector ni reglas. El plan se audita leyéndolo; Power ENS solo vigila su existencia y vigencia.',
+      powerEnsUsage:
         'EV-01: el plan aprobado más recientemente no puede superar la periodicidad de revisión de P-08 en la fecha de evaluación. Un plan vencido deja sin acreditar los cinco requisitos.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
@@ -107,7 +107,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguno en esta versión: las interrupciones reales (EV-02) y la disponibilidad frente al RTO (EV-07) no se miden todavía, y el informe lo indica.',
-      ensfacilUsage:
+      powerEnsUsage:
         'op.cont.2.2: con el plan vigente, cada servicio esencial declara RTO y RPO con una duración legible. Una fila sin ellos, o con un valor que no es una duración, deja el requisito sin acreditar y se nombra.',
       evidenceIds: ['EV-02', 'EV-07'],
       ruleIds: [],
@@ -154,7 +154,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguno: sin directorio corporativo integrado, la situación real de cada persona (EV-05) no se contrasta y queda como dato del informe.',
-      ensfacilUsage:
+      powerEnsUsage:
         'op.cont.2.1: con el plan vigente, cada función con su responsable y actividades. op.cont.2.4: cada responsable y suplente de P-03 debe tener formación vigente en P-05.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
@@ -207,7 +207,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguno: la entrada en servicio de los medios alternativos (EV-08) no se distingue de forma genérica del arranque de una máquina y queda como dato del informe.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 (op.cont.2.3): cada medio con contrato y en vigor en la fecha de evaluación. Sin contrato o con contrato vencido incumple; con contrato y sin fecha de vigencia queda sin acreditar.',
       evidenceIds: ['EV-04', 'EV-08'],
       ruleIds: [],
@@ -254,7 +254,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguno: es un registro de la organización que se declara en la pantalla.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 (op.cont.2.4): cada responsable y suplente de P-03 debe tener aquí una fila con formación vigente en la fecha de evaluación. Sin fila o con la formación vencida incumple.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -274,8 +274,8 @@ export const opCont2Configuration: ENSControlConfiguration = {
       example: 'Plan de Emergencia del edificio, Plan de Continuidad de Negocio corporativo',
       required: false,
       wazuhUsage:
-        'Ninguno: referencia documental que ENSFácil recoge en el informe.',
-      ensfacilUsage:
+        'Ninguno: referencia documental que Power ENS recoge en el informe.',
+      powerEnsUsage:
         'op.cont.2.5: con el plan vigente, al menos un plan de la organización con el que se integra. Que la integración sea armónica es revisión documental con criterio humano.',
       evidenceIds: [],
       ruleIds: [],
@@ -296,7 +296,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'FIM con scan_on_start y verificación de hash compara al arrancar el agente el estado con la línea base. Lo mide op.exp.6 (EV-06).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo informe: R2 no se exige y la integridad tras el arranque ya la juzga op.exp.6.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -318,7 +318,7 @@ export const opCont2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Ninguno: op.cont.2 no tiene recolector ni reglas.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-01: un plan cuya última aprobación (P-01) tiene más de P-08 meses en la fecha de evaluación está vencido, y con él los cinco requisitos.',
       evidenceIds: ['EV-01'],
       ruleIds: [],

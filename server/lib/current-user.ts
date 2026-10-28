@@ -1,7 +1,7 @@
-// Who makes the request and whether they can administer ENSFácil. `authinfo` is always queried first; only if
+// Who makes the request and whether they can administer Power ENS. `authinfo` is always queried first; only if
 // OpenSearch has no such endpoint (no security plugin) AND the configuration says there is no security is there
 // nobody to restrict. Any other doubt closes access.
-import { ENSFACIL_ADMIN_ROLES } from '../../common/constants';
+import { POWER_ENS_ADMIN_ROLES } from '../../common/constants';
 
 export interface ENSCurrentUser {
   username: string;
@@ -45,5 +45,5 @@ export const resolveCurrentUser = async (client: any, securityEnabled: boolean):
   const roles: string[] = Array.isArray(body?.roles) ? body.roles.map(String) : [];
   const username = typeof body?.user_name === 'string' ? body.user_name.trim() : '';
 
-  return { username, roles, administrator: roles.some(role => ENSFACIL_ADMIN_ROLES.includes(role)) };
+  return { username, roles, administrator: roles.some(role => POWER_ENS_ADMIN_ROLES.includes(role)) };
 };

@@ -1,8 +1,8 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_5_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_5_json_rules.xml
      Deployable copy so the procedure works on a server without access to the
      plugin repository. Byte-identical in the Linux runbook, the LDAP runbook and
      the plugin: checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_5,score,">
+<group name="power_ens,op_exp_5,score,">
 
   <!-- ================================================================
        op.exp.5 · Change management
@@ -23,7 +23,7 @@
          110609 reversion_point_created    EV-09
 
        The first four are the machine's REAL CHANGES. The next two are the request
-       register kept by the organization (/etc/ensfacil/change-register.tsv), read
+       register kept by the organization (/etc/power-ens/change-register.tsv), read
        as is: the agent does not correlate a change with its request, the engine does.
        EV-05 deliberately has no rule: proving the pre-production step requires
        crossing two machines and the engine evaluates each one separately.
@@ -37,8 +37,8 @@
 
   <rule id="110600" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.5</field>
-    <description>op.exp.5 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.5</field>
+    <description>op.exp.5 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== Real changes ===== -->

@@ -7,7 +7,7 @@ import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 import { MATURITY_ORIGIN_LABELS } from './maturity-view';
 
 export const MATURITY_REPORT_NOTE =
-  'Nota metodológica: semáforo y porcentaje, operativos (ENSFácil); madurez (CMM, Anexo II, ap. 6), normativa: el nivel acreditado sale de las evidencias y el valorado, el que se informa, lo fija una persona.';
+  'Nota metodológica: semáforo y porcentaje, operativos (Power ENS); madurez (CMM, Anexo II, ap. 6), normativa: el nivel acreditado sale de las evidencias y el valorado, el que se informa, lo fija una persona.';
 
 export interface MaturityReportModel {
   headline: string;

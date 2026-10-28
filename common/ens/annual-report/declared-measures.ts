@@ -23,11 +23,11 @@ export const maturityRecordTargetError = (id: string, kind: ENSMaturityRecordKin
   if (kind === 'declaration') {
     if (!getAnnexMeasure(id)) return `«${id}» no es una medida del Anexo II.`;
     return measureEngine(id) === 'MEDIDO'
-      ? `${id} lo mide ENSFácil: su implantación sale del motor y su madurez se valora en su detalle, no con una entrada declarada.`
+      ? `${id} lo mide Power ENS: su implantación sale del motor y su madurez se valora en su detalle, no con una entrada declarada.`
       : undefined;
   }
   if (kind === 'resources') {
     return id === ENS_ANNUAL_REPORT_CONTROL ? undefined : `Los recursos TIC totales se registran en ${ENS_ANNUAL_REPORT_CONTROL}.`;
   }
-  return catalogControl(id) ? undefined : `El control «${id}» no está en el catálogo de ENSFácil.`;
+  return catalogControl(id) ? undefined : `El control «${id}» no está en el catálogo de Power ENS.`;
 };

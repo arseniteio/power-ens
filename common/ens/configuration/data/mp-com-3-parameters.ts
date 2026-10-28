@@ -47,8 +47,8 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Es el alcance del control.',
-      ensfacilUsage:
-        'ENSFácil verifica en los logs de cada canal que la autenticación del otro extremo se produce antes del intercambio de información, como exige mp.com.3.1.',
+      powerEnsUsage:
+        'Power ENS verifica en los logs de cada canal que la autenticación del otro extremo se produce antes del intercambio de información, como exige mp.com.3.1.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-08', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -91,7 +91,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'SCA verifica la configuración de cada extremo y el análisis de los protocolos negociados verifica el uso efectivo. Es el refuerzo con mejor cobertura automática del control y el que más hallazgos produce.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica la configuración de cada extremo y el análisis de los protocolos negociados verifica el uso efectivo. Es el refuerzo con mejor cobertura automática del control y el que más hallazgos produce.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-10'],
       ruleIds: [],
@@ -132,7 +132,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define las reglas de correlación que materializan el requisito. Sin esta traducción, mp.com.3.2 queda como declaración de intenciones: el ENS dice qué hay que prevenir, pero no cómo se detecta.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Define las reglas de correlación que materializan el requisito. Sin esta traducción, mp.com.3.2 queda como declaración de intenciones: el ENS dice qué hay que prevenir, pero no cómo se detecta.',
       evidenceIds: ['EV-04', 'EV-05', 'EV-06', 'EV-07'],
       ruleIds: [],
@@ -152,9 +152,9 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       example: '«PR-18 Respuesta a intrusión», con apertura automática de ticket desde Wazuh',
       required: true,
       wazuhUsage:
-        'ENSFácil correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
-      ensfacilUsage:
-        'ENSFácil correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
+        'Power ENS correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
+      powerEnsUsage:
+        'Power ENS correlaciona cada detección de ataque activo con la apertura efectiva del incidente en el sistema de op.exp.7. Detección sin incidente asociado → incumplimiento de la segunda mitad del requisito.',
       evidenceIds: ['EV-04', 'EV-05', 'EV-06', 'EV-07'],
       ruleIds: [],
       ifNotConfigured:
@@ -187,9 +187,9 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
-      ensfacilUsage:
-        'ENSFácil verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
+        'Power ENS verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
+      powerEnsUsage:
+        'Power ENS verifica en los logs que el servicio no rechaza mecanismos admitidos. Es un requisito de no exclusión: el incumplimiento consiste en rechazar un mecanismo legalmente válido, no en aceptar pocos.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -235,7 +235,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'SCA verifica la configuración del concentrador y de los extremos. Los logs de la VPN permiten comprobar que los canales de P-01 que discurren por redes ajenas efectivamente van por túnel cifrado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica la configuración del concentrador y de los extremos. Los logs de la VPN permiten comprobar que los canales de P-01 que discurren por redes ajenas efectivamente van por túnel cifrado.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -282,8 +282,8 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Syscollector identifica el equipamiento cuando admite agente; en otro caso se declara.',
-      ensfacilUsage:
-        'ENSFácil recoge la declaración y, si procede, la justificación de emplear solución software, dada la redacción del requisito.',
+      powerEnsUsage:
+        'Power ENS recoge la declaración y, si procede, la justificación de emplear solución software, dada la redacción del requisito.',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:
@@ -329,7 +329,7 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Registro documental con control de vigencia y alerta anticipada. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh; lo que sí aporta es que no caduque sin que nadie lo advierta.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Registro documental con control de vigencia y alerta anticipada. La conformidad con op.pl.5 es de certificación de producto y no observable desde Wazuh; lo que sí aporta es que no caduque sin que nadie lo advierta.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
@@ -381,9 +381,9 @@ export const mpCom3Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+      powerEnsUsage:
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],
       ifNotConfigured:

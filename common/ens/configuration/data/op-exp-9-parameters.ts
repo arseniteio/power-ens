@@ -6,7 +6,7 @@ import { ENSControlConfiguration } from '../types';
 // P-02, P-03, P-05, P-06 and P-07 were tables written as text and are tables now. P-08 is not in the sheet: it
 // is the contrast of the EMPTY register, since zero registered incidents can only be judged against what the
 // manager saw.
-const REGISTRO_ENSFACIL = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
+const REGISTRO_POWER_ENS = 'Registro Power ENS (/etc/power-ens/incident-register.tsv)';
 
 const FASES = ['inicial', 'intermedio', 'final'];
 const SEVERIDADES = ['baja', 'media', 'alta', 'critica'];
@@ -24,16 +24,16 @@ export const opExp9Configuration: ENSControlConfiguration = {
       name: 'sistema_registro_incidentes',
       label: 'Sistema de registro de incidentes',
       description:
-        'Herramienta donde se registran los reportes inicial, intermedio y final de cada incidente, conveniente que sea la de op.exp.7. ENSFácil solo lee /etc/ensfacil/incident-register.tsv del manager, compartido con op.exp.7; con otra herramienta los requisitos quedan sin demostrar.',
+        'Herramienta donde se registran los reportes inicial, intermedio y final de cada incidente, conveniente que sea la de op.exp.7. Power ENS solo lee /etc/power-ens/incident-register.tsv del manager, compartido con op.exp.7; con otra herramienta los requisitos quedan sin demostrar.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.1'],
       type: 'select',
-      options: [REGISTRO_ENSFACIL, 'Jira Service Management', 'TheHive', 'GLPI', 'Otro'],
-      example: REGISTRO_ENSFACIL,
+      options: [REGISTRO_POWER_ENS, 'Jira Service Management', 'TheHive', 'GLPI', 'Otro'],
+      example: REGISTRO_POWER_ENS,
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que cada incidente tiene los tres tipos de reporte de op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
-      ensfacilUsage:
+        'Power ENS verifica que cada incidente tiene los tres tipos de reporte de op.exp.9.1 y que constan las actuaciones de emergencia y las modificaciones del sistema derivadas.',
+      powerEnsUsage:
         'El recolector del manager lee el TSV en cada pasada y emite una fila por fase de cada incidente. Si P-01 declara otra herramienta, las evidencias de op.exp.9.1 salen sin demostrar indicando que esa integración no existe.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-09'],
       ruleIds: [],
@@ -46,7 +46,7 @@ export const opExp9Configuration: ENSControlConfiguration = {
       name: 'estructura_reportes_incidente',
       label: 'Estructura de los reportes de incidente',
       description:
-        'Una fila por fase de reporte exigida (inicial, intermedio, final) con su contenido mínimo; «Exigible desde horas» omite una fase en incidentes breves (un intermedio con 24 solo se exige a incidentes de más de 24 horas; vacía, siempre) y el final solo se exige con el incidente cerrado. ENSFácil comprueba la presencia de cada fase y que la fila traiga severidad, sistemas y referencia, no el texto.',
+        'Una fila por fase de reporte exigida (inicial, intermedio, final) con su contenido mínimo; «Exigible desde horas» omite una fase en incidentes breves (un intermedio con 24 solo se exige a incidentes de más de 24 horas; vacía, siempre) y el final solo se exige con el incidente cerrado. Power ENS comprueba la presencia de cada fase y que la fila traiga severidad, sistemas y referencia, no el texto.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.1'],
       type: 'table',
@@ -75,8 +75,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       minValue: 0,
       required: true,
       wazuhUsage:
-        'ENSFácil verifica la presencia de los tres reportes por incidente y su cumplimentación. Un incidente con solo reporte de cierre es hallazgo.',
-      ensfacilUsage:
+        'Power ENS verifica la presencia de los tres reportes por incidente y su cumplimentación. Un incidente con solo reporte de cierre es hallazgo.',
+      powerEnsUsage:
         'EV-02 agrupa las filas del registro por incidente y exige una fila de cada fase declarada, salvo la excepción de duración y del final de un incidente abierto.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -110,8 +110,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Define qué exporta y sella ENSFácil al abrirse un incidente con posible relevancia jurídica. La lista no es técnica: el ENS remite a asesoramiento legal.',
-      ensfacilUsage:
+        'Define qué exporta y sella Power ENS al abrirse un incidente con posible relevancia jurídica. La lista no es técnica: el ENS remite a asesoramiento legal.',
+      powerEnsUsage:
         'EV-05 exige, por cada incidente con relevancia jurídica, una exportación sellada de cada tipo de evidencia de esta tabla.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -131,8 +131,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       example: 'acceso no autorizado por empleado, exfiltración, sabotaje, incumplimiento de proveedor',
       required: true,
       wazuhUsage:
-        'ENSFácil marca los incidentes que cumplen estos criterios, activa la recogida sellada de las evidencias de P-03 y avisa de que requieren tratamiento probatorio reforzado.',
-      ensfacilUsage:
+        'Power ENS marca los incidentes que cumplen estos criterios, activa la recogida sellada de las evidencias de P-03 y avisa de que requieren tratamiento probatorio reforzado.',
+      powerEnsUsage:
         'Sin criterios declarados, la marca de relevancia jurídica no tiene base y EV-05 y EV-06 quedan sin demostrar.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
@@ -172,8 +172,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son lo que más refuerza la admisibilidad.',
-      ensfacilUsage:
+        'Power ENS deposita las exportaciones selladas y registra cada acceso posterior. El almacenamiento inmutable y el sellado de tiempo son lo que más refuerza la admisibilidad.',
+      powerEnsUsage:
         'EV-06 exige que toda evidencia sellada esté en un destino de esta tabla, con registro de cadena de custodia y con el SHA-256 coincidente cuando el manager pueda leerla.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -208,8 +208,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       minValue: 0,
       required: true,
       wazuhUsage:
-        'ENSFácil aplica la política de retención al repositorio de custodia. La retención general de op.exp.8 suele ser insuficiente aquí.',
-      ensfacilUsage:
+        'Power ENS aplica la política de retención al repositorio de custodia. La retención general de op.exp.8 suele ser insuficiente aquí.',
+      powerEnsUsage:
         'EV-06 da por destruida antes de plazo toda evidencia custodiada en el manager que ya no existe y se recogió hace menos que el plazo más largo de la tabla.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -251,8 +251,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       minValue: 0,
       required: true,
       wazuhUsage:
-        'ENSFácil correlaciona el cierre de incidentes con modificaciones posteriores de la lista de eventos auditables (P-01 de op.exp.8) y de las reglas de detección.',
-      ensfacilUsage:
+        'Power ENS correlaciona el cierre de incidentes con modificaciones posteriores de la lista de eventos auditables (P-01 de op.exp.8) y de las reglas de detección.',
+      powerEnsUsage:
         'EV-08 toma cada incidente cerrado de una severidad de la tabla y busca su revisión entre el reporte inicial y el cierre más el plazo.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -265,7 +265,7 @@ export const opExp9Configuration: ENSControlConfiguration = {
       name: 'nivel_alerta_sin_expediente',
       label: 'Nivel de alerta que exige expediente',
       description:
-        'Nivel mínimo de regla de Wazuh (7-15) desde el que una alerta ajena a ENSFácil no puede quedar sin expediente; solo se usa con el registro de incidentes VACÍO, donde cero incidentes con alertas de este nivel en 30 días es un incumplimiento medido. Decidir qué alerta es incidente es op.exp.7.',
+        'Nivel mínimo de regla de Wazuh (7-15) desde el que una alerta ajena a Power ENS no puede quedar sin expediente; solo se usa con el registro de incidentes VACÍO, donde cero incidentes con alertas de este nivel en 30 días es un incumplimiento medido. Decidir qué alerta es incidente es op.exp.7.',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.exp.9.1'],
       type: 'number',
@@ -275,8 +275,8 @@ export const opExp9Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Contraste del registro vacío con el volumen de alertas del manager.',
-      ensfacilUsage:
-        'El recolector del manager cuenta por nivel las alertas de los últimos 30 días que no son de ENSFácil. Con el registro vacío, EV-02 compara ese recuento con este nivel.',
+      powerEnsUsage:
+        'El recolector del manager cuenta por nivel las alertas de los últimos 30 días que no son de Power ENS. Con el registro vacío, EV-02 compara ese recuento con este nivel.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
       ifNotConfigured:
@@ -296,7 +296,7 @@ export const opExp9Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Contraste del registro vacío con el volumen de alertas del manager.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 descuenta del contraste de P-08 las reglas con alguno de estos grupos. Todo grupo excluido se muestra en el motivo.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -349,7 +349,7 @@ export const opExp9Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

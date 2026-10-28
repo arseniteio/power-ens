@@ -186,7 +186,7 @@ const MeasuresWithoutEngine = ({
       </EuiTitle>
       <EuiText size='xs' color='subdued'>
         <p>
-          Medidas del Anexo II que ENSFácil no mide, con su entrada declarada. {frozen ? 'El periodo mostrado está congelado: una entrada nueva cuenta en el periodo en curso.' : ''}
+          Medidas del Anexo II que Power ENS no mide, con su entrada declarada. {frozen ? 'El periodo mostrado está congelado: una entrada nueva cuenta en el periodo en curso.' : ''}
         </p>
       </EuiText>
       <EuiSpacer size='s' />

@@ -203,7 +203,7 @@ export const mpSw2Control: ENSControl = {
       requirements: ['mp.sw.2.1'],
       type: 'list',
       usage:
-        'ENSFácil verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
+        'Power ENS verifica automáticamente los criterios que sean comprobables —vulnerabilidades, configuración criptográfica, registro activo— y recoge como declaración los que no lo sean. Es la pieza que convierte el acta de aceptación en algo contrastable.',
       missingBehavior:
         'mp.sw.2.1 a) NO EVALUABLE por falta de referencia. El acta de aceptación queda sin criterios que verificar.',
     },
@@ -216,7 +216,7 @@ export const mpSw2Control: ENSControl = {
       requirements: ['mp.sw.2.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
+        'Power ENS correlaciona la aparición de una versión en producción con su presencia previa en el par de preproducción. Verifica además el aislamiento: preproducción con ruta abierta a producción no es un entorno aislado, y el refuerzo lo exige expresamente.',
       missingBehavior:
         'R1 NO EVALUABLE desde categoría MEDIA. No se puede acreditar el paso por un entorno aislado.',
     },
@@ -224,7 +224,7 @@ export const mpSw2Control: ENSControl = {
       id: 'P-04',
       name: 'ventana_medicion_deterioro_dias',
       description:
-        'Días antes y después de la puesta en servicio que ENSFácil compara para determinar si se ha deteriorado la seguridad de otros componentes del servicio, como exige mp.sw.2.1 b).',
+        'Días antes y después de la puesta en servicio que Power ENS compara para determinar si se ha deteriorado la seguridad de otros componentes del servicio, como exige mp.sw.2.1 b).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['mp.sw.2.1'],
       type: 'duration_days',
@@ -255,7 +255,7 @@ export const mpSw2Control: ENSControl = {
       requirements: ['mp.sw.2.1'],
       type: 'table',
       usage:
-        'ENSFácil contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
+        'Power ENS contrasta los puertos y servicios que aparecen tras el despliegue con esta declaración. Puerto nuevo no previsto → deterioro del perímetro de exposición. Enlaza con op.exp.2 (mínima funcionalidad) y con mp.com.1.',
       missingBehavior:
         'No se puede distinguir exposición legítima de la aplicación de exposición accidental introducida con ella.',
     },
@@ -268,7 +268,7 @@ export const mpSw2Control: ENSControl = {
       requirements: ['mp.sw.2.1'],
       type: 'table',
       usage:
-        'ENSFácil conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
+        'Power ENS conserva el registro y lo contrasta con las puestas en servicio efectivamente detectadas. Despliegue en producción sin acta previa → hallazgo del enunciado del control, que exige comprobación ANTES de pasar a producción.',
       missingBehavior:
         'mp.sw.2.1 sin acreditación documental. No consta que la comprobación previa se haya realizado.',
     },
@@ -281,7 +281,7 @@ export const mpSw2Control: ENSControl = {
       requirements: ['mp.sw.2.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
+        'Power ENS registra la realización y hace seguimiento del cierre de hallazgos, cruzándolos con las vulnerabilidades que el Vulnerability Detector observe en producción. La auditoría de código en sí es un servicio o una herramienta SAST, no una funcionalidad de Wazuh.',
       missingBehavior:
         'R2 sin acreditar. No supone incumplimiento al no ser exigible en ninguna categoría.',
     },

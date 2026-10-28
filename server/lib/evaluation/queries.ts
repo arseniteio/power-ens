@@ -306,7 +306,7 @@ export const buildImpactEventsRequest = (filters: unknown[]) => ({
         filter: [
           ...filters,
           { terms: { 'data.event': Object.keys(OPERATIONAL_ALERT_KEY_FIELDS) } },
-          { terms: { 'data.ensfacil': ENSCatalog.filter(control => control.status === 'ACTIVE').map(control => control.id) } },
+          { terms: { 'data.power_ens': ENSCatalog.filter(control => control.status === 'ACTIVE').map(control => control.id) } },
         ],
         must_not: [
           ...['data.demo', 'data.synthetic', 'data.is_synthetic', 'data.isSynthetic'].map(field => ({
@@ -389,7 +389,7 @@ const ALTERNATIVE_EVIDENCE_FIELDS = ['data.evidenceId', 'data.ev_id', 'data.evid
 
 // The last state fact of each collector, type and evidence, day by day: the engine's EXACT cutoff is computed
 // from it (`computeStateFactCutoffsByCollector`). Only facts the normalizer attributes the same way:
-// `data.ensfacil` of the control, `data.event` of the type, the machine in `agent.id`.
+// `data.power_ens` of the control, `data.event` of the type, the machine in `agent.id`.
 // Aggregations of the last state fact of ONE control (inside a query already bounded to its state facts on a
 // machine).
 const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
@@ -423,7 +423,7 @@ const stateFactLastSeenAggs = (controlId: string, timeZone: string) => {
 };
 
 const stateFactsOf = (controlId: string) => [
-  { term: { 'data.ensfacil': controlId } },
+  { term: { 'data.power_ens': controlId } },
   { terms: { 'data.event': [...getStateFactEventTypes(controlId)] } },
 ];
 
@@ -454,7 +454,7 @@ export const buildAgentStateFactLastSeenRequest = (
   index,
   body: {
     size: 0,
-    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.ensfacil': controlIds } }] } },
+    query: { bool: { filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.power_ens': controlIds } }] } },
     aggs: Object.fromEntries(
       controlIds.map((controlId, i) => [
         `c${i}`,
@@ -597,7 +597,7 @@ export const buildStateFactKeepClause = (
   return {
     bool: {
       filter: [
-        { term: { 'data.ensfacil': controlId } },
+        { term: { 'data.power_ens': controlId } },
         { term: { 'agent.id': agentId } },
         { bool: { should: byTypeMap, minimum_should_match: 1 } },
         { bool: { should, minimum_should_match: 1 } },
@@ -612,26 +612,26 @@ export const buildStateFactKeepClause = (
 // On the real indexer each CALL costs (0.16-0.34 s), not the bytes. Instead of one read per control and machine,
 // it reads once per machine (or per group of its controls), sorted by control: each control is evaluated as soon
 // as its stretch ends. What the stretch does not carry is read apart, once per machine: facts without
-// `data.ensfacil` or with an old control field (those naming no control go to every row; old ones to their
+// `data.power_ens` or with an old control field (those naming no control go to every row; old ones to their
 // control's) and heartbeats (for pruning).
 
 export const ENS_LEGACY_CONTROL_FIELDS = ['data.ens', 'data.control_id', 'data.control'];
 
 // Stream order: by control and, inside each control, the usual order (each row receives its facts in the same
 // order as reading it alone).
-// `unmapped_type`: the Wazuh template maps `data.*` dynamically, and a daily index without any ENSFácil fact
-// (days without collectors, before installation) does not map `data.ensfacil`; without it OpenSearch rejects the
+// `unmapped_type`: the Wazuh template maps `data.*` dynamically, and a daily index without any Power ENS fact
+// (days without collectors, before installation) does not map `data.power_ens`; without it OpenSearch rejects the
 // whole search with a 400 ("No mapping found ... in order to sort on"), wildcard included.
-export const STREAM_SORT = [{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }, ...FACTS_SORT];
+export const STREAM_SORT = [{ 'data.power_ens': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }, ...FACTS_SORT];
 
 export const buildAgentStreamQuery = (viewFilters: unknown[], agentId: string, controlIds: string[], prunings: unknown[]) => ({
   bool: {
-    filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.ensfacil': controlIds } }],
+    filter: [...viewFilters, { term: { 'agent.id': agentId } }, { terms: { 'data.power_ens': controlIds } }],
     must_not: [...ENS_LEGACY_CONTROL_FIELDS.map(field => ({ exists: { field } })), ...prunings],
   },
 });
 
-// What the stream does not carry: no `data.ensfacil`, or an old control field.
+// What the stream does not carry: no `data.power_ens`, or an old control field.
 export const buildAgentSideQuery = (viewFilters: unknown[], agentId: string) => ({
   bool: {
     filter: [
@@ -640,7 +640,7 @@ export const buildAgentSideQuery = (viewFilters: unknown[], agentId: string) => 
       {
         bool: {
           should: [
-            { bool: { must_not: { exists: { field: 'data.ensfacil' } } } },
+            { bool: { must_not: { exists: { field: 'data.power_ens' } } } },
             ...ENS_LEGACY_CONTROL_FIELDS.map(field => ({ exists: { field } })),
           ],
           minimum_should_match: 1,

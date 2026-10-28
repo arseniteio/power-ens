@@ -99,7 +99,7 @@ export const opMon1Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Detecciones de intrusión del período',
       description:
-        'Por cada agente, a partir de alerts.json del manager (sin las alertas de ENSFácil): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
+        'Por cada agente, a partir de alerts.json del manager (sin las alertas de Power ENS): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
       format: 'json_line',
       events: ['evidence_state', 'detection_activity_observed'],
       wazuhRuleIds: ['111204'],
@@ -197,12 +197,12 @@ export const opMon1Control: ENSControl = {
       id: 'P-03',
       name: 'conjuntos_reglas_activos',
       description:
-        'Conjuntos de reglas de detección que tienen que estar cargados en el manager. R1 exige que la detección sea «basada en reglas», y el inventario de reglas activas es su evidencia directa. El conjunto se nombra como lo informa ENSFácil: wazuh para el ruleset oficial y, para las reglas propias de etc/rules, el prefijo de sus ficheros (local, ensfacil…).',
+        'Conjuntos de reglas de detección que tienen que estar cargados en el manager. R1 exige que la detección sea «basada en reglas», y el inventario de reglas activas es su evidencia directa. El conjunto se nombra como lo informa Power ENS: wazuh para el ruleset oficial y, para las reglas propias de etc/rules, el prefijo de sus ficheros (local, power_ens…).',
       level: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil lo juzga en R1 como medida propia, con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla; el número de reglas declarado es informativo, y sin P-03 R1 queda sin evaluar, pero no la fila de EV-01.',
+        'Power ENS lo juzga en R1 como medida propia, con el inventario de EV-04: cada conjunto de P-03 tiene que estar cargado con al menos una regla; el número de reglas declarado es informativo, y sin P-03 R1 queda sin evaluar, pero no la fila de EV-01.',
       missingBehavior:
         'R1 queda sin evaluar (causa CONFIGURATION): no se puede acreditar qué detección basada en reglas se exige.',
     },
@@ -215,7 +215,7 @@ export const opMon1Control: ENSControl = {
       requirements: ['op.mon.1.1'],
       type: 'table',
       usage:
-        'ENSFácil exige en EV-04 que cada situación tenga al menos una de sus reglas cargada en el manager; una situación sin reglas, o con reglas que el manager no carga, es un punto ciego del control: un hallazgo defendible, pero un hallazgo.',
+        'Power ENS exige en EV-04 que cada situación tenga al menos una de sus reglas cargada en el manager; una situación sin reglas, o con reglas que el manager no carga, es un punto ciego del control: un hallazgo defendible, pero un hallazgo.',
       missingBehavior:
         'No se puede verificar la trazabilidad entre el análisis de riesgos y la detección: EV-04 queda sin evaluar (causa CONFIGURATION) y con ella op.mon.1.1.',
     },
@@ -288,7 +288,7 @@ export const opMon1Control: ENSControl = {
       id: 'P-10',
       name: 'antiguedad_maxima_analisis_horas',
       description:
-        'Horas que puede pasar un sistema de P-01 sin completar una pasada de FIM y de SCA antes de considerar que su módulo de análisis está deshabilitado. Se mide en el instante en que ENSFácil lee la base del agente, no al evaluar. Las pasadas de FIM y SCA son cada 12 h por defecto: el valor tiene que ser mayor que su frecuencia configurada (p. ej., 26 h para 12 h).',
+        'Horas que puede pasar un sistema de P-01 sin completar una pasada de FIM y de SCA antes de considerar que su módulo de análisis está deshabilitado. Se mide en el instante en que Power ENS lee la base del agente, no al evaluar. Las pasadas de FIM y SCA son cada 12 h por defecto: el valor tiene que ser mayor que su frecuencia configurada (p. ej., 26 h para 12 h).',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'duration_hours',
@@ -306,7 +306,7 @@ export const opMon1Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. En ENSFácil el resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. En Power ENS el resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

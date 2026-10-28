@@ -225,7 +225,7 @@ export const opExp5Control: ENSControl = {
       usage:
         'Es la pieza que hace posible el contraste. Cambio detectado sin petición asociada → hallazgo.',
       missingBehavior:
-        'No se puede contrastar cambio real contra cambio autorizado. La aportación principal de ENSFácil a este control se pierde.',
+        'No se puede contrastar cambio real contra cambio autorizado. La aportación principal de Power ENS a este control se pierde.',
     },
     {
       id: 'P-02',
@@ -236,7 +236,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.2'],
       type: 'list',
       usage:
-        'ENSFácil verifica la completitud de cada petición consultada en P-01. Petición implementada con campos obligatorios vacíos → hallazgo de información insuficiente para autorizar.',
+        'Power ENS verifica la completitud de cada petición consultada en P-01. Petición implementada con campos obligatorios vacíos → hallazgo de información insuficiente para autorizar.',
       missingBehavior:
         'No se puede verificar la suficiencia de la información. op.exp.5.2 solo acreditable por muestreo manual.',
     },
@@ -249,7 +249,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.4'],
       type: 'list',
       usage:
-        'ENSFácil clasifica los cambios detectados según estos criterios y verifica que los de riesgo ALTO cuentan con aprobación explícita del RSI en P-01, y que esa aprobación es ANTERIOR a la implantación.',
+        'Power ENS clasifica los cambios detectados según estos criterios y verifica que los de riesgo ALTO cuentan con aprobación explícita del RSI en P-01, y que esa aprobación es ANTERIOR a la implantación.',
       missingBehavior:
         'No se puede identificar qué cambios exigían aprobación del RSI. op.exp.5.4 NO EVALUABLE.',
     },
@@ -262,7 +262,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.4'],
       type: 'string',
       usage:
-        'ENSFácil verifica la identidad del aprobador en las peticiones clasificadas como riesgo ALTO. Aprobación firmada por otra persona → hallazgo, porque el ENS atribuye esa competencia al RSI de forma expresa.',
+        'Power ENS verifica la identidad del aprobador en las peticiones clasificadas como riesgo ALTO. Aprobación firmada por otra persona → hallazgo, porque el ENS atribuye esa competencia al RSI de forma expresa.',
       missingBehavior:
         'No se puede verificar que la aprobación de cambios de riesgo ALTO proviene del Responsable de la Seguridad.',
     },
@@ -275,7 +275,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.3'],
       type: 'table',
       usage:
-        'ENSFácil correlaciona cada cambio en producción con actividad previa en su par de preproducción. Requiere agente Wazuh también en preproducción. Nótese el matiz «siempre que sea posible realizarlas», que admite justificación de imposibilidad.',
+        'Power ENS correlaciona cada cambio en producción con actividad previa en su par de preproducción. Requiere agente Wazuh también en preproducción. Nótese el matiz «siempre que sea posible realizarlas», que admite justificación de imposibilidad.',
       missingBehavior:
         'No se puede acreditar el paso por preproducción. op.exp.5.3 queda como acreditación documental.',
     },
@@ -301,7 +301,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.r1.2'],
       type: 'select',
       usage:
-        'ENSFácil puede correlacionar las alertas de fallo que Wazuh detecta (servicios caídos, errores hardware en logs del sistema) con su comunicación efectiva por el canal declarado. Fallo detectado sin comunicación → hallazgo.',
+        'Power ENS puede correlacionar las alertas de fallo que Wazuh detecta (servicios caídos, errores hardware en logs del sistema) con su comunicación efectiva por el canal declarado. Fallo detectado sin comunicación → hallazgo.',
       missingBehavior:
         'No se puede verificar la comunicación de fallos al responsable de seguridad. op.exp.5.r1.2 NO EVALUABLE.',
     },
@@ -314,7 +314,7 @@ export const opExp5Control: ENSControl = {
       requirements: ['op.exp.5.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica que existe evidencia del punto de reversión en la ventana anterior a cada cambio implantado. Reutiliza la lógica de op.exp.4 EV-09.',
+        'Power ENS verifica que existe evidencia del punto de reversión en la ventana anterior a cada cambio implantado. Reutiliza la lógica de op.exp.4 EV-09.',
       missingBehavior:
         'R1 parcialmente NO EVALUABLE. No se acredita la previsión de reversión exigida por op.exp.5.r1.1.',
     },
@@ -327,7 +327,7 @@ export const opExp5Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

@@ -225,8 +225,8 @@ export const buildOpMon2ReportModel = (
       : !declaration.applicable.length
       ? 'Sin Declaración de Aplicabilidad (P-01): el grado de implantación no tiene base.'
       : degree && degree.global !== undefined
-      ? `${figure(degree.global)} % global sobre ${degree.evaluadas} de ${degree.medidas} medidas aplicables de P-01 evaluadas por ENSFácil (${deviation(degree.global, targets.get('implantacion_global'))}). Dato del informe, sin veredicto.`
-      : `Ninguna de las ${declaration.applicable.length} medidas aplicables de P-01 tiene puntuación en ENSFácil.`,
+      ? `${figure(degree.global)} % global sobre ${degree.evaluadas} de ${degree.medidas} medidas aplicables de P-01 evaluadas por Power ENS (${deviation(degree.global, targets.get('implantacion_global'))}). Dato del informe, sin veredicto.`
+      : `Ninguna de las ${declaration.applicable.length} medidas aplicables de P-01 tiene puntuación en Power ENS.`,
     ['EV-01'],
     [describeRepeatedMeasures(declaration.repeated), ...(degree ? degree.lineas : []), ...evidenceObservations('EV-01')],
   );
@@ -287,7 +287,7 @@ export const buildOpMon2ReportModel = (
     !reinforcements
       ? 'R2 solo se exige en categoría MEDIA y ALTA.'
       : r2?.attested
-      ? 'DATO DECLARADO, acreditado documentalmente: horas y presupuesto del último ciclo, anotados y validados por la organización. ENSFácil lo registra, no lo verifica.'
+      ? 'DATO DECLARADO, acreditado documentalmente: horas y presupuesto del último ciclo, anotados y validados por la organización. Power ENS lo registra, no lo verifica.'
       : 'Sin acreditar: el último ciclo en plazo no trae horas y presupuesto validados por un responsable de P-05.',
     ['EV-06'],
     [...(r2?.observations || []), ...evidenceObservations('EV-06')],
@@ -315,13 +315,13 @@ export const buildOpMon2ReportModel = (
     panorama
       ? [
           degree && degree.global !== undefined
-            ? `Grado de implantación: ${figure(degree.global)} % (motor de ENSFácil sobre P-01, ${degree.evaluadas} de ${degree.medidas} medidas evaluadas)`
+            ? `Grado de implantación: ${figure(degree.global)} % (motor de Power ENS sobre P-01, ${degree.evaluadas} de ${degree.medidas} medidas evaluadas)`
             : 'Grado de implantación: sin base (P-01)',
           coverage && typeof coverage.value === 'number'
             ? `Fiabilidad de la medición: ${figure(coverage.value)} % (global.db y latidos de los recolectores en el manager)`
             : 'Fiabilidad de la medición: sin medir',
           series.length ? `Último ciclo de métricas: ${series[0]} (registro de ciclos de la organización)` : 'Último ciclo de métricas: ninguno anotado',
-          pendingItems ? `Controles no evaluables por falta de parámetros: ${pendingItems.length} (motor de ENSFácil)` : '',
+          pendingItems ? `Controles no evaluables por falta de parámetros: ${pendingItems.length} (motor de Power ENS)` : '',
           reinforcements && annualIndicators.length
             ? `Incidentes de los últimos 365 días: ${annualIndicators.join('; ')} (registro de incidentes de op.exp.7)`
             : '',

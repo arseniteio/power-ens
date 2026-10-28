@@ -24,7 +24,7 @@
     "manager"
   ],
   "source": {
-    "template": "ENSFacil_Plantilla_op.acc.4",
+    "template": "PowerENS_Plantilla_op.acc.4",
     "version": "2.0",
     "date": "2026-10-15"
   },
@@ -196,7 +196,7 @@
     {
       "id": "EV-05",
       "title": "Control de la revisión periódica de permisos",
-      "description": "Registro de la fecha de la última revisión de permisos realizada y verificación de que no se ha superado el plazo P-03. La revisión puede detectarse por evidencias en el sistema o declararse en ENSFácil.",
+      "description": "Registro de la fecha de la última revisión de permisos realizada y verificación de que no se ha superado el plazo P-03. La revisión puede detectarse por evidencias en el sistema o declararse en Power ENS.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -363,7 +363,7 @@
       "type": "duration_days",
       "example": "90 (trimestral) / o 180 (semestral) / o 365 (anual)",
       "required": true,
-      "agent_usage": "ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
+      "agent_usage": "Power ENS registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
       "engine_usage": "El motor toma la última revisión de P-08 y comprueba que no supere este plazo.",
       "evidence_ids": [
         "EV-03",
@@ -473,7 +473,7 @@
         }
       ],
       "required": true,
-      "agent_usage": "ENSFácil registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
+      "agent_usage": "Power ENS registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
       "engine_usage": "El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.",
       "evidence_ids": [
         "EV-07"

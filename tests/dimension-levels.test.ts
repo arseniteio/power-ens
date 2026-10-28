@@ -53,7 +53,7 @@ const check = (name: string, condition: boolean, detail: unknown = ''): void => 
 const section = (title: string): void => console.log(`\n${title}`);
 
 const LEVELS: ENSLevel[] = ['BAJO', 'MEDIO', 'ALTO'];
-const labPath = process.env.ENSFACIL_LAB_DOC;
+const labPath = process.env.POWER_ENS_LAB_DOC;
 
 section('1. Each axis: a single-dimension control follows its own key and no other');
 
@@ -196,7 +196,7 @@ const labEvents = normalizeWazuhAlerts(
       '@timestamp': line.ts,
       agent: LAB_AGENT,
       rule: { id: RULE[String(line.event)] || '106600', description: 'mp.info.6' },
-      location: '/var/log/ensfacil/mp_info_6.json',
+      location: '/var/log/power-ens/mp_info_6.json',
       data: Object.fromEntries(Object.entries(line).map(([k, v]) => [k, String(v)])),
     },
   }))
@@ -245,7 +245,7 @@ if (labPath && existsSync(labPath)) {
   const lab = raw._source ? raw._source.configuration : raw.configuration || raw;
   parity(`lab copy (${lab.controls.length} controls)`, lab);
 } else {
-  console.log('    (lab copy skipped: ENSFACIL_LAB_DOC not set)');
+  console.log('    (lab copy skipped: POWER_ENS_LAB_DOC not set)');
 }
 
 section('6b. Upgrade from 1.3.0: a document keeping its own dimension keys changes exactly the controls the index ties to them');

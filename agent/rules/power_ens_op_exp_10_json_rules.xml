@@ -1,8 +1,8 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_10_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_10_json_rules.xml
      Byte-identical in three places: the plugin canonical source and manager/ of
      the Linux and LDAP op.exp.10 runbooks (checked by
      plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_exp_10,">
+<group name="power_ens,op_exp_10,">
 
   <!-- ================================================================
        op.exp.10 · Cryptographic key protection
@@ -36,8 +36,8 @@
 
   <rule id="111100" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">^op.exp.10$</field>
-    <description>op.exp.10 · evento ENSFácil base</description>
+    <field name="power_ens">^op.exp.10$</field>
+    <description>op.exp.10 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.exp.10.1 · Key custody during operation ===== -->

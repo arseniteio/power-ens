@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.s.2 (Protección de servicios y aplicaciones web).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -191,7 +191,7 @@ export const buildMpS2ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Auditorías de seguridad realizadas  ·  fuente: ENSFácil (EV-11)
+  // Auditorías de seguridad realizadas  ·  fuente: Power ENS (EV-11)
   const campo10 = field(
     'mp.s.2.campo10',
     'Auditorías de seguridad realizadas',
@@ -201,7 +201,7 @@ export const buildMpS2ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Resolución de los hallazgos de auditoría (R2)  ·  fuente: ENSFácil + Log (EV-12)
+  // Resolución de los hallazgos de auditoría (R2)  ·  fuente: Power ENS + Log (EV-12)
   const campo11 = field(
     'mp.s.2.campo11',
     'Resolución de los hallazgos de auditoría (R2)',
@@ -225,7 +225,7 @@ export const buildMpS2ReportModel = (
     evidenceObservations('EV-13'),
   );
 
-  // Puntuación de cumplimiento mp.s.2  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.s.2  ·  fuente: Motor Power ENS
   const campo13 = field(
     'mp.s.2.campo13',
     'Puntuación de cumplimiento mp.s.2',
@@ -235,7 +235,7 @@ export const buildMpS2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo14 = field(
     'mp.s.2.campo14',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

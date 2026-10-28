@@ -53,8 +53,8 @@ export const mpS2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define el alcance.',
-      ensfacilUsage:
-        'ENSFácil activa la ingesta y las reglas web sobre los servidores correspondientes y prioriza por exposición: una aplicación en internet que requiere autenticación concentra el riesgo.',
+      powerEnsUsage:
+        'Power ENS activa la ingesta y las reglas web sobre los servidores correspondientes y prioriza por exposición: una aplicación en internet que requiere autenticación concentra el riesgo.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -106,7 +106,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Habilita log collection con los decodificadores correspondientes y las reglas de ataque web de Wazuh. Conviene registrar también los cuerpos de petición en los endpoints sensibles cuando sea viable, porque la inyección de código no siempre es visible en la URL.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Habilita log collection con los decodificadores correspondientes y las reglas de ataque web de Wazuh. Conviene registrar también los cuerpos de petición en los endpoints sensibles cuando sea viable, porque la inyección de código no siempre es visible en la URL.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-07', 'EV-08', 'EV-09'],
       ruleIds: [],
@@ -146,9 +146,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
-      ensfacilUsage:
-        'ENSFácil detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
+        'Power ENS detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
+      powerEnsUsage:
+        'Power ENS detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
       ifNotConfigured:
@@ -182,7 +182,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'SCA verifica la configuración del servidor y las reglas detectan los accesos exitosos por estas vías. Es el apartado más olvidado del requisito y el que suele permitir descargar documentos sin pasar por la aplicación.',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA verifica la configuración del servidor y las reglas detectan los accesos exitosos por estas vías. Es el apartado más olvidado del requisito y el que suele permitir descargar documentos sin pasar por la aplicación.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
@@ -203,7 +203,7 @@ export const mpS2Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'SCA y análisis de las cabeceras de respuesta verifican estos atributos. Las reglas detectan además el uso de una misma cookie de sesión desde orígenes distintos, que es el indicio de manipulación o robo. Enlaza con mp.com.3.2 c) (secuestro de sesión).',
-      ensfacilUsage:
+      powerEnsUsage:
         'SCA y análisis de las cabeceras de respuesta verifican estos atributos. Las reglas detectan además el uso de una misma cookie de sesión desde orígenes distintos, que es el indicio de manipulación o robo. Enlaza con mp.com.3.2 c) (secuestro de sesión).',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04', 'EV-05', 'EV-06', 'EV-09'],
       ruleIds: [],
@@ -223,9 +223,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       example: '«PR-22 Auditoría de aplicaciones web v2»: caja negra continua en desarrollo y antes de cada paso a producción',
       required: true,
       wazuhUsage:
-        'ENSFácil registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
-      ensfacilUsage:
-        'ENSFácil registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
+        'Power ENS registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
+      powerEnsUsage:
+        'Power ENS registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
       ifNotConfigured:
@@ -248,9 +248,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       example: 'R2',
       required: true,
       wazuhUsage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
-      ensfacilUsage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
+      powerEnsUsage:
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
       ifNotConfigured:
@@ -307,9 +307,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
-      ensfacilUsage:
-        'ENSFácil conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
+        'Power ENS conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
+      powerEnsUsage:
+        'Power ENS conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
       evidenceIds: ['EV-10', 'EV-11'],
       ruleIds: [],
       ifNotConfigured:
@@ -366,9 +366,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
-      ensfacilUsage:
-        'ENSFácil hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
+        'Power ENS hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
+      powerEnsUsage:
+        'Power ENS hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
       evidenceIds: ['EV-12'],
       ruleIds: [],
       ifNotConfigured:
@@ -407,9 +407,9 @@ export const mpS2Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
-      ensfacilUsage:
-        'ENSFácil verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
+        'Power ENS verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
+      powerEnsUsage:
+        'Power ENS verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
       evidenceIds: ['EV-13'],
       ruleIds: [],
       ifNotConfigured:

@@ -32,8 +32,8 @@ const fact = (agent: string, name: string, data: Record<string, unknown>, hours:
 };
 const docs: FakeDoc[] = [];
 for (let h = 31 * 24; h >= 1; h -= 1) {
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'sshd', estado: 'CUMPLE' }, h - 0.01));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'sshd', estado: 'CUMPLE' }, h - 0.01));
 }
 const monitor = (id: string, name: string) => ({
   _id: `m${id}`,
@@ -133,7 +133,7 @@ const createStore = (options: { refuseSnapshots?: boolean; failPurges?: number; 
 };
 
 
-const ADMIN = { user_name: 'rsis', roles: ['ensfacil_admin', 'readall'] };
+const ADMIN = { user_name: 'rsis', roles: ['power_ens_admin', 'readall'] };
 const READER = { user_name: 'ana', roles: ['readall'] };
 const INTERNAL = { user_name: 'kibanaserver', roles: ['kibana_server', 'manage_wazuh_index'] };
 // The current user's client: the same indices, its own identity; `noSnapshots` refuses reading the snapshots index.
@@ -258,7 +258,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const today = snapshotIds(internal);
   check('the job writes one snapshot per control and day (DRAFT ones too: their assessed level)', today.length === list.controls.length && today.includes('op.exp.3|2026-10-20'), [today.length, list.controls.length]);
   const snap = internal.store.get('op.exp.3|2026-10-20').source;
-  check('the snapshot has status, score, coverage and the levels, written by the job', snap.date === '2026-10-20' && typeof snap.status === 'string' && 'score' in snap && snap.accredited === m.accredited && snap.target === m.target && snap.recordedBy === 'ENSFácil (tarea diaria)', snap);
+  check('the snapshot has status, score, coverage and the levels, written by the job', snap.date === '2026-10-20' && typeof snap.status === 'string' && 'score' in snap && snap.accredited === m.accredited && snap.target === m.target && snap.recordedBy === 'Power ENS (tarea diaria)', snap);
   check('the index template is put once, with the field types', internal.calls.templates.length === 1 && internal.calls.templates[0].body.index_patterns[0] === 'wazuh-ens-snapshots' && internal.calls.templates[0].body.template.mappings.properties.controlId.type === 'keyword');
   await new Promise(resolve => setTimeout(resolve, 400));
   check('the job\'s own evaluation computes no daily series', mainJob.built[0].backgroundWork().series === 0 && mainJob.built[0].idle(), mainJob.built[0].backgroundWork());
@@ -294,7 +294,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   });
   await daily.runOnce();
   const jobIds = snapshotIds(job.internal);
-  check('it writes the day with a complete evaluation of its own, though the user is not an administrator', jobIds.length === today.length && job.internal.store.get('op.exp.3|2026-10-20').source.recordedBy === 'ENSFácil (tarea diaria)', jobIds.length);
+  check('it writes the day with a complete evaluation of its own, though the user is not an administrator', jobIds.length === today.length && job.internal.store.get('op.exp.3|2026-10-20').source.recordedBy === 'Power ENS (tarea diaria)', jobIds.length);
   check('a control without facts that day: L0', job.internal.store.get('op.exp.8|2026-10-20').source.accredited === 0);
   const jobWrites = job.internal.calls.bulk.length;
   await daily.runOnce();
@@ -302,7 +302,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   // Day 2: op.exp.8 starts reporting every hour of the last 31 days; the job must read that, not yesterday's inputs.
   clock = new Date('2026-10-21T12:00:00Z');
   const added: FakeDoc[] = [];
-  for (let h = 31 * 24; h >= 1; h -= 1) added.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.8', event: 'collector_run' }, h));
+  for (let h = 31 * 24; h >= 1; h -= 1) added.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.8', event: 'collector_run' }, h));
   alerts.docs.push(...added);
   await daily.runOnce();
   check('the next day: a new evaluation and the new day written, yesterday kept', evaluations === 2 && snapshotIds(job.internal).filter((id: string) => id.endsWith('|2026-10-21')).length === today.length && snapshotIds(job.internal).filter((id: string) => id.endsWith('|2026-10-20')).length === today.length);
@@ -474,7 +474,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const activeSeq = internal.store.get('active').seqNo;
 
   const refusedSave: any = await save({ controlId: 'op.exp.3', kind: 'assessment', entry: assessment, expectedVersion: null }, READER);
-  check('without the role: 403 and nothing written', refusedSave.status === 403 && /ensfacil_admin o all_access/.test(refusedSave.body.message) && !maturityDoc());
+  check('without the role: 403 and nothing written', refusedSave.status === 403 && /power_ens_admin o all_access/.test(refusedSave.body.message) && !maturityDoc());
   check('a control outside the catalog: 400', (await save({ controlId: 'xx.1', kind: 'review', entry: {}, expectedVersion: null })).status === 400);
   check('an unknown record: 400', (await save({ controlId: 'op.exp.3', kind: 'nota', entry: {}, expectedVersion: null })).status === 400);
   const noVersion: any = await save({ controlId: 'op.exp.3', kind: 'review', entry: { date: '2026-10-01', reviewer: 'Ana', result: 'CONFORME' } });
@@ -507,7 +507,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const declaration = { applies: 'si', level: 2, reference: 'POL-SEG-01', owner: 'RSEG', date: '2026-10-01' };
   check('a declared entry without the role: 403', (await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: versionNow() }, READER)).status === 403);
   const measured: any = await save({ controlId: 'op.exp.3', kind: 'declaration', entry: declaration, expectedVersion: versionNow() });
-  check('a declared entry for a control the engine measures: 400', measured.status === 400 && /lo mide ENSFácil/.test(measured.body.message));
+  check('a declared entry for a control the engine measures: 400', measured.status === 400 && /lo mide Power ENS/.test(measured.body.message));
   check('a declared entry over a newer document: 409', (await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: null })).status === 409);
   const declared: any = await save({ controlId: 'org.1', kind: 'declaration', entry: declaration, expectedVersion: versionNow() });
   const declaredEntry = maturityDoc().source.configuration.controls['org.1']?.declarations?.[0];
@@ -567,7 +567,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const busyPolls: any[] = [];
   const extra: FakeDoc[] = [];
   for (let i = 0; i < 4; i += 1) {
-    const doc = fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run' }, 0.001 * (i + 1));
+    const doc = fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run' }, 0.001 * (i + 1));
     extra.push(doc);
     alerts.docs.push(doc);
     busyPolls.push((await busy.evaluation.evaluate(context(busy.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)).body.data);
@@ -623,7 +623,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   const flakyPolls: any[] = [];
   const flakyFacts: FakeDoc[] = [];
   for (let t = 0; t <= 120; t += 10) {
-    const doc = fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run' }, 0.0001 * (t / 10 + 1));
+    const doc = fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run' }, 0.0001 * (t / 10 + 1));
     flakyFacts.push(doc);
     alerts.docs.push(doc);
     flakyPolls.push(((await flakyOrg.evaluation.evaluate(context(flakyOrg.internal), request({ include: 'control', controlId: 'op.exp.3', agentId: '024', ...Z }), responses)) as any).body.data);
@@ -652,7 +652,7 @@ const Z = { timeZone: 'Europe/Madrid' };
   for (let i = 0; i < 3; i += 1) await repeated.ready({ include: 'control', controlId: 'op.exp.3', ...Z }, READER, true);
   check('the missing permission is logged once per user (in one process), not on every read', warnings.slice(warnedBefore).filter(w => /could not read the maturity snapshots for ana/.test(w)).length === 1, warnings.slice(warnedBefore));
   // The justification rule reads the snapshots as the internal user: a viewer without permission does not lower the bar.
-  const viewerSave: any = await blind.routes.save(context(blind.internal, { user_name: 'luis', roles: ['ensfacil_admin'] }, true), { body: { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null } }, responses);
+  const viewerSave: any = await blind.routes.save(context(blind.internal, { user_name: 'luis', roles: ['power_ens_admin'] }, true), { body: { controlId: 'op.exp.3', kind: 'assessment', entry: { level: 1, reviewer: 'Luis', date: '2026-10-20' }, expectedVersion: null } }, responses);
   const storedGates = blind.internal.store.get('maturity')?.source.configuration?.controls?.['op.exp.3']?.assessments?.[0]?.accreditedGates || [];
   check('an assessment by an administrator without read on the snapshots is judged with the snapshots read by the server', viewerSave.status === 200 && storedGates.length === 9 && !/sin permiso/.test(storedGates.find((g: any) => g.id === 'L5.trend')?.reason || ''), storedGates.find((g: any) => g.id === 'L5.trend'));
 
@@ -710,8 +710,8 @@ const Z = { timeZone: 'Europe/Madrid' };
   // The scope shrinks to a machine with 10 days of facts: the removed machine's 31 days must not count for L2.
   const newcomer: FakeDoc[] = [];
   for (let h = 10 * 24; h >= 1; h -= 1) {
-    newcomer.push(fact('025', 'nuevo', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-    newcomer.push(fact('025', 'nuevo', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'sshd', estado: 'CUMPLE' }, h - 0.01));
+    newcomer.push(fact('025', 'nuevo', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+    newcomer.push(fact('025', 'nuevo', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'sshd', estado: 'CUMPLE' }, h - 0.01));
   }
   newcomer.push({ _id: 'm025', _index: 'wazuh-monitoring-2026.10.20', _source: { id: '025', name: 'nuevo', group: ['ens', 'new'], status: 'active', timestamp: new Date(clock.getTime() - 360e3).toISOString(), manager: 'manager' } } as any);
   alerts.docs.push(...newcomer);

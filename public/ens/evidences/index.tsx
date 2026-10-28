@@ -58,7 +58,7 @@ interface EvidenceRow {
   // Of a control without collector: its NO_APLICA is not the level's, it shows as «Sin medición todavía».
   pending: boolean;
 
-  // Whose gap it is when the status is NO_EVALUABLE: COLLECTION is fixed by whoever operates Wazuh, CONFIGURATION by whoever configures ENSFácil, CATALOG by the product.
+  // Whose gap it is when the status is NO_EVALUABLE: COLLECTION is fixed by whoever operates Wazuh, CONFIGURATION by whoever configures Power ENS, CATALOG by the product.
   gapCauses: ENSGapCause[];
 
   lastValidation: string;

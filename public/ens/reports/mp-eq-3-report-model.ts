@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.eq.3 (Protección de dispositivos portátiles).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -111,7 +111,7 @@ export const buildMpEq3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Inventario de dispositivos portátiles  ·  fuente: Syscollector + ENSFácil (EV-01)
+  // Inventario de dispositivos portátiles  ·  fuente: Syscollector + Power ENS (EV-01)
   const campo2 = field(
     'mp.eq.3.campo2',
     'Inventario de dispositivos portátiles',
@@ -121,7 +121,7 @@ export const buildMpEq3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Control de custodia  ·  fuente: Estado de agentes + ENSFácil (EV-02)
+  // Control de custodia  ·  fuente: Estado de agentes + Power ENS (EV-02)
   const campo3 = field(
     'mp.eq.3.campo3',
     'Control de custodia',
@@ -183,7 +183,7 @@ export const buildMpEq3ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Requisitos normativos — acreditación documental  ·  fuente: Configuración ENSFácil
+  // Requisitos normativos — acreditación documental  ·  fuente: Configuración Power ENS
   const campo9 = field(
     'mp.eq.3.campo9',
     'Requisitos normativos — acreditación documental',
@@ -193,7 +193,7 @@ export const buildMpEq3ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Puntuación de cumplimiento mp.eq.3  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.eq.3  ·  fuente: Motor Power ENS
   const campo10 = field(
     'mp.eq.3.campo10',
     'Puntuación de cumplimiento mp.eq.3',
@@ -203,7 +203,7 @@ export const buildMpEq3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo11 = field(
     'mp.eq.3.campo11',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

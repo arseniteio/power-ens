@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.eq.4 (Otros dispositivos conectados a la red).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -111,7 +111,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Dispositivos descubiertos en la red  ·  fuente: Log Collection + ENSFácil (EV-01)
+  // Dispositivos descubiertos en la red  ·  fuente: Log Collection + Power ENS (EV-01)
   const campo2 = field(
     'mp.eq.4.campo2',
     'Dispositivos descubiertos en la red',
@@ -121,7 +121,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Contraste inventario frente a red  ·  fuente: ENSFácil (EV-02)
+  // Contraste inventario frente a red  ·  fuente: Power ENS (EV-02)
   const campo3 = field(
     'mp.eq.4.campo3',
     'Contraste inventario frente a red',
@@ -161,7 +161,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Dispositivos de invitados y BYOD  ·  fuente: Log + ENSFácil (EV-07)
+  // Dispositivos de invitados y BYOD  ·  fuente: Log + Power ENS (EV-07)
   const campo7 = field(
     'mp.eq.4.campo7',
     'Dispositivos de invitados y BYOD',
@@ -181,7 +181,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Capacidad y ejecución del borrado de almacenamiento  ·  fuente: Log + ENSFácil (EV-08)
+  // Capacidad y ejecución del borrado de almacenamiento  ·  fuente: Log + Power ENS (EV-08)
   const campo9 = field(
     'mp.eq.4.campo9',
     'Capacidad y ejecución del borrado de almacenamiento',
@@ -191,7 +191,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Puntuación de cumplimiento mp.eq.4  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.eq.4  ·  fuente: Motor Power ENS
   const campo10 = field(
     'mp.eq.4.campo10',
     'Puntuación de cumplimiento mp.eq.4',
@@ -201,7 +201,7 @@ export const buildMpEq4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo11 = field(
     'mp.eq.4.campo11',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

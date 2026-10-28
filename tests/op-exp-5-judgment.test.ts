@@ -50,9 +50,9 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
       '@timestamp': ts,
       agent: { id: '024', name: 'wazuh-real' },
       rule: { id: '110600', description: 'op.exp.5' },
-      location: '/var/log/ensfacil/op_exp_5.json',
+      location: '/var/log/power-ens/op_exp_5.json',
       data: Object.fromEntries(
-        Object.entries({ ensfacil: 'op.exp.5', ...data }).map(([k, v]) => [k, String(v)])
+        Object.entries({ power_ens: 'op.exp.5', ...data }).map(([k, v]) => [k, String(v)])
       ),
     },
   };
@@ -69,7 +69,7 @@ const configuration = (values: Record<string, unknown>): ENSControlConfiguration
 });
 
 const BASE: Record<string, unknown> = {
-  'P-01': ['registro_tsv | /etc/ensfacil/change-register.tsv | RFC-'],
+  'P-01': ['registro_tsv | /etc/power-ens/change-register.tsv | RFC-'],
   'P-02': ['descripcion', 'riesgo', 'aprobado_por', 'ventana_inicio', 'ventana_fin'],
   'P-03': ['cambio en el cortafuegos o en la autenticación'],
   'P-04': ['Responsable de Seguridad | rsi'],
@@ -104,7 +104,7 @@ const record = (requests: Record<string, string>[], extra: Record<string, unknow
   alert({
     event: 'change_register_read',
     evidence_id: 'EV-02,EV-03,EV-04,EV-06',
-    registro: '/etc/ensfacil/change-register.tsv',
+    registro: '/etc/power-ens/change-register.tsv',
     filas: requests.length,
     filas_ilegibles: 0,
     firma: 'f1',
@@ -284,7 +284,7 @@ section('3. EV-02 · without changes, without a record, or another management sy
 
   const withoutRecord = evaluate([
     heartbeat(),
-    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe /etc/ensfacil/change-register.tsv' }),
+    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe /etc/power-ens/change-register.tsv' }),
   ]);
   check('absent record → NO_EVALUABLE with the collector\'s motive', withoutRecord.estado('EV-02') === 'NO_EVALUABLE' && /change-register\.tsv/.test(withoutRecord.motivo('EV-02')), withoutRecord.motivo('EV-02'));
 
@@ -439,8 +439,8 @@ section('9. EV-05 and EV-08 · without a real source: always NO_EVALUABLE, never
         '@timestamp': ago(1),
         agent: { id: '024', name: 'wazuh-real' },
         rule: { id: '110505', description: 'op.exp.4' },
-        location: '/var/log/ensfacil/op_exp_4.json',
-        data: { ensfacil: 'op.exp.4', event: 'package_changed', actor: 'root', inicio: ago(5), fin: ago(5) },
+        location: '/var/log/power-ens/op_exp_4.json',
+        data: { power_ens: 'op.exp.4', event: 'package_changed', actor: 'root', inicio: ago(5), fin: ago(5) },
       },
     },
   ]);
@@ -466,7 +466,7 @@ section('10. The cause of what could not be measured reaches the evidence');
 
   const withoutRecord = evaluate([
     heartbeat(),
-    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe /etc/ensfacil/change-register.tsv' }),
+    alert({ event: 'evidence_state', evidence_id: 'EV-02', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe /etc/power-ens/change-register.tsv' }),
   ]);
   check(
     'absent record (collector\'s CONFIGURATION) → EV-03 carries that cause, not COLLECTION',

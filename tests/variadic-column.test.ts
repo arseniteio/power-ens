@@ -40,7 +40,7 @@ const tabla = (
     ruleIds: [],
     evidenceIds: [],
     wazuhUsage: '-',
-    ensfacilUsage: '-',
+    powerEnsUsage: '-',
     ifNotConfigured: '-',
     value,
     columns: [
@@ -137,7 +137,7 @@ section('3. A cell can declare several comma-separated values');
       ruleIds: [],
       evidenceIds: [],
       wazuhUsage: '-',
-      ensfacilUsage: '-',
+      powerEnsUsage: '-',
       ifNotConfigured: '-',
       value,
       columns: [

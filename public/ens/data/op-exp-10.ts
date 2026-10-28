@@ -182,7 +182,7 @@ export const opExp10Control: ENSControl = {
       requirements: ['op.exp.10.1'],
       type: 'table',
       usage:
-        'Define qué debe vigilar ENSFácil. Las claves en HSM quedan fuera del alcance de Wazuh, pero las que residen en disco son monitorizables con FIM. Es imprescindible saber cuáles son de cada tipo.',
+        'Define qué debe vigilar Power ENS. Las claves en HSM quedan fuera del alcance de Wazuh, pero las que residen en disco son monitorizables con FIM. Es imprescindible saber cuáles son de cada tipo.',
       missingBehavior:
         'El control es NO EVALUABLE. Sin inventario de claves no hay nada que vigilar ni contra qué contrastar.',
     },
@@ -234,7 +234,7 @@ export const opExp10Control: ENSControl = {
       requirements: ['op.exp.10.2'],
       type: 'table',
       usage:
-        'ENSFácil verifica que no se detecta actividad de generación de claves en los sistemas declarados como de explotación, y que el aislamiento de red entre ambos medios es efectivo.',
+        'Power ENS verifica que no se detecta actividad de generación de claves en los sistemas declarados como de explotación, y que el aislamiento de red entre ambos medios es efectivo.',
       missingBehavior:
         'op.exp.10.2 NO EVALUABLE. No se puede acreditar el aislamiento que el requisito exige expresamente.',
     },
@@ -247,7 +247,7 @@ export const opExp10Control: ENSControl = {
       requirements: ['op.exp.10.3'],
       type: 'string',
       usage:
-        'ENSFácil verifica que las claves retiradas no permanecen accesibles en los sistemas de explotación, contrastando el inventario P-01 con la presencia real de material criptográfico en las rutas de P-02.',
+        'Power ENS verifica que las claves retiradas no permanecen accesibles en los sistemas de explotación, contrastando el inventario P-01 con la presencia real de material criptográfico en las rutas de P-02.',
       missingBehavior:
         'op.exp.10.3 NO EVALUABLE. Riesgo de que claves retiradas sigan accesibles en producción.',
     },
@@ -260,7 +260,7 @@ export const opExp10Control: ENSControl = {
       requirements: ['op.exp.10.1'],
       type: 'string',
       usage:
-        'Referencia documental que ENSFácil recoge en el informe indicando qué fases están cubiertas y qué fases son verificables automáticamente. Las fases de transporte y destrucción son casi siempre documentales.',
+        'Referencia documental que Power ENS recoge en el informe indicando qué fases están cubiertas y qué fases son verificables automáticamente. Las fases de transporte y destrucción son casi siempre documentales.',
       missingBehavior:
         'op.exp.10.1 acreditable solo parcialmente. Las fases no monitorizables quedan sin soporte documental.',
     },
@@ -286,7 +286,7 @@ export const opExp10Control: ENSControl = {
       requirements: ['op.exp.10.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil recoge la declaración de conformidad en el informe. La verificación de conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto, no observable desde Wazuh.',
+        'Power ENS recoge la declaración de conformidad en el informe. La verificación de conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto, no observable desde Wazuh.',
       missingBehavior:
         'R2 sin acreditar. No supone incumplimiento al no ser exigible en ninguna categoría.',
     },
@@ -299,7 +299,7 @@ export const opExp10Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

@@ -111,7 +111,7 @@ const completePass = (ts = COMPLETE, extra: { coleccion?: Line; detector?: Line 
     conjunto: 'quersystem', ruta: '/var/ossec/etc/rules', ficheros: 6, reglas: 41, reglas_con_mitre: 12, tecnicas_mitre: 9,
     reglas_correlacion: 3, reglas_frecuencia: 3, reglas_if_matched: 0, tecnicas_correlacion: 2 },
   { _a: '000', ts: t(ts, 14), event: 'correlation_rules_inventory', evidence_id: 'EV-03', requisito: 'op.mon.3.r1.1', plano: 'central',
-    conjunto: 'ensfacil', ruta: '/var/ossec/etc/rules', ficheros: 19, reglas: 300, reglas_con_mitre: 0, tecnicas_mitre: 0,
+    conjunto: 'power_ens', ruta: '/var/ossec/etc/rules', ficheros: 19, reglas: 300, reglas_con_mitre: 0, tecnicas_mitre: 0,
     reglas_correlacion: 0, reglas_frecuencia: 0, reglas_if_matched: 0, tecnicas_correlacion: 0 },
   { _a: '000', ts: t(ts, 15), event: 'correlation_alert_observed', evidence_id: 'EV-03', requisito: 'op.mon.3.r1.1', plano: 'central',
     regla: '5712', dia: '2026-10-09', veces: 3, nivel: 10, descripcion: 'sshd: brute force trying to get access to the system', grupos: 'syslog,sshd',
@@ -184,8 +184,8 @@ const alert = (line: Line, control = 'op.mon.3') => {
       '@timestamp': ts,
       agent: { id: _a, name: MACHINES[_a] || _a },
       rule: { id: RULE[String(data.event)] || '111400', description: control },
-      location: `/var/log/ensfacil/${control.replace(/\./g, '_')}.json`,
-      data: Object.fromEntries(Object.entries({ ensfacil: control, ...data }).map(([k, v]) => [k, String(v)])),
+      location: `/var/log/power-ens/${control.replace(/\./g, '_')}.json`,
+      data: Object.fromEntries(Object.entries({ power_ens: control, ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -237,7 +237,7 @@ const HIGH: Values = {
   'P-07': ['BD expedientes | gestor | 500 registros | 1 h | 107215'],
   'P-08': ['RSI | correo | 10 | 24x7'],
   'P-09': ['verificacion_configuracion | continua | Wazuh SCA', 'analisis_vulnerabilidades | continua | Wazuh VD', 'pentest | 365 | externo'],
-  'P-10': ['Registro ENSFácil del manager | /etc/ensfacil/security-inspection-register.tsv | Responsable de Seguridad'],
+  'P-10': ['Registro Power ENS del manager | /etc/power-ens/security-inspection-register.tsv | Responsable de Seguridad'],
   'P-ATT': [
     'op.mon.3.r3.1 | Línea base de comportamiento validada | https://intranet.cliente-prueba.es/seguridad/linea-base.pdf | 2026-05-12 | RSI',
     'op.mon.3.r4.1 | Contrato de cibervigilancia 2026 | https://intranet.cliente-prueba.es/contratos/cibervigilancia-2026.pdf | 2026-05-12 | RSI',
@@ -740,7 +740,7 @@ section('6. Without a collector, or with what the collector declares it could no
 
   const absentRecord = [
     ...hoy(withoutIt('security_inspection_recorded')),
-    ...events([{ _a: '000', ts: t(COMPLETE, 23), event: 'evidence_state', evidence_id: 'EV-12,EV-13', requisito: 'op.mon.3.r6.1,op.mon.3.r6.2,op.mon.3.r6.3', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de inspecciones /etc/ensfacil/security-inspection-register.tsv' }]),
+    ...events([{ _a: '000', ts: t(COMPLETE, 23), event: 'evidence_state', evidence_id: 'EV-12,EV-13', requisito: 'op.mon.3.r6.1,op.mon.3.r6.2,op.mon.3.r6.3', estado: 'NO_EVALUABLE', causa: 'CONFIGURATION', motivo: 'no existe el registro de inspecciones /etc/power-ens/security-inspection-register.tsv' }]),
   ];
   const r6 = evaluate(absentRecord, HIGH, 'ALTO');
 
@@ -915,7 +915,7 @@ section('8. State and two cadences; id parts; fact budget');
     ids, reglas_umbral: many.length + 1, parte: i + 1, partes: parts.length,
   }));
   const withParts = (which: number[]) => [...hoy(withoutIt('query_volume_rules_observed')), ...events(thresholdLines.filter((_, i) => which.includes(i)))];
-  const longestJson = Math.max(...thresholdLines.map(l => JSON.stringify({ ensfacil: 'op.mon.3', host: 'wazuh-4', ...l }).length));
+  const longestJson = Math.max(...thresholdLines.map(l => JSON.stringify({ power_ens: 'op.mon.3', host: 'wazuh-4', ...l }).length));
 
   check(`1501 loose ids in ${parts.length} parts; no line exceeds 8 KiB (${longestJson})`, parts.length >= 2 && longestJson < 8192);
   check('the parts join: P-07\'s rule in the last part is found', estado(evaluate(withParts(parts.map((_, i) => i)), HIGH, 'ALTO'), 'op.mon.3.r5.1') === 'CUMPLE');

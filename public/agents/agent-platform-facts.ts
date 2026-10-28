@@ -20,7 +20,7 @@ export const buildPlatformFactsRequest = () => ({
       bool: {
         filter: [
           { range: { timestamp: { gte: ENS_PLATFORM_FACTS_WINDOW } } },
-          { exists: { field: 'data.ensfacil' } },
+          { exists: { field: 'data.power_ens' } },
         ],
       },
     },
@@ -30,7 +30,7 @@ export const buildPlatformFactsRequest = () => ({
         aggs: {
           planos: { terms: { field: 'data.plano', size: 20 } },
           copias: {
-            filter: { term: { 'data.ensfacil': 'mp.info.6' } },
+            filter: { term: { 'data.power_ens': 'mp.info.6' } },
             aggs: { origenes: { terms: { field: 'data.origen', size: 10 } } },
           },
         },

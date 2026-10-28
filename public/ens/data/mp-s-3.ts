@@ -310,7 +310,7 @@ export const mpS3Control: ENSControl = {
       requirements: ['mp.s.3.5', 'mp.s.3.6'],
       type: 'table',
       usage:
-        'ENSFácil verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
+        'Power ENS verifica que el filtrado opera sobre las categorías declaradas y mide el volumen bloqueado por cada una. Enlaza con op.exp.6: la navegación es, junto al correo, la vía principal de entrada de código dañino.',
       missingBehavior:
         'No se puede verificar qué se filtra ni acreditar la protección frente a lo que llega por la web.',
     },
@@ -323,7 +323,7 @@ export const mpS3Control: ENSControl = {
       requirements: ['mp.s.3.4'],
       type: 'string',
       usage:
-        'ENSFácil verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
+        'Power ENS verifica que las consultas de resolución salen solo por los resolutores autorizados y detecta intentos de usar resolutores externos o canales alternativos de resolución, que son una vía habitual de evasión del filtrado.',
       missingBehavior:
         'mp.s.3.4 NO EVALUABLE. La evasión del filtrado por resolución alternativa pasa inadvertida.',
     },
@@ -414,7 +414,7 @@ export const mpS3Control: ENSControl = {
       requirements: ['mp.s.3.r2.1'],
       type: 'list',
       usage:
-        'ENSFácil verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
+        'Power ENS verifica que todo acceso fuera de la lista queda vetado y que las excepciones responden a autorización singular expresa, como el refuerzo exige. Solo aplicable en entornos muy controlados.',
       missingBehavior:
         'R2 sin acreditar. No supone incumplimiento al no ser exigible en ninguna categoría.',
     },

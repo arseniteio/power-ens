@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 ###############################################################################
-# build-plugin.sh · builds ENSFácil as a standalone plugin
+# build-plugin.sh · builds Power ENS as a standalone plugin
 #
 #   sudo bash config/build-plugin.sh [<OpenSearch Dashboards tree>]
 #
-# Default tree: the guides' (/opt/ensfacil/build), an OpenSearch Dashboards 2.19.5 source prepared with
-# `yarn osd bootstrap`. Copies the plugin (only what is distributed) to <tree>/plugins/ensfacil and builds
+# Default tree: the guides' (/opt/power-ens/build), an OpenSearch Dashboards 2.19.5 source prepared with
+# `yarn osd bootstrap`. Copies the plugin (only what is distributed) to <tree>/plugins/powerEns and builds
 # there; it does NOT touch plugins/main or any other plugin of the tree. With the repository yarn.lock the
 # dependencies are always the same (--frozen-lockfile: stops if it does not match package.json).
 ###############################################################################
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OSD_SRC="${1:-/opt/ensfacil/build}"
-DEST="$OSD_SRC/plugins/ensfacil"
+OSD_SRC="${1:-/opt/power-ens/build}"
+DEST="$OSD_SRC/plugins/powerEns"
 
 if [ ! -f "$OSD_SRC/package.json" ] || [ ! -d "$OSD_SRC/scripts" ]; then
   echo "not an OpenSearch Dashboards tree: $OSD_SRC" >&2
@@ -41,7 +41,7 @@ esac
 
 VERSION_OSD="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$OSD_SRC/package.json")"
 if [ "$VERSION_OSD" != "2.19.5" ]; then
-  echo "the tree is $VERSION_OSD; ENSFácil 1.x builds against 2.19.5" >&2
+  echo "the tree is $VERSION_OSD; Power ENS 1.x builds against 2.19.5" >&2
   exit 3
 fi
 

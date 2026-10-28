@@ -1,4 +1,4 @@
-/** A daily index in the window with no ENSFácil facts (1.2.0). */
+/** A daily index in the window with no Power ENS facts (1.2.0). */
 import { createFakeIndexer, FakeDoc } from './fixtures/fake-indexer';
 import { createEvaluationService } from '../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse } from '../server/lib/evaluation/responses';
@@ -28,9 +28,9 @@ const fact = (agent: string, name: string, data: Record<string, unknown>, hours:
 const ens: FakeDoc[] = [];
 for (const [agent, name] of [['101', 'srv-web01'], ['102', 'ldap01']]) {
   for (const h of [50, 3, 1]) {
-    ens.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-    ens.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: 'ssh.service', estado: 'CUMPLE' }, h - 0.01));
-    ens.push(fact(agent, name, { ensfacil: 'op.acc.1', event: 'collector_run' }, h));
+    ens.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+    ens.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: 'ssh.service', estado: 'CUMPLE' }, h - 0.01));
+    ens.push(fact(agent, name, { power_ens: 'op.acc.1', event: 'collector_run' }, h));
   }
 }
 const foreign: FakeDoc = {
@@ -38,7 +38,7 @@ const foreign: FakeDoc = {
   _index: 'wazuh-alerts-4.x-2026.10.16',
   _source: { '@timestamp': hora(24), timestamp: hora(24), id: 'x.1', manager: { name: 'wazuh-manager' }, agent: { id: '101', name: 'srv-web01' }, rule: { id: '5715', groups: ['sshd'] }, data: { srcip: '192.0.2.10' } },
 };
-check('setup: the foreign alert falls on a day without ENSFácil facts', !ens.some(d => d._index === foreign._index));
+check('setup: the foreign alert falls on a day without Power ENS facts', !ens.some(d => d._index === foreign._index));
 
 const monitor = (id: string, name: string): FakeDoc => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.17',
@@ -73,19 +73,19 @@ const request = async (service: any, clients2: any, q: any) => {
     withForeign.search({ index: 'wazuh-alerts-4.x-2026.10.15,wazuh-alerts-4.x-2026.10.16,wazuh-alerts-4.x-2026.10.17', body: { size: 1, sort, query: { match_all: {} } } });
   let error: any;
   try {
-    await searches([{ 'data.ensfacil': { order: 'asc' } }]);
+    await searches([{ 'data.power_ens': { order: 'asc' } }]);
   } catch (e) {
     error = e;
   }
-  check('sorting by data.ensfacil without unmapped_type on a day that does not map it: 400 «No mapping found»', error?.meta?.statusCode === 400 && /No mapping found for \[data\.ensfacil\] in order to sort on/.test(error?.message), error?.message);
-  const good = await searches([{ 'data.ensfacil': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }]);
+  check('sorting by data.power_ens without unmapped_type on a day that does not map it: 400 «No mapping found»', error?.meta?.statusCode === 400 && /No mapping found for \[data\.power_ens\] in order to sort on/.test(error?.message), error?.message);
+  const good = await searches([{ 'data.power_ens': { order: 'asc', missing: '_last', unmapped_type: 'keyword' } }]);
   check('con unmapped_type responde', good.body.hits.hits.length === 1);
   check('the stream\'s order carries unmapped_type on all its keys except the date', STREAM_SORT.every((s: any) => {
     const [campo, o] = Object.entries(s)[0] as [string, any];
     return campo === '@timestamp' || o.unmapped_type === 'keyword';
   }) && STREAM_SORT.length === FACTS_SORT.length + 1);
 
-  console.log('2. A day without ENSFácil facts in the window');
+  console.log('2. A day without Power ENS facts in the window');
   const reference = createEvaluationService({ engineControls: [], logger, securityEnabled: true, clock: () => clock });
   const withoutForeign = indexer(ens);
   const clientsRef = { asCurrentUser: withoutForeign, asInternalUser: withoutForeign };
@@ -99,7 +99,7 @@ const request = async (service: any, clients2: any, q: any) => {
     failure = e;
   }
   check('the first load answers', !failure && Array.isArray(response?.results), failure?.message);
-  const named = withForeign.log.some(l => typeof l.index === 'string' && l.index.split(',').includes('wazuh-alerts-4.x-2026.10.16') && (l.body?.sort || [])[0]?.['data.ensfacil']);
+  const named = withForeign.log.some(l => typeof l.index === 'string' && l.index.split(',').includes('wazuh-alerts-4.x-2026.10.16') && (l.body?.sort || [])[0]?.['data.power_ens']);
   check('and the per-machine stream did name the day without facts', named);
   const expectedValue = await request(reference, clientsRef, { include: 'results' });
   check('with the same as without that day', response && same(response.results, expectedValue.results) && same(response.agents, expectedValue.agents));
@@ -109,7 +109,7 @@ const request = async (service: any, clients2: any, q: any) => {
   const rejector = {
     ...withForeign,
     search: async (p: any) => {
-      if ((p.body?.sort || [])[0]?.['data.ensfacil']) {
+      if ((p.body?.sort || [])[0]?.['data.power_ens']) {
         rejections.push(p.index);
         throw Object.assign(new Error('illegal_argument_exception'), { statusCode: 400, meta: { statusCode: 400 } });
       }
@@ -144,7 +144,7 @@ const request = async (service: any, clients2: any, q: any) => {
     const withState = {
       ...withForeign,
       search: async (p: any) => {
-        if ((p.body?.sort || [])[0]?.['data.ensfacil']) {
+        if ((p.body?.sort || [])[0]?.['data.power_ens']) {
           throw Object.assign(new Error(`estado ${estado}`), { statusCode: estado, meta: { statusCode: estado } });
         }
         if (p.body?.size > 0) reads.push(JSON.stringify(p.body.query).slice(0, 80));

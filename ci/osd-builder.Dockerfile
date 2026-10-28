@@ -1,7 +1,7 @@
-# Build image of ENSFácil: the OpenSearch Dashboards 2.19.5 tree
+# Build image of Power ENS: the OpenSearch Dashboards 2.19.5 tree
 # (wazuh-dashboard v4.14.7) prepared with `yarn osd bootstrap` in /osd.
 #
-#   docker build -f ci/osd-builder.Dockerfile -t ensfacil-osd-builder:2.19.5 ci/
+#   docker build -f ci/osd-builder.Dockerfile -t power-ens-osd-builder:2.19.5 ci/
 FROM node:18.19.0-bookworm
 
 ARG WAZUH_DASHBOARD_REF=v4.14.7

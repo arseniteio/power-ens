@@ -53,8 +53,8 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ensfacil_history import save_previous_version  # noqa: E402
-import ensfacil_organization as organization  # noqa: E402
+from power_ens_history import save_previous_version  # noqa: E402
+import power_ens_organization as organization  # noqa: E402
 
 ES = os.environ.get("ENS_OS_URL", "https://localhost:9200")
 INDEX = "wazuh-ens-configuration"

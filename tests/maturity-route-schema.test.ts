@@ -12,7 +12,7 @@ const check = (name: string, ok: boolean, detail: unknown = '') => {
 
 // Always the stand-in; and the dashboard's own package when reachable (build image, a dashboard install, the variable).
 const REAL = [
-  process.env.ENSFACIL_OSD_CONFIG_SCHEMA,
+  process.env.POWER_ENS_OSD_CONFIG_SCHEMA,
   '/osd/node_modules/@osd/config-schema',
   '/usr/share/wazuh-dashboard/node_modules/@osd/config-schema',
 ].find(path => path && existsSync(path));
@@ -33,7 +33,7 @@ Module._load = function (request: string, ...rest: unknown[]) {
 
 const http = require('../common/ens/configuration/services/configuration-http-client');
 const client = require('../common/ens/maturity/maturity-http-client');
-const { ENSFACIL_MATURITY_PATH } = require('../common/constants');
+const { POWER_ENS_MATURITY_PATH } = require('../common/constants');
 const ROUTES = require.resolve('../server/routes/maturity');
 
 // What the browser really sends, through its own client.
@@ -72,8 +72,8 @@ http.setENSConfigurationHttp(() => ({
       post: (config: any) => routes.push({ method: 'POST', ...config }),
     };
     registerMaturityRoutes(router, { logger: { info() {}, warn() {}, error() {}, debug() {} }, securityEnabled: true, maturity: {} });
-    const save = routes.find(route => route.method === 'PUT' && route.path === ENSFACIL_MATURITY_PATH);
-    const read = routes.find(route => route.method === 'GET' && route.path === `${ENSFACIL_MATURITY_PATH}/snapshots`);
+    const save = routes.find(route => route.method === 'PUT' && route.path === POWER_ENS_MATURITY_PATH);
+    const read = routes.find(route => route.method === 'GET' && route.path === `${POWER_ENS_MATURITY_PATH}/snapshots`);
     const run = (validator: any, value: unknown, where: string): { value?: any; error?: string } => {
       try {
         return { value: validator.validate(value, {}, where) };

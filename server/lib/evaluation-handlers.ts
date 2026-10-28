@@ -1,6 +1,6 @@
 // Evaluation routes. Everything is read as the viewing user (`asCurrentUser`) so the indexer keeps applying
 // their permissions; only the active configuration is read as before (`asInternalUser`, like `GET
-// /api/ensfacil/configuration`).
+// /api/powerEns/configuration`).
 // Computations are shared per row (one control on one machine, see `evaluation-service.ts`), not per request:
 // what comes from memory never waits behind a cold computation. If the browser closes the request and nobody
 // else waits for that computation, it is cancelled.
@@ -60,10 +60,10 @@ export const createEvaluationHandlers = (options: {
       // Errors that have a reason for the viewer (bad request, permissions, incomplete data, too many facts,
       // cancelled) are returned with it.
       if ((status >= 400 && status < 500) || status === 503) {
-        if (status === 503) logger.warn(`ENSFácil: could not ${logLabel}: ${error?.message}`);
+        if (status === 503) logger.warn(`Power ENS: could not ${logLabel}: ${error?.message}`);
         return failure(response, status, error?.message || 'No autorizado');
       }
-      logger.error(`ENSFácil: could not ${logLabel}: ${error?.message || error}`);
+      logger.error(`Power ENS: could not ${logLabel}: ${error?.message || error}`);
       return failure(response, 500, `No se pudo ${actionName}; el detalle está en el log del dashboard.`);
     } finally {
       looseOne();
@@ -78,7 +78,7 @@ export const createEvaluationHandlers = (options: {
       const output = await service.run(clients(context), query, { allowStale: true, signal, retryRefresh });
       const s = output.meta.stats;
       logger.debug(
-        `ENSFácil: evaluation ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} in ${s.totalMs} ms ` +
+        `Power ENS: evaluation ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} in ${s.totalMs} ms ` +
           `(${s.computed} rows computed, ${s.refreshingInBackground} refreshing, ${s.hits} facts read)`
       );
       // The maturity never fails the evaluation: without it the response says why.
@@ -89,7 +89,7 @@ export const createEvaluationHandlers = (options: {
           maturity = await options.maturity.forEvaluation(clients(context), output, { retry: retryRefresh });
         } catch (error: any) {
           if (statusOf(error) === 499) throw error;
-          logger.warn(`ENSFácil: could not compute the maturity: ${error?.message || error}`);
+          logger.warn(`Power ENS: could not compute the maturity: ${error?.message || error}`);
           maturityError = 'No se pudo calcular la madurez; el detalle está en el log del dashboard.';
         }
       }

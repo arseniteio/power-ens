@@ -7,7 +7,7 @@ export const mpCom1CatalogDefinition: ENSControlDefinition = {
   category: 'Protección de las comunicaciones',
   dimension: 'Todas',
   annexSection: '5.4.1',
-  source: { template: 'ENSFacil_Plantilla_mp.com.1', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.com.1', version: '2.0', date: '2026-10-15' },
   description:
     'mp.com.1 pide un perímetro por el que pase todo el tráfico y que solo deje pasar flujos previamente autorizados.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

@@ -49,8 +49,8 @@ const { validos: valid, estadoVigente: currentStatus, sinHechos: withoutFacts } 
 const decide = decisionBuilderFor(POLICY);
 
 // Must match the first option of P-04 and P-05.
-const TEST_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-test-register.tsv)';
-const DEFICIENCY_RECORD = 'Registro ENSFácil (/etc/ensfacil/continuity-deficiency-register.tsv)';
+const TEST_RECORD = 'Registro Power ENS (/etc/power-ens/continuity-test-register.tsv)';
+const DEFICIENCY_RECORD = 'Registro Power ENS (/etc/power-ens/continuity-deficiency-register.tsv)';
 
 // Vocabulary of the `tipo` column and the types that really exercise alternative means.
 const TYPES = ['revision_documental', 'escritorio', 'parcial', 'simulacro'];
@@ -253,7 +253,7 @@ const declaresRecord = (
 
   if (text !== option) {
     return notMeasured(
-      `${parameterDisplayName(context, id)} declara «${text}» como registro de ${subject}. ENSFácil solo lee su registro TSV del manager (${path}); la integración con esa herramienta no existe, así que no se puede demostrar.`,
+      `${parameterDisplayName(context, id)} declara «${text}» como registro de ${subject}. Power ENS solo lee su registro TSV del manager (${path}); la integración con esa herramienta no existe, así que no se puede demostrar.`,
       'CONFIGURATION'
     );
   }
@@ -363,7 +363,7 @@ interface BaseTests {
 }
 
 const baseTests = (context: ENSPolicyContext, now: number, evidence: string): BaseTests | Measurement => {
-  const p04 = declaresRecord(context, 'P-04', TEST_RECORD, 'las pruebas', '/etc/ensfacil/continuity-test-register.tsv');
+  const p04 = declaresRecord(context, 'P-04', TEST_RECORD, 'las pruebas', '/etc/power-ens/continuity-test-register.tsv');
 
   if (p04) {
     return p04;
@@ -376,7 +376,7 @@ const baseTests = (context: ENSPolicyContext, now: number, evidence: string): Ba
     'continuity_test_register_read',
     'continuity_test_recorded',
     'pruebas',
-    '/etc/ensfacil/continuity-test-register.tsv'
+    '/etc/power-ens/continuity-test-register.tsv'
   );
 
   if (isMeasurement(reg)) {
@@ -1288,7 +1288,7 @@ interface BaseDeficiencies {
 }
 
 const baseDeficiencies = (context: ENSPolicyContext, now: number, evidence: string): BaseDeficiencies | Measurement => {
-  const p05 = declaresRecord(context, 'P-05', DEFICIENCY_RECORD, 'las deficiencias', '/etc/ensfacil/continuity-deficiency-register.tsv');
+  const p05 = declaresRecord(context, 'P-05', DEFICIENCY_RECORD, 'las deficiencias', '/etc/power-ens/continuity-deficiency-register.tsv');
 
   if (p05) {
     return p05;
@@ -1301,7 +1301,7 @@ const baseDeficiencies = (context: ENSPolicyContext, now: number, evidence: stri
     'continuity_deficiency_register_read',
     'continuity_deficiency_recorded',
     'deficiencias',
-    '/etc/ensfacil/continuity-deficiency-register.tsv'
+    '/etc/power-ens/continuity-deficiency-register.tsv'
   );
 
   if (isMeasurement(reg)) {

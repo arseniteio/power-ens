@@ -9,7 +9,7 @@ export const mpCom3CatalogDefinition: ENSControlDefinition = {
   // Governed by the dimension LEVEL, not the system category: evaluated with `integrityLevel`, `authenticityLevel` of the global configuration (the maximum applies) and, if not declared, with the ENS level.
   levelDimension: ['I', 'A'],
   annexSection: '5.4.3',
-  source: { template: 'ENSFacil_Plantilla_mp.com.3', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.com.3', version: '2.0', date: '2026-10-15' },
   description:
     'mp.com.3 protege la integridad y autenticidad de las comunicaciones con el exterior del dominio de seguridad.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],

@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.s.3 (Protección de la navegación web).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -111,7 +111,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Normativa, concienciación y formación  ·  fuente: ENSFácil (EV-12)
+  // Normativa, concienciación y formación  ·  fuente: Power ENS (EV-12)
   const campo2 = field(
     'mp.s.3.campo2',
     'Normativa, concienciación y formación',
@@ -161,7 +161,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Evasión del control de navegación  ·  fuente: Log + ENSFácil (EV-11)
+  // Evasión del control de navegación  ·  fuente: Log + Power ENS (EV-11)
   const campo7 = field(
     'mp.s.3.campo7',
     'Evasión del control de navegación',
@@ -191,7 +191,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-07'),
   );
 
-  // Registro del uso de la navegación (R1)  ·  fuente: Log + ENSFácil (EV-08)
+  // Registro del uso de la navegación (R1)  ·  fuente: Log + Power ENS (EV-08)
   const campo10 = field(
     'mp.s.3.campo10',
     'Registro del uso de la navegación (R1)',
@@ -203,7 +203,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Inspección de canales cifrados (R1)  ·  fuente: Log + ENSFácil (EV-09)
+  // Inspección de canales cifrados (R1)  ·  fuente: Log + Power ENS (EV-09)
   const campo11 = field(
     'mp.s.3.campo11',
     'Inspección de canales cifrados (R1)',
@@ -227,7 +227,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento mp.s.3  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.s.3  ·  fuente: Motor Power ENS
   const campo13 = field(
     'mp.s.3.campo13',
     'Puntuación de cumplimiento mp.s.3',
@@ -237,7 +237,7 @@ export const buildMpS3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo14 = field(
     'mp.s.3.campo14',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

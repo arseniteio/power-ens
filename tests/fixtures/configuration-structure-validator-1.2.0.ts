@@ -200,7 +200,7 @@ const validateParameter = (
       'label',
       'description',
       'wazuhUsage',
-      'ensfacilUsage',
+      'powerEnsUsage',
       'ifNotConfigured',
     ],
     path,

@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_6_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_acc_6_json_rules.xml
      Deployable copy, byte-identical in the Linux and LDAP runbooks (checked by
      plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_acc_6,score,">
+<group name="power_ens,op_acc_6,score,">
 
   <!-- ================================================================
        op.acc.6 · Authentication mechanism (organization users)
@@ -31,8 +31,8 @@
 
   <rule id="110100" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.6</field>
-    <description>op.acc.6 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.6</field>
+    <description>op.acc.6 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== Accesses (R5, R8, R9) ===== -->

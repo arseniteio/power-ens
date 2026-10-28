@@ -10,7 +10,7 @@ export const opExp6CatalogDefinition: ENSControlDefinition = {
     'Wazuh no es el antimalware: es quien acredita que el antimalware existe, funciona y está bien configurado, y quien aporta la capa EDR que exige R4 en categoría ALTA.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.3.6',
-  source: { template: 'ENSFacil_Plantilla_op.exp.6', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.exp.6', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

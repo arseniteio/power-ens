@@ -122,21 +122,21 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const longReason = `El recolector no puede leer ${'x'.repeat(200)}`;
   const raw = [
     // The same warning observed three times is ONE alert; another motive is another.
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 30),
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 20),
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 10),
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'cron', motivo: longReason }, 12),
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'ssh', motivo: 'servicio sin unidad' }, 40),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 30),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 20),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'telnet', motivo: 'servicio sin unidad' }, 10),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'cron', motivo: longReason }, 12),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'ssh', motivo: 'servicio sin unidad' }, 40),
     // Not applicable: every requirement NO_APLICA, a DRAFT control, a control without a row on 028, a machine outside the scope.
-    hit('024', 'wazuh-real', { ensfacil: 'mp.info.6', event: 'collector_warning', origen: 'pbs', objeto: 'job', motivo: 'sin copias' }, 5),
-    hit('024', 'wazuh-real', { ensfacil: 'mp.eq.2', event: 'collector_warning', origen: 'gsettings', objeto: 'lock', motivo: 'sin bloqueo' }, 5),
-    hit('028', 'zimbraHldap', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
-    hit('099', 'otro', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
-    hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'atd', motivo: 'servicio no declarado' }, 3),
+    hit('024', 'wazuh-real', { power_ens: 'mp.info.6', event: 'collector_warning', origen: 'pbs', objeto: 'job', motivo: 'sin copias' }, 5),
+    hit('024', 'wazuh-real', { power_ens: 'mp.eq.2', event: 'collector_warning', origen: 'gsettings', objeto: 'lock', motivo: 'sin bloqueo' }, 5),
+    hit('028', 'zimbraHldap', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
+    hit('099', 'otro', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'x', motivo: 'y' }, 5),
+    hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'systemd', objeto: 'atd', motivo: 'servicio no declarado' }, 3),
     // Security alerts written by the manager: about 024 (one rule, three hours = one problem), about a machine outside the scope, about no machine.
-    ...[8, 7, 6].map(h => hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '024', sistema: 'wazuh-real', regla: '5710', nivel: '10', alertas: '4', primera: at(h + 1), ultima: at(h), descripcion: 'sshd: intento de acceso con un usuario inexistente' }, h)),
-    hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', agente_id: '029', sistema: 'fuera', regla: '5710', primera: at(9), ultima: at(8) }, 8),
-    hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', regla: '31151', primera: at(4), ultima: at(4) }, 4),
+    ...[8, 7, 6].map(h => hit('000', 'wazuh-manager', { power_ens: 'op.exp.7', event: 'security_alert_observed', agente_id: '024', sistema: 'wazuh-real', regla: '5710', nivel: '10', alertas: '4', primera: at(h + 1), ultima: at(h), descripcion: 'sshd: intento de acceso con un usuario inexistente' }, h)),
+    hit('000', 'wazuh-manager', { power_ens: 'op.exp.7', event: 'security_alert_observed', agente_id: '029', sistema: 'fuera', regla: '5710', primera: at(9), ultima: at(8) }, 8),
+    hit('000', 'wazuh-manager', { power_ens: 'op.exp.7', event: 'security_alert_observed', regla: '31151', primera: at(4), ultima: at(4) }, 4),
   ];
   const events = normalizeWazuhAlerts(raw);
   const model = alerts.buildImpactEventsModel(events, whole, { scope });
@@ -165,18 +165,18 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   // Real-shaped warnings (op.acc.1's collector): `parametro` + `motivo`, the same motive for two parameters.
   const sameMotive = 'no es un entero no negativo; se usa el valor por defecto de la libreria';
   const realShaped = alerts.buildImpactEventsModel(normalizeWazuhAlerts([
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'abc', motivo: sameMotive }, 2),
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_RETENCION_DIAS', valor: '-1', motivo: sameMotive }, 2),
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'xyz', motivo: sameMotive }, 1),
+    hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'abc', motivo: sameMotive }, 2),
+    hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_RETENCION_DIAS', valor: '-1', motivo: sameMotive }, 2),
+    hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning', parametro: 'OPACC1_UID_MIN', valor: 'xyz', motivo: sameMotive }, 1),
   ]), whole, { scope });
   const tips = realShaped.rows.map((row: any) => row.description).sort();
   check('same motive, different parameter: two rows, each naming its parameter (a new value of the same one is the same problem)',
     realShaped.rows.length === 2 && tips[0] === 'Parámetro OPACC1_RETENCION_DIAS' && tips[1] === 'Parámetro OPACC1_UID_MIN' && realShaped.rows.every((row: any) => row.label === sameMotive), realShaped.rows);
-  const bare = alerts.buildImpactEventsModel(normalizeWazuhAlerts([hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning' }, 2)]), whole, { scope });
+  const bare = alerts.buildImpactEventsModel(normalizeWazuhAlerts([hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning' }, 2)]), whole, { scope });
   check('a warning with nothing to tell: Spanish texts, never the type id', bare.rows.length === 1 && bare.rows[0].description === 'Sin más detalle del agente.' && bare.rows[0].label === 'Advertencia del recolector ENS.', bare.rows);
   const named = alerts.buildImpactEventsModel(normalizeWazuhAlerts([
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.r2.1', parametro: 'P', motivo: 'm' }, 2),
-    hit('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.2', parametro: 'P', motivo: 'm' }, 2),
+    hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.r2.1', parametro: 'P', motivo: 'm' }, 2),
+    hit('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'collector_warning', requisito: 'op.acc.1.2', parametro: 'P', motivo: 'm' }, 2),
   ]), whole, { scope });
   check('a warning that names its requirement shows only if that requirement applies', named.rows.length === 1 && named.rows[0].description === 'Parámetro P · requisito op.acc.1.2', named.rows);
 
@@ -184,8 +184,8 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   const clock = now;
   const docs: any[] = [...raw];
   for (let h = 200; h >= 1; h -= 8) {
-    docs.push(hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, h));
-    docs.push(hit('000', 'wazuh-manager', { ensfacil: 'op.exp.7', event: 'collector_run' }, h));
+    docs.push(hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, h));
+    docs.push(hit('000', 'wazuh-manager', { power_ens: 'op.exp.7', event: 'collector_run' }, h));
   }
   const monitor = (id: string, name: string, group: string[]) => ({ _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.20', _source: { id, name, group, status: 'active', timestamp: at(0.1), manager: 'manager' } });
   const configuration = { ...defaultENSConfigurationTemplate, scope: { mode: 'group', agentIds: [], groupIds: ['ens'] }, updatedAt: '2026-10-14T10:00:00.000Z' };
@@ -210,21 +210,21 @@ const result = (controlId: string, requirements: any[], nonConformities: any[] =
   check('one aggregation without documents, each type bounded', request?.body.size === 0 && sizes.length === 2 && sizes.every(size => size === OPERATIONAL_ALERTS_PER_TYPE), request?.body);
   const topFilters = request?.body.query.bool.filter || [];
   const eventFilter = topFilters.find((f: any) => f.terms?.['data.event'])?.terms['data.event'] || [];
-  const controlFilter = topFilters.find((f: any) => f.terms?.['data.ensfacil'])?.terms['data.ensfacil'] || [];
+  const controlFilter = topFilters.find((f: any) => f.terms?.['data.power_ens'])?.terms['data.power_ens'] || [];
   check('the bound is spent only on the two types and on ACTIVE controls', eventFilter.length === 2 && controlFilter.includes('op.exp.3') && controlFilter.includes('op.acc.1') && !controlFilter.includes('mp.eq.2'), { eventFilter, controlFilter });
   const run024 = await service.run(clients, normalizeQuery({ include: 'dashboard', agentId: '024', timeZone: 'UTC' }));
   const panel024 = (buildEvaluationResponse(run024) as any).dashboard.impactEvents;
   check('machine view 024: as in memory with its facts and the manager\'s', JSON.stringify(panel024) === JSON.stringify(alerts.buildImpactEventsModel(reference(['000', '024']), run024.state, { scope: run024.ctx.scope, agentId: '024' })) && panel024.total > 0, panel024);
 
   const many = createFakeIndexer(
-    Array.from({ length: 130 }, (_, i) => hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', origen: 'o', objeto: `obj${i}`, motivo: 'm' }, 1 + i / 10)),
+    Array.from({ length: 130 }, (_, i) => hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', origen: 'o', objeto: `obj${i}`, motivo: 'm' }, 1 + i / 10)),
     { clock: () => clock.getTime() }
   );
   const boundedRead = readOperationalIncidents((await many.search(buildImpactEventsRequest([]))).body.aggregations);
   const bounded = boundedRead.incidents;
   const newest = bounded.map((incident: any) => incident.fields.objeto);
   check('130 different incidents: the 100 most recent, and the read says it was cut', bounded.length === OPERATIONAL_ALERTS_PER_TYPE && boundedRead.truncated && newest.includes('obj0') && newest.includes('obj99') && !newest.includes('obj100'), bounded.length);
-  const longOne = createFakeIndexer([hit('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'P', motivo: 'x'.repeat(2000) }, 1)], { clock: () => clock.getTime() });
+  const longOne = createFakeIndexer([hit('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', parametro: 'P', motivo: 'x'.repeat(2000) }, 1)], { clock: () => clock.getTime() });
   const longRead = readOperationalIncidents((await longOne.search(buildImpactEventsRequest([]))).body.aggregations);
   check('key values are cut on read (the cache holds no unbounded motive)', longRead.incidents[0]?.fields.motivo.length === 500 && !longRead.truncated, longRead.incidents[0]?.fields.motivo.length);
 

@@ -8,7 +8,7 @@ const correct = (response: any, data: unknown) => response.ok({ body: { statusCo
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 500;
 
-export const ENS_ANNUAL_FREEZE_ROLE_MESSAGE = 'Hace falta el rol ensfacil_admin o all_access para congelar el informe anual.';
+export const ENS_ANNUAL_FREEZE_ROLE_MESSAGE = 'Hace falta el rol power_ens_admin o all_access para congelar el informe anual.';
 
 const clientsOf = (context: any) => ({
   asCurrentUser: context.core.opensearch.client.asCurrentUser,
@@ -20,7 +20,7 @@ const answer = (logger: Logger, response: any, error: any, action: string, logLa
   const status = statusOf(error);
   if (status === 400 || status === 404 || status === 409 || status === 503) return failure(response, status, error.message);
   if (status === 401 || status === 403) return failure(response, status, error?.message || 'No autorizado');
-  logger.error(`ENSFácil: could not ${logLabel}: ${error?.message || error}`);
+  logger.error(`Power ENS: could not ${logLabel}: ${error?.message || error}`);
   return failure(response, 500, `No se pudo ${action}; el detalle está en el log del dashboard.`);
 };
 
@@ -49,7 +49,7 @@ export const createAnnualReportHandlers = ({
     try {
       const user = await resolveCurrentUser(context.core.opensearch.client.asCurrentUser, securityEnabled);
       if (!user.administrator) {
-        logger.warn(`ENSFácil: refused the annual freeze of ${body.period} for ${user.username || 'an unnamed user'} (lacks ensfacil_admin and all_access)`);
+        logger.warn(`Power ENS: refused the annual freeze of ${body.period} for ${user.username || 'an unnamed user'} (lacks power_ens_admin and all_access)`);
         return failure(response, 403, ENS_ANNUAL_FREEZE_ROLE_MESSAGE);
       }
       if (!user.username) return failure(response, 401, 'No se pudo identificar al usuario.');
@@ -66,7 +66,7 @@ export const createAnnualReportHandlers = ({
       });
       return correct(response, result);
     } catch (error: any) {
-      if (error instanceof ENSAnnualFreezeConflictError) logger.warn(`ENSFácil: refused a stale annual freeze of ${body.period} by ${username}`);
+      if (error instanceof ENSAnnualFreezeConflictError) logger.warn(`Power ENS: refused a stale annual freeze of ${body.period} by ${username}`);
       return answer(logger, response, error, 'congelar el informe anual', 'freeze the annual report');
     }
   };

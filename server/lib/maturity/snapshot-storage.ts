@@ -45,7 +45,7 @@ export async function ensureSnapshotsIndex(client: any, logger: Logger): Promise
       body: { index_patterns: [ENS_SNAPSHOTS_INDEX], priority: 100, template: { settings: SNAPSHOT_SETTINGS, mappings: SNAPSHOT_MAPPINGS } },
     });
   } catch (error: any) {
-    logger.warn(`ENSFácil: could not put the index template of ${ENS_SNAPSHOTS_INDEX} (the index keeps its own mapping): ${error?.message || error}`);
+    logger.warn(`Power ENS: could not put the index template of ${ENS_SNAPSHOTS_INDEX} (the index keeps its own mapping): ${error?.message || error}`);
   }
   const exists = await client.indices.exists({ index: ENS_SNAPSHOTS_INDEX });
   if (exists.body) {

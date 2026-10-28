@@ -1,8 +1,8 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_mp_info_6_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_mp_info_6_json_rules.xml
      Byte-identical in the plugin's canonical source and in manager/ of every
      mp.info.6 runbook (checked by plugin-wazuh-ens/tests/check-consistency.py).
      Changing one requires copying the others. -->
-<group name="ensfacil,mp.info.6,">
+<group name="power_ens,mp.info.6,">
 
   <!-- ================================================================
        mp.info.6 · Backups
@@ -13,7 +13,7 @@
        Rules COMMON to every mp.info.6 runbook. The `origen` field tells which
        collector emitted the fact; the event name and the rule that supports it
        are the same for all. Each collector writes the same NDJSON line to
-       /var/log/ensfacil/mp_info_6.json.
+       /var/log/power-ens/mp_info_6.json.
 
        Event -> rule ID -> evidence map, as supported by `relatedRules` in
        dashboard/ens/core/evidence/catalog.ts:
@@ -36,8 +36,8 @@
 
   <rule id="106600" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">^mp.info.6$</field>
-    <description>mp.info.6 · evento ENSFácil base</description>
+    <field name="power_ens">^mp.info.6$</field>
+    <description>mp.info.6 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== mp.info.6.1 and mp.info.6.2.a · Backup run and frequency ===== -->
@@ -93,7 +93,7 @@
   <!-- EV-05. A restore test on the account or the witness file: whether the
        restore worked, whether the content matches the expected one and whether
        the later cleanup of the witness completed. A failed cleanup leaves the
-       `ensfacil_*` witness undeleted: the collector treats it as degradation,
+       `power_ens_*` witness undeleted: the collector treats it as degradation,
        not this rule. -->
   <rule id="106606" level="3">
     <if_sid>106600</if_sid>

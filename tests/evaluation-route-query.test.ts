@@ -97,8 +97,8 @@ setServices({ http: { get: async (p: string, o: any) => { requested.push({ path:
   const docs: FakeDoc[] = [];
   for (const [agent, name] of [['101', 'srv-web01'], ['102', 'ldap01']]) {
     for (const h of [50, 30, 5, 1]) {
-      docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
-      docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: 'ssh.service', estado: 'CUMPLE' }, h - 0.01));
+      docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+      docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: 'ssh.service', estado: 'CUMPLE' }, h - 0.01));
     }
   }
   const configuration: any = JSON.parse(JSON.stringify(defaultENSConfigurationTemplate));

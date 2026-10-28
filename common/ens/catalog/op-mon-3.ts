@@ -10,10 +10,10 @@ export const opMon3CatalogDefinition: ENSControlDefinition = {
   // The policy knows its row by the `agent.id` of its facts: on an agent's row it judges only that machine's P-01 sources, and the rest comes out NO_APLICA ("se mide en el manager").
   measurementPlanes: ['agent', 'manager'],
   description:
-    'op.mon.3 es el control que mejor define la razón de ser de ENSFácil en categorías BÁSICA y MEDIA, y el que exige más honestidad en categoría ALTA.',
+    'op.mon.3 es el control que mejor define la razón de ser de Power ENS en categorías BÁSICA y MEDIA, y el que exige más honestidad en categoría ALTA.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.7.3',
-  source: { template: 'ENSFacil_Plantilla_op.mon.3', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.mon.3', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // The evidences of each requirement are the design's. R3.1 and R4 are documentary (no technical evidence: accredited by P-ATT) and their evidences EV-05 and EV-07 are reported without verdict, as is EV-13 (the incident register does not say which incidents revealed vulnerabilities). EV-10 and EV-11 reuse EV-04's facts. R7 is defined and required in no category.

@@ -148,7 +148,7 @@ client.setENSConfigurationHttp(() => ({
   param(second, 'op.exp.4', 'P-07').value = ['* | lvm | snapshot | 24'];
   param(second, 'op.acc.6', 'P-07').value = ['ssh | si | RSEG | si'];
   param(second, 'op.acc.4', 'P-04').value = ['RDP | 3389 | cualquiera'];
-  param(second, 'op.exp.9', 'P-01').value = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
+  param(second, 'op.exp.9', 'P-01').value = 'Registro Power ENS (/etc/power-ens/incident-register.tsv)';
   param(second, 'op.exp.7', 'P-03').value = ['GLPI | https://glpi | RSEG'];
   client.setENSConfigurationHttp(() => ({
     get: async () => ({ statusCode: 200, error: 0, data: { configuration: clone(second), metadata: null } }),
@@ -164,7 +164,7 @@ client.setENSConfigurationHttp(() => ({
     screen.includes('Se ha completado op.exp.5 P-08 con el valor de op.exp.4 P-07.') && !/Ningún control cambia de valor/.test(screen), screen.slice(0, 600));
   check('a value a control cannot take is not offered as a choice, saying why',
     /No se puede elegir tal cual: .*op\.acc\.6 P-07/.test(screen) && h.findAll('EuiButton', /Elegir este valor/).some(button => button.props.isDisabled), screen.slice(screen.indexOf('Canales'), screen.indexOf('Canales') + 600));
-  check('op.exp.9 P-01 disagreeing with the incident tool is warned about in its item', /op\.exp\.9 P-01 dice «Registro ENSFácil/.test(screen));
+  check('op.exp.9 P-01 disagreeing with the incident tool is warned about in its item', /op\.exp\.9 P-01 dice «Registro Power ENS/.test(screen));
   const editPeople = h.findAll('EuiButton', /^Editar$/)[0];
   await editPeople.props.onClick();
   await h.rerender();

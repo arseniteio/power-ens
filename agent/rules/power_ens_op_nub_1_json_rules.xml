@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_nub_1_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_nub_1_json_rules.xml
      Byte-identical in two places: the plugin source and manager/ of the Linux
      op.nub.1 runbook. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_nub_1,">
+<group name="power_ens,op_nub_1,">
 
   <!-- ================================================================
        op.nub.1 · Cloud services protection
@@ -27,9 +27,9 @@
        EV-08 and EV-09 are documentary: the plugin judges them with the screen's
        tables.
 
-       These rules' group does NOT carry `amazon`, `azure` or `gcp`: ENSFácil's
+       These rules' group does NOT carry `amazon`, `azure` or `gcp`: Power ENS's
        facts must not be counted as cloud logs. The collector, in addition,
-       discards from its counts every alert with `data.ensfacil`.
+       discards from its counts every alert with `data.power_ens`.
 
        No rule carries a compliance `estado`, and no description carries a long
        field (the lists of operations, failed controls or origins): the
@@ -39,8 +39,8 @@
 
   <rule id="111500" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.nub.1</field>
-    <description>op.nub.1 · evento ENSFácil base</description>
+    <field name="power_ens">op.nub.1</field>
+    <description>op.nub.1 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.nub.1.2 · integration of the cloud services in Wazuh ===== -->

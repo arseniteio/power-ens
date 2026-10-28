@@ -28,7 +28,7 @@
       "example": "Active Directory",
       "required": true,
       "wazuhUsage": "Determina qué integración de Wazuh aporta los eventos de cuenta: Active Directory, eventos de Windows, auditd en Linux o un conector cloud.",
-      "ensfacilUsage": "Se indica en el informe como origen de las identidades auditadas. El agente no lo lee: recoge siempre las cuentas de su máquina.",
+      "powerEnsUsage": "Se indica en el informe como origen de las identidades auditadas. El agente no lo lee: recoge siempre las cuentas de su máquina.",
       "evidenceIds": [
         "EV-01",
         "EV-02"
@@ -55,7 +55,7 @@
       "example": "srv-dc01 | Windows",
       "required": true,
       "wazuhUsage": "Delimita la monitorización: Wazuh solo detecta anomalías de cuentas en los sistemas incluidos.",
-      "ensfacilUsage": "Se contrasta con las máquinas que envían evidencias para detectar un servidor que debería auditarse y no reporta.",
+      "powerEnsUsage": "Se contrasta con las máquinas que envían evidencias para detectar un servidor que debería auditarse y no reporta.",
       "evidenceIds": [
         "EV-01"
       ],
@@ -81,7 +81,7 @@
       "example": "svc_backup",
       "required": true,
       "wazuhUsage": "Puede cargarse como lista CDB para distinguir en las alertas las cuentas de servicio de las de persona.",
-      "ensfacilUsage": "Es la lista contra la que se juzga EV-05: cada autenticación observada se contrasta con ella para detectar una cuenta de servicio usada como persona.",
+      "powerEnsUsage": "Es la lista contra la que se juzga EV-05: cada autenticación observada se contrasta con ella para detectar una cuenta de servicio usada como persona.",
       "evidenceIds": [
         "EV-05"
       ],
@@ -107,7 +107,7 @@
       "example": "admin",
       "required": true,
       "wazuhUsage": "Se carga como lista CDB: cualquier autenticación correcta con una de estas cuentas genera alerta.",
-      "ensfacilUsage": "Es la lista contra la que se juzga EV-03. Editarla en esta pantalla cambia el veredicto sin ejecutar nada en la máquina.",
+      "powerEnsUsage": "Es la lista contra la que se juzga EV-03. Editarla en esta pantalla cambia el veredicto sin ejecutar nada en la máquina.",
       "evidenceIds": [
         "EV-03"
       ],
@@ -133,7 +133,7 @@
       "required": true,
       "minValue": 0,
       "wazuhUsage": "Compara la fecha de baja de la persona con la fecha en que su cuenta quedó deshabilitada.",
-      "ensfacilUsage": "Es el umbral con el que EV-04 decide si una baja se resolvió a tiempo. Cada hecho lleva el plazo aplicado y los días medidos.",
+      "powerEnsUsage": "Es el umbral con el que EV-04 decide si una baja se resolvió a tiempo. Cada hecho lleva el plazo aplicado y los días medidos.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -159,7 +159,7 @@
       "required": true,
       "minValue": 1,
       "wazuhUsage": "Verifica que una cuenta deshabilitada no se elimine antes de cumplir el periodo.",
-      "ensfacilUsage": "Es el umbral con el que EV-08 juzga las cuentas que desaparecen. Cada hecho lleva el umbral aplicado y los días retenidos.",
+      "powerEnsUsage": "Es el umbral con el que EV-08 juzga las cuentas que desaparecen. Cada hecho lleva el umbral aplicado y los días retenidos.",
       "evidenceIds": [
         "EV-08"
       ],
@@ -184,7 +184,7 @@
       "example": "jgomez | srv01 | ops",
       "required": true,
       "wazuhUsage": "El inventario de cuentas activas se compara con esta lista y una cuenta activa que no figure en ella genera alerta.",
-      "ensfacilUsage": "Es la lista contra la que se juzga EV-07. Solo la columna de usuario se contrasta con las cuentas activas, de forma literal y sensible a mayúsculas; sistema y rol acompañan a la decisión en el informe.",
+      "powerEnsUsage": "Es la lista contra la que se juzga EV-07. Solo la columna de usuario se contrasta con las cuentas activas, de forma literal y sensible a mayúsculas; sistema y rol acompañan a la decisión en el informe.",
       "evidenceIds": [
         "EV-07"
       ],
@@ -216,7 +216,7 @@
       "controlId": "op.acc.1",
       "name": "integracion_rrhh",
       "label": "Integración con RRHH",
-      "description": "Indica si ENSFácil recibe las altas y bajas de empleados de un sistema de recursos humanos o de un directorio. Admite sí o no.",
+      "description": "Indica si Power ENS recibe las altas y bajas de empleados de un sistema de recursos humanos o de un directorio. Admite sí o no.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -229,7 +229,7 @@
       "example": "sí",
       "required": false,
       "wazuhUsage": "Con integración, los eventos de baja de recursos humanos se correlacionan con la deshabilitación de la cuenta.",
-      "ensfacilUsage": "Documenta en el informe cómo llegan las bajas. El agente no lo lee: consulta el registro de bajas de su máquina, descrito en la documentación del runbook.",
+      "powerEnsUsage": "Documenta en el informe cómo llegan las bajas. El agente no lo lee: consulta el registro de bajas de su máquina, descrito en la documentación del runbook.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -254,7 +254,7 @@
       "example": "mlopez | 2026-03-31",
       "required": false,
       "wazuhUsage": "Cada baja declarada se compara con la fecha de deshabilitación de su cuenta y una fuera de plazo genera el hecho correspondiente.",
-      "ensfacilUsage": "Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.",
+      "powerEnsUsage": "Documenta las bajas ante el auditor. El agente no lee esta tabla: una baja declarada solo aquí queda documentada, no medida.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -295,7 +295,7 @@
       "required": false,
       "minValue": 0,
       "wazuhUsage": "Delimita qué cuentas del fichero de usuarios entran en el inventario publicado como evidencia.",
-      "ensfacilUsage": "Fija la frontera entre personas y sistema. Un umbral bajo mete cuentas del sistema y produce incumplimientos falsos; uno alto esconde cuentas de persona.",
+      "powerEnsUsage": "Fija la frontera entre personas y sistema. Un umbral bajo mete cuentas del sistema y produce incumplimientos falsos; uno alto esconde cuentas de persona.",
       "evidenceIds": [
         "EV-01"
       ],
@@ -320,7 +320,7 @@
       "example": "sudo",
       "required": false,
       "wazuhUsage": "Define qué pertenencias se registran como uso de privilegios.",
-      "ensfacilUsage": "Indica qué considera privilegio administrativo la organización. Un grupo que no administra nada marcaría como acumulación de roles a cuentas que no pueden cambiar el sistema.",
+      "powerEnsUsage": "Indica qué considera privilegio administrativo la organización. Un grupo que no administra nada marcaría como acumulación de roles a cuentas que no pueden cambiar el sistema.",
       "evidenceIds": [
         "EV-06"
       ],
@@ -353,7 +353,7 @@
       "example": ".adm",
       "required": false,
       "wazuhUsage": "Excluye del hallazgo de acumulación de roles a las cuentas administrativas diferenciadas por este sufijo.",
-      "ensfacilUsage": "Permite acreditar el requisito op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria y limita el hallazgo a quien no la separa.",
+      "powerEnsUsage": "Permite acreditar el requisito op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria y limita el hallazgo a quien no la separa.",
       "evidenceIds": [
         "EV-06"
       ],
@@ -376,7 +376,7 @@
       "example": "op.acc.1.5 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: es la prueba documental de lo que la telemetría no alcanza. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
-      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y enlace en el informe, y nunca como medido. Declararla solo con el documento aprobado.",
+      "powerEnsUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con su documento y enlace en el informe, y nunca como medido. Declararla solo con el documento aprobado.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado.",

@@ -10,7 +10,7 @@ import type { ENSMaturityService } from './maturity-service';
 import type { ENSAnnualReportService } from '../annual-report/annual-report-service';
 import { retryBackoffMs } from './maturity-service';
 
-export const ENS_SNAPSHOT_JOB_USER = 'ENSFácil (tarea diaria)';
+export const ENS_SNAPSHOT_JOB_USER = 'Power ENS (tarea diaria)';
 const PURGE_RETRY_MS = 60 * 60e3;
 // A failed run writes nothing and is tried again after 30 min, 1 h, 2 h, 4 h, then every 8 h (consecutive failures of
 // the day), as long as the retry falls by 23:00 local time; otherwise tomorrow at 02:30.
@@ -115,16 +115,16 @@ export const createDailySnapshotJob = ({
         const result = await maturity.snapshotDay(clients, run, ENS_SNAPSHOT_JOB_USER);
         doneOn = { day: result.date, zone };
         failed = undefined;
-        logger.info(`ENSFácil: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
+        logger.info(`Power ENS: maturity snapshots of ${result.date} written by the daily job (${result.written} new or changed)`);
         // A failed purge is retried within the hour, not with tomorrow's run.
         if (!result.purged) later(() => maturity.purgeOld(client, result.date).then(() => undefined), PURGE_RETRY_MS);
         // The annual freeze never fails the snapshot: a failure is tried again with tomorrow's run.
         if (annualReport) {
           try {
             const frozen = await annualReport.freezeIfDue(client, run, result.maturity, ENS_SNAPSHOT_JOB_USER);
-            if (frozen.result === 'late') logger.debug(`ENSFácil: annual report ${frozen.period} closed more than a month ago: frozen only on request`);
+            if (frozen.result === 'late') logger.debug(`Power ENS: annual report ${frozen.period} closed more than a month ago: frozen only on request`);
           } catch (error: any) {
-            logger.warn(`ENSFácil: could not freeze the annual report (${error?.message || error}); tried again with tomorrow's run`);
+            logger.warn(`Power ENS: could not freeze the annual report (${error?.message || error}); tried again with tomorrow's run`);
           }
         }
       } catch (error: any) {
@@ -135,7 +135,7 @@ export const createDailySnapshotJob = ({
         const retry = localMinutes(now, zone) + wait / 60e3 <= ENS_SNAPSHOT_LAST_RETRY_MINUTES;
         const what = refused(error) ? 'the indexer refused the daily maturity snapshot' : 'the daily maturity snapshot failed';
         const next = stopped ? 'not retried: stopping' : retryScheduled ? 'a retry is already scheduled' : retry ? `retried in ${spell(wait)}` : 'retried tomorrow at 02:30';
-        logger.warn(`ENSFácil: ${what} (${error?.message || error}); nothing written for ${day}, ${next}`);
+        logger.warn(`Power ENS: ${what} (${error?.message || error}); nothing written for ${day}, ${next}`);
         if (retry && !retryScheduled && !stopped) {
           retryScheduled = true;
           later(async () => {
@@ -155,7 +155,7 @@ export const createDailySnapshotJob = ({
     try {
       if (await hasToday()) return;
     } catch (error: any) {
-      logger.warn(`ENSFácil: could not check today's maturity snapshots, running the daily job: ${error?.message || error}`);
+      logger.warn(`Power ENS: could not check today's maturity snapshots, running the daily job: ${error?.message || error}`);
     }
     await runOnce();
   };

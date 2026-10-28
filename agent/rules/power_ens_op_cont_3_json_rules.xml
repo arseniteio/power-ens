@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_cont_3_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_cont_3_json_rules.xml
      Byte-identical in two places: the plugin canonical source and manager/ of the
      linux/op.cont.3 runbook (checked by plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_cont_3,">
+<group name="power_ens,op_cont_3,">
 
   <!-- ================================================================
        op.cont.3 · Periodic tests
@@ -10,7 +10,7 @@
        · collector diagnostics 111797-111799
 
        Everything is emitted by the MANAGER collector (agent.id=000), which reads only local
-       files and uses no credentials: the two organization TSV registers in /etc/ensfacil/ and,
+       files and uses no credentials: the two organization TSV registers in /etc/power-ens/ and,
        for each test, the alerts of alerts.json (and its daily archives) in its window. It runs
        every 6 h and re-emits EVERYTHING it says about each test: these are state facts.
 
@@ -29,14 +29,14 @@
 
   <rule id="111700" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.cont.3</field>
-    <description>op.cont.3 · evento ENSFácil base</description>
+    <field name="power_ens">op.cont.3</field>
+    <description>op.cont.3 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== First obligation: test periodically ===== -->
 
   <!-- EV-01. Every 6 h, one per run. How the test register
-       (/etc/ensfacil/continuity-test-register.tsv) was read: whether it exists, could be read,
+       (/etc/power-ens/continuity-test-register.tsv) was read: whether it exists, could be read,
        has the documented header and how many rows were discarded. It goes BEFORE the rows:
        without it an empty register cannot be told from an unread one. -->
   <rule id="111701" level="3">
@@ -56,7 +56,7 @@
   <!-- ===== Second obligation: correct what was detected ===== -->
 
   <!-- EV-05. Every 6 h, one per run. How the deficiency register
-       (/etc/ensfacil/continuity-deficiency-register.tsv) was read. -->
+       (/etc/power-ens/continuity-deficiency-register.tsv) was read. -->
   <rule id="111703" level="3">
     <if_sid>111700</if_sid>
     <field name="event">continuity_deficiency_register_read</field>

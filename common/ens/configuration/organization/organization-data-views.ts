@@ -1,4 +1,4 @@
-// Item rows and what each mapped parameter reads from them; config/ensfacil_organization.py mirrors these rules.
+// Item rows and what each mapped parameter reads from them; config/power_ens_organization.py mirrors these rules.
 import type { ENSAgentParameterValue, ENSControlParameter } from '../types';
 import {
   isEmptyParameterValue,

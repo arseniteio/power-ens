@@ -1,7 +1,7 @@
 import { ENSEvidenceDefinition } from './types';
 import { ENGINE_CATALOG, toEvidenceDefinitions } from '../../catalog/engine-catalog';
 
-// `relatedRules` lists the REAL numeric rule IDs deployed in the runbook `manager/` copy (agent/rules/ensfacil_<control>_*.xml), taken from each `evidencia=`.
+// `relatedRules` lists the REAL numeric rule IDs deployed in the runbook `manager/` copy (agent/rules/power_ens_<control>_*.xml), taken from each `evidencia=`.
 // Excluded: `level="0"` rules, inert rules (106923), collector diagnostics (106830/106831), and the aggregate event types
 // (`control_state`, `score_snapshot`), which speak about a requirement or level, not about one evidence.
 // Generic `evidence_state` rules are not listed: engine.ts adds the event's own ruleId.
@@ -148,7 +148,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     expectedEventTypes: ['evidence_state', 'collector_run'],
     agentDeclaresOnlyGaps: true,
     relatedRules: ['106797'],
-    auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y ENSFácil?',
+    auditQuestion: '¿Los eventos de backup y restauración son interpretados correctamente por Wazuh y Power ENS?',
   },
   {
     id: 'EV-01',
@@ -722,7 +722,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.3',
     title: 'Verificación periódica de la configuración frente a la línea base',
     description:
-      'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2. Evidencia propia de ENSFácil: la plantilla del auditor no la incluye.',
+      'Fecha de la verificación formal más reciente de la configuración hardware/software frente a la línea base aprobada, anotada por la organización en el registro del runbook, contrastada con la periodicidad de P-05. Acredita la periodicidad que exige op.exp.3.r1.2. Evidencia propia de Power ENS: la plantilla del auditor no la incluye.',
     requirements: ['op.exp.3.r1.2'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -952,7 +952,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Coincide el firmware observado con la versión declarada para el dispositivo?',
   },
   // op.exp.5. No evidence declares a primitive: the policy (`policies/op-exp-5.policy.ts`) crosses REAL machine changes with the organisation's change register
-  // by system and time interval. The register is `/etc/ensfacil/change-register.tsv` (110605 header, 110606 one row per request).
+  // by system and time interval. The register is `/etc/power-ens/change-register.tsv` (110605 header, 110606 one row per request).
   // Real changes reuse the op.exp.3 and op.exp.4 code relabelled op.exp.5, because the engine filters by control. Rules band 110600-110699.
   {
     id: 'EV-01',
@@ -1645,7 +1645,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.exp.8',
     title: 'Registro de las revisiones periódicas de los registros (R1)',
     description:
-      'Revisiones periódicas de los registros anotadas por la organización en el registro del manager (/etc/ensfacil/log-review-register.tsv): cuántas hay y la más reciente, con revisor, alcance, hallazgos y referencia. R1 habla de revisión «informal», pero sin constancia no es acreditable.',
+      'Revisiones periódicas de los registros anotadas por la organización en el registro del manager (/etc/power-ens/log-review-register.tsv): cuántas hay y la más reciente, con revisor, alcance, hallazgos y referencia. R1 habla de revisión «informal», pero sin constancia no es acreditable.',
     requirements: ['op.exp.8.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2176,12 +2176,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Tiene cada sistema de P-01 su agente conectado y ha completado pasadas de FIM y de SCA dentro de P-10?',
   },
   {
-    // Per agent, every 6 h: last own alert (excluding ENSFácil) and volume of the last 24 h. 'Active system without detections' decides, with P-09.
+    // Per agent, every 6 h: last own alert (excluding Power ENS) and volume of the last 24 h. 'Active system without detections' decides, with P-09.
     id: 'EV-03',
     controlId: 'op.mon.1',
     title: 'Detecciones de intrusión del período',
     description:
-      'Por cada agente, a partir de alerts.json del manager (sin las alertas de ENSFácil): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
+      'Por cada agente, a partir de alerts.json del manager (sin las alertas de Power ENS): instante de su última alerta, alertas y nivel máximo de las últimas 24 h, reglas distintas disparadas y técnicas MITRE ATT&CK. Es la prueba de que la detección no solo está desplegada sino que produce resultado: un sistema de P-01 conectado que pasa más de P-09 días sin ninguna detección indica reglas que no se aplican o una ingesta que no llega.',
     requirements: ['op.mon.1.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2423,7 +2423,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
   },
   // op.cont.3. Only with Availability at ALTO (`levelDimension: 'D'`); at MEDIA everything is NO_APLICA. The policy (`policies/op-cont-3.policy.ts`) judges EV-01, 02, 04, 05;
   // EV-03, 06, 07, 08 feed EV-04 and the report as NO_APLICA report data.
-  // Measured on the MANAGER (agent.id=000) from local files: the two TSV registers (/etc/ensfacil/continuity-test-register.tsv and continuity-deficiency-register.tsv)
+  // Measured on the MANAGER (agent.id=000) from local files: the two TSV registers (/etc/power-ens/continuity-test-register.tsv and continuity-deficiency-register.tsv)
   // and, per registered test, the alerts of its window (agent stops and starts 503/504/506, mp.info.6 restores 106606, later FIM changes).
   // Facts speak about OTHER systems through `agente`; the policy crosses them by ID or exact name.
   // All facts are STATE: the collector reissues whole what it saw for each registered test, because as actions they would leave the 30-day window and the last test would go unmeasured.
@@ -2434,7 +2434,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.cont.3',
     title: 'Registro histórico de las pruebas realizadas',
     description:
-      'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/ensfacil/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
+      'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/power-ens/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
@@ -2508,7 +2508,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.cont.3',
     title: 'Deficiencias detectadas y seguimiento de su corrección',
     description:
-      'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/ensfacil/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
+      'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/power-ens/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
     requirements: ['op.cont.3.1'],
     levels: ['ALTO'],
     category: 'MONITORING',
@@ -2589,7 +2589,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Grado de implantación de las medidas de seguridad',
     description:
-      'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que ENSFácil da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
+      'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que Power ENS da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2607,7 +2607,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Serie histórica de los ciclos de métricas',
     description:
-      'Registro de ciclos de métricas de la organización (/etc/ensfacil/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de ENSFácil se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
+      'Registro de ciclos de métricas de la organización (/etc/power-ens/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de Power ENS se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2626,7 +2626,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
     description:
-      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
+      'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/power-ens/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
     requirements: ['op.mon.2.r1.1'],
     levels: ['MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2640,12 +2640,12 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
       '¿Permite el registro de incidentes calcular cada indicador de P-03 del periodo, y se consolida en un ciclo de métricas en plazo?',
   },
   {
-    // Every 6 h, per agent: its state in global.db (111305) and the last pass of each ENSFácil collector that reported from it, read from alerts.json collector_run and kept between passes (111306).
+    // Every 6 h, per agent: its state in global.db (111305) and the last pass of each Power ENS collector that reported from it, read from alerts.json collector_run and kept between passes (111306).
     id: 'EV-04',
     controlId: 'op.mon.2',
     title: 'Fiabilidad de la medición',
     description:
-      'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de ENSFácil al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
+      'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de Power ENS al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2664,7 +2664,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.2',
     title: 'Controles no evaluables por falta de parámetros',
     description:
-      'Recuento y relación de los controles con requisitos que ENSFácil no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
+      'Recuento y relación de los controles con requisitos que Power ENS no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
     requirements: ['op.mon.2.1'],
     levels: ['BAJO', 'MEDIO', 'ALTO'],
     category: 'MONITORING',
@@ -2710,10 +2710,10 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     relatedRules: [],
     agentDeclaresOnlyGaps: true,
     auditQuestion:
-      '¿Qué datos aporta ENSFácil al informe anual del artículo 32, y de dónde sale cada cifra? (dato del informe, sin veredicto)',
+      '¿Qué datos aporta Power ENS al informe anual del artículo 32, y de dónde sale cada cifra? (dato del informe, sin veredicto)',
   },
   // op.mon.3. TWO PLANES. The MANAGER plane measures from local files without credentials: central collection (wazuh-analysisd.state, wazuh-remoted.state, <remote>), correlation,
-  // exposure surface (queue/db/NNN.db, queue/vd/feed, indexer connector errors in ossec.log), real-time alerting and the organisation registers (/etc/ensfacil).
+  // exposure surface (queue/db/NNN.db, queue/vd/feed, indexer connector errors in ossec.log), real-time alerting and the organisation registers (/etc/power-ens).
   // The AGENT plane reads each machine's Wazuh state files (wazuh-logcollector.state, wazuh-agentd.state): volume and drops per source are only visible there.
   // Facts speak about sources and assets declared on screen, so `policies/op-mon-3.policy.ts` judges. On an agent row only its P-01 sources are judged.
   // Collectors only declare gaps. The manager's runs hourly (EV-01) and reissues the rest every 6 h; the agent's samples hourly and emits every 6 h.
@@ -2926,7 +2926,7 @@ export const ENSEvidenceCatalog: ENSEvidenceDefinition[] = [
     controlId: 'op.mon.3',
     title: 'Registro y seguimiento de las inspecciones de seguridad (R6)',
     description:
-      'Filas del registro de inspecciones del manager (/etc/ensfacil/security-inspection-register.tsv): fecha, tipo (verificación de configuración, análisis de vulnerabilidades o prueba de penetración), alcance, ejecutor, hallazgos, estado de su remediación, motivo (periódica o tras incidente) e incidente. La última de cada tipo se contrasta con la periodicidad de P-09.',
+      'Filas del registro de inspecciones del manager (/etc/power-ens/security-inspection-register.tsv): fecha, tipo (verificación de configuración, análisis de vulnerabilidades o prueba de penetración), alcance, ejecutor, hallazgos, estado de su remediación, motivo (periódica o tras incidente) e incidente. La última de cada tipo se contrasta con la periodicidad de P-09.',
     requirements: ['op.mon.3.r6.1', 'op.mon.3.r6.2', 'op.mon.3.r6.3'],
     levels: ['ALTO'],
     category: 'TRACEABILITY',

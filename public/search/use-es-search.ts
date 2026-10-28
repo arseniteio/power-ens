@@ -55,7 +55,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         const text = String(failure?.message || failure);
         if (!shouldToast(givenNotices, text, Date.now())) return;
         getCore().notifications.toasts.addDanger({
-          title: 'ENSFácil: no se pudo consultar el índice',
+          title: 'Power ENS: no se pudo consultar el índice',
           text: text,
         });
       })

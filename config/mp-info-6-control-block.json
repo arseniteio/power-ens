@@ -29,7 +29,7 @@
       "required": true,
       "minValue": 1,
       "wazuhUsage": "Alimenta la correlación temporal. Si no llega evento de backup exitoso dentro del umbral, se genera incumplimiento.",
-      "ensfacilUsage": "Calcula si la periodicidad de copias cumple la política definida por el cliente.",
+      "powerEnsUsage": "Calcula si la periodicidad de copias cumple la política definida por el cliente.",
       "evidenceIds": [
         "EV-01",
         "EV-02"
@@ -60,7 +60,7 @@
       "minValue": 0,
       "defaultValue": 0,
       "wazuhUsage": "Se suma a P-01 para calcular el umbral efectivo.",
-      "ensfacilUsage": "Evita falsos positivos por retrasos operativos menores.",
+      "powerEnsUsage": "Evita falsos positivos por retrasos operativos menores.",
       "evidenceIds": [
         "EV-02"
       ],
@@ -90,7 +90,7 @@
       "required": true,
       "minValue": 1,
       "wazuhUsage": "Puede alimentar reglas FIM para detectar borrados antes del plazo definido.",
-      "ensfacilUsage": "Documenta y evalúa la política de retención en el informe ENS.",
+      "powerEnsUsage": "Documenta y evalúa la política de retención en el informe ENS.",
       "evidenceIds": [
         "EV-03"
       ],
@@ -118,7 +118,7 @@
       "example": "srv-bd01 | ALTA",
       "required": true,
       "wazuhUsage": "Permite detectar sistemas esperados que no envían eventos de backup.",
-      "ensfacilUsage": "Define el alcance real auditado del control.",
+      "powerEnsUsage": "Define el alcance real auditado del control.",
       "evidenceIds": [
         "EV-01",
         "EV-05"
@@ -144,7 +144,7 @@
       "required": true,
       "minValue": 1,
       "wazuhUsage": "Compara la fecha de último restore exitoso contra el umbral configurado.",
-      "ensfacilUsage": "Evalúa el refuerzo R1 para nivel MEDIO y ALTO.",
+      "powerEnsUsage": "Evalúa el refuerzo R1 para nivel MEDIO y ALTO.",
       "evidenceIds": [
         "EV-05"
       ],
@@ -169,7 +169,7 @@
       "example": "/backup",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee. En el PBS, los directorios locales de copia se declaran en MPINFO6_LOCAL_BACKUP_DIRS del .env del agente.",
-      "ensfacilUsage": "Documenta dónde dice la organización que están sus copias. EV-03 y EV-04 se juzgan con la ruta real que informa cada recolector.",
+      "powerEnsUsage": "Documenta dónde dice la organización que están sus copias. EV-03 y EV-04 se juzgan con la ruta real que informa cada recolector.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Sin efecto en el juicio."
@@ -192,7 +192,7 @@
       "example": "root",
       "required": true,
       "wazuhUsage": "Se puede cargar como CDB list para detectar accesos no autorizados.",
-      "ensfacilUsage": "Permite justificar quién puede acceder a las copias.",
+      "powerEnsUsage": "Permite justificar quién puede acceder a las copias.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -215,7 +215,7 @@
       "example": "sí",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: el recolector informa los destinos de cada copia (backup_storage, regla 106605).",
-      "ensfacilUsage": "Solo en ALTO y solo en el motivo de EV-06: si declara sí y ningún destino está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado.",
+      "powerEnsUsage": "Solo en ALTO y solo en el motivo de EV-06: si declara sí y ningún destino está fuera de la máquina y activo, el motivo dice que lo declarado no se observa. No cambia el resultado.",
       "evidenceIds": [],
       "ruleIds": [
         "106605"
@@ -236,7 +236,7 @@
       "example": "/mnt/s3-backup",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: los destinos de cada copia los informa el recolector (backup_storage).",
-      "ensfacilUsage": "Documenta la ubicación alternativa declarada; el informe la cita junto a los destinos observados.",
+      "powerEnsUsage": "Documenta la ubicación alternativa declarada; el informe la cita junto a los destinos observados.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "En BAJO y MEDIO no aplica. En ALTO, EV-06 se juzga igual con los destinos del recolector."
@@ -267,7 +267,7 @@
       ],
       "required": false,
       "wazuhUsage": "Cada hecho lleva su origen y las reglas son las mismas para ambos sistemas: no cambia qué se decodifica.",
-      "ensfacilUsage": "Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor.",
+      "powerEnsUsage": "Documenta en el informe con qué sistema se hacen las copias. El juicio lee el origen de cada hecho, no este valor.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "El informe no cita con qué sistema se hacen las copias."
@@ -288,7 +288,7 @@
       "example": "/root/.config/proxmox-backup/encryption-key.json",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: el del PBS mide la clave de PBS_KEYFILE (vacía, la del cliente por defecto si existe) e informa ruta y modo en backup_access.",
-      "ensfacilUsage": "Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.",
+      "powerEnsUsage": "Documenta qué clave cifra las copias, para contrastarla con la que mide el recolector. EV-04 juzga la clave medida.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-04 se mide igual, con la clave del agente (PBS_KEYFILE o, vacía, la del cliente por defecto); la configuración no documenta cuál es."
@@ -308,7 +308,7 @@
       "example": "root.pxar",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee. Cada prueba llega en restore_test (regla 106606).",
-      "ensfacilUsage": "Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.",
+      "powerEnsUsage": "Documenta qué se restaura en cada prueba. EV-05 se juzga con lo que informa cada prueba.",
       "evidenceIds": [],
       "ruleIds": [
         "106606"
@@ -327,10 +327,10 @@
       ],
       "requirements": [],
       "type": "path",
-      "example": "/etc/ensfacil/mpinfo6-witness.txt",
+      "example": "/etc/power-ens/mpinfo6-witness.txt",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: el del PBS restaura RESTORE_WITNESS_PATH y compara su SHA-256 con RESTORE_WITNESS_SHA256; restore_test informa si coincide.",
-      "ensfacilUsage": "Distingue una restauración validada de una que solo terminó sin error.",
+      "powerEnsUsage": "Distingue una restauración validada de una que solo terminó sin error.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-05 se mide igual: el testigo lo declara el .env del agente."
@@ -351,7 +351,7 @@
       "required": false,
       "minValue": 1,
       "wazuhUsage": "Ningún agente lo lee: el del PBS restaura al pasar RESTORE_EVERY_DAYS días desde la última prueba correcta; el de Zimbra, cada domingo desde su cron.",
-      "ensfacilUsage": "Una cadencia mayor que el plazo de P-05 degrada el control antes de la siguiente prueba; declararla lo hace visible.",
+      "powerEnsUsage": "Una cadencia mayor que el plazo de P-05 degrada el control antes de la siguiente prueba; declararla lo hace visible.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "EV-05 se mide igual; la configuración no documenta la cadencia (PBS: la de su .env, 7 días por defecto; Zimbra: semanal)."
@@ -404,7 +404,7 @@
       ],
       "required": false,
       "wazuhUsage": "Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
-      "ensfacilUsage": "El requisito pasa a CUMPLE marcado como acreditado documentalmente, con documento y enlace en el informe; nunca como medido.",
+      "powerEnsUsage": "El requisito pasa a CUMPLE marcado como acreditado documentalmente, con documento y enlace en el informe; nunca como medido.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."

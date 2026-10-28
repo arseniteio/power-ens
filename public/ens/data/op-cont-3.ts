@@ -51,7 +51,7 @@ export const opCont3Control: ENSControl = {
       expectedStatus: 'NO_APLICA',
       title: 'Registro histórico de las pruebas realizadas',
       description:
-        'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/ensfacil/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
+        'Constancia de cada prueba del plan de continuidad en el registro de pruebas del manager (/etc/power-ens/continuity-test-register.tsv): inicio y fin, tipo (revisión documental, escritorio, parcial o simulacro), escenario, sistemas implicados, participantes, resultado declarado, deficiencias detectadas y referencia al informe. Se exige al menos una prueba que ejercite los medios alternativos (parcial o simulacro), y que P-02 prevea alguna: una revisión de escritorio no demuestra que funcionen.',
       format: 'json_line',
       events: ['evidence_state', 'continuity_test_register_read', 'continuity_test_recorded'],
       wazuhRuleIds: ['111701', '111702'],
@@ -103,7 +103,7 @@ export const opCont3Control: ENSControl = {
       expectedStatus: 'NO_APLICA',
       title: 'Deficiencias detectadas y seguimiento de su corrección',
       description:
-        'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/ensfacil/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
+        'Las deficiencias que cada prueba revela, en el registro de deficiencias del manager (/etc/power-ens/continuity-deficiency-register.tsv), con su prueba de origen, responsable, plazo, estado y cierre. No cumple una deficiencia abierta fuera de plazo, una que sigue abierta cuando ya se hizo la prueba siguiente, ni una prueba del periodo que declara más deficiencias de las que el registro sigue. Cubre la SEGUNDA obligación del requisito, que exige corregir y no solo localizar.',
       format: 'json_line',
       events: ['evidence_state', 'continuity_deficiency_register_read', 'continuity_deficiency_recorded'],
       wazuhRuleIds: ['111703', '111704'],
@@ -159,7 +159,7 @@ export const opCont3Control: ENSControl = {
       requirements: ['op.cont.3.1'],
       type: 'number',
       usage:
-        'En el instante en que el recolector leyó el registro de pruebas, ENSFácil mide cuánto hace de la última prueba, de la última de cada escenario de P-03 y de la última de cada tipo de P-02 sin periodicidad propia: más de P-01 meses es un incumplimiento de la primera obligación.',
+        'En el instante en que el recolector leyó el registro de pruebas, Power ENS mide cuánto hace de la última prueba, de la última de cada escenario de P-03 y de la última de cada tipo de P-02 sin periodicidad propia: más de P-01 meses es un incumplimiento de la primera obligación.',
       missingBehavior:
         'No se puede verificar la periodicidad exigida: op.cont.3.1 queda sin evaluar en su primera obligación (causa CONFIGURATION).',
     },
@@ -172,7 +172,7 @@ export const opCont3Control: ENSControl = {
       requirements: ['op.cont.3.1'],
       type: 'table',
       usage:
-        'ENSFácil exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga alguna prueba de ese alcance (EV-01), y que cada tipo previsto se haya hecho dentro de su periodicidad (EV-02).',
+        'Power ENS exige que P-02 prevea al menos un tipo que ejercite los medios alternativos (parcial o simulacro) y que el registro contenga alguna prueba de ese alcance (EV-01), y que cada tipo previsto se haya hecho dentro de su periodicidad (EV-02).',
       missingBehavior:
         'No se puede valorar la suficiencia de las pruebas ni la periodicidad por tipo (causa CONFIGURATION).',
     },
@@ -185,7 +185,7 @@ export const opCont3Control: ENSControl = {
       requirements: ['op.cont.3.1'],
       type: 'table',
       usage:
-        'ENSFácil busca en el registro de pruebas la última de cada escenario: uno que nunca se ha probado, o cuya última prueba tiene más de P-01 meses, es un incumplimiento (EV-02).',
+        'Power ENS busca en el registro de pruebas la última de cada escenario: uno que nunca se ha probado, o cuya última prueba tiene más de P-01 meses, es un incumplimiento (EV-02).',
       missingBehavior:
         'No se puede verificar la cobertura de escenarios: el plan puede probarse siempre con el mismo caso fácil (causa CONFIGURATION).',
     },
@@ -193,7 +193,7 @@ export const opCont3Control: ENSControl = {
       id: 'P-04',
       name: 'registro_pruebas_realizadas',
       description:
-        'Dónde se registra cada prueba ejecutada. ENSFácil solo sabe leer su propio registro: /etc/ensfacil/continuity-test-register.tsv en el manager, una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia (formato en la guía del runbook linux/op.cont.3). Con cualquier otra herramienta, lo que depende del registro queda sin demostrar, porque no existe la integración.',
+        'Dónde se registra cada prueba ejecutada. Power ENS solo sabe leer su propio registro: /etc/power-ens/continuity-test-register.tsv en el manager, una fila por prueba con inicio, fin, tipo, escenario, sistemas, participantes, resultado, deficiencias y referencia (formato en la guía del runbook linux/op.cont.3). Con cualquier otra herramienta, lo que depende del registro queda sin demostrar, porque no existe la integración.',
       level: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'select',
@@ -206,12 +206,12 @@ export const opCont3Control: ENSControl = {
       id: 'P-05',
       name: 'seguimiento_deficiencias',
       description:
-        'Dónde se registran las deficiencias que revela cada prueba, con su estado de corrección, responsable y plazo. Es la SEGUNDA obligación del requisito, que exige «localizar y, en su caso, corregir»: probar sin corregir no cumple. ENSFácil solo sabe leer su propio registro: /etc/ensfacil/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).',
+        'Dónde se registran las deficiencias que revela cada prueba, con su estado de corrección, responsable y plazo. Es la SEGUNDA obligación del requisito, que exige «localizar y, en su caso, corregir»: probar sin corregir no cumple. Power ENS solo sabe leer su propio registro: /etc/power-ens/continuity-deficiency-register.tsv en el manager, una fila por deficiencia (formato en la guía del runbook linux/op.cont.3).',
       level: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'select',
       usage:
-        'El recolector del manager lee el registro en cada pasada y emite una fila por deficiencia. ENSFácil da por incumplida la corrección si una deficiencia sigue abierta fuera de su plazo o después de la prueba siguiente, o si una prueba del periodo declara más deficiencias de las que el registro sigue (EV-05). Las cerradas sin versión del plan se señalan (EV-07).',
+        'El recolector del manager lee el registro en cada pasada y emite una fila por deficiencia. Power ENS da por incumplida la corrección si una deficiencia sigue abierta fuera de su plazo o después de la prueba siguiente, o si una prueba del periodo declara más deficiencias de las que el registro sigue (EV-05). Las cerradas sin versión del plan se señalan (EV-07).',
       missingBehavior:
         'No se puede verificar la corrección de las deficiencias, que es el incumplimiento más frecuente del control (causa CONFIGURATION).',
     },
@@ -219,7 +219,7 @@ export const opCont3Control: ENSControl = {
       id: 'P-06',
       name: 'ventanas_prueba',
       description:
-        'Franjas previstas para la ejecución de pruebas, que la organización declara como información para el informe. ENSFácil no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 no usa esta ventana prevista, sino la REAL que declara cada fila del registro de pruebas.',
+        'Franjas previstas para la ejecución de pruebas, que la organización declara como información para el informe. Power ENS no etiqueta ni suprime los eventos de un simulacro: la medida de op.cont.3 no usa esta ventana prevista, sino la REAL que declara cada fila del registro de pruebas.',
       level: ['ALTO'],
       requirements: ['op.cont.3.1'],
       type: 'table',
@@ -237,7 +237,7 @@ export const opCont3Control: ENSControl = {
       requirements: ['op.cont.3.1'],
       type: 'table',
       usage:
-        'Para cada prueba parcial o simulacro del periodo, ENSFácil compara la caída más larga medida de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).',
+        'Para cada prueba parcial o simulacro del periodo, Power ENS compara la caída más larga medida de cada sistema con su RTO más la tolerancia: una prueba declarada satisfactoria que no lo alcanzó es una discrepancia (EV-04).',
       missingBehavior:
         'El resultado de la prueba queda como valoración cualitativa, sin datos que lo respalden (causa CONFIGURATION).',
     },

@@ -46,9 +46,9 @@ const alert = (data: Record<string, unknown>, ts = ago(0.5), agent = 'wazuh-real
       '@timestamp': ts,
       agent: { id: agent === 'wazuh-real' ? '024' : '031', name: agent },
       rule: { id: '111100', description: 'op.exp.10' },
-      location: '/var/log/ensfacil/op_exp_10.json',
+      location: '/var/log/power-ens/op_exp_10.json',
       data: Object.fromEntries(
-        Object.entries({ ensfacil: control, ...data }).map(([k, v]) => [k, String(v)])
+        Object.entries({ power_ens: control, ...data }).map(([k, v]) => [k, String(v)])
       ),
     },
   };

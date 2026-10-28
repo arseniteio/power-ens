@@ -3,7 +3,7 @@ import { defaultENSGlobalConfiguration } from './global-configuration';
 import { ENSConfigurationRegistry } from '../registry';
 
 export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
-  id: 'ensfacil-default-configuration',
+  id: 'power-ens-default-configuration',
   clientId: 'default',
   version: '1.0.0',
   status: 'DRAFT',
@@ -11,7 +11,7 @@ export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
   updatedAt: new Date().toISOString(),
   createdBy: 'system',
   updatedBy: 'system',
-  changeReason: 'Configuración inicial ENSFácil',
+  changeReason: 'Configuración inicial Power ENS',
   global: defaultENSGlobalConfiguration,
   scope: {
     mode: 'global',

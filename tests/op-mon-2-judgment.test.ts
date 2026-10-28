@@ -114,9 +114,9 @@ const pass = (hhmm = COMPLETE, o: Options = {}): Line[] => {
   const incidents = (o.incidentes ?? []).map(l => ({ ...l, ts: t(21) }));
 
   return [
-    reading(t(10), 'metrics_register_read', 'EV-02', '/etc/ensfacil/metrics-cycle-register.tsv', cycles.length, o.lecturaCiclos),
+    reading(t(10), 'metrics_register_read', 'EV-02', '/etc/power-ens/metrics-cycle-register.tsv', cycles.length, o.lecturaCiclos),
     ...cycles,
-    reading(t(20), 'incident_register_read', 'EV-03', '/etc/ensfacil/incident-register.tsv', incidents.length, o.lecturaIncidentes),
+    reading(t(20), 'incident_register_read', 'EV-03', '/etc/power-ens/incident-register.tsv', incidents.length, o.lecturaIncidentes),
     ...incidents,
     ...AGENTS.map(([id, agent, estado, keep, groups]) => ({
       ...common(t(30), 'agent_keepalive_observed', 'EV-04', 'op.mon.2.1'),
@@ -152,8 +152,8 @@ const alert = (line: Line) => {
       '@timestamp': ts,
       agent: MANAGER,
       rule: { id: RULE[String(data.event)] || '111300', description: 'op.mon.2' },
-      location: '/var/log/ensfacil/op_mon_2.json',
-      data: Object.fromEntries(Object.entries({ ensfacil: 'op.mon.2', ...data }).map(([k, v]) => [k, String(v)])),
+      location: '/var/log/power-ens/op_mon_2.json',
+      data: Object.fromEntries(Object.entries({ power_ens: 'op.mon.2', ...data }).map(([k, v]) => [k, String(v)])),
     },
   };
 };
@@ -485,7 +485,7 @@ section('4. Red: cycles out of time or unvalidated, low coverage, incomplete res
   const withoutCollectors = evaluate(hoy(l => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: '-', recolectores: 0 } : l)));
   check(
     'the LDAP with no collector since it is observed (20/09) → not covered: NO_CUMPLE',
-    withoutCollectors.evidencia('EV-04')?.status === 'NO_CUMPLE' && /ningún recolector de ENSFácil ha informado desde él desde 2026-09-20/.test(withoutCollectors.motivo('op.mon.2.1')),
+    withoutCollectors.evidencia('EV-04')?.status === 'NO_CUMPLE' && /ningún recolector de Power ENS ha informado desde él desde 2026-09-20/.test(withoutCollectors.motivo('op.mon.2.1')),
     withoutCollectors.motivo('op.mon.2.1')
   );
   const justNow = evaluate(hoy(l => (l.event === 'collector_heartbeat_observed' && l.agente_id === '028' ? { ...l, pasadas: '-', recolectores: 0, observado_desde: '2026-10-09T06:00:00Z' } : l)));
@@ -530,7 +530,7 @@ section('5. Without a record or parameters: NO_EVALUABLE with cause CONFIGURATIO
   const withoutIncidents = evaluate(hoy(undefined, { lecturaIncidentes: { presente: 'no', legible: '-', formato: '-' } }));
   check(
     'without an incident record (wazuh4 has only the .example) → R1 not proven, CONFIGURATION; never CUMPLE for zero incidents',
-    unproven(withoutIncidents, 'op.mon.2.r1.1', 'CONFIGURATION') && /No existe el registro de incidentes \(\/etc\/ensfacil\/incident-register\.tsv\)/.test(withoutIncidents.motivo('op.mon.2.r1.1')),
+    unproven(withoutIncidents, 'op.mon.2.r1.1', 'CONFIGURATION') && /No existe el registro de incidentes \(\/etc\/power-ens\/incident-register\.tsv\)/.test(withoutIncidents.motivo('op.mon.2.r1.1')),
     withoutIncidents.motivo('op.mon.2.r1.1')
   );
   check('REVERSAL: the record present and empty → R1 CUMPLE', evaluate(hoy()).requisito('op.mon.2.r1.1').status === 'CUMPLE');
@@ -671,7 +671,7 @@ section('6. Without a collector, old or lost facts: NO_EVALUABLE by COLLECTION')
     _source: {
       '@timestamp': `${COMPLETE}:30Z`,
       agent: MANAGER,
-      data: { ensfacil: 'op.exp.8', event: 'agent_keepalive_observed', evidence_id: 'EV-04', agente_id: '024', agente: 'wazuh-real', estado_conexion: 'active', grupos: 'ens' },
+      data: { power_ens: 'op.exp.8', event: 'agent_keepalive_observed', evidence_id: 'EV-04', agente_id: '024', agente: 'wazuh-real', estado_conexion: 'active', grupos: 'ens' },
     },
   }]);
   check('a fact from another control (op.exp.8) does not accredit op.mon.2', evaluate(foreignOne).evidencia('EV-04')?.status !== 'CUMPLE');
@@ -802,7 +802,7 @@ section('7. Strict grammars, ages when read, normalized IDs and state by the las
 section('8. The band 111300 rules match the catalog, and a day fits the budget');
 
 {
-  const xml = fs.readFileSync(path.join(__dirname, '..', 'agent', 'rules', 'ensfacil_op_mon_2_json_rules.xml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'agent', 'rules', 'power_ens_op_mon_2_json_rules.xml'), 'utf8');
   const rules = new Map<string, string>();
   Array.from(xml.matchAll(/<rule id="(\d+)"[^>]*>([\s\S]*?)<\/rule>/g)).forEach(([, id, body]) => {
     const event = /<field name="event">([a-z_]+)<\/field>/.exec(body);
@@ -863,7 +863,7 @@ section('9. The report: implementation and greys with the result of all controls
   );
   check(
     'and breaks it down by framework and by measure',
-    campo('op.mon.2.campo2').details.some(d => /^Marco operacional: 80 % \(3 medidas\)/.test(d)) && campo('op.mon.2.campo2').details.some(d => /org\.1: sin evaluar en ENSFácil/.test(d)) && campo('op.mon.2.campo2').details.some(d => /op\.mon\.2: sin evaluar/.test(d)),
+    campo('op.mon.2.campo2').details.some(d => /^Marco operacional: 80 % \(3 medidas\)/.test(d)) && campo('op.mon.2.campo2').details.some(d => /org\.1: sin evaluar en Power ENS/.test(d)) && campo('op.mon.2.campo2').details.some(d => /op\.mon\.2: sin evaluar/.test(d)),
     campo('op.mon.2.campo2').details.join(' | ')
   );
   check(
@@ -889,7 +889,7 @@ section('9. The report: implementation and greys with the result of all controls
   check('the cycle series, with the latest first', /el último: 2026-T3/.test(campo('op.mon.2.campo3').value) && campo('op.mon.2.campo3').details.some(d => /2026-T2/.test(d)), campo('op.mon.2.campo3').value);
   check(
     'the art. 32 data carry each figure\'s origin',
-    campo('op.mon.2.campo8').status === 'NO_APLICA' && campo('op.mon.2.campo8').details.some(d => /Grado de implantación: 80 % \(motor de ENSFácil sobre P-01/.test(d)) && campo('op.mon.2.campo8').details.some(d => /registro de incidentes de op\.exp\.7/.test(d)),
+    campo('op.mon.2.campo8').status === 'NO_APLICA' && campo('op.mon.2.campo8').details.some(d => /Grado de implantación: 80 % \(motor de Power ENS sobre P-01/.test(d)) && campo('op.mon.2.campo8').details.some(d => /registro de incidentes de op\.exp\.7/.test(d)),
     campo('op.mon.2.campo8').details.join(' | ')
   );
 
@@ -928,7 +928,7 @@ section('9. The report: implementation and greys with the result of all controls
   const secondOne = reports.slice(reports.indexOf('const ControlReportWithPanorama = ('), reports.indexOf('interface ControlReportEntry'));
   check(
     'op.mon.2\'s verdict comes from ITS evaluation (the control\'s on the server), like everyone\'s, never from the shared set',
-    /include: 'control',\s*controlId,/.test(own) && !/definition\.usesAllControls/.test(own) && !/exists: \{ field: 'data\.ensfacil' \}/.test(reports),
+    /include: 'control',\s*controlId,/.test(own) && !/definition\.usesAllControls/.test(own) && !/exists: \{ field: 'data\.power_ens' \}/.test(reports),
     own.length
   );
   check(
@@ -992,8 +992,8 @@ section('9. The report: implementation and greys with the result of all controls
 
   const filter = JSON.stringify(buildENSAllControlsFactsFilter(['op.acc.1', 'op.mon.2']));
   check(
-    'the shared filter is the panel\'s: data.ensfacil, data.control, data.evidence_id and the ENS groups',
-    ENS_FACTS_QUERY_LIMIT === 10000 && ['"exists":{"field":"data.ensfacil"}', '"exists":{"field":"data.control"}', '"exists":{"field":"data.evidence_id"}', '"rule.groups":"ENS_op.mon.2"', '"data.ensfacil":"op.acc.1"'].every(x => filter.includes(x)),
+    'the shared filter is the panel\'s: data.power_ens, data.control, data.evidence_id and the ENS groups',
+    ENS_FACTS_QUERY_LIMIT === 10000 && ['"exists":{"field":"data.power_ens"}', '"exists":{"field":"data.control"}', '"exists":{"field":"data.evidence_id"}', '"rule.groups":"ENS_op.mon.2"', '"data.power_ens":"op.acc.1"'].every(x => filter.includes(x)),
     filter
   );
 }

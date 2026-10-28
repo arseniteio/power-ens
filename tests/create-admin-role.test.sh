@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# create-admin-role.sh creates the ensfacil_admin role and assigns it without removing anyone.
+# create-admin-role.sh creates the power_ens_admin role and assigns it without removing anyone.
 #   bash tests/create-admin-role.test.sh
 #
 # The indexer is a fake curl: it logs each request (method, path and body) and answers the mapping with FAKE_MAPPING / FAKE_MAPPING_CODE.
@@ -8,8 +8,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 failures=0
 
-ROLE_PUT='PUT _plugins/_security/api/roles/ensfacil_admin {"description":"ENSFácil: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
-MAPPING='_plugins/_security/api/rolesmapping/ensfacil_admin'
+ROLE_PUT='PUT _plugins/_security/api/roles/power_ens_admin {"description":"Power ENS: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
+MAPPING='_plugins/_security/api/rolesmapping/power_ens_admin'
 
 cat > "$T/curl" <<'FAKE'
 #!/usr/bin/env bash
@@ -26,17 +26,17 @@ done
 path="${url#*://}"; path="${path#*/}"
 printf '%s %s %s\n' "$method" "$path" "$data" >> "$REQLOG"
 case "$method $path" in
-  "GET _plugins/_security/api/rolesmapping/ensfacil_admin") printf '%s\n%s' "$FAKE_MAPPING" "$FAKE_MAPPING_CODE" ;;
-  "PUT _plugins/_security/api/roles/ensfacil_admin") printf '{"status":"OK"}\n%s' "${FAKE_ROLE_CODE:-200}" ;;
+  "GET _plugins/_security/api/rolesmapping/power_ens_admin") printf '%s\n%s' "$FAKE_MAPPING" "$FAKE_MAPPING_CODE" ;;
+  "PUT _plugins/_security/api/roles/power_ens_admin") printf '{"status":"OK"}\n%s' "${FAKE_ROLE_CODE:-200}" ;;
   *) printf '{"status":"OK"}\n200' ;;
 esac
 FAKE
 chmod +x "$T/curl"
 : > "$T/admin.pem"; : > "$T/admin-key.pem"; : > "$T/root-ca.pem"
 
-WITH_ANA='{"ensfacil_admin":{"hosts":[],"users":["ana"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
-WITH_RSIS='{"ensfacil_admin":{"hosts":[],"users":["ana","rsis"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
-NOT_FOUND='{"status":"NOT_FOUND","message":"Resource '"'"'ensfacil_admin'"'"' not found."}'
+WITH_ANA='{"power_ens_admin":{"hosts":[],"users":["ana"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
+WITH_RSIS='{"power_ens_admin":{"hosts":[],"users":["ana","rsis"],"reserved":false,"hidden":false,"backend_roles":[],"and_backend_roles":[]}}'
+NOT_FOUND='{"status":"NOT_FOUND","message":"Resource '"'"'power_ens_admin'"'"' not found."}'
 
 # run MAPPING CODE args... -> leaves the output in $T/output, the code in $rc and what reached the indexer in $T/log
 run() {

@@ -118,7 +118,7 @@ const parameterOf = (doc: any, controlId: string, parameterId: string) =>
         return { body: { errors: false } };
       },
     };
-    const admin = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['ensfacil_admin'] } }) } };
+    const admin = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['power_ens_admin'] } }) } };
     const context = { core: { opensearch: { client: { asInternalUser: ix, asCurrentUser: admin } } } };
     const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
     const handlers = createConfigurationHandlers({ logger: { info() {}, warn() {}, error() {}, debug() {} } as any, securityEnabled: true });

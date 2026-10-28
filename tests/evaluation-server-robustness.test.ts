@@ -37,26 +37,26 @@ const fact = (agent: string, name: string, data: Record<string, unknown>, hours:
 
 const docs: FakeDoc[] = [];
 for (let h = 240; h >= 1; h -= 6) {
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, h));
-  docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: h > 120 ? 'telnet' : 'sshd' }, h - 0.01));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, h));
+  docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: h > 120 ? 'telnet' : 'sshd' }, h - 0.01));
 }
-for (let i = 0; i < 300; i++) docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: `u${i % 5}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + i / 10));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
-docs.push(fact('028', 'zimbraHldap', { ensfacil: 'op.exp.1', event: 'collector_run' }, 3));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'mp.info.6', event: 'backup_ok', origen: 'pbs' }, 5));
-docs.push(fact('028', 'zimbraHldap', { ensfacil: 'mp.info.6', event: 'backup_error', origen: 'pbs' }, 5));
-docs.push(fact('028', 'zimbraHldap', { ensfacil: 'mp.info.6', event: 'backup_error', origen: 'pbs' }, 6));
+for (let i = 0; i < 300; i++) docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: `u${i % 5}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + i / 10));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'collector_run' }, 1));
+docs.push(fact('028', 'zimbraHldap', { power_ens: 'op.exp.1', event: 'collector_run' }, 3));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'mp.info.6', event: 'backup_ok', origen: 'pbs' }, 5));
+docs.push(fact('028', 'zimbraHldap', { power_ens: 'mp.info.6', event: 'backup_error', origen: 'pbs' }, 5));
+docs.push(fact('028', 'zimbraHldap', { power_ens: 'mp.info.6', event: 'backup_error', origen: 'pbs' }, 6));
 docs.push(fact('024', 'wazuh-real', { event: 'service_running', evidence_id: 'EV-04', servicio: 'cron' }, 4));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
 docs.push(fact('024', 'wazuh-real', { control: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', servicio: 'legado' }, 3.5));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.1', control: 'op.exp.3', event: 'asset_system', evidence_id: 'EV-01' }, 2.5));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.1', control: 'op.exp.3', event: 'asset_system', evidence_id: 'EV-01' }, 2.5));
 // Operational alerts as the runbooks emit them: one of each type per machine.
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 7));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 8));
-docs.push(fact('028', 'zimbraHldap', { ensfacil: 'op.exp.1', event: 'collector_warning', parametro: 'OPEXP1_INVENTARIO', motivo: 'no se pudo leer' }, 7));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.1', event: 'multi_role_usage', evidence_id: 'EV-06', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 7));
-docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '024', sistema: 'wazuh-real', regla: '5710', alertas: '4', descripcion: 'sshd: usuario inexistente' }, 7));
-docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '028', sistema: 'zimbraHldap', regla: '5710', alertas: '2', descripcion: 'sshd: usuario inexistente' }, 7));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 7));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_warning', parametro: 'OPEXP3_SERVICIOS', motivo: 'servicio sin unidad' }, 8));
+docs.push(fact('028', 'zimbraHldap', { power_ens: 'op.exp.1', event: 'collector_warning', parametro: 'OPEXP1_INVENTARIO', motivo: 'no se pudo leer' }, 7));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.1', event: 'multi_role_usage', evidence_id: 'EV-06', requisito: 'op.acc.1.2', estado: 'NO_CUMPLE', usuario: 'jgomez', roles: 'usuario,administrador' }, 7));
+docs.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '024', sistema: 'wazuh-real', regla: '5710', alertas: '4', descripcion: 'sshd: usuario inexistente' }, 7));
+docs.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'security_alert_observed', evidence_id: 'EV-01,EV-02,EV-03', agente_id: '028', sistema: 'zimbraHldap', regla: '5710', alertas: '2', descripcion: 'sshd: usuario inexistente' }, 7));
 
 const monitor = (id: string, name: string, group: string[]) => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.28',
@@ -140,7 +140,7 @@ const reference = () => {
   const view028 = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.acc.3', agentId: '028', timeZone: 'UTC' }));
   check('op.acc.3 on 028 (no own facts): same as the engine', same(withoutTrace(view028.views.get('op.acc.3')!.result), withoutTrace(ofThe028)));
 
-  searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'nueva', funcion: 'desarrollo' }, 0.5));
+  searchIndex.docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'nueva', funcion: 'desarrollo' }, 0.5));
   const t0 = Date.now();
   const old = await service.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true });
   check('with new data: answers with the stored result, marked, without waiting', old.meta.refreshing && old.meta.fingerprint.startsWith('refreshing:') && old.meta.stats.computed === 0 && old.meta.stats.refreshingInBackground === 1, old.meta.stats);
@@ -194,7 +194,7 @@ const reference = () => {
     series = await service.run(clients2, normalizeQuery({ include: 'control', controlId: 'op.exp.3', agentId: '024', timelineDays: '7', timeZone: tz }));
   }
   const ref4 = reference();
-  const ownItems = ref4.docs.filter(d => d._source.data.ensfacil === 'op.exp.3' && d._source.agent.id === '024');
+  const ownItems = ref4.docs.filter(d => d._source.data.power_ens === 'op.exp.3' && d._source.agent.id === '024');
   const plan = planENSTimelineCuts(Math.min(...ownItems.map(d => Date.parse(d._source['@timestamp']))), ownItems.length, { now: clock, days: 7, timeZone: tz, maxEvaluatedEvents: Infinity });
   const asc = ref4.eventos.map(e => ({ e, t: Date.parse(e.timestamp) })).sort((a, b) => a.t - b.t);
   const expected = plan.map(c => {
@@ -202,7 +202,7 @@ const reference = () => {
     return [c.label, r?.score, r?.status];
   });
   check('7-day series in Europe/Madrid (with the clock change): the engine\'s points', same((series.timeline || []).map(p => [p.label, p.score, p.status]), expected), [(series.timeline || []).map(p => p.label), expected.map(e => e[0])]);
-  const ofDay = (cut: Date) => ref4.docs.filter(d => (d._source.data.ensfacil === 'op.exp.3' || d._source.data.control === 'op.exp.3') && ['024', '000'].includes(d._source.agent.id) && Date.parse(d._source['@timestamp']) <= cut.getTime()).length;
+  const ofDay = (cut: Date) => ref4.docs.filter(d => (d._source.data.power_ens === 'op.exp.3' || d._source.data.control === 'op.exp.3') && ['024', '000'].includes(d._source.agent.id) && Date.parse(d._source['@timestamp']) <= cut.getTime()).length;
   check('each day\'s facts, counted until the end of the day in Madrid', (series.timeline || []).filter(p => !p.isCurrent).every((p, i) => p.events === ofDay(plan[i].cutoff)));
 
   {
@@ -210,7 +210,7 @@ const reference = () => {
     const summary = (options: any = {}) => s9.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...options });
     await summary();
     const factReads = () => searchIndex.log.filter(l => l.body?.size > 0 && l.index?.startsWith('wazuh-alerts')).length;
-    searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'otra', funcion: 'operacion' }, 0.2));
+    searchIndex.docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'otra', funcion: 'operacion' }, 0.2));
     fail = 1;
     const old9 = await summary();
     check('U-N1: new data, refresh launched behind', old9.meta.refreshing && old9.meta.stats.refreshingInBackground >= 1 && !old9.meta.refreshError);
@@ -265,7 +265,7 @@ const reference = () => {
       sawPartial = sawPartial || partial(ultima);
     }
     // Timing only: on a loaded runner the whole computation can finish between two polls; the final result is still checked below.
-    if (sawPartial || process.env.ENSFACIL_STRICT_TIMING === '1') {
+    if (sawPartial || process.env.POWER_ENS_STRICT_TIMING === '1') {
       check('§10 and the cheap ones arrive before the rest, on all their machines (by control slices)', sawPartial, n);
     } else {
       console.log('  skip §10 partial answer not observed (the computation ended between two polls)');
@@ -293,7 +293,7 @@ const reference = () => {
     const summary = (o: any = {}) => s12.run(clients2, normalizeQuery({ include: 'summary', timeZone: 'UTC' }), { allowStale: true, ...o });
     await summary();
     while (!s12.idle()) await wait(20);
-    searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'n4', funcion: 'operacion' }, 0.1));
+    searchIndex.docs.push(fact('024', 'wazuh-real', { power_ens: 'op.acc.3', event: 'account_action', usuario: 'n4', funcion: 'operacion' }, 0.1));
     fail = 1;
     await summary();
     while (s12.tasks.size) await wait(5);
@@ -313,7 +313,7 @@ const reference = () => {
     let k = 0;
     const newOne = () => {
       k += 1;
-      searchIndex.docs.push(fact(k % 2 ? '024' : '000', k % 2 ? 'wazuh-real' : 'manager', { ensfacil: k % 2 ? 'op.exp.3' : 'op.mon.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.0001 * (50 - k)));
+      searchIndex.docs.push(fact(k % 2 ? '024' : '000', k % 2 ? 'wazuh-real' : 'manager', { power_ens: k % 2 ? 'op.exp.3' : 'op.mon.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.0001 * (50 - k)));
     };
     const lento = { ...searchIndex, search: async (p: any) => { if (p.body?.size > 0) { await wait(10); newOne(); } return searchIndex.search(p); } };
     const cl = { asCurrentUser: lento, asInternalUser: lento };
@@ -360,8 +360,8 @@ const reference = () => {
     const request15 = (q: any) => s15.run(clients2, normalizeQuery({ timeZone: 'UTC', ...q }), { allowStale: true });
     const advances = () => {
       clock = new Date(clock.getTime() + 2 * 60 * 1000);
-      searchIndex.docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.001));
-      searchIndex.docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 0.001));
+      searchIndex.docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-04' }, 0.001));
+      searchIndex.docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 0.001));
     };
     const calm = async () => { for (let i = 0; i < 600 && !s15.idle(); i++) await wait(20); };
     await request15({ include: 'summary' });

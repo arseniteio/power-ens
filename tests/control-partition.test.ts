@@ -45,24 +45,24 @@ for (const line of fs.readFileSync(path.join(__dirname, 'fixtures/mp-info-6-pbs-
   hits.push(fact('024', 'wazuh-real', data, 3));
 }
 for (const h of [30, 20, 10, 2]) {
-  hits.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03' }, h));
-  hits.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-02', servicio: h > 10 ? 'telnet' : 'sshd', estado: 'CUMPLE' }, h - 0.01));
+  hits.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03' }, h));
+  hits.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-02', servicio: h > 10 ? 'telnet' : 'sshd', estado: 'CUMPLE' }, h - 0.01));
 }
 for (const [agent, name] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) {
-  hits.push(fact(agent, name, { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
-  hits.push(fact(agent, name, { ensfacil: 'op.acc.3', event: 'account_action', usuario: 'ana', funcion: 'operacion' }, 5));
+  hits.push(fact(agent, name, { power_ens: 'op.acc.3', event: 'collector_run' }, 1));
+  hits.push(fact(agent, name, { power_ens: 'op.acc.3', event: 'account_action', usuario: 'ana', funcion: 'operacion' }, 5));
 }
-hits.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-hits.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
-hits.push(fact('024', 'wazuh-real', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-hits.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'collector_run' }, 2));
-hits.push(fact('000', 'manager', { ensfacil: 'op.exp.8', event: 'collector_run' }, 2));
-hits.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
+hits.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+hits.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
+hits.push(fact('024', 'wazuh-real', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+hits.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'collector_run' }, 2));
+hits.push(fact('000', 'manager', { power_ens: 'op.exp.8', event: 'collector_run' }, 2));
+hits.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
 
 hits.sort((a, b) => b._source['@timestamp'].localeCompare(a._source['@timestamp']) || a._id.localeCompare(b._id));
 const all = normalizeWazuhAlerts(hits);
 const controls = ENSCatalog.map(c => c.id);
-const ofControl = (c: string) => normalizeWazuhAlerts(hits.filter(h => h._source.data.ensfacil === c));
+const ofControl = (c: string) => normalizeWazuhAlerts(hits.filter(h => h._source.data.power_ens === c));
 
 const primero = new Map<string, any>();
 for (const h of hits) primero.set(h._source.agent.id, h);

@@ -535,7 +535,7 @@ const ControlReport = ({
       pageMargins: [40, 60, 40, 60],
       footer: (currentPage, pageCount) => ({
         columns: [
-          { text: 'ENSFacil sobre Wazuh', alignment: 'left', fontSize: 7, color: '#999', margin: [40, 0, 0, 0] },
+          { text: 'Power ENS sobre Wazuh', alignment: 'left', fontSize: 7, color: '#999', margin: [40, 0, 0, 0] },
           { text: currentPage + ' / ' + pageCount, alignment: 'right', fontSize: 7, color: '#999', margin: [0, 0, 40, 0] },
         ],
       }),

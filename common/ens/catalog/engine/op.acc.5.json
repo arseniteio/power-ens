@@ -24,7 +24,7 @@
     "manager"
   ],
   "source": {
-    "template": "ENSFacil_Plantilla_op.acc.5",
+    "template": "PowerENS_Plantilla_op.acc.5",
     "version": "2.0",
     "date": "2026-10-15"
   },
@@ -641,8 +641,8 @@
       "example": "5",
       "required": true,
       "min_value": 1,
-      "agent_usage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
-      "engine_usage": "ENSFácil verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
+      "agent_usage": "Power ENS verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
+      "engine_usage": "Power ENS verifica en la configuración del servicio que existe el límite y genera una regla de correlación que alerta si se superan P-03 intentos sin bloqueo de la cuenta.",
       "evidence_ids": [
         "EV-02",
         "EV-03"
@@ -690,8 +690,8 @@
       "example": "90",
       "required": true,
       "min_value": 1,
-      "agent_usage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
-      "engine_usage": "ENSFácil calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
+      "agent_usage": "Power ENS calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
+      "engine_usage": "Power ENS calcula la antigüedad de cada credencial y alerta al superar P-05. Con P-01 = R3 o R4 se sustituye por la vigencia del certificado.",
       "evidence_ids": [
         "EV-04"
       ],
@@ -715,8 +715,8 @@
       "example": "24",
       "required": true,
       "min_value": 1,
-      "agent_usage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
-      "engine_usage": "ENSFácil correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
+      "agent_usage": "Power ENS correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
+      "engine_usage": "Power ENS correlaciona el evento de compromiso o fin de relación con el de inhabilitación de la credencial. Si el intervalo supera P-06, alerta.",
       "evidence_ids": [
         "EV-05"
       ],
@@ -803,7 +803,7 @@
       "type": "boolean",
       "example": "sí",
       "required": true,
-      "agent_usage": "Declaración que ENSFácil recoge en el informe. Wazuh no puede verificarla: se acredita documentalmente.",
+      "agent_usage": "Declaración que Power ENS recoge en el informe. Wazuh no puede verificarla: se acredita documentalmente.",
       "engine_usage": "No = incumplimiento de op.acc.5.r5.2. Sí = se acredita con la fila de op.acc.5.r5.2 en P-ATT (captura o referencia técnica); sin ella, sin demostrar.",
       "evidence_ids": [],
       "if_not_configured": "R5 queda parcialmente sin acreditar; op.acc.5.r5.2 pendiente de evidencia documental."

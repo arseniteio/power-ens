@@ -34,7 +34,7 @@ const B = 'BAJO';
 const M = 'MEDIO';
 const A = 'ALTO';
 
-// From «Índice de controles» of ENSFacil_00_Indice_y_Metodologia.xlsx (v2.0, 15/10/2026): section, axis and the
+// From «Índice de controles» of Power ENS_00_Indice_y_Metodologia.xlsx (v2.0, 15/10/2026): section, axis and the
 // requirement levels its BAJO/BÁSICA, MEDIO/MEDIA and ALTO/ALTA columns give. A reinforcement «defined but required at
 // no level» has no level. Brackets are a choice: every option keeps the levels where it can be chosen.
 const INDEX: Record<string, { section: string; axis?: string | string[]; requirements: Record<string, string[]> }> = {
@@ -159,7 +159,7 @@ section('1. In the catalog, DRAFT, with section, source and axis from the index'
     IDS.every(id => {
       const source = catalogOf(id).source;
 
-      return source?.template === `ENSFacil_Plantilla_${id}` && source.version === '2.0' && source.date === '2026-10-15';
+      return source?.template === `PowerENS_Plantilla_${id}` && source.version === '2.0' && source.date === '2026-10-15';
     })
   );
   check(

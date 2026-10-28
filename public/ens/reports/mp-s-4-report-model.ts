@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.s.4 (Protección frente a la denegación de servicio).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -111,7 +111,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Carga y holgura de los servicios  ·  fuente: Log + ENSFácil (EV-01)
+  // Carga y holgura de los servicios  ·  fuente: Log + Power ENS (EV-01)
   const campo2 = field(
     'mp.s.4.campo2',
     'Carga y holgura de los servicios',
@@ -143,7 +143,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-03'),
   );
 
-  // Impacto en la disponibilidad  ·  fuente: Log + ENSFácil (EV-04)
+  // Impacto en la disponibilidad  ·  fuente: Log + Power ENS (EV-04)
   const campo5 = field(
     'mp.s.4.campo5',
     'Impacto en la disponibilidad',
@@ -165,7 +165,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Activación del procedimiento de reacción  ·  fuente: Log + ENSFácil (EV-06)
+  // Activación del procedimiento de reacción  ·  fuente: Log + Power ENS (EV-06)
   const campo7 = field(
     'mp.s.4.campo7',
     'Activación del procedimiento de reacción',
@@ -199,7 +199,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Histórico y evolución de episodios  ·  fuente: Log + ENSFácil (EV-10)
+  // Histórico y evolución de episodios  ·  fuente: Log + Power ENS (EV-10)
   const campo10 = field(
     'mp.s.4.campo10',
     'Histórico y evolución de episodios',
@@ -209,7 +209,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento mp.s.4  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.s.4  ·  fuente: Motor Power ENS
   const campo11 = field(
     'mp.s.4.campo11',
     'Puntuación de cumplimiento mp.s.4',
@@ -219,7 +219,7 @@ export const buildMpS4ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo12 = field(
     'mp.s.4.campo12',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

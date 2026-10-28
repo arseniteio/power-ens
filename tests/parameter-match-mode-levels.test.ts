@@ -124,7 +124,7 @@ console.log('3. Documents without matchMode');
     plain.controls.flatMap((control: any) => resolveControlConfigurationWithOrigins(plain, control.controlId, agent)!.configuration.parameters.filter(p => 'matchMode' in p).map(p => `${agent} ${control.controlId} ${p.id}`)));
   check('nothing resolves with a mode', keys.length === 0, keys);
   check('validators: no issue about modes', validateAgentsConfiguration(plain).every(issue => !/modo|regular/i.test(issue.message)) && validateCustomTemplates(plain).every(issue => !/modo|regular/i.test(issue.message)));
-  const lab = process.env.ENSFACIL_LAB_DOC;
+  const lab = process.env.POWER_ENS_LAB_DOC;
   if (lab) {
     const source = JSON.parse(readFileSync(lab, 'utf8'));
     const configuration = source._source?.configuration || source.configuration || source;
@@ -210,7 +210,7 @@ console.log('7. set-parameters.py');
 
 console.log('8. validate-configuration.ts');
 {
-  const folder = mkdtempSync(join(tmpdir(), 'ensfacil-match-mode-'));
+  const folder = mkdtempSync(join(tmpdir(), 'power-ens-match-mode-'));
   const run = (doc: any) => {
     const file = join(folder, 'active.json');
     writeFileSync(file, JSON.stringify({ _source: { configuration: doc } }));

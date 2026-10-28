@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_6_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_6_json_rules.xml
      Byte-identical in three places: the plugin source and manager/ of the Linux
      and LDAP op.exp.6 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_6,">
+<group name="power_ens,op_exp_6,">
 
   <!-- ================================================================
        op.exp.6 · Protection against malicious code
@@ -33,8 +33,8 @@
 
   <rule id="110700" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.6</field>
-    <description>op.exp.6 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.6</field>
+    <description>op.exp.6 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.exp.6.1 and 6.2 · Antimalware on every machine ===== -->

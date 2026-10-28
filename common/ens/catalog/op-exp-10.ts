@@ -7,10 +7,10 @@ export const opExp10CatalogDefinition: ENSControlDefinition = {
   category: 'Explotación',
   dimension: 'Todas',
   description:
-    'op.exp.10 regula el ciclo de vida de las claves criptográficas, y buena parte de él ocurre donde un SIEM no llega (generación en un HSM, custodia física, destrucción). ENSFácil mide lo que sí vive en las máquinas: quién accede a las claves en disco, dónde están y cómo están protegidas, si se generan claves en explotación, si siguen presentes claves retiradas, la vigencia de los certificados y los algoritmos que aceptan y negocian los servicios frente a los autorizados por el CCN.',
+    'op.exp.10 regula el ciclo de vida de las claves criptográficas, y buena parte de él ocurre donde un SIEM no llega (generación en un HSM, custodia física, destrucción). Power ENS mide lo que sí vive en las máquinas: quién accede a las claves en disco, dónde están y cómo están protegidas, si se generan claves en explotación, si siguen presentes claves retiradas, la vigencia de los certificados y los algoritmos que aceptan y negocian los servicios frente a los autorizados por el CCN.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.3.10',
-  source: { template: 'ENSFacil_Plantilla_op.exp.10', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.exp.10', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

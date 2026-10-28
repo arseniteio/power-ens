@@ -52,7 +52,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'EV-07 contrasta el `activo` que observa el agente (regla 110201) con la columna `activo` de esta tabla (TODOS_EN_LISTA). Un activo monitorizado sin fila sale NO_CUMPLE nombrándolo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Es la parte del requisito que Wazuh no observa: sin responsable identificado, op.exp.1.1 no se cumple aunque el inventario técnico sea impecable.',
       evidenceIds: ['EV-07'],
       ruleIds: ['110201'],
@@ -99,7 +99,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'EV-05 contrasta cada host vecino que observa el agente (regla 110205) con la columna `ip` de esta tabla (NINGUNO_FUERA_DE_LISTA). Un host que habla con el sistema y no figura sale NO_CUMPLE nombrando su IP.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se incorporan al inventario consolidado. Los que no tienen IP o no hablan con ninguna máquina con agente no se observan: su inventario es declarativo, con verificación manual periódica.',
       evidenceIds: ['EV-05'],
       ruleIds: ['110205'],
@@ -120,7 +120,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Ninguna primitiva la contrasta con un hecho: la naturaleza se declara, no se observa. Se exige configurada y sale en el informe.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Estructura el inventario declarado por naturaleza. El motor no comprueba que cada `naturaleza` de P-01 pertenezca a esta lista.',
       evidenceIds: [],
       ruleIds: [],
@@ -142,7 +142,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       minValue: 1,
       wazuhUsage:
         'EV-06 mide la antigüedad de la última revisión anotada en la máquina (regla 110210) contra este plazo (ANTIGUEDAD_MAXIMA).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Una revisión más antigua que el plazo, o ninguna anotada, deja op.exp.1.1 sin cumplir.',
       evidenceIds: ['EV-06'],
       ruleIds: ['110210'],
@@ -164,7 +164,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguna primitiva lo juzga: el veredicto de EV-05 es el mismo en ambos modos. La regla 110205 genera alerta de nivel 3 con cada observación.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documenta la decisión de la organización sobre cómo atender un activo nuevo. Sale en el informe.',
       evidenceIds: [],
       ruleIds: [],
@@ -205,7 +205,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ninguna primitiva lo juzga: R3 no es exigible y sale NO_APLICA.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Permite priorizar los activos críticos en el informe.',
       evidenceIds: [],
       ruleIds: [],
@@ -227,7 +227,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       minValue: 1,
       wazuhUsage:
         'EV-01 a EV-04 miden contra este plazo la antigüedad de su hecho más reciente (reglas 110201-110204, ANTIGUEDAD_MAXIMA).',
-      ensfacilUsage:
+      powerEnsUsage:
         'Convierte un agente apagado o un recolector roto en un incumplimiento visible sin que nadie emita nada.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-03', 'EV-04'],
       ruleIds: ['110201', '110202', '110203', '110204'],
@@ -282,7 +282,7 @@ export const opExp1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

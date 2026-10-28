@@ -38,7 +38,7 @@ export interface ENSRequirementDefinition {
   evidenceIds: string[];
   parameterIds: string[];
   decisionPolicy?: ENSRequirementDecisionPolicy;
-  // Optional. How the requirement is read and measured (auditor's proposal or ENSFácil's criterion), kept apart from the literal: provenance «Criterio de aplicación».
+  // Optional. How the requirement is read and measured (auditor's proposal or Power ENS's criterion), kept apart from the literal: provenance «Criterio de aplicación».
   interpretation?: string;
 }
 

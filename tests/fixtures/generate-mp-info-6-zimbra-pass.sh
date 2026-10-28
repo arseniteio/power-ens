@@ -48,7 +48,7 @@ text = re.sub(r'(\b[A-Z][a-z]{2}), (\d{4}/\d{2}/\d{2})', redate, text)
 open(sys.argv[2], 'w', encoding='utf-8').write(text)
 PY
 
-docker build -q -t ensfacil-mpinfo6zimbra-fixture:ubuntu22 - >/dev/null <<'DOCKERFILE'
+docker build -q -t power-ens-mpinfo6zimbra-fixture:ubuntu22 - >/dev/null <<'DOCKERFILE'
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq \
@@ -57,7 +57,7 @@ RUN apt-get update -qq \
 DOCKERFILE
 
 docker run --rm -i --hostname zimbra-01 \
-  -v "$RUNBOOK:/runbook:ro" -v "$SHIFTED:/shifted:ro" ensfacil-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$OUTPUT" <<'INSIDE'
+  -v "$RUNBOOK:/runbook:ro" -v "$SHIFTED:/shifted:ro" power-ens-mpinfo6zimbra-fixture:ubuntu22 bash -s > "$OUTPUT" <<'INSIDE'
 set -eu
 pkill slapd 2>/dev/null || true
 
@@ -95,7 +95,7 @@ crontab -u zimbra /runbook/tests/fixtures/crontab-zimbra-default.txt
 # zimbra-store (mailboxes) and zimbra-ldap (directory): fake packages so the collector detects BOTH roles without declaring MPINFO6ZIMBRA_ROL.
 for p in zimbra-store zimbra-ldap; do
   mkdir -p "/tmp/pkg/$p/DEBIAN"
-  printf 'Package: %s\nVersion: 10.1.0\nArchitecture: all\nMaintainer: ensfacil <ensfacil@ejemplo.invalido>\nDescription: simulated package for the fixture\n' "$p" \
+  printf 'Package: %s\nVersion: 10.1.0\nArchitecture: all\nMaintainer: power_ens <power_ens@ejemplo.invalido>\nDescription: simulated package for the fixture\n' "$p" \
     > "/tmp/pkg/$p/DEBIAN/control"
   dpkg-deb -b "/tmp/pkg/$p" "/tmp/$p.deb" >/dev/null
   dpkg -i "/tmp/$p.deb" >/dev/null

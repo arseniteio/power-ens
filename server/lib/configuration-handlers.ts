@@ -40,7 +40,7 @@ const statusOf = (error: any): number => Number(error?.statusCode || error?.meta
 
 const HISTORY_NOT_WRITTEN = 'Guardado; no se pudo registrar el historial';
 
-const NO_ROLE = 'Hace falta el rol ensfacil_admin o all_access para cambiar la configuración ENS o ver su historial.';
+const NO_ROLE = 'Hace falta el rol power_ens_admin o all_access para cambiar la configuración ENS o ver su historial.';
 
 export const createConfigurationHandlers = ({ logger, securityEnabled }: Options) => {
   const internal = (context: any) => context.core.opensearch.client.asInternalUser;
@@ -52,7 +52,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
     try {
       const user = await resolveCurrentUser(actual(context), securityEnabled);
       if (!user.administrator) {
-        logger.warn(`ENS config: refused ${logLabel} for ${user.username || 'an unnamed user'} (lacks ensfacil_admin and all_access)`);
+        logger.warn(`ENS config: refused ${logLabel} for ${user.username || 'an unnamed user'} (lacks power_ens_admin and all_access)`);
         return { error: failure(response, 403, NO_ROLE) };
       }
       if (!user.username) return { error: failure(response, 401, 'No se pudo identificar al usuario.') };

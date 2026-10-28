@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_8_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_8_json_rules.xml
      Byte-identical in three places: the plugin source and manager/ of the Linux
      and LDAP op.exp.8 runbooks. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_8,">
+<group name="power_ens,op_exp_8,">
 
   <!-- ================================================================
        op.exp.8 · Activity logging
@@ -29,8 +29,8 @@
 
   <rule id="110900" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.8</field>
-    <description>op.exp.8 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.8</field>
+    <description>op.exp.8 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.exp.8.1 · Audit log with the minimum fields ===== -->

@@ -32,7 +32,7 @@ const correct = (response: any, data: unknown) => response.ok({ body: { statusCo
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 500;
 
-const NO_ROLE = 'Hace falta el rol ensfacil_admin o all_access para registrar la madurez.';
+const NO_ROLE = 'Hace falta el rol power_ens_admin o all_access para registrar la madurez.';
 const NO_VERSION = 'Falta expectedVersion: la versión de la madurez que se ha leído (null si no había ninguna).';
 const HISTORY_NOT_WRITTEN = 'Guardado; no se pudo registrar el historial';
 const NOT_COMPUTED = 'No se ha podido calcular el nivel acreditado del control';
@@ -53,12 +53,12 @@ export const createMaturityHandlers = ({ logger, securityEnabled, maturity, cloc
     asInternalUser: context.core.opensearch.client.asInternalUser,
   });
 
-  // The user if they administer ENSFácil; otherwise the error response (each refusal is logged).
+  // The user if they administer Power ENS; otherwise the error response (each refusal is logged).
   const administrator = async (context: any, response: any, logLabel: string) => {
     try {
       const user = await resolveCurrentUser(context.core.opensearch.client.asCurrentUser, securityEnabled);
       if (!user.administrator) {
-        logger.warn(`ENS maturity: refused ${logLabel} for ${user.username || 'an unnamed user'} (lacks ensfacil_admin and all_access)`);
+        logger.warn(`ENS maturity: refused ${logLabel} for ${user.username || 'an unnamed user'} (lacks power_ens_admin and all_access)`);
         return { error: failure(response, 403, NO_ROLE) };
       }
       if (!user.username) return { error: failure(response, 401, 'No se pudo identificar al usuario.') };
@@ -75,7 +75,7 @@ export const createMaturityHandlers = ({ logger, securityEnabled, maturity, cloc
     const body = request?.body || {};
     const controlId = text(body.controlId);
     const kind = body.kind as ENSMaturityRecordKind;
-    if (!controlId) return failure(response, 400, 'El control «» no está en el catálogo de ENSFácil.');
+    if (!controlId) return failure(response, 400, 'El control «» no está en el catálogo de Power ENS.');
     const knownKind = ENS_MATURITY_RECORD_KINDS.includes(kind);
     // A catalog control takes its maturity; a measure without engine, its declared entry; op.mon.2, the ICT resources.
     const targetError = maturityRecordTargetError(controlId, knownKind ? kind : 'assessment');

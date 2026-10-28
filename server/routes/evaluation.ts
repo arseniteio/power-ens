@@ -1,6 +1,6 @@
 import { schema } from '@osd/config-schema';
 import type { IRouter, Logger } from '../../../../src/core/server';
-import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
+import { POWER_ENS_EVALUATION_PATH } from '../../common/constants';
 import { createEvaluationHandlers } from '../lib/evaluation-handlers';
 import type { ENSEvaluationService } from '../lib/evaluation/evaluation-service';
 import type { ENSMaturityService } from '../lib/maturity/maturity-service';
@@ -15,7 +15,7 @@ export const registerEvaluationRoutes = (
 ): void => {
   const h = createEvaluationHandlers(options);
 
-  router.get({ path: ENSFACIL_EVALUATION_PATH, validate: { query: searchQuery } }, h.evaluate);
-  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/probe`, validate: { query: searchQuery } }, h.probe);
-  router.get({ path: `${ENSFACIL_EVALUATION_PATH}/traceability`, validate: { query: searchQuery } }, h.traceability);
+  router.get({ path: POWER_ENS_EVALUATION_PATH, validate: { query: searchQuery } }, h.evaluate);
+  router.get({ path: `${POWER_ENS_EVALUATION_PATH}/probe`, validate: { query: searchQuery } }, h.probe);
+  router.get({ path: `${POWER_ENS_EVALUATION_PATH}/traceability`, validate: { query: searchQuery } }, h.traceability);
 };

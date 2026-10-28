@@ -31,7 +31,7 @@ export const organizationDataParameter = (item: ENSOrganizationDataItem): ENSCon
   ...(item.options ? { options: item.options } : {}),
   required: false,
   wazuhUsage: '',
-  ensfacilUsage: '',
+  powerEnsUsage: '',
   evidenceIds: [],
   ruleIds: [],
   ifNotConfigured: '',
@@ -106,7 +106,7 @@ export const organizationValueWarnings = (item: ENSOrganizationDataItem, value: 
     });
 };
 
-const ENSFACIL_INCIDENT_REGISTER = /incident-register\.tsv|registro ensfácil/i;
+const POWER_ENS_INCIDENT_REGISTER = /incident-register\.tsv|registro Power ENS/i;
 
 // Data that should agree with an item but stays in its control: said in General when it does not.
 export const organizationCrossChecks = (configuration: ENSDocument, itemId: string): string[] => {
@@ -114,11 +114,11 @@ export const organizationCrossChecks = (configuration: ENSDocument, itemId: stri
   const selector = parameterOf(configuration, 'op.exp.9', 'P-01');
   const incidents = parameterOf(configuration, 'op.exp.7', 'P-03');
   if (!selector || isEmptyParameterValue(selector.value) || !incidents || isEmptyParameterValue(incidents.value)) return [];
-  const register = ENSFACIL_INCIDENT_REGISTER.test(String(selector.value));
-  const declared = toParameterTableRows(incidents.value).some(row => ENSFACIL_INCIDENT_REGISTER.test(row));
+  const register = POWER_ENS_INCIDENT_REGISTER.test(String(selector.value));
+  const declared = toParameterTableRows(incidents.value).some(row => POWER_ENS_INCIDENT_REGISTER.test(row));
   return register === declared
     ? []
-    : [`op.exp.9 P-01 dice «${String(selector.value)}» y la fila de incidentes de este dato ${declared ? 'nombra' : 'no nombra'} el registro de ENSFácil: comprobar que sean la misma herramienta.`];
+    : [`op.exp.9 P-01 dice «${String(selector.value)}» y la fila de incidentes de este dato ${declared ? 'nombra' : 'no nombra'} el registro de Power ENS: comprobar que sean la misma herramienta.`];
 };
 
 export interface ENSOrganizationChoiceChange {

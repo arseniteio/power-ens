@@ -47,8 +47,8 @@ export const mpS4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define el alcance.',
-      ensfacilUsage:
-        'ENSFácil monitoriza la disponibilidad y los tiempos de respuesta de estos servicios y les aplica las reglas de detección de saturación.',
+      powerEnsUsage:
+        'Power ENS monitoriza la disponibilidad y los tiempos de respuesta de estos servicios y les aplica las reglas de detección de saturación.',
       evidenceIds: ['EV-01', 'EV-02', 'EV-04', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -93,9 +93,9 @@ export const mpS4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
-      ensfacilUsage:
-        'ENSFácil compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
+        'Power ENS compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
+      powerEnsUsage:
+        'Power ENS compara la carga real observada con la prevista y con la capacidad, y alerta cuando la utilización se aproxima al límite. Un servicio operando habitualmente al 85 % de su capacidad no atiende con holgura, aunque nunca haya caído.',
       evidenceIds: ['EV-01', 'EV-04', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -134,9 +134,9 @@ export const mpS4Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
-      ensfacilUsage:
-        'ENSFácil verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
+        'Power ENS verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
+      powerEnsUsage:
+        'Power ENS verifica la configuración de lo que sea verificable desde el sistema —limitación de tasa, protección de pila de red— y recoge como declaración lo que opera en el proveedor. Mide además su eficacia a partir de los bloqueos registrados.',
       evidenceIds: ['EV-02', 'EV-04', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -176,7 +176,7 @@ export const mpS4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Configura las reglas de detección. Lo más robusto es definir los umbrales como múltiplo de la línea base observada y no como valor absoluto, porque la carga normal varía con el tiempo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Configura las reglas de detección. Lo más robusto es definir los umbrales como múltiplo de la línea base observada y no como valor absoluto, porque la carga normal varía con el tiempo.',
       evidenceIds: ['EV-03', 'EV-04', 'EV-07', 'EV-10'],
       ruleIds: [],
@@ -196,9 +196,9 @@ export const mpS4Configuration: ENSControlConfiguration = {
       example: '«PR-25 Reacción ante DoS»: activar el modo de protección, bloquear rangos, escalar al proveedor y comunicar',
       required: false,
       wazuhUsage:
-        'ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
-      ensfacilUsage:
-        'ENSFácil correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
+        'Power ENS correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
+      powerEnsUsage:
+        'Power ENS correlaciona cada detección con la activación del procedimiento y con la apertura del incidente en op.exp.7, y mide los tiempos. Procedimiento declarado sin activación registrada ante un ataque → hallazgo.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -217,9 +217,9 @@ export const mpS4Configuration: ENSControlConfiguration = {
       example: 'NOC del proveedor 24×7 por teléfono y correo, con mitigación contratada activable en 15 min',
       required: false,
       wazuhUsage:
-        'ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
-      ensfacilUsage:
-        'ENSFácil recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
+        'Power ENS recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
+      powerEnsUsage:
+        'Power ENS recoge la declaración y verifica que ante los ataques detectados consta la comunicación al proveedor y en qué plazo. Es el extremo del requisito que con más frecuencia se descubre ausente precisamente cuando hace falta.',
       evidenceIds: ['EV-05', 'EV-06'],
       ruleIds: [],
       ifNotConfigured:
@@ -238,9 +238,9 @@ export const mpS4Configuration: ENSControlConfiguration = {
       example: 'Sede: 40 peticiones/s en horario laboral (8-20 h) y 5 peticiones/s el resto',
       required: false,
       wazuhUsage:
-        'ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
-      ensfacilUsage:
-        'ENSFácil puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
+        'Power ENS puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
+      powerEnsUsage:
+        'Power ENS puede calcular la línea base a partir del histórico ingerido y proponerla. Permite detectar tanto la saturación como el patrón anómalo de bajo volumen, que es el de los ataques de agotamiento de recursos y pasa inadvertido con umbrales absolutos.',
       evidenceIds: ['EV-03', 'EV-04', 'EV-07', 'EV-10'],
       ruleIds: [],
       ifNotConfigured:
@@ -260,7 +260,7 @@ export const mpS4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Es el refuerzo con mejor cobertura de Wazuh en este control: el tráfico saliente anómalo y los servicios propios usados como amplificadores son detecciones directas de host y de perímetro. Conviene ofrecerlo aunque no sea exigible.',
       evidenceIds: ['EV-08', 'EV-09'],
       ruleIds: [],

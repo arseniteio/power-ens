@@ -1,4 +1,4 @@
-// Correspondence between the auditor's template and what ENSFácil deploys, for controls that were not built from the template.
+// Correspondence between the auditor's template and what Power ENS deploys, for controls that were not built from the template.
 // mp.info.6 keeps its deployed parameters, evidences and requirement ids (the PBS and Zimbra collectors report them); this table maps the template's P-xx and EV-xx onto them.
 
 export type ENSTemplateCoverage = 'EQUIVALENT' | 'PARTIAL' | 'NOT_MEASURED';
@@ -14,7 +14,7 @@ export interface ENSTemplateCorrespondenceRow {
   template: string;
   // Name or title in the template.
   templateName: string;
-  // Identifiers deployed in ENSFácil; empty when nothing measures it yet.
+  // Identifiers deployed in Power ENS; empty when nothing measures it yet.
   ours: string[];
   coverage: ENSTemplateCoverage;
   note: string;

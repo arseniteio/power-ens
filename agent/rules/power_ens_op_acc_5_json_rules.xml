@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_5_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_acc_5_json_rules.xml
      Deployable copy, byte-identical in the Linux and LDAP runbooks (checked by
      plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_acc_5,score,">
+<group name="power_ens,op_acc_5,score,">
 
   <!-- ================================================================
        op.acc.5 · Authentication mechanism (external users)
@@ -30,8 +30,8 @@
 
   <rule id="110000" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.5</field>
-    <description>op.acc.5 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.5</field>
+    <description>op.acc.5 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.acc.5.r1.1 · r2.1 · r3.2 · r4.2 · mechanism applied ===== -->

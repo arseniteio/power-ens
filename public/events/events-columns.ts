@@ -11,7 +11,7 @@ export interface ENSEventColumn {
 export const ENS_EVENT_COLUMNS: ENSEventColumn[] = [
   { id: 'timestamp', label: 'Fecha', initialWidth: 190 },
   { id: 'agent.name', label: 'Máquina', initialWidth: 150 },
-  { id: 'data.ensfacil', label: 'Control', initialWidth: 120 },
+  { id: 'data.power_ens', label: 'Control', initialWidth: 120 },
   { id: 'data.event', label: 'Hecho', initialWidth: 130 },
   { id: 'data.control', label: 'data.control', initialWidth: 140 },
   { id: 'data.requisito', label: 'Requisitos', initialWidth: 150 },

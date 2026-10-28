@@ -50,7 +50,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Define log collection y niveles de alerta. Las reglas 110901 (audit_log_status) y 110903 (audit_record_fields) informan de las fuentes de registro de cada servidor y la 110914 (audit_coverage), de lo que registran las reglas de auditd cargadas por categoría.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-01 contrasta cada categoría con lo que el servidor audita (fuentes de registro, rutas vigiladas por auditd, llamadas al sistema auditadas, nivel de log de slapd): una declarada y no auditada incumple op.exp.8.1 y una no reconocida queda sin evaluar. Es también la mitad documental de op.exp.8.r3.1.',
       evidenceIds: ['EV-01', 'EV-07'],
       ruleIds: [],
@@ -91,7 +91,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Regla 110915 (agent_keepalive_observed): en cada pasada el recolector del manager lee de global.db el último keepalive y el estado de conexión de cada agente.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 (fila del manager): en ninguna pasada de la ventana el último keepalive de un servidor de P-02 puede quedar más atrás que P-12. Un servidor declarado que no está en la base de agentes del manager incumple op.exp.8.2.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -120,7 +120,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110903 (audit_record_fields): el agente muestrea los registros más recientes de cada fuente y cuenta cuántos traen cada campo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental. EV-03 se juzga con los cinco campos del ENS: un campo ausente en toda la muestra de una fuente es un hallazgo.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -133,7 +133,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'periodicidad_revision_registros_dias',
       label: 'Periodicidad de la revisión de los registros (días)',
       description:
-        'Cada cuántos días, como máximo, se revisan los registros de actividad buscando patrones anormales; R1 exige revisión «informalmente, de forma periódica» sin plazo. Cada revisión se anota en /etc/ensfacil/log-review-register.tsv del manager.',
+        'Cada cuántos días, como máximo, se revisan los registros de actividad buscando patrones anormales; R1 exige revisión «informalmente, de forma periódica» sin plazo. Cada revisión se anota en /etc/power-ens/log-review-register.tsv del manager.',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.8.r1.1'],
       type: 'duration_days',
@@ -141,7 +141,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110905 (log_review_recorded): la revisión más reciente anotada y cuántas hay.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-05: la revisión más reciente no puede superar este plazo. Un registro sin revisiones no cumple.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -176,7 +176,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110906 (time_sync_status): servicio de sincronización, fuentes en uso, si está autenticada y desfase medido.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06: toda fuente en uso debe figurar aquí y la sincronización debe estar autenticada (lo exige R2, figure o no en la tabla).',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -198,7 +198,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110906 (time_sync_status): desfase medido por el servicio de sincronización (chrony tracking, timedatectl timesync-status).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06: el desfase absoluto medido no puede superar este valor.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -233,7 +233,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Configura las políticas ISM del Wazuh Indexer. Regla 110908 (log_retention_observed): lo que el manager conserva en disco.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-07: la retención efectiva de los índices solo se ve consultando el indexer, que el recolector del manager no hace (sin credenciales): queda sin demostrar con su causa. Se informa de la retención en disco frente a este plazo.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -274,7 +274,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110909 (log_access_permissions): por registro, las cuentas que pueden leerlo. Los roles y el audit log del indexer no se leen (exigen credencial).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08: toda cuenta con lectura sobre un registro debe figurar aquí; un registro legible por cualquiera no cumple. En el manager, los accesos efectivos al indexer quedan sin demostrar.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -301,7 +301,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Snapshots del Wazuh Indexer. Ninguna regla: su estado solo se ve consultando el indexer.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Documental. EV-09 queda sin demostrar (causa CONFIGURATION) porque el recolector del manager no usa credenciales del indexer.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -314,7 +314,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       name: 'reglas_correlacion_activas',
       label: 'Conjuntos de reglas de análisis desplegados',
       description:
-        'Conjuntos de reglas de correlación y detección que deben estar desplegados en el manager, uno por fila, con su cobertura respecto a P-01 y su mapeo a MITRE ATT&CK. El conjunto se escribe como lo emite el recolector: `wazuh` para el ruleset oficial y, para /var/ossec/etc/rules, el prefijo del fichero (ensfacil, local, quersystem…).',
+        'Conjuntos de reglas de correlación y detección que deben estar desplegados en el manager, uno por fila, con su cobertura respecto a P-01 y su mapeo a MITRE ATT&CK. El conjunto se escribe como lo emite el recolector: `wazuh` para el ruleset oficial y, para /var/ossec/etc/rules, el prefijo del fichero (power_ens, local, quersystem…).',
       levels: ['ALTO'],
       requirements: ['op.exp.8.r5.1'],
       type: 'table',
@@ -327,7 +327,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 110910 (correlation_rules_inventory): conjuntos de reglas cargados, cuántas reglas tienen y cuántas mapean técnicas MITRE.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-10: cada conjunto declarado debe estar cargado con al menos una regla.',
       evidenceIds: ['EV-10'],
       ruleIds: [],
@@ -354,7 +354,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Reglas 110911 (active_response_configured) y 110912 (active_response_executed).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-11: cada acción declarada debe estar configurada y habilitada en el manager. EV-12: debe constar al menos una ejecución disparada por una alerta en la ventana.',
       evidenceIds: ['EV-11', 'EV-12'],
       ruleIds: [],
@@ -375,7 +375,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Reglas 110902 (agent_status, último keepalive leído en el agente) y 110915 (agent_keepalive_observed, último keepalive de cada agente leído en el manager).',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 con ANTIGUEDAD_MAXIMA: el último keepalive no puede ser más viejo. EV-04: en ninguna pasada del recolector del manager el keepalive de un servidor de P-02 puede quedar más atrás, ni pasar más tiempo entre dos pasadas (si no, la continuidad no se acredita).',
       evidenceIds: ['EV-02', 'EV-04'],
       ruleIds: [],
@@ -403,7 +403,7 @@ export const opExp8Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

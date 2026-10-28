@@ -81,8 +81,8 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'Define qué debe vigilar ENSFácil. Las claves en HSM quedan fuera del alcance de Wazuh; las de disco son monitorizables.',
-      ensfacilUsage:
+        'Define qué debe vigilar Power ENS. Las claves en HSM quedan fuera del alcance de Wazuh; las de disco son monitorizables.',
+      powerEnsUsage:
         'Sin inventario, op.exp.10.1 y op.exp.10.3 no se demuestran. Las filas «retirada» se contrastan con las claves privadas halladas en disco (EV-06): si una retirada sigue presente, por huella o ubicación, op.exp.10.3 no se cumple.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -123,7 +123,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Las mismas rutas se vigilan en lectura para EV-01: con auditd en Linux y LDAP (fichero de reglas del runbook) y con una SACL de lectura en Windows. Una ruta de P-02 sin vigilancia de lectura es un hueco que el recolector declara.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 contrasta el directorio de cada clave privada hallada en disco con `ruta`: una clave fuera de los almacenes es indicio de copia. EV-08 contrasta su modo y propietario con los de su fila.',
       evidenceIds: ['EV-02', 'EV-08'],
       ruleIds: [],
@@ -168,7 +168,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Permite cubrir R1 con solidez. Algoritmo sin fila para su uso o longitud por debajo del mínimo: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Se contrastan con esta tabla los algoritmos que ACEPTAN los servicios (EV-03), los que se NEGOCIAN (EV-04) y la clave y firma de cada certificado (EV-07).',
       evidenceIds: ['EV-03', 'EV-04', 'EV-07'],
       ruleIds: [],
@@ -209,7 +209,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Define el alcance de la verificación de R1. Un servicio no declarado queda sin exigir.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Todo servicio declarado para una máquina debe haberse observado en ella; si no, R1 queda sin demostrar. Los servicios observados se juzgan todos contra P-03, estén o no declarados.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -250,8 +250,8 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que no se ejecutan herramientas de generación de claves en los sistemas declarados de explotación.',
-      ensfacilUsage:
+        'Power ENS verifica que no se ejecutan herramientas de generación de claves en los sistemas declarados de explotación.',
+      powerEnsUsage:
         'EV-05: una generación de claves observada en una máquina declarada «explotacion» incumple op.exp.10.2; una máquina sin fila no se juzga. El aislamiento de red se declara aquí y no se mide.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -291,8 +291,8 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: true,
       wazuhUsage:
-        'ENSFácil verifica que las claves retiradas no siguen accesibles en los sistemas de explotación, contrastando el inventario de P-01 con el material criptográfico presente en disco.',
-      ensfacilUsage:
+        'Power ENS verifica que las claves retiradas no siguen accesibles en los sistemas de explotación, contrastando el inventario de P-01 con el material criptográfico presente en disco.',
+      powerEnsUsage:
         'Sin destino de archivo, op.exp.10.3 no se demuestra. Un destino que sea una máquina declarada «explotacion» en P-05 incumple op.exp.10.3.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -312,8 +312,8 @@ export const opExp10Configuration: ENSControlConfiguration = {
       example: '«PR-20 Gestión de claves criptográficas v2», con las 5 fases documentadas',
       required: true,
       wazuhUsage:
-        'Referencia documental que ENSFácil recoge en el informe con las fases cubiertas y las verificables automáticamente. Transporte y destrucción son casi siempre documentales.',
-      ensfacilUsage:
+        'Referencia documental que Power ENS recoge en el informe con las fases cubiertas y las verificables automáticamente. Transporte y destrucción son casi siempre documentales.',
+      powerEnsUsage:
         'La ficha lo pide junto a P-01: sin procedimiento, op.exp.10.1 no se demuestra aunque la custodia medida esté bien.',
       evidenceIds: [],
       ruleIds: [],
@@ -354,7 +354,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Todo acceso a los almacenes vigilados por una cuenta ajena a esta lista es hallazgo. Es la comprobación que más hallazgos produce en este control.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-01 contrasta el actor de cada acceso registrado (auditd en Linux y LDAP, evento 4663 en Windows) con la columna `cuenta`. `claves` y `operacion` documentan el alcance de cada autorización y no se juzgan por clave.',
       evidenceIds: ['EV-01'],
       ruleIds: [],
@@ -394,8 +394,8 @@ export const opExp10Configuration: ENSControlConfiguration = {
       ],
       required: false,
       wazuhUsage:
-        'ENSFácil recoge la declaración de conformidad en el informe. La conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto: Wazuh no la observa.',
-      ensfacilUsage:
+        'Power ENS recoge la declaración de conformidad en el informe. La conformidad de un cifrador con una guía CCN-STIC es documental y de certificación de producto: Wazuh no la observa.',
+      powerEnsUsage:
         'Solo informativo: R2 no es exigible en ninguna categoría.',
       evidenceIds: [],
       ruleIds: [],
@@ -417,7 +417,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'EV-07 inventaría la fecha de caducidad de cada certificado en disco.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Un certificado caducado incumple op.exp.10.1. Uno vigente que caduca dentro de este plazo se señala como próximo a caducar en el motivo de EV-07.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -470,7 +470,7 @@ export const opExp10Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

@@ -1,5 +1,5 @@
-// Requests to the server evaluation (`/api/ensfacil/evaluation`). The browser no longer reads facts to judge: it receives the result.
-import { ENSFACIL_EVALUATION_PATH } from '../../common/constants';
+// Requests to the server evaluation (`/api/powerEns/evaluation`). The browser no longer reads facts to judge: it receives the result.
+import { POWER_ENS_EVALUATION_PATH } from '../../common/constants';
 import { withRequestTimeout } from '../../common/platform/request-timeout';
 import { getHttp } from '../services';
 import { RequestLimiter } from './refresh-policy';
@@ -57,11 +57,11 @@ const asks = async <T>(path: string, query: Record<string, unknown>, operation: 
 };
 
 export const fetchEvaluation = <T = any>(params: ENSEvaluationParams, controller?: AbortController, options: { retryRefresh?: boolean } = {}) =>
-  asks<T>(ENSFACIL_EVALUATION_PATH, { ...params, ...(options.retryRefresh ? { retryRefresh: '1' } : {}) }, 'evaluación ENS', controller);
+  asks<T>(POWER_ENS_EVALUATION_PATH, { ...params, ...(options.retryRefresh ? { retryRefresh: '1' } : {}) }, 'evaluación ENS', controller);
 
 export const fetchEvaluationProbe = (params: ENSEvaluationParams, controller?: AbortController) =>
   asks<{ fingerprint: string; checkedAt: string; facts: { count: number; newest?: string } }>(
-    `${ENSFACIL_EVALUATION_PATH}/probe`,
+    `${POWER_ENS_EVALUATION_PATH}/probe`,
     { agentId: params.agentId, controlId: params.controlId },
     'comprobación de hechos nuevos',
     controller
@@ -72,7 +72,7 @@ export const fetchTraceabilityPage = (
   controller?: AbortController
 ) =>
   asks<ENSTraceabilityPageResponse>(
-    `${ENSFACIL_EVALUATION_PATH}/traceability`,
+    `${POWER_ENS_EVALUATION_PATH}/traceability`,
     { ...params },
     'trazabilidad del control',
     controller

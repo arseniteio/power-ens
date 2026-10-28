@@ -27,7 +27,7 @@ export class TabErrorBoundary extends React.Component<TabErrorBoundaryProps, Tab
 
   componentDidCatch(error: Error) {
     // eslint-disable-next-line no-console
-    console.error(`ENSFácil: failed to render «${this.props.tabName}»`, error);
+    console.error(`Power ENS: failed to render «${this.props.tabName}»`, error);
   }
 
   componentDidUpdate(previous: TabErrorBoundaryProps) {

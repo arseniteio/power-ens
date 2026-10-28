@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 ###############################################################################
-# deploy-plugin.sh · installs ENSFácil AND makes the browser see it
+# deploy-plugin.sh · installs Power ENS AND makes the browser see it
 #
-#   sudo bash deploy-plugin.sh /path/to/ensfacil-X.Y.Z-osd-2.19.5.zip
+#   sudo bash deploy-plugin.sh /path/to/power-ens-X.Y.Z-osd-2.19.5.zip
 #
-# The zip is the release one (ensfacil-X.Y.Z-osd-2.19.5.zip) or the one build-plugin.sh leaves
-# (ensfacil-2.19.5.zip): same content. It only installs the `ensfacil` plugin and only removes that one:
+# The zip is the release one (power-ens-X.Y.Z-osd-2.19.5.zip) or the one build-plugin.sh leaves
+# (power-ens-2.19.5.zip): same content. It only installs the `powerEns` plugin and only removes that one:
 # a zip of any other plugin (the Wazuh one, `wazuh`, included) is rejected without touching anything.
 # `bash deploy-plugin.sh --solo-id <zip>` prints the zip id and exits without touching anything. Exactly
 # one zip: with more or fewer, it does nothing.
 #
 # Before stopping the dashboard it saves the plugin it will replace in
-# ${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil, as plugins-<id>-<date>.tgz. That subfolder is OURS: it is
+# ${POWER_ENS_BACKUP_DIR:-/var/backups}/power-ens, as plugins-<id>-<date>.tgz. That subfolder is OURS: it is
 # created (root, 0700) if missing, and permissions of a folder it did not create are never changed
-# (ENSFACIL_BACKUP_DIR may be /tmp or a folder others read). Not next to the zip: the next build deletes
+# (POWER_ENS_BACKUP_DIR may be /tmp or a folder others read). Not next to the zip: the next build deletes
 # that folder. Only when the deployment ends well are the last 3 copies kept, so a deployment failing
 # repeatedly does not push out the last good copy.
 #
 # If something fails with the dashboard already stopped, it says how to go back (restore that copy and
 # start) and exits with error. Exit codes:
-#   1 wrong usage · 2 the zip is not ENSFácil's · 3 the copy could not be saved (nothing touched) ·
+#   1 wrong usage · 2 the zip is not Power ENS's · 3 the copy could not be saved (nothing touched) ·
 #   4 the dashboard user cannot read the zip (nothing touched) · 5 installation failed · 6 the dashboard
 #   was not active at the end · 7 another step failed with the dashboard stopped.
 #
@@ -28,7 +28,7 @@
 # installation fail with the dashboard already stopped.
 #
 # WHY THE LAST STEP IS NOT OPTIONAL. Installing the plugin does not make anyone see the change.
-# OpenSearch Dashboards serves bundles at /{buildHash}/bundles/plugin/ensfacil/ensfacil.chunk.N.js and the
+# OpenSearch Dashboards serves bundles at /{buildHash}/bundles/plugin/powerEns/powerEns.chunk.N.js and the
 # `buildHash` comes from the `build.number` of the DASHBOARD's package.json, not the plugin's
 # (`src/optimize/optimize_mixin.js`). Reinstalling changes the file on disk and NOT the URL; bundles are
 # served as immutable per buildHash, so the browser keeps the old one cached, even with Ctrl+Shift+R.
@@ -58,19 +58,19 @@ case "$1" in -*) usage ;; esac
 ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
-# The plugin removed is the one in the zip, and can only be `ensfacil`. Never a wildcard, never the Wazuh one
+# The plugin removed is the one in the zip, and can only be `powerEns`. Never a wildcard, never the Wazuh one
 # (its official package installs it). awk reads the whole listing (no `exit`): cutting the pipe would kill
 # unzip by SIGPIPE on a zip with node_modules and, with pipefail, the script would exit 141 silently.
 PLUGIN_ID="$(unzip -Z1 "$ZIP" 2>/dev/null | awk -F/ '$1=="opensearch-dashboards" && $2!="" && id=="" {id=$2} END {print id}')"
 case "$PLUGIN_ID" in
-  ensfacil) ;;
+  powerEns) ;;
   wazuh)
-    echo "the zip is the Wazuh plugin (id: 'wazuh'): deploy-plugin.sh only installs ENSFácil (id: 'ensfacil')." >&2
-    echo "The Wazuh plugin is installed with the official wazuh-dashboard package; for ENSFácil, use the release zip, ensfacil-X.Y.Z-osd-2.19.5.zip." >&2
+    echo "the zip is the Wazuh plugin (id: 'wazuh'): deploy-plugin.sh only installs Power ENS (id: 'powerEns')." >&2
+    echo "The Wazuh plugin is installed with the official wazuh-dashboard package; for Power ENS, use the release zip, power-ens-X.Y.Z-osd-2.19.5.zip." >&2
     exit 2
     ;;
   *)
-    echo "the zip is not ENSFácil's (id: '${PLUGIN_ID:-none}'): deploy-plugin.sh only installs the 'ensfacil' plugin." >&2
+    echo "the zip is not Power ENS's (id: '${PLUGIN_ID:-none}'): deploy-plugin.sh only installs the 'powerEns' plugin." >&2
     exit 2
     ;;
 esac
@@ -80,7 +80,7 @@ if [ "$ID_ONLY" = 1 ]; then
   exit 0
 fi
 
-BACKUPS="${ENSFACIL_BACKUP_DIR:-/var/backups}/ensfacil"
+BACKUPS="${POWER_ENS_BACKUP_DIR:-/var/backups}/power-ens"
 BACKUP=""
 PACKAGE_BEFORE=""
 STATE=""
@@ -136,7 +136,7 @@ backup_folder() {
 }
 
 # The zip the dashboard user installs: a copy readable by it.
-TEMP_ZIP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ensfacil-deploy.XXXXXX")"
+TEMP_ZIP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/power-ens-deploy.XXXXXX")"
 ZIP_TO_INSTALL="$TEMP_ZIP_DIR/$PLUGIN_ID.zip"
 chmod 755 "$TEMP_ZIP_DIR"
 if ! { cp "$ZIP" "$ZIP_TO_INSTALL" && chmod 644 "$ZIP_TO_INSTALL" && sudo -u wazuh-dashboard test -r "$ZIP_TO_INSTALL"; }; then

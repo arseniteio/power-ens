@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 ###############################################################################
-# create-admin-role.sh · creates the ensfacil_admin role and, if asked, assigns it
+# create-admin-role.sh · creates the power_ens_admin role and, if asked, assigns it
 #
 #   sudo bash config/create-admin-role.sh [--dry-run] [--mapear <user>]...
 #
-# Whoever has the ensfacil_admin role (or all_access) can save the ENS configuration and see its
+# Whoever has the power_ens_admin role (or all_access) can save the ENS configuration and see its
 # history; the others see it but get a 403 on save. The role is a mark the plugin looks for among the
 # user's roles, and grants one permission: read on wazuh-ens-snapshots (the maturity series).
 #
@@ -24,8 +24,8 @@
 ###############################################################################
 set -euo pipefail
 
-ROLE=ensfacil_admin
-ROLE_BODY='{"description":"ENSFácil: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
+ROLE=power_ens_admin
+ROLE_BODY='{"description":"Power ENS: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
 ROLE_PATH="_plugins/_security/api/roles/$ROLE"
 MAPPING_PATH="_plugins/_security/api/rolesmapping/$ROLE"
 

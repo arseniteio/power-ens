@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EuiButton, EuiCallOut, EuiSpacer } from '@elastic/eui';
 // Types only from the data plugin: runtime pieces come from its start contract (`getData()`); a value import of `src/plugins/data/public` would bundle a whole copy of the plugin.
 import type { Filter, IndexPattern, Query, TimeRange } from '../../../../src/plugins/data/public';
-import { ENSFACIL_PLUGIN_ID, ENS_ALERTS_INDEX } from '../../common/constants';
+import { POWER_ENS_PLUGIN_ID, ENS_ALERTS_INDEX } from '../../common/constants';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { getData, getNavigation } from '../services';
 import { findIndexPatternByTitle, IndexPatternLookup } from './alerts-index-pattern';
@@ -78,7 +78,7 @@ export const useAlertsSearchBar = (): AlertsSearchBar => {
   const { TopNavMenu } = getNavigation().ui;
   const searchBar = indexPattern ? (
     <TopNavMenu
-      appName={ENSFACIL_PLUGIN_ID}
+      appName={POWER_ENS_PLUGIN_ID}
       showSearchBar
       useDefaultBehaviors
       indexPatterns={patterns}

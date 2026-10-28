@@ -84,7 +84,7 @@ const toParameter = (controlId: string, id: string, p: any): ENSControlParameter
     defaultValue: p.default_value,
     value: p.initial_value,
     wazuhUsage: p.agent_usage,
-    ensfacilUsage: p.engine_usage,
+    powerEnsUsage: p.engine_usage,
     evidenceIds: p.evidence_ids || [],
     ruleIds: [],
     ifNotConfigured: p.if_not_configured,

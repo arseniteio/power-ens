@@ -156,7 +156,7 @@ export const createMaturityService = ({
       const count = failure?.day === today ? failure.count + 1 : 1;
       if (firstFactFailures.size > 200) firstFactFailures.clear();
       firstFactFailures.set(key, { day: today, count, until: clock() + retryBackoffMs(count) });
-      warnOnce(`first:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read each machine's first fact for maturity: ${error?.message || error}`);
+      warnOnce(`first:${ctx.userKey}:${statusOf(error)}`, `Power ENS: could not read each machine's first fact for maturity: ${error?.message || error}`);
       return undefined;
     }
   };
@@ -183,7 +183,7 @@ export const createMaturityService = ({
       }
     } catch (error: any) {
       if (stopped.aborted) throw error;
-      warnOnce(`activity:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read the daily activity for maturity: ${error?.message || error}`);
+      warnOnce(`activity:${ctx.userKey}:${statusOf(error)}`, `Power ENS: could not read the daily activity for maturity: ${error?.message || error}`);
       activity = undefined;
       failed.push('the daily activity');
     }
@@ -201,7 +201,7 @@ export const createMaturityService = ({
       if (stopped.aborted) throw error;
       snapshotsError = statusOf(error) === 403 ? 'sin permiso de lectura de wazuh-ens-snapshots' : 'error del indexador';
       failed.push('the snapshots');
-      warnOnce(`snapshots:${ctx.userKey}:${statusOf(error)}`, `ENSFácil: could not read the maturity snapshots for ${ctx.userKey.split('|')[0] || 'a user'}: ${error?.message || error}`);
+      warnOnce(`snapshots:${ctx.userKey}:${statusOf(error)}`, `Power ENS: could not read the maturity snapshots for ${ctx.userKey.split('|')[0] || 'a user'}: ${error?.message || error}`);
     }
     return {
       at: clock(),
@@ -228,7 +228,7 @@ export const createMaturityService = ({
             return value;
           },
           (error: any) => {
-            if (!stopped.aborted) logger.warn(`ENSFácil: could not read the maturity inputs: ${error?.message || error}`);
+            if (!stopped.aborted) logger.warn(`Power ENS: could not read the maturity inputs: ${error?.message || error}`);
             return undefined;
           }
         )
@@ -292,10 +292,10 @@ export const createMaturityService = ({
     try {
       const deleted = await purgeSnapshots(client, addDays(date, -ENS_SNAPSHOT_RETENTION_DAYS));
       purgedOn = date;
-      if (deleted) logger.info(`ENSFácil: ${deleted} maturity snapshots older than ${ENS_SNAPSHOT_RETENTION_DAYS} days deleted`);
+      if (deleted) logger.info(`Power ENS: ${deleted} maturity snapshots older than ${ENS_SNAPSHOT_RETENTION_DAYS} days deleted`);
       return true;
     } catch (error: any) {
-      logger.warn(`ENSFácil: could not purge the old maturity snapshots: ${error?.message || error}`);
+      logger.warn(`Power ENS: could not purge the old maturity snapshots: ${error?.message || error}`);
       return false;
     }
   };
@@ -377,7 +377,7 @@ export const createMaturityService = ({
           if (stopped.aborted) return;
           const count = (failures.get(key)?.count || 0) + 1;
           failures.set(key, { count, nextAt: clock() + (count >= ENS_ORGANISATION_ATTEMPTS ? RETRY_AFTER_ERROR_MS : RETRY_WAITS_MS[count - 1]) });
-          logger.warn(`ENSFácil: could not compute the organisation maturity (attempt ${count}): ${error?.message || error}`);
+          logger.warn(`Power ENS: could not compute the organisation maturity (attempt ${count}): ${error?.message || error}`);
         })
         .then(() => {
           refreshing.delete(key);
@@ -493,7 +493,7 @@ export const createMaturityService = ({
   // Snapshots for the annual report and the trends, read as the user: the index permissions decide who sees them.
   const snapshotsBetween = async (clients: ENSEvaluationClients, query: { controlId?: string; from?: string; to?: string }) => {
     if (query.controlId && !ENSCatalog.some(control => control.id === query.controlId)) {
-      throw new ENSBadRequestError(`El control «${query.controlId}» no está en el catálogo de ENSFácil.`);
+      throw new ENSBadRequestError(`El control «${query.controlId}» no está en el catálogo de Power ENS.`);
     }
     if (!isDay(query.from) || !isDay(query.to) || query.from > query.to) {
       throw new ENSBadRequestError('«from» y «to» son fechas AAAA-MM-DD, con «from» no posterior a «to».');

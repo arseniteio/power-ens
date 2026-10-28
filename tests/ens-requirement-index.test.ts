@@ -139,7 +139,7 @@ section('filter: the same facts as the count');
   const byEvidence = q.bool.should[1].bool;
   const reEv = new RegExp(`^${byEvidence.must[1].regexp['data.evidence_id']}$`);
 
-  check('by evidence: only the facts of its control', byEvidence.must[0].term['data.ensfacil'] === 'op.exp.1');
+  check('by evidence: only the facts of its control', byEvidence.must[0].term['data.power_ens'] === 'op.exp.1');
   check('by evidence: those of the catalog (EV-01 to EV-07 in op.exp.1.1)', reEv.test('EV-01') && reEv.test('EV-07') && reEv.test('EV-03,EV-07'));
   check('by evidence: does not match EV-010, EV-1 or EV-08', !reEv.test('EV-010') && !reEv.test('EV-1') && !reEv.test('EV-08'));
   check('by evidence: only without data.requisito', byEvidence.must_not[0].exists.field === 'data.requisito');

@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.s.1 (Protección del correo electrónico).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -121,7 +121,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Autenticación del dominio propio  ·  fuente: Log + ENSFácil (EV-07)
+  // Autenticación del dominio propio  ·  fuente: Log + Power ENS (EV-07)
   const campo3 = field(
     'mp.s.1.campo3',
     'Autenticación del dominio propio',
@@ -141,7 +141,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Eficacia del filtrado de correo no solicitado  ·  fuente: Log + ENSFácil (EV-02)
+  // Eficacia del filtrado de correo no solicitado  ·  fuente: Log + Power ENS (EV-02)
   const campo5 = field(
     'mp.s.1.campo5',
     'Eficacia del filtrado de correo no solicitado',
@@ -151,7 +151,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Detecciones de código dañino  ·  fuente: Log + ENSFácil (EV-03)
+  // Detecciones de código dañino  ·  fuente: Log + Power ENS (EV-03)
   const campo6 = field(
     'mp.s.1.campo6',
     'Detecciones de código dañino',
@@ -181,7 +181,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Integridad de la configuración del servicio  ·  fuente: FIM + ENSFácil (EV-09)
+  // Integridad de la configuración del servicio  ·  fuente: FIM + Power ENS (EV-09)
   const campo9 = field(
     'mp.s.1.campo9',
     'Integridad de la configuración del servicio',
@@ -201,7 +201,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento mp.s.1  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.s.1  ·  fuente: Motor Power ENS
   const campo11 = field(
     'mp.s.1.campo11',
     'Puntuación de cumplimiento mp.s.1',
@@ -211,7 +211,7 @@ export const buildMpS1ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo12 = field(
     'mp.s.1.campo12',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

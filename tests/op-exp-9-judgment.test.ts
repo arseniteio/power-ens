@@ -44,9 +44,9 @@ const alert = (data: Record<string, unknown>, ts = ago(1)) => {
       '@timestamp': ts,
       agent: { id: '000', name: 'Wazuh-4' },
       rule: { id: '111000', description: 'op.exp.9' },
-      location: '/var/log/ensfacil/op_exp_9.json',
+      location: '/var/log/power-ens/op_exp_9.json',
       data: Object.fromEntries(
-        Object.entries({ ensfacil: 'op.exp.9', ...data }).map(([k, v]) => [k, String(v)])
+        Object.entries({ power_ens: 'op.exp.9', ...data }).map(([k, v]) => [k, String(v)])
       ),
     },
   };
@@ -62,7 +62,7 @@ const readOne = (record: string, extra: Record<string, unknown> = {}, ts = ago(0
     event: 'register_read',
     evidence_id: ALL_OF_THEM,
     registro: record,
-    fichero: `/etc/ensfacil/${record}.tsv`,
+    fichero: `/etc/power-ens/${record}.tsv`,
     presente: 'si',
     legible: 'si',
     formato: 'ok',
@@ -123,7 +123,7 @@ const events = (...alerts: ReturnType<typeof alert>[]): ENSNormalizedEvent[] =>
   normalizeWazuhAlerts(alerts);
 
 const BASIC_ONES: Record<string, string[] | string> = {
-  'P-01': 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)',
+  'P-01': 'Registro Power ENS (/etc/power-ens/incident-register.tsv)',
   'P-02': ['inicial | detección, alcance |', 'intermedio | evolución, medidas | 24', 'final | causa, impacto, cierre |'],
   'P-03': ['logs sellados del período | repositorio-custodia', 'acta de recogida |'],
   'P-04': ['acceso no autorizado por empleado', 'exfiltración'],

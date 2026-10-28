@@ -57,7 +57,7 @@ const index = () => {
     },
   };
 };
-const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['ensfacil_admin'] } }) } };
+const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['power_ens_admin'] } }) } };
 const context = (ix: any) => ({ core: { opensearch: { client: { asInternalUser: ix, asCurrentUser: user } } } });
 const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
 const record = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };

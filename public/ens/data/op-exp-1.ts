@@ -170,7 +170,7 @@ export const opExp1Control: ENSControl = {
       requirements: ['op.exp.1.1'],
       type: 'table',
       usage:
-        'ENSFácil cruza el inventario de Syscollector con esta tabla. Todo activo detectado sin responsable asignado genera un hallazgo de inventario incompleto. Es la mitad del requisito que Wazuh no puede cubrir.',
+        'Power ENS cruza el inventario de Syscollector con esta tabla. Todo activo detectado sin responsable asignado genera un hallazgo de inventario incompleto. Es la mitad del requisito que Wazuh no puede cubrir.',
       missingBehavior:
         'El inventario está técnicamente completo pero NO cumple op.exp.1.1, que exige identificar al responsable.',
     },
@@ -183,7 +183,7 @@ export const opExp1Control: ENSControl = {
       requirements: ['op.exp.1.1'],
       type: 'table',
       usage:
-        'Se incorporan al inventario consolidado de ENSFácil. Cuando sea posible, se monitorizan por syslog o SNMP hacia Wazuh. En otro caso, se registran como inventario declarado con verificación periódica manual.',
+        'Se incorporan al inventario consolidado de Power ENS. Cuando sea posible, se monitorizan por syslog o SNMP hacia Wazuh. En otro caso, se registran como inventario declarado con verificación periódica manual.',
       missingBehavior:
         'El inventario queda incompleto: los elementos del sistema sin agente no aparecen en ningún listado.',
     },
@@ -196,7 +196,7 @@ export const opExp1Control: ENSControl = {
       requirements: ['op.exp.1.1'],
       type: 'list',
       usage:
-        'ENSFácil clasifica automáticamente lo detectable por Syscollector y solicita clasificación manual para el resto. Estructura el informe de inventario por naturaleza de activo.',
+        'Power ENS clasifica automáticamente lo detectable por Syscollector y solicita clasificación manual para el resto. Estructura el informe de inventario por naturaleza de activo.',
       missingBehavior:
         'El inventario no acredita el detalle de naturaleza que exige op.exp.1.1. Hallazgo de inventario incompleto.',
     },
@@ -209,7 +209,7 @@ export const opExp1Control: ENSControl = {
       requirements: ['op.exp.1.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra la fecha de la última validación del inventario y alerta al superarse P-04. Independientemente, Syscollector actualiza el inventario técnico de forma continua.',
+        'Power ENS registra la fecha de la última validación del inventario y alerta al superarse P-04. Independientemente, Syscollector actualiza el inventario técnico de forma continua.',
       missingBehavior:
         'No se puede acreditar que el inventario se mantiene actualizado mediante revisión formal.',
     },
@@ -235,7 +235,7 @@ export const opExp1Control: ENSControl = {
       requirements: ['op.exp.1.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil pondera las alertas por criticidad del activo afectado y ordena el informe priorizando los activos críticos. Permite acreditar R3 aunque no sea exigible.',
+        'Power ENS pondera las alertas por criticidad del activo afectado y ordena el informe priorizando los activos críticos. Permite acreditar R3 aunque no sea exigible.',
       missingBehavior:
         'No se puede priorizar por criticidad. Todas las alertas tienen el mismo peso relativo en el informe.',
     },
@@ -261,7 +261,7 @@ export const opExp1Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

@@ -1,6 +1,6 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_1_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_acc_1_json_rules.xml
      Deployable copy for servers without access to the plugin repository; keep both in sync. -->
-<group name="ensfacil,op_acc_1,score,">
+<group name="power_ens,op_acc_1,score,">
 
   <!-- op.acc.1 · Identification · reserved range 106800-106899
          106801-106849            events (band EXHAUSTED between this file and the Python collector ruleset)
@@ -13,8 +13,8 @@
 
   <rule id="106800" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.1</field>
-    <description>op.acc.1 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.1</field>
+    <description>op.acc.1 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.acc.1.1 · Valid unique identifier (EV-03) ===== -->

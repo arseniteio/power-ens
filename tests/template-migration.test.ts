@@ -163,7 +163,7 @@ console.log('4. On load, written with the next save');
     },
   };
   docs.set('active', { documentType: 'ACTIVE_CONFIGURATION', configuration: legacyDocument(), updatedAt: '2026-10-18T09:00:00.000Z', updatedBy: 'admin' });
-  const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['ensfacil_admin'] } }) } };
+  const user = { transport: { request: async () => ({ body: { user_name: 'rsis', roles: ['power_ens_admin'] } }) } };
   const context = { core: { opensearch: { client: { asInternalUser: index, asCurrentUser: user } } } };
   const responses = { ok: (r: any) => ({ status: 200, body: r.body }), customError: (r: any) => ({ status: r.statusCode, body: r.body }) };
   const logger = { info: () => undefined, error: () => undefined, warn: () => undefined, debug: () => undefined };

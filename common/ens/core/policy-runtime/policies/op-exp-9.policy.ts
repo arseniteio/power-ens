@@ -29,7 +29,7 @@ const FRESHNESS_HOURS = 26;
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
 // Must match P-01's first option.
-const ENSFACIL_RECORD = 'Registro ENSFácil (/etc/ensfacil/incident-register.tsv)';
+const POWER_ENS_RECORD = 'Registro Power ENS (/etc/power-ens/incident-register.tsv)';
 
 type Status = Exclude<ENSComplianceStatus, 'PARCIAL' | 'NO_APLICA'>;
 
@@ -434,9 +434,9 @@ const base = (
 
   const p01 = positiveScalar(context, 'P-01');
 
-  if (p01 && p01 !== ENSFACIL_RECORD) {
+  if (p01 && p01 !== POWER_ENS_RECORD) {
     return notMeasured(
-      `${parameterDisplayName(context, 'P-01')} declara «${p01}» como sistema de registro. ENSFácil solo lee su registro TSV del manager (/etc/ensfacil/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`,
+      `${parameterDisplayName(context, 'P-01')} declara «${p01}» como sistema de registro. Power ENS solo lee su registro TSV del manager (/etc/power-ens/incident-register.tsv); la integración con esa herramienta no existe, así que el registro de la gestión no se puede demostrar.`,
       'CONFIGURATION'
     );
   }
@@ -449,7 +449,7 @@ const base = (
   }
 
   const reg = record(context, 'incidentes');
-  const stop = usableRecord(reg, 'incidentes', '/etc/ensfacil/incident-register.tsv');
+  const stop = usableRecord(reg, 'incidentes', '/etc/power-ens/incident-register.tsv');
 
   if (stop) {
     return stop;
@@ -480,7 +480,7 @@ const withInvalidRows = (measurement: Measurement, reg: LogRow, name = 'incident
     : measurement;
 
 
-// Zero incidents is judged against the non-ENSFácil alerts the manager generated in the last 30
+// Zero incidents is judged against the non-Power ENS alerts the manager generated in the last 30
 // days above P-08's level. Only EV-02 can fail for this: it asks whether what had to be recorded
 // was; for the others an empty record with pending alerts leaves no file to examine.
 const emptyRecordCheck = (
@@ -564,7 +564,7 @@ const emptyRecordCheck = (
 
     return forEv02
       ? nonCompliant(
-          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a ENSFácil de nivel ${level} o superior (P-08) entre ${window}, sin ningún expediente: ${formatList(above.map(e => e.texto))}.${outside} Si no eran incidentes, lo decide y lo documenta op.exp.7 (o se excluye su grupo en P-09); si lo eran, su gestión no está registrada.`
+          `El registro de incidentes está vacío y el manager generó ${total} alertas ajenas a Power ENS de nivel ${level} o superior (P-08) entre ${window}, sin ningún expediente: ${formatList(above.map(e => e.texto))}.${outside} Si no eran incidentes, lo decide y lo documenta op.exp.7 (o se excluye su grupo en P-09); si lo eran, su gestión no está registrada.`
         )
       : notMeasured(
           `El registro de incidentes está vacío y hay ${total} alertas de nivel ${level} o superior sin expediente (lo señala EV-02): no hay ningún expediente que examinar.`
@@ -578,7 +578,7 @@ const emptyRecordCheck = (
   }
 
   return compliant(
-    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a ENSFácil de nivel ${level} o superior (P-08) entre ${window}: no consta nada que debiera tener expediente.${outside}`
+    `El registro de incidentes está leído y vacío, y el manager no generó ninguna alerta ajena a Power ENS de nivel ${level} o superior (P-08) entre ${window}: no consta nada que debiera tener expediente.${outside}`
   );
 };
 
@@ -902,7 +902,7 @@ const sweep = (
   });
 
   if (findings.length) {
-    const withoutRecord = regAct && !regAct.presente ? ' No existe /etc/ensfacil/incident-actions.tsv, así que ninguna consta.' : '';
+    const withoutRecord = regAct && !regAct.presente ? ' No existe /etc/power-ens/incident-actions.tsv, así que ninguna consta.' : '';
 
     return nonCompliant(
       `${isEv03 ? 'Actuaciones de emergencia' : 'Modificaciones del sistema'} observadas por Wazuh en la ventana de un incidente que no constan en su expediente (registro de actuaciones, tipo ${recordedType}): ${formatList(findings)}.${withoutRecord}`
@@ -989,7 +989,7 @@ const ev05 = (context: ENSPolicyContext, now: number): Measurement => {
   }
 
   const regCus = record(context, 'custodia');
-  const stop = usableRecord(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
+  const stop = usableRecord(regCus, 'custodia', '/etc/power-ens/evidence-custody.tsv');
 
   if (stop) {
     return notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica. ${stop.motivo}`, stop.causa);
@@ -1080,16 +1080,16 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
   const relevantes = b.lista.filter(i => i.relevante);
 
   if (!regCus) {
-    return notMeasured('El recolector del manager no ha informado del registro de custodia (/etc/ensfacil/evidence-custody.tsv) en su última pasada.', 'COLLECTION');
+    return notMeasured('El recolector del manager no ha informado del registro de custodia (/etc/power-ens/evidence-custody.tsv) en su última pasada.', 'COLLECTION');
   }
 
   if (!regCus.presente) {
     return relevantes.length
-      ? notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/ensfacil/evidence-custody.tsv (causa CONFIGURATION).`, 'CONFIGURATION')
+      ? notMeasured(`Hay ${relevantes.length} incidente(s) con relevancia jurídica y no existe el registro de custodia /etc/power-ens/evidence-custody.tsv (causa CONFIGURATION).`, 'CONFIGURATION')
       : withInvalidRows(compliant('Ningún incidente del registro está marcado con relevancia jurídica y no hay evidencias en custodia: no hay cadena de custodia que acreditar.'), b.reg);
   }
 
-  const stopCus = usableRecord(regCus, 'custodia', '/etc/ensfacil/evidence-custody.tsv');
+  const stopCus = usableRecord(regCus, 'custodia', '/etc/power-ens/evidence-custody.tsv');
 
   if (stopCus) {
     return stopCus;
@@ -1104,7 +1104,7 @@ const ev06 = (context: ENSPolicyContext, now: number): Measurement => {
   }
 
   const regLog = record(context, 'custodia_accesos');
-  const stopLog = usableRecord(regLog, 'cadena de custodia', '/etc/ensfacil/evidence-custody-log.tsv');
+  const stopLog = usableRecord(regLog, 'cadena de custodia', '/etc/power-ens/evidence-custody-log.tsv');
 
   if (stopLog) {
     return notMeasured(`Hay ${all.length} evidencia(s) en custodia. ${stopLog.motivo}`, stopLog.causa);

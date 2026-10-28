@@ -1,12 +1,12 @@
 // The filter with which the panel reads the facts of ALL controls. Kept apart so the report collecting all controls (op.mon.2) uses it too, or the panel and that report would judge different fact sets.
-// Accepts the three ways an ENSFácil fact arrives: the `data.ensfacil` field of current collectors, `data.control` and `data.evidence_id` of old ones, and the rule groups `ENS` and `ENS_<control>`.
+// Accepts the three ways an Power ENS fact arrives: the `data.power_ens` field of current collectors, `data.control` and `data.evidence_id` of old ones, and the rule groups `ENS` and `ENS_<control>`.
 export const buildENSAllControlsFactsFilter = (controlIds: string[]) => {
   const ensRuleGroups = controlIds.map(controlId => `ENS_${controlId}`);
 
   return {
     bool: {
       should: [
-        { exists: { field: 'data.ensfacil' } },
+        { exists: { field: 'data.power_ens' } },
         { exists: { field: 'data.control' } },
         { exists: { field: 'data.evidence_id' } },
         { match_phrase: { 'rule.groups': 'ENS' } },
@@ -15,7 +15,7 @@ export const buildENSAllControlsFactsFilter = (controlIds: string[]) => {
         })),
         ...controlIds.flatMap(controlId => [
           { match_phrase: { 'data.control': controlId } },
-          { match_phrase: { 'data.ensfacil': controlId } },
+          { match_phrase: { 'data.power_ens': controlId } },
         ]),
       ],
       minimum_should_match: 1,
@@ -27,7 +27,7 @@ export const buildENSAllControlsFactsFilter = (controlIds: string[]) => {
 export const ENS_FACTS_QUERY_LIMIT = 10000;
 
 // Fields by which a fact says which control it belongs to, in the order the normalizer reads them (`data-source-engine.ts`): the first present rules.
-export const ENS_CONTROL_ID_FIELDS = ['data.ensfacil', 'data.ens', 'data.control_id', 'data.control'];
+export const ENS_CONTROL_ID_FIELDS = ['data.power_ens', 'data.ens', 'data.control_id', 'data.control'];
 
 // The facts of ONE control: those naming it in any of those fields. The control card's filter; the server reads each control this way.
 export const buildENSControlFactsFilter = (controlId: string) => ({

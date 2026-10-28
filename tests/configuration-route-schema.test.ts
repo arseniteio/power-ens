@@ -12,7 +12,7 @@ const check = (name: string, ok: boolean, detail: unknown = '') => {
 
 // Always the stand-in; and the dashboard's own package when reachable (build image, a dashboard install, the variable).
 const REAL = [
-  process.env.ENSFACIL_OSD_CONFIG_SCHEMA,
+  process.env.POWER_ENS_OSD_CONFIG_SCHEMA,
   '/osd/node_modules/@osd/config-schema',
   '/usr/share/wazuh-dashboard/node_modules/@osd/config-schema',
 ].find(path => path && existsSync(path));
@@ -32,7 +32,7 @@ Module._load = function (request: string, ...rest: unknown[]) {
 };
 
 const client = require('../common/ens/configuration/services/configuration-http-client');
-const { ENSFACIL_CONFIGURATION_PATH } = require('../common/constants');
+const { POWER_ENS_CONFIGURATION_PATH } = require('../common/constants');
 const { defaultENSConfigurationTemplate } = require('../common/ens/configuration/data/default-configuration');
 const ROUTES = require.resolve('../server/routes/configuration');
 
@@ -66,7 +66,7 @@ client.setENSConfigurationHttp(() => ({
       post: (config: any) => routes.push({ method: 'POST', ...config }),
     };
     registerConfigurationRoutes(router, { logger: { info() {}, warn() {}, error() {}, debug() {} }, securityEnabled: true });
-    const save = routes.find(route => route.method === 'PUT' && route.path === ENSFACIL_CONFIGURATION_PATH);
+    const save = routes.find(route => route.method === 'PUT' && route.path === POWER_ENS_CONFIGURATION_PATH);
     // What the handler receives: the schema's validated output, or the error the route answers with.
     const handed = (body: unknown): { value?: any; error?: string } => {
       try {

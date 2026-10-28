@@ -195,7 +195,7 @@ export const mpEq3Control: ENSControl = {
       requirements: ['mp.eq.3.1'],
       type: 'table',
       usage:
-        'ENSFácil cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
+        'Power ENS cruza este inventario con los agentes Wazuh detectados en equipos portátiles y señala tanto los declarados sin agente como los detectados sin entrada en el inventario. Comparte lógica con op.exp.1.',
       missingBehavior:
         'El control es NO EVALUABLE. mp.eq.3.1 incumplido por ausencia del inventario que exige de forma expresa.',
     },
@@ -208,7 +208,7 @@ export const mpEq3Control: ENSControl = {
       requirements: ['mp.eq.3.1'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
+        'Power ENS registra cada confirmación de custodia y alerta al superarse P-02. Como señal complementaria, aporta la última conexión del agente: un dispositivo que no reporta desde hace semanas merece verificación activa de dónde está.',
       missingBehavior:
         'No se puede acreditar el control regular de custodia que exige mp.eq.3.1.',
     },
@@ -234,7 +234,7 @@ export const mpEq3Control: ENSControl = {
       requirements: ['mp.eq.3.3'],
       type: 'table',
       usage:
-        'ENSFácil verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
+        'Power ENS verifica en los logs de acceso remoto que desde dispositivos portátiles solo se alcanzan los servicios de esta tabla. Acceso a un servicio fuera del perfil → hallazgo. Enlaza con op.acc.4 y op.acc.6 R9.',
       missingBehavior:
         'mp.eq.3.3 NO EVALUABLE. No se puede verificar la limitación de información y servicios accesibles.',
     },
@@ -273,7 +273,7 @@ export const mpEq3Control: ENSControl = {
       requirements: ['mp.eq.3.r2.1'],
       type: 'string',
       usage:
-        'Es una norma de comportamiento, no una configuración: ENSFácil recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
+        'Es una norma de comportamiento, no una configuración: Power ENS recoge la referencia y el registro de difusión y aceptación. Como señal indirecta, puede reportar los accesos desde redes y geografías inusuales, que sugieren uso en entornos no previstos.',
       missingBehavior:
         'R2 NO ACREDITADO y es obligatorio en categoría ALTA. Queda sin cubrir por ser de naturaleza normativa.',
     },
@@ -286,7 +286,7 @@ export const mpEq3Control: ENSControl = {
       requirements: ['mp.eq.3.2', 'mp.eq.3.4'],
       type: 'table',
       usage:
-        'ENSFácil verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
+        'Power ENS verifica que cada incidente de pérdida fue seguido de estas acciones en plazo, correlacionando con los eventos de revocación de certificado, deshabilitación de cuenta y cierre de sesiones.',
       missingBehavior:
         'No se puede verificar la reacción ante pérdida. El dispositivo perdido puede seguir teniendo acceso válido.',
     },

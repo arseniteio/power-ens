@@ -1,7 +1,7 @@
 <!-- op.exp.2 rules · Security configuration.
      Canonical copy: agent/rules/ of the plugin. The copies in manager/ of the
      op.exp.2 runbooks must stay byte-identical. -->
-<group name="ensfacil,op_exp_2,">
+<group name="power_ens,op_exp_2,">
 
   <!-- ================================================================
        op.exp.2 · Security configuration
@@ -23,8 +23,8 @@
 
   <rule id="110300" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.2</field>
-    <description>op.exp.2 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.2</field>
+    <description>op.exp.2 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.exp.2.1, .2 and .3 · Baseline ===== -->

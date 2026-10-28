@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.eq.2 (Bloqueo de puesto de trabajo).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -163,7 +163,7 @@ export const buildMpEq2ReportModel = (
     evidenceObservations('EV-05'),
   );
 
-  // Cobertura del control  ·  fuente: SCA + ENSFácil (EV-06)
+  // Cobertura del control  ·  fuente: SCA + Power ENS (EV-06)
   const campo7 = field(
     'mp.eq.2.campo7',
     'Cobertura del control',
@@ -173,7 +173,7 @@ export const buildMpEq2ReportModel = (
     evidenceObservations('EV-06'),
   );
 
-  // Puntuación de cumplimiento mp.eq.2  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.eq.2  ·  fuente: Motor Power ENS
   const campo8 = field(
     'mp.eq.2.campo8',
     'Puntuación de cumplimiento mp.eq.2',
@@ -183,7 +183,7 @@ export const buildMpEq2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo9 = field(
     'mp.eq.2.campo9',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

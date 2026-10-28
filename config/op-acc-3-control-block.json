@@ -28,7 +28,7 @@
       "example": "jgomez | desarrollo",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee. Es la referencia organizativa contra la que se contrastan las acciones sin clasificar que recoge el agente.",
-      "ensfacilUsage": "Se incorpora al informe como soporte documental para comparar las funciones ejercidas con las atribuidas. El veredicto de incompatibilidad sale del cruce de P-03 con P-02.",
+      "powerEnsUsage": "Se incorpora al informe como soporte documental para comparar las funciones ejercidas con las atribuidas. El veredicto de incompatibilidad sale del cruce de P-03 con P-02.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -73,7 +73,7 @@
       "example": "desarrollo | operacion",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee: qué combinación está prohibida es política y vive solo en esta pantalla.",
-      "ensfacilUsage": "El motor agrupa las acciones por cuenta, las traduce a funciones con P-03 y comprueba si alguna cuenta reúne los dos términos de una pareja. Si ocurre, el requisito sale no conforme nombrando cuenta y funciones.",
+      "powerEnsUsage": "El motor agrupa las acciones por cuenta, las traduce a funciones con P-03 y comprueba si alguna cuenta reúne los dos términos de una pareja. Si ocurre, el requisito sale no conforme nombrando cuenta y funciones.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -102,7 +102,7 @@
       "example": "desarrollo | git",
       "required": true,
       "wazuhUsage": "El agente emite las acciones sin clasificar; esta tabla las convierte en función y decide qué vigila el sistema. Las reglas de auditoría solo observan los binarios declarados aquí: al añadir una función hay que añadir su binario en la máquina y recargar las reglas.",
-      "ensfacilUsage": "Traduce el plano organizativo al técnico: con ella el motor construye el conjunto de funciones ejercidas por cada cuenta, que se cruza con P-02.",
+      "powerEnsUsage": "Traduce el plano organizativo al técnico: con ella el motor construye el conjunto de funciones ejercidas por cada cuenta, que se cruza con P-02.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -143,7 +143,7 @@
       "example": "despliegue en produccion | 2 | ansible-playbook | kubectl apply",
       "required": true,
       "wazuhUsage": "Wazuh registra los comandos ejecutados (auditd); el agente no lee este parámetro.",
-      "ensfacilUsage": "El motor reconoce cada tarea por sus comandos, cuenta las personas distintas que la ejecutaron en el periodo y las compara con el número declarado.",
+      "powerEnsUsage": "El motor reconoce cada tarea por sus comandos, cuenta las personas distintas que la ejecutaron en el periodo y las compara con el número declarado.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "La concurrencia no se juzga, pero los hechos se recogen: al declararlo, el veredicto se calcula sobre lo ya recogido."
@@ -164,7 +164,7 @@
       "example": "auditor1 | global",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee: quién audita es una decisión organizativa.",
-      "ensfacilUsage": "El motor comprueba que ninguna cuenta declarada tenga funciones distintas de auditoría o supervisión. Reconoce esa función por su nombre literal: si en P-03 se llama de otra forma, el requisito saldrá incumplido sin motivo.",
+      "powerEnsUsage": "El motor comprueba que ninguna cuenta declarada tenga funciones distintas de auditoría o supervisión. Reconoce esa función por su nombre literal: si en P-03 se llama de otra forma, el requisito saldrá incumplido sin motivo.",
       "evidenceIds": [
         "EV-05"
       ],
@@ -189,7 +189,7 @@
       "example": "30",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee. El tramo del registro de auditoría que relee cada recolector es independiente.",
-      "ensfacilUsage": "El evaluador de op.acc.3 aún no lo consulta: la correlación usa la ventana de evaluación del motor, de treinta días. Se declara porque documenta el criterio ante el auditor.",
+      "powerEnsUsage": "El evaluador de op.acc.3 aún no lo consulta: la correlación usa la ventana de evaluación del motor, de treinta días. Se declara porque documenta el criterio ante el auditor.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -214,7 +214,7 @@
       "example": "op.acc.3.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee. Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.",
-      "ensfacilUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con documento y enlace en el informe, nunca como medido. No debe apuntar a un documento sin escribir.",
+      "powerEnsUsage": "El requisito pasa a cumplir marcado como acreditado documentalmente, con documento y enlace en el informe, nunca como medido. No debe apuntar a un documento sin escribir.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado.",

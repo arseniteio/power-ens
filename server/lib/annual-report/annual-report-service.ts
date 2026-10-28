@@ -1,6 +1,6 @@
 // Art. 32 on the server: a period's data set (frozen, or computed now) and its freeze (daily job, or administrator).
 import type { Logger } from '../../../../../src/core/server';
-import { ENSFACIL_PLUGIN_VERSION } from '../../../common/constants';
+import { POWER_ENS_PLUGIN_VERSION } from '../../../common/constants';
 import { annualPeriodBounds, annualPeriodInstants, annualPeriodOfDay, isAnnualPeriod, lastClosedAnnualPeriod } from '../../../common/ens/annual-report/annual-period';
 import { annualClosingOf, annualClosingOfConfiguration, buildAnnualReport, liveIncidentsCutInto } from '../../../common/ens/annual-report/annual-report';
 import { readPeriodIncidents } from './incident-source';
@@ -100,7 +100,7 @@ export const createAnnualReportService = ({
       now: run.ctx.now,
       timeZone: configuredTimeZone(run.ctx.configuration.global.timezone),
       period,
-      pluginVersion: ENSFACIL_PLUGIN_VERSION,
+      pluginVersion: POWER_ENS_PLUGIN_VERSION,
       freeze,
       periodIncidents,
     });
@@ -115,7 +115,7 @@ export const createAnnualReportService = ({
     try {
       return await readPeriodIncidents(client, run.ctx.configuration, run.ctx.now, { fromMs, toMs: Math.min(toMs, run.ctx.now.getTime()) });
     } catch (error: any) {
-      logger.warn(`ENSFácil: could not read the incidents of period ${period}: ${error?.message || error}`);
+      logger.warn(`Power ENS: could not read the incidents of period ${period}: ${error?.message || error}`);
       if (freezing) throw new ENSAnnualReportUnavailableError(ENS_INCIDENTS_UNREADABLE);
       return { motivo: 'no se han podido leer en el indexador los incidentes del periodo; el detalle está en el log del dashboard', incidentes: [] };
     }
@@ -154,7 +154,7 @@ export const createAnnualReportService = ({
         status === 401 || status === 403
           ? 'Sin permiso de lectura de wazuh-ens-snapshots: no se ven los informes congelados.'
           : 'No se han podido leer los informes congelados; el detalle está en el log del dashboard.';
-      if (status !== 401 && status !== 403) logger.warn(`ENSFácil: could not read the annual freezes: ${error?.message || error}`);
+      if (status !== 401 && status !== 403) logger.warn(`Power ENS: could not read the annual freezes: ${error?.message || error}`);
     }
     if (query.revision !== undefined && !stored) {
       if (freezeError) throw new ENSAnnualReportUnavailableError(freezeError);
@@ -267,7 +267,7 @@ export const createAnnualReportService = ({
     } else if ((await createAnnualFreeze(clients.asInternalUser, logger, documentOf(request.period, entry, report, []))) === 'exists') {
       throw new ENSAnnualFreezeConflictError(`El periodo ${request.period} se acaba de congelar. Recarga la página.`);
     }
-    logger.info(`ENSFácil: annual report ${request.period} frozen by ${request.by} (revision ${entry.revision})`);
+    logger.info(`Power ENS: annual report ${request.period} frozen by ${request.by} (revision ${entry.revision})`);
     return { frozen: entry, report };
   };
 
@@ -287,7 +287,7 @@ export const createAnnualReportService = ({
     // A failed read throws: the daily job logs it and tries again with its next run, within the 31 days.
     const incidents = await periodIncidentsFor(client, run, period, true);
     const result = await createAnnualFreeze(client, logger, documentOf(period, entry, build(run, controls, period, entry, incidents), []));
-    if (result === 'created') logger.info(`ENSFácil: annual report ${period} frozen by the daily job`);
+    if (result === 'created') logger.info(`Power ENS: annual report ${period} frozen by the daily job`);
     return { period, result };
   };
 

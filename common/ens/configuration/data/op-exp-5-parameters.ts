@@ -21,11 +21,11 @@ export const opExp5Configuration: ENSControlConfiguration = {
       name: 'sistema_gestion_cambios',
       label: 'Sistema de gestión de cambios',
       description:
-        'Dónde se registran las peticiones de cambio y con qué numeración: sin ITSM integrado, ENSFácil lee el TSV de cada máquina (/etc/ensfacil/change-register.tsv, herramienta «registro_tsv»), y si viven en otro sistema (Jira, GLPI, ServiceNow) se declara y el contraste queda sin demostrar. «prefijo_referencia», si se declara, es el comienzo obligatorio del número (por ejemplo «RFC-»).',
+        'Dónde se registran las peticiones de cambio y con qué numeración: sin ITSM integrado, Power ENS lee el TSV de cada máquina (/etc/power-ens/change-register.tsv, herramienta «registro_tsv»), y si viven en otro sistema (Jira, GLPI, ServiceNow) se declara y el contraste queda sin demostrar. «prefijo_referencia», si se declara, es el comienzo obligatorio del número (por ejemplo «RFC-»).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.exp.5.1', 'op.exp.5.2', 'op.exp.5.4', 'op.exp.5.r1.3'],
       type: 'table',
-      example: 'registro_tsv | /etc/ensfacil/change-register.tsv (mantenido por el RSI) | RFC-',
+      example: 'registro_tsv | /etc/power-ens/change-register.tsv (mantenido por el RSI) | RFC-',
       columns: [
         {
           name: 'herramienta',
@@ -50,7 +50,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Hace posible el contraste. Cambio real sin petición aprobada que lo cubra: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 busca, para cada cambio real que observa el agente, una petición aprobada del registro cuya ventana lo cubra. La fuente es el TSV mantenido a mano y el informe lo indica.',
       evidenceIds: ['EV-02', 'EV-03', 'EV-04', 'EV-06'],
       ruleIds: [],
@@ -71,7 +71,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Petición autorizada con alguno de estos campos vacío o «-»: hallazgo de información insuficiente.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-03 revisa, fila a fila, las peticiones aprobadas, implantadas o revertidas del registro de la máquina.',
       evidenceIds: ['EV-03'],
       ruleIds: [],
@@ -92,7 +92,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Documental: ninguna primitiva compara un cambio con estos criterios. Sin ellos, «riesgo» no se apoya en ningún análisis declarado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 exige que estén declarados antes de juzgar la aprobación de los cambios de riesgo alto.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -127,7 +127,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Cambio de riesgo alto aprobado por otra cuenta, o aprobado después de implantarse: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 compara «aprobado_por» con esta columna y la fecha de aprobación con el primer cambio real que cubre la petición.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -170,7 +170,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Cambio en producción sin actividad previa equivalente en su preproducción: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-05 necesita los cambios de las DOS máquinas de la pareja. El motor evalúa cada máquina por separado, así que hoy la precedencia no se demuestra y op.exp.5.3 queda sin acreditar aunque la tabla esté rellena.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -212,7 +212,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Cambio implantado cuya documentación no se modifica en plazo: hallazgo de op.exp.5.5.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 busca, para cada petición implantada que declare documentación, una modificación del fichero entre el inicio de su ventana y el fin más el plazo.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -248,7 +248,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Fallo detectado sin comunicación registrada por el canal: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 detecta los fallos (servicios caídos en la máquina); la comunicación no tiene hechos que la observen y queda sin demostrar.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -297,7 +297,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Cambio sin punto de reversión en la ventana previa: hallazgo de R1.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-09 busca, para cada cambio real de configuración o software, un punto de reversión del mecanismo declarado creado en las horas previas a su inicio (misma lógica que EV-09 de op.exp.4).',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -319,7 +319,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Servicio caído dentro de esta ventana tras un cambio, sin reversión registrada: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-07 sitúa el instante de caída de cada servicio que sigue caído respecto de los cambios reales observados.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -372,7 +372,7 @@ export const opExp5Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

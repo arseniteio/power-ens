@@ -89,7 +89,7 @@ export const MaturityEntryModal = ({
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const people = listOrganizationPeople(getActiveENSConfiguration());
-  const listId = `ensfacil-maturity-people-${kind}`;
+  const listId = `power-ens-maturity-people-${kind}`;
 
   const save = async () => {
     const entry = maturityEntryFromDraft(kind, draft);

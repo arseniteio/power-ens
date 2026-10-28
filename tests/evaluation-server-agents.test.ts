@@ -37,19 +37,19 @@ const services: [string, string, string[]][] = [
 ];
 for (const [agent, name, list] of services) {
   for (const h of [5, 1]) {
-    docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
+    docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'collector_run', evidencias_cubiertas: 'EV-01,EV-02,EV-03,EV-04' }, h));
     list.forEach(service =>
-      docs.push(fact(agent, name, { ensfacil: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: service, estado: 'CUMPLE' }, h - 0.01)));
+      docs.push(fact(agent, name, { power_ens: 'op.exp.3', event: 'service_running', evidence_id: 'EV-04', perfil: name, servicio: service, estado: 'CUMPLE' }, h - 0.01)));
   }
 }
 for (let i = 0; i < 60; i++) {
-  docs.push(fact(i % 3 ? '024' : '028', i % 3 ? 'wazuh-real' : 'zimbraHldap', { ensfacil: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + i / 10));
+  docs.push(fact(i % 3 ? '024' : '028', i % 3 ? 'wazuh-real' : 'zimbraHldap', { power_ens: 'op.acc.3', event: 'account_action', usuario: `u${i % 7}`, funcion: i % 2 ? 'operacion' : 'desarrollo' }, 2 + i / 10));
 }
-for (const [a, nm] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) docs.push(fact(a, nm, { ensfacil: 'op.acc.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'collector_run' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
-docs.push(fact('000', 'manager', { ensfacil: 'op.exp.7', event: 'collector_run' }, 2));
-docs.push(fact('024', 'wazuh-real', { ensfacil: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
+for (const [a, nm] of [['024', 'wazuh-real'], ['028', 'zimbraHldap']]) docs.push(fact(a, nm, { power_ens: 'op.acc.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'collector_run' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.mon.3', event: 'log_source_observed', fuente: '/var/log/syslog' }, 1));
+docs.push(fact('000', 'manager', { power_ens: 'op.exp.7', event: 'collector_run' }, 2));
+docs.push(fact('024', 'wazuh-real', { power_ens: 'op.exp.8', event: 'audit_log_status', evidence_id: 'EV-01', estado: 'CUMPLE' }, 2));
 
 const monitor = (id: string, name: string, group: string[]): FakeDoc => ({
   _id: `m${id}`, _index: 'wazuh-monitoring-2026.10.17',

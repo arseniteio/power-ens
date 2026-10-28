@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.com.3 (Protección de la integridad y de la autenticidad).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -151,7 +151,7 @@ export const buildMpCom3ReportModel = (
     evidenceObservations('EV-04'),
   );
 
-  // Activación del procedimiento de incidente  ·  fuente: Log + ENSFácil (EV-07)
+  // Activación del procedimiento de incidente  ·  fuente: Log + Power ENS (EV-07)
   const campo6 = field(
     'mp.com.3.campo6',
     'Activación del procedimiento de incidente',
@@ -191,7 +191,7 @@ export const buildMpCom3ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Dispositivos hardware y productos certificados  ·  fuente: Config. + ENSFácil (EV-11)
+  // Dispositivos hardware y productos certificados  ·  fuente: Config. + Power ENS (EV-11)
   const campo10 = field(
     'mp.com.3.campo10',
     'Dispositivos hardware y productos certificados',
@@ -203,7 +203,7 @@ export const buildMpCom3ReportModel = (
     evidenceObservations('EV-11'),
   );
 
-  // Puntuación de cumplimiento mp.com.3  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.com.3  ·  fuente: Motor Power ENS
   const campo11 = field(
     'mp.com.3.campo11',
     'Puntuación de cumplimiento mp.com.3',
@@ -213,7 +213,7 @@ export const buildMpCom3ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo12 = field(
     'mp.com.3.campo12',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

@@ -1,6 +1,6 @@
 import { ENSControlDefinition, ENSRequirementDefinition } from '../types';
 
-// Where a text shown to the auditor comes from. Only the «Ficha del Control» of the templates is the BOE; parameters, evidences, thresholds, non-compliance conditions and report fields are the auditor's proposal or ENSFácil's criterion («Metodología y fuentes» of the auditor's index).
+// Where a text shown to the auditor comes from. Only the «Ficha del Control» of the templates is the BOE; parameters, evidences, thresholds, non-compliance conditions and report fields are the auditor's proposal or Power ENS's criterion («Metodología y fuentes» of the auditor's index).
 export type ENSTextProvenance = 'BOE' | 'CRITERION';
 
 export const ENS_TEXT_PROVENANCE_LABELS: Record<ENSTextProvenance, string> = {

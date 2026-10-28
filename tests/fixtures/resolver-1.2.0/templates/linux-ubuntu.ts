@@ -12,7 +12,7 @@ const CUENTAS_DE_SISTEMA_UBUNTU = [
 ];
 
 // Los binarios SUID observados en Ubuntu 22.04 y 24.04 con el agente de Wazuh y
-// los recolectores de ENSFácil instalados.
+// los recolectores de Power ENS instalados.
 const SUID_UBUNTU = [
   '/usr/bin/at', '/usr/bin/chage', '/usr/bin/chfn', '/usr/bin/chsh',
   '/usr/bin/crontab', '/usr/bin/expiry', '/usr/bin/fusermount3',
@@ -51,7 +51,7 @@ export const linuxUbuntuTemplate: ENSConfigurationTemplate = {
   id: 'linux-ubuntu',
   label: 'Linux Ubuntu',
   description:
-    'Servidor Ubuntu (22.04 o 24.04) con el agente de Wazuh y los recolectores de ENSFácil: cuentas y grupos del sistema, rutas críticas, SUID, auditd, ClamAV y SSH. La lista de SUID es la de 22.04 y 24.04 juntas: en una 22.04 autoriza también binarios que solo trae la 24.04, y se ajusta con un valor propio si hace falta.',
+    'Servidor Ubuntu (22.04 o 24.04) con el agente de Wazuh y los recolectores de Power ENS: cuentas y grupos del sistema, rutas críticas, SUID, auditd, ClamAV y SSH. La lista de SUID es la de 22.04 y 24.04 juntas: en una 22.04 autoriza también binarios que solo trae la 24.04, y se ajusta con un valor propio si hace falta.',
   kind: 'base',
   systemTypes: ['linux'],
   sources: [

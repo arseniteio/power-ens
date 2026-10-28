@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_acc_4_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_acc_4_json_rules.xml
      Deployable copy; both must be kept in sync (checked by
      plugin-wazuh-ens/tests/check-consistency.py). -->
-<group name="ensfacil,op_acc_4,score,">
+<group name="power_ens,op_acc_4,score,">
 
   <!-- ================================================================
        op.acc.4 · Access rights management process
@@ -22,8 +22,8 @@
 
   <rule id="107100" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.acc.4</field>
-    <description>op.acc.4 · evento ENSFácil base</description>
+    <field name="power_ens">op.acc.4</field>
+    <description>op.acc.4 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.acc.4.1 · All access forbidden unless expressly authorized ===== -->

@@ -1,22 +1,22 @@
 import type { AppMountParameters, CoreSetup, CoreStart, Plugin } from '../../../src/core/public';
 import {
-  ENSFACIL_APP_CATEGORY,
-  ENSFACIL_APP_ORDER,
-  ENSFACIL_APP_TITLE,
-  ENSFACIL_PLUGIN_ID,
+  POWER_ENS_APP_CATEGORY,
+  POWER_ENS_APP_ORDER,
+  POWER_ENS_APP_TITLE,
+  POWER_ENS_PLUGIN_ID,
 } from '../common/constants';
 import ensLogo from './assets/ens-logo.png';
 import { registerHomeCard } from './home-card';
 import { setServices } from './services';
-import type { EnsfacilSetupDeps, EnsfacilStartDeps } from './types';
+import type { PowerEnsSetupDeps, PowerEnsStartDeps } from './types';
 
-export class EnsfacilPlugin implements Plugin<{}, {}, EnsfacilSetupDeps, EnsfacilStartDeps> {
-  public setup(core: CoreSetup<EnsfacilStartDeps>, deps: EnsfacilSetupDeps): {} {
+export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEnsStartDeps> {
+  public setup(core: CoreSetup<PowerEnsStartDeps>, deps: PowerEnsSetupDeps): {} {
     core.application.register({
-      id: ENSFACIL_PLUGIN_ID,
-      title: ENSFACIL_APP_TITLE,
-      order: ENSFACIL_APP_ORDER,
-      category: ENSFACIL_APP_CATEGORY,
+      id: POWER_ENS_PLUGIN_ID,
+      title: POWER_ENS_APP_TITLE,
+      order: POWER_ENS_APP_ORDER,
+      category: POWER_ENS_APP_CATEGORY,
       euiIconType: ensLogo,
       mount: async (params: AppMountParameters) => {
         const { renderApp } = await import('./application');
@@ -31,7 +31,7 @@ export class EnsfacilPlugin implements Plugin<{}, {}, EnsfacilSetupDeps, Ensfaci
     return {};
   }
 
-  public start(core: CoreStart, deps: EnsfacilStartDeps): {} {
+  public start(core: CoreStart, deps: PowerEnsStartDeps): {} {
     setServices(core, deps);
 
     return {};

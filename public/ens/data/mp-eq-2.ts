@@ -175,7 +175,7 @@ export const mpEq2Control: ENSControl = {
       requirements: ['mp.eq.2.1'],
       type: 'table',
       usage:
-        'ENSFácil excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
+        'Power ENS excluye estos equipos del cómputo de incumplimiento pero los mantiene visibles en el informe como riesgo aceptado con trazabilidad de quién lo autorizó.',
       missingBehavior:
         'Las excepciones legítimas se contabilizan como incumplimiento y distorsionan el semáforo.',
     },

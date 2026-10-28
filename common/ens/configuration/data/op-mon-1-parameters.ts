@@ -49,7 +49,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Reglas 111203 (detection_coverage_observed) y 111204 (detection_activity_observed): cada 6 h el recolector del manager lee por agente su estado en global.db, sus pasadas de FIM, SCA e inventario y su última alerta en alerts.json.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 y EV-03 cruzan cada sistema con su agente por ID o nombre exacto: sin agente, desconectado, sin pasada de FIM o SCA en P-10 horas o sin detecciones en P-09 días es un punto ciego. Los agentes registrados ausentes de la tabla no cuentan.',
       evidenceIds: ['EV-02', 'EV-03'],
       ruleIds: [],
@@ -91,7 +91,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111206 (network_detection_observed): cada 6 h el recolector del manager informa de los NIDS cuyos eventos llegan (syslog remoto en ossec.conf o fichero de alertas en agent.conf) y de su última alerta.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Con «sí», EV-05 exige que el manager ingiera eventos de cada producto y que su última alerta sea más reciente que P-09. Con «no», no aplica si consta la referencia al análisis de riesgos; sin ella queda sin evaluar (causa CONFIGURATION).',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -104,7 +104,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'conjuntos_reglas_activos',
       label: 'Conjuntos de reglas activos',
       description:
-        'Conjuntos de reglas de detección que deben estar cargados en el manager: R1 exige detección «basada en reglas» y su inventario es la evidencia. Se nombran como los informa ENSFácil: wazuh para el ruleset oficial y, para etc/rules, el prefijo de sus ficheros (local, ensfacil…).',
+        'Conjuntos de reglas de detección que deben estar cargados en el manager: R1 exige detección «basada en reglas» y su inventario es la evidencia. Se nombran como los informa Power ENS: wazuh para el ruleset oficial y, para etc/rules, el prefijo de sus ficheros (local, power_ens…).',
       levels: ['MEDIO', 'ALTO'],
       requirements: ['op.mon.1.r1.1'],
       type: 'table',
@@ -112,7 +112,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       columns: [
         {
           name: 'conjunto',
-          label: 'Conjunto (como lo informa ENSFácil)',
+          label: 'Conjunto (como lo informa Power ENS)',
           type: 'identifier',
           required: true,
         },
@@ -132,7 +132,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): cada 6 h el recolector del manager informa, por conjunto, de las reglas cargadas que pueden alertar.',
-      ensfacilUsage:
+      powerEnsUsage:
         'R1 se juzga con el inventario de EV-04: cada conjunto de P-03 debe estar cargado con al menos una regla. El número de reglas declarado es informativo.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -173,7 +173,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111205 (ruleset_rules_loaded): los ids de las reglas cargadas que pueden alertar, por conjunto y en rangos comprimidos.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 exige que cada situación tenga al menos una regla cargada en el manager. Una situación sin reglas, o con reglas no cargadas, es un punto ciego: un hallazgo.',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -214,7 +214,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún recolector lo usa: es una declaración de la organización.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Acredita R2 documentalmente (nunca «medido») si cada fila nombra procedimiento y responsable. Si no se declara, R2 puede acreditarse con P-ATT. La aplicación a cada alerta la mide op.exp.7.',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -255,7 +255,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111209 (rule_silenced): cada 6 h el recolector del manager barre los rule_exclude de ossec.conf y las reglas reescritas a nivel 0 en etc/rules.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 (R1): todo silenciamiento observado debe figurar aquí con motivo y aprobación. Uno ausente, o sin motivo o sin aprobador, incumple R1.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -282,7 +282,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Reglas 111207 (active_response_configured) y 111208 (active_response_executed): respuestas configuradas en ossec.conf y ejecutadas en la ventana.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-07 se INFORMA, sin veredicto: qué acciones de P-07 están configuradas y habilitadas y cuáles se ejecutaron a raíz de una alerta.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -303,7 +303,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111202 (ruleset_version_observed): cada 6 h el recolector del manager informa de la versión de Wazuh y de la fecha del fichero más reciente del ruleset.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 (R1): un ruleset más viejo que P-08 incumple R1.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -323,8 +323,8 @@ export const opMon1Configuration: ENSControlConfiguration = {
       example: '7',
       required: false,
       wazuhUsage:
-        'Reglas 111204 (detection_activity_observed) y 111206 (network_detection_observed): instante de la última alerta propia de cada agente (sin las de ENSFácil) y de cada NIDS.',
-      ensfacilUsage:
+        'Reglas 111204 (detection_activity_observed) y 111206 (network_detection_observed): instante de la última alerta propia de cada agente (sin las de Power ENS) y de cada NIDS.',
+      powerEnsUsage:
         'EV-03: un sistema de P-01 conectado con más de P-09 días sin detecciones incumple op.mon.1.1. EV-05: igual para un NIDS exigido por P-02.',
       evidenceIds: ['EV-03', 'EV-05'],
       ruleIds: [],
@@ -337,7 +337,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       name: 'antiguedad_maxima_analisis_horas',
       label: 'Antigüedad máxima del análisis (horas)',
       description:
-        'Horas que un sistema de P-01 puede pasar sin completar una pasada de FIM y de SCA antes de considerar su análisis deshabilitado, medidas cuando ENSFácil lee la base del agente. FIM y SCA pasan cada 12 h por defecto: el valor debe superar esa frecuencia (p. ej., 26 h).',
+        'Horas que un sistema de P-01 puede pasar sin completar una pasada de FIM y de SCA antes de considerar su análisis deshabilitado, medidas cuando Power ENS lee la base del agente. FIM y SCA pasan cada 12 h por defecto: el valor debe superar esa frecuencia (p. ej., 26 h).',
       levels: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.1.1'],
       type: 'duration_hours',
@@ -345,7 +345,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Regla 111203 (detection_coverage_observed): fin de la última pasada de FIM y de SCA de cada agente, leído de su base en el manager.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02: un sistema de P-01 sin pasada de FIM o SCA en P-10 horas tiene el análisis deshabilitado e incumple op.mon.1.1.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -373,7 +373,7 @@ export const opMon1Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Ningún recolector lo usa: es una declaración de la organización.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

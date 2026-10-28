@@ -171,7 +171,7 @@ export const mpCom1Control: ENSControl = {
       requirements: ['mp.com.1.2'],
       type: 'table',
       usage:
-        'ENSFácil contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
+        'Power ENS contrasta los flujos observados en los registros del perímetro con este registro. Flujo que pasa sin estar autorizado → hallazgo directo de mp.com.1.2. Es la comprobación central del control.',
       missingBehavior:
         'mp.com.1.2 NO EVALUABLE. Se ven los flujos pero no se puede juzgar si están autorizados.',
     },
@@ -184,7 +184,7 @@ export const mpCom1Control: ENSControl = {
       requirements: ['mp.com.1.1'],
       type: 'table',
       usage:
-        'ENSFácil detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
+        'Power ENS detecta interfaces de red, rutas por defecto y conexiones salientes que no corresponden a estas salidas previstas. Es la verificación del «todo el tráfico deberá atravesar dicho sistema», que es la parte del requisito que suele darse por buena sin comprobar.',
       missingBehavior:
         'No se puede verificar que todo el tráfico atraviesa el perímetro. mp.com.1.1 acreditado solo parcialmente.',
     },
@@ -197,7 +197,7 @@ export const mpCom1Control: ENSControl = {
       requirements: ['mp.com.1.2'],
       type: 'duration_days',
       usage:
-        'ENSFácil registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
+        'Power ENS registra las revisiones y alerta al superarse P-04. Puede además señalar reglas de P-02 sin tráfico observado en el período, que son candidatas a retirada, y reglas con tráfico no previsto en P-02.',
       missingBehavior:
         'Las reglas del perímetro envejecen sin control. Riesgo de autorizaciones vigentes sin justificación actual.',
     },
@@ -210,7 +210,7 @@ export const mpCom1Control: ENSControl = {
       requirements: ['mp.com.1.1', 'mp.com.1.2'],
       type: 'list',
       usage:
-        'ENSFácil analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
+        'Power ENS analiza la configuración del perímetro cuando esté accesible, y en todo caso detecta el tráfico que evidencia estas reglas. Una regla permisiva no es incumplimiento por sí misma si el flujo está autorizado, pero suele indicar que la autorización fue genérica y no previa y concreta.',
       missingBehavior:
         'No se detectan reglas excesivamente permisivas. El perímetro puede existir y filtrar muy poco.',
     },
@@ -223,7 +223,7 @@ export const mpCom1Control: ENSControl = {
       requirements: ['mp.com.1.1', 'mp.com.1.2'],
       type: 'string',
       usage:
-        'ENSFácil recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
+        'Power ENS recoge la referencia y los requisitos concretos que de ella se derivan, para incorporarlos a las comprobaciones. Es importante porque la medida se aplica igual en las tres categorías, pero la ITS sí diferencia requisitos por categoría.',
       missingBehavior:
         'La concreción técnica del perímetro queda sin referencia normativa. Riesgo de aplicar un mínimo genérico.',
     },

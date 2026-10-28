@@ -262,7 +262,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.1'],
       type: 'table',
       usage:
-        'ENSFácil documenta la cobertura del seguimiento y verifica que los feeds del Vulnerability Detector incluyen los fabricantes del inventario real. Fabricante presente en el inventario sin feed configurado → punto ciego declarado.',
+        'Power ENS documenta la cobertura del seguimiento y verifica que los feeds del Vulnerability Detector incluyen los fabricantes del inventario real. Fabricante presente en el inventario sin feed configurado → punto ciego declarado.',
       missingBehavior:
         'No se puede acreditar el seguimiento continuo de anuncios de defectos exigido por op.exp.4.1.',
     },
@@ -275,7 +275,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.2', 'op.exp.4.3'],
       type: 'table',
       usage:
-        'ENSFácil contrasta la marca temporal de cada cambio de software detectado con las ventanas declaradas. Actualización aplicada fuera de ventana sin declaración de urgencia → hallazgo de procedimiento.',
+        'Power ENS contrasta la marca temporal de cada cambio de software detectado con las ventanas declaradas. Actualización aplicada fuera de ventana sin declaración de urgencia → hallazgo de procedimiento.',
       missingBehavior:
         'No se puede distinguir mantenimiento planificado de intervención improvisada. Se pierde una señal útil.',
     },
@@ -288,7 +288,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.1'],
       type: 'table',
       usage:
-        'ENSFácil cruza el inventario de Syscollector contra esta tabla y alerta de productos fuera de soporte o próximos a estarlo. Es un hallazgo de auditoría muy habitual y de difícil defensa.',
+        'Power ENS cruza el inventario de Syscollector contra esta tabla y alerta de productos fuera de soporte o próximos a estarlo. Es un hallazgo de auditoría muy habitual y de difícil defensa.',
       missingBehavior:
         'No se detectan productos fuera de soporte. Riesgo de hallazgo sorpresa en la auditoría de certificación.',
     },
@@ -301,7 +301,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.r1.1'],
       type: 'table',
       usage:
-        'ENSFácil correlaciona la instalación de una versión en producción con su instalación previa en el sistema de preproducción emparejado. Versión que aparece en producción sin haber pasado por preproducción → hallazgo de R1.',
+        'Power ENS correlaciona la instalación de una versión en producción con su instalación previa en el sistema de preproducción emparejado. Versión que aparece en producción sin haber pasado por preproducción → hallazgo de R1.',
       missingBehavior:
         'R1 NO EVALUABLE. En categoría MEDIA y ALTA queda un refuerzo obligatorio sin acreditar automáticamente.',
     },
@@ -314,7 +314,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica que existe evidencia del punto de reversión ANTES de cada actualización: snapshot creado, backup ejecutado o imagen registrada en la ventana previa al cambio. Actualización sin punto de reversión previo → hallazgo de R2.',
+        'Power ENS verifica que existe evidencia del punto de reversión ANTES de cada actualización: snapshot creado, backup ejecutado o imagen registrada en la ventana previa al cambio. Actualización sin punto de reversión previo → hallazgo de R2.',
       missingBehavior:
         'R2 NO EVALUABLE. En categoría ALTA queda un refuerzo obligatorio sin acreditar.',
     },
@@ -327,7 +327,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.2'],
       type: 'table',
       usage:
-        'ENSFácil clasifica automáticamente cada vulnerabilidad detectada y le aplica el plazo de P-01 correspondiente. Puede ponderarse además por la criticidad del activo afectado (op.exp.1 P-06).',
+        'Power ENS clasifica automáticamente cada vulnerabilidad detectada y le aplica el plazo de P-01 correspondiente. Puede ponderarse además por la criticidad del activo afectado (op.exp.1 P-06).',
       missingBehavior:
         'Se aplica la correspondencia CVSS estándar por defecto, que puede no reflejar la valoración de riesgo propia.',
     },
@@ -340,7 +340,7 @@ export const opExp4Control: ENSControl = {
       requirements: ['op.exp.4.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil registra la versión de firmware declarada y la contrasta con los boletines del fabricante. Permite acreditar R3 aunque no sea exigible. La verificación de integridad en sí suele requerir herramientas del propio fabricante.',
+        'Power ENS registra la versión de firmware declarada y la contrasta con los boletines del fabricante. Permite acreditar R3 aunque no sea exigible. La verificación de integridad en sí suele requerir herramientas del propio fabricante.',
       missingBehavior:
         'R3 sin acreditar. No supone incumplimiento al no ser exigible, pero es un punto ciego de seguridad real.',
     },
@@ -353,7 +353,7 @@ export const opExp4Control: ENSControl = {
       requirements: [],
       type: 'table',
       usage:
-        'ENSFácil lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
+        'Power ENS lo aplica SOLO a los requisitos que el catálogo declara sin ninguna evidencia técnica, así que una atestación nunca puede tapar una medida que ha fallado. El resultado se marca ATESTACION y en pantalla se lee «acreditado documentalmente», no «cumple».',
       missingBehavior:
         'Los requisitos puramente documentales del control se quedan sin acreditar y cuentan en contra: lo que no se puede demostrar, no cumple.',
     },

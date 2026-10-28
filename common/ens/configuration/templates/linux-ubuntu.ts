@@ -11,7 +11,7 @@ const UBUNTU_SYSTEM_ACCOUNTS = [
   'uucp', 'uuidd', 'wazuh', 'www-data', 'root',
 ];
 
-// SUID binaries observed on Ubuntu 22.04 and 24.04 with the Wazuh agent and the ENSFácil collectors installed.
+// SUID binaries observed on Ubuntu 22.04 and 24.04 with the Wazuh agent and the Power ENS collectors installed.
 const UBUNTU_SUID = [
   '/usr/bin/at', '/usr/bin/chage', '/usr/bin/chfn', '/usr/bin/chsh',
   '/usr/bin/crontab', '/usr/bin/expiry', '/usr/bin/fusermount3',
@@ -49,7 +49,7 @@ export const AUDITD_RECORD_FIELDS = 'auditd | auid | msg=audit(...) | exe, name 
 export const linuxUbuntuTemplate: ENSPlatformSource = {
   id: 'linux-ubuntu',
   label: 'Linux',
-  description: 'Ubuntu 22.04 y 24.04 con el agente de Wazuh y los recolectores de ENSFácil. La lista de SUID es la de 22.04 y 24.04 juntas.',
+  description: 'Ubuntu 22.04 y 24.04 con el agente de Wazuh y los recolectores de Power ENS. La lista de SUID es la de 22.04 y 24.04 juntas.',
   kind: 'base',
   systemTypes: ['linux'],
   sources: [

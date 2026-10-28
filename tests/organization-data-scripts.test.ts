@@ -1,4 +1,4 @@
-/** The scripts (config/ensfacil_organization.py) read organisation data exactly as the plugin does. */
+/** The scripts (config/power_ens_organization.py) read organisation data exactly as the plugin does. */
 import { execFileSync } from 'child_process';
 import { ENSConfigurationRegistry } from '../common/ens/configuration/registry';
 import { defaultENSConfigurationTemplate } from '../common/ens/configuration/data/default-configuration';
@@ -34,7 +34,7 @@ const SAMPLES: Record<string, unknown> = {
   ],
   entorno_preproduccion: ['srv-app01 | pre-app01 | informe 2026-05', 'srv-db01 | pre-db01'],
   mecanismo_reversion: ['* | lvm | snapshot previo | 24'],
-  herramientas_gestion: ['cambios | registro_tsv | /etc/ensfacil/change-register.tsv | RFC-', 'incidentes | GLPI | https://glpi | RSEG'],
+  herramientas_gestion: ['cambios | registro_tsv | /etc/power-ens/change-register.tsv | RFC-', 'incidentes | GLPI | https://glpi | RSEG'],
   algoritmos_autorizados: ['protocolo | TLS1.3', 'cifrado | AES-GCM | 128'],
   retencion: ['cuentas, accesos |  | 365', 'registros | autenticación | 365', 'copias |  | 30', 'evidencias | disciplinaria | 1095'],
   zonas_controladas: ['10.0.0.0/8 red interna', '::1/128 la propia máquina'],
@@ -124,7 +124,7 @@ const validity = parametersToCheck.flatMap(parameter => {
 const PYTHON = `
 import json, sys
 sys.path.insert(0, sys.argv[1])
-import ensfacil_organization as o
+import power_ens_organization as o
 items = o.load_items()
 data = json.load(sys.stdin)
 out = {"items": items, "views": [], "assign": [], "rows": [], "same": [], "adopted": [], "single": []}

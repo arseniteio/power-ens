@@ -437,7 +437,7 @@ export const ControlDetailENS = ({
 
   const remediationBreakdown = [
     {
-      etiqueta: 'del catálogo · producto ENSFácil',
+      etiqueta: 'del catálogo · producto Power ENS',
       valor: catalogGapsCount,
       color: 'default' as const,
     },
@@ -734,7 +734,7 @@ export const ControlDetailENS = ({
   const headerCatalog = getENSCatalogControl(control.id);
 
   const header = (
-    <div className='ensfacil-control-header' style={{ padding: '4px 8px 12px' }}>
+    <div className='power-ens-control-header' style={{ padding: '4px 8px 12px' }}>
       <EuiButtonEmpty iconType='arrowLeft' size='s' flush='left' onClick={onBack}>
         Volver a controles
       </EuiButtonEmpty>

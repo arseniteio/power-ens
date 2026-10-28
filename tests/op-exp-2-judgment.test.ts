@@ -30,22 +30,22 @@ const check = (
 const section = (title: string): void => console.log(`\n${title}`);
 
 const REALES: string[] = [
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"sca_evaluation\",\"evidence_id\":\"EV-01\",\"requisito\":\"op.exp.2.1,op.exp.2.2,op.exp.2.3\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"politicas\":\"cis_ubuntu24-04\",\"ficheros\":\"cis_ubuntu24-04.yml\",\"ultima_evaluacion\":\"2026-09-16T06:14:25Z\",\"evaluaciones\":1,\"sca_habilitado\":\"yes\",\"sca_intervalo\":\"12h\",\"origen_dato\":\"/var/ossec/logs/ossec.log\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"login_account\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"root\",\"uid\":0,\"shell\":\"/bin/bash\",\"contrasena\":\"bloqueada\",\"claves_ssh\":1,\"origen_dato\":\"/etc/passwd\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"login_account\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"dioni\",\"uid\":1000,\"shell\":\"/bin/bash\",\"contrasena\":\"utilizable\",\"claves_ssh\":1,\"origen_dato\":\"/etc/passwd\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"account_authenticated\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"dioni\",\"canal\":\"ssh\",\"origen\":\"203.0.113.10\",\"metodo\":\"publickey\",\"veces\":2}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-resolve\",\"protocolo\":\"udp\",\"puerto\":\"53\",\"puerto_real\":\"53\",\"exposicion\":\"local\",\"direcciones\":\"127.0.0.54,127.0.0.53%lo\",\"origen_dato\":\"ss\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-network\",\"protocolo\":\"udp\",\"puerto\":\"68\",\"puerto_real\":\"68\",\"exposicion\":\"red\",\"direcciones\":\"62.238.61.123%eth0\",\"origen_dato\":\"ss\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-resolve\",\"protocolo\":\"tcp\",\"puerto\":\"53\",\"puerto_real\":\"53\",\"exposicion\":\"local\",\"direcciones\":\"127.0.0.54,127.0.0.53%lo\",\"origen_dato\":\"ss\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"sshd\",\"protocolo\":\"tcp\",\"puerto\":\"22121\",\"puerto_real\":\"22121\",\"exposicion\":\"red\",\"direcciones\":\"0.0.0.0,::\",\"origen_dato\":\"ss\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_permitrootlogin\",\"desviacion\":\"wazuh-real:ssh_permitrootlogin\",\"valor\":\"without-password\",\"esperado\":\"no\",\"origen_dato\":\"sshd -T\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_x11forwarding\",\"desviacion\":\"wazuh-real:ssh_x11forwarding\",\"valor\":\"yes\",\"esperado\":\"no\",\"origen_dato\":\"sshd -T\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_macs_debiles\",\"desviacion\":\"wazuh-real:ssh_macs_debiles\",\"valor\":\"umac-64-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,hmac-sha1\",\"esperado\":\"sin MD5, SHA-1 ni umac-64\",\"origen_dato\":\"sshd -T\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"permisos:/etc/ssh/sshd_config\",\"desviacion\":\"wazuh-real:permisos:/etc/ssh/sshd_config\",\"valor\":\"644\",\"esperado\":\"600 o mas restrictivo\",\"origen_dato\":\"stat\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"permisos:/etc/crontab\",\"desviacion\":\"wazuh-real:permisos:/etc/crontab\",\"valor\":\"644\",\"esperado\":\"600 o mas restrictivo\",\"origen_dato\":\"stat\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"virtualization_role\",\"evidence_id\":\"EV-05\",\"requisito\":\"op.exp.2.4\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"rol\":\"vm\",\"plataforma\":\"kvm\",\"fabricante\":\"Hetzner\",\"producto\":\"vServer\",\"origen_dato\":\"systemd-detect-virt\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"evidence_state\",\"evidence_id\":\"EV-06\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"estado\":\"NO_EVALUABLE\",\"causa\":\"CONFIGURATION\",\"motivo\":\"no se ha declarado acceso de solo lectura a la API de Wazuh (OPEXP2_API_URL, OPEXP2_API_USER, OPEXP2_API_PASSWORD): la puntuacion SCA de esta maquina solo la guarda el manager y el motor no la lee del indice\"}",
-  "{\"ensfacil\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"collector_run\",\"resultado\":\"completada\",\"evidencias_cubiertas\":\"EV-02,EV-04,EV-05\",\"evidencias_miradas\":\"EV-01,EV-02,EV-03,EV-04,EV-05\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"plano\":\"sistema\",\"emisor\":\"recolector\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"sca_evaluation\",\"evidence_id\":\"EV-01\",\"requisito\":\"op.exp.2.1,op.exp.2.2,op.exp.2.3\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"politicas\":\"cis_ubuntu24-04\",\"ficheros\":\"cis_ubuntu24-04.yml\",\"ultima_evaluacion\":\"2026-09-16T06:14:25Z\",\"evaluaciones\":1,\"sca_habilitado\":\"yes\",\"sca_intervalo\":\"12h\",\"origen_dato\":\"/var/ossec/logs/ossec.log\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"login_account\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"root\",\"uid\":0,\"shell\":\"/bin/bash\",\"contrasena\":\"bloqueada\",\"claves_ssh\":1,\"origen_dato\":\"/etc/passwd\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"login_account\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"dioni\",\"uid\":1000,\"shell\":\"/bin/bash\",\"contrasena\":\"utilizable\",\"claves_ssh\":1,\"origen_dato\":\"/etc/passwd\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"account_authenticated\",\"evidence_id\":\"EV-02\",\"requisito\":\"op.exp.2.1\",\"plano\":\"sistema\",\"usuario\":\"dioni\",\"canal\":\"ssh\",\"origen\":\"203.0.113.10\",\"metodo\":\"publickey\",\"veces\":2}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-resolve\",\"protocolo\":\"udp\",\"puerto\":\"53\",\"puerto_real\":\"53\",\"exposicion\":\"local\",\"direcciones\":\"127.0.0.54,127.0.0.53%lo\",\"origen_dato\":\"ss\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-network\",\"protocolo\":\"udp\",\"puerto\":\"68\",\"puerto_real\":\"68\",\"exposicion\":\"red\",\"direcciones\":\"62.238.61.123%eth0\",\"origen_dato\":\"ss\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"systemd-resolve\",\"protocolo\":\"tcp\",\"puerto\":\"53\",\"puerto_real\":\"53\",\"exposicion\":\"local\",\"direcciones\":\"127.0.0.54,127.0.0.53%lo\",\"origen_dato\":\"ss\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"service_exposed\",\"evidence_id\":\"EV-03\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"servicio\":\"sshd\",\"protocolo\":\"tcp\",\"puerto\":\"22121\",\"puerto_real\":\"22121\",\"exposicion\":\"red\",\"direcciones\":\"0.0.0.0,::\",\"origen_dato\":\"ss\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_permitrootlogin\",\"desviacion\":\"wazuh-real:ssh_permitrootlogin\",\"valor\":\"without-password\",\"esperado\":\"no\",\"origen_dato\":\"sshd -T\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_x11forwarding\",\"desviacion\":\"wazuh-real:ssh_x11forwarding\",\"valor\":\"yes\",\"esperado\":\"no\",\"origen_dato\":\"sshd -T\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:54Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"ssh_macs_debiles\",\"desviacion\":\"wazuh-real:ssh_macs_debiles\",\"valor\":\"umac-64-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,hmac-sha1\",\"esperado\":\"sin MD5, SHA-1 ni umac-64\",\"origen_dato\":\"sshd -T\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"permisos:/etc/ssh/sshd_config\",\"desviacion\":\"wazuh-real:permisos:/etc/ssh/sshd_config\",\"valor\":\"644\",\"esperado\":\"600 o mas restrictivo\",\"origen_dato\":\"stat\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"insecure_default\",\"evidence_id\":\"EV-04\",\"requisito\":\"op.exp.2.3\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"comprobacion\":\"permisos:/etc/crontab\",\"desviacion\":\"wazuh-real:permisos:/etc/crontab\",\"valor\":\"644\",\"esperado\":\"600 o mas restrictivo\",\"origen_dato\":\"stat\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"virtualization_role\",\"evidence_id\":\"EV-05\",\"requisito\":\"op.exp.2.4\",\"plano\":\"sistema\",\"maquina\":\"wazuh-real\",\"rol\":\"vm\",\"plataforma\":\"kvm\",\"fabricante\":\"Hetzner\",\"producto\":\"vServer\",\"origen_dato\":\"systemd-detect-virt\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"evidence_state\",\"evidence_id\":\"EV-06\",\"requisito\":\"op.exp.2.2\",\"plano\":\"sistema\",\"estado\":\"NO_EVALUABLE\",\"causa\":\"CONFIGURATION\",\"motivo\":\"no se ha declarado acceso de solo lectura a la API de Wazuh (OPEXP2_API_URL, OPEXP2_API_USER, OPEXP2_API_PASSWORD): la puntuacion SCA de esta maquina solo la guarda el manager y el motor no la lee del indice\"}",
+  "{\"power_ens\":\"op.exp.2\",\"ts\":\"2026-09-16T16:19:55Z\",\"host\":\"wazuh-real\",\"event\":\"collector_run\",\"resultado\":\"completada\",\"evidencias_cubiertas\":\"EV-02,EV-04,EV-05\",\"evidencias_miradas\":\"EV-01,EV-02,EV-03,EV-04,EV-05\",\"perfil\":\"wazuh-real\",\"maquina\":\"wazuh-real\",\"plano\":\"sistema\",\"emisor\":\"recolector\"}",
 ];
 
 const NOW = new Date('2026-09-16T18:00:00Z');
@@ -73,7 +73,7 @@ const alerts = (lines: string[]): ENSNormalizedEvent[] =>
           '@timestamp': data.ts,
           agent: { id: '024', name: 'wazuh-real' },
           rule: { id: RULE_ID[data.event] || '110300' },
-          location: '/var/log/ensfacil/op_exp_2.json',
+          location: '/var/log/power-ens/op_exp_2.json',
           data,
         },
       };
@@ -86,7 +86,7 @@ const withoutEvent = (event: string): string[] =>
 const withEvent = (extra: Record<string, unknown>): string[] => [
   ...REALES,
   JSON.stringify({
-    ensfacil: 'op.exp.2',
+    power_ens: 'op.exp.2',
     ts: '2026-09-16T16:19:55Z',
     host: 'wazuh-real',
     ...extra,
@@ -411,7 +411,7 @@ section('6. P-01: the assigned baseline');
     'two assigned and it evaluates one → NO_CUMPLE (the set is compared)',
     estado(
       evidences(REALES, {
-        'P-01': ['wazuh-real | cis_ubuntu24-04,ensfacil_extra'],
+        'P-01': ['wazuh-real | cis_ubuntu24-04,power_ens_extra'],
       }),
       'EV-01'
     ) === 'NO_CUMPLE'
@@ -449,7 +449,7 @@ section('7. P-05: the SCA score is judged by the engine');
         [
           ...withScore,
           JSON.stringify({
-            ensfacil: 'op.exp.2',
+            power_ens: 'op.exp.2',
             ts: '2026-09-16T17:00:00Z',
             event: 'sca_score',
             evidence_id: 'EV-06',

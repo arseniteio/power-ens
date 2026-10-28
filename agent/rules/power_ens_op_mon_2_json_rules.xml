@@ -1,7 +1,7 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_mon_2_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_mon_2_json_rules.xml
      Byte-identical in two places: the plugin source and manager/ of the Linux
      op.mon.2 runbook. Checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_mon_2,">
+<group name="power_ens,op_mon_2,">
 
   <!-- ================================================================
        op.mon.2 · Metrics system
@@ -11,9 +11,9 @@
 
        Everything is emitted by the MANAGER collector (agent.id=000), which reads
        local files only and uses no credentials. It runs every 6 h and re-emits
-       the whole state: the organization's two registers in /etc/ensfacil/ (the
+       the whole state: the organization's two registers in /etc/power-ens/ (the
        metrics cycle one and op.exp.7's incident one, which it only reads), the
-       agent database (global.db) and the heartbeats of all ENSFácil collectors,
+       agent database (global.db) and the heartbeats of all Power ENS collectors,
        read from alerts.json.
 
        Evidence -> rule ID map, which is what `relatedRules` vouches for in
@@ -33,13 +33,13 @@
 
   <rule id="111300" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.mon.2</field>
-    <description>op.mon.2 · evento ENSFácil base</description>
+    <field name="power_ens">op.mon.2</field>
+    <description>op.mon.2 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== op.mon.2.1 and op.mon.2.r2.1 · the metrics cycle register ===== -->
 
-  <!-- EV-02. Every 6 h. How /etc/ensfacil/metrics-cycle-register.tsv was read:
+  <!-- EV-02. Every 6 h. How /etc/power-ens/metrics-cycle-register.tsv was read:
        whether it exists, whether it can be read, whether its header is the
        required one and how many rows are valid. Also emitted with the register
        absent or empty: empty is judged, absent is not. -->
@@ -60,7 +60,7 @@
 
   <!-- ===== op.mon.2.r1.1 · the incident register (op.exp.7's) ===== -->
 
-  <!-- EV-03. Every 6 h. How /etc/ensfacil/incident-register.tsv was read, the
+  <!-- EV-03. Every 6 h. How /etc/power-ens/incident-register.tsv was read, the
        same file and the same 13-column format as op.exp.7. -->
   <rule id="111303" level="3">
     <if_sid>111300</if_sid>
@@ -86,14 +86,14 @@
     <description>op.mon.2 · EV-04 · agente $(agente) ($(agente_id)) $(estado_conexion), último keepalive $(ultimo_keepalive)</description>
   </rule>
 
-  <!-- EV-04. Every 6 h, one fact per agent: the last run of each ENSFácil
+  <!-- EV-04. Every 6 h, one fact per agent: the last run of each Power ENS
        collector that has reported from it, read from the collector_run entries
        in alerts.json and kept between runs. Aggregated per agent, never one
        fact per alert or per control. -->
   <rule id="111306" level="3">
     <if_sid>111300</if_sid>
     <field name="event">collector_heartbeat_observed</field>
-    <description>op.mon.2 · EV-04 · recolectores de ENSFácil en $(agente) ($(agente_id)): $(recolectores) con pasada</description>
+    <description>op.mon.2 · EV-04 · recolectores de Power ENS en $(agente) ($(agente_id)): $(recolectores) con pasada</description>
   </rule>
 
   <!-- ===== Degradation =====

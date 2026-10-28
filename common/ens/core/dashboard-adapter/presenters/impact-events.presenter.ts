@@ -17,8 +17,8 @@ import {
 
 // Alert types and the `data.*` fields of their incident key besides `agent.id`: most warnings name a `parametro`, only mp.info.6's an `origen`/`objeto`; op.exp.7 emits one fact per rule, system and hour, so `primera` stays out and `descripcion` (fixed by the rule) only labels it.
 export const OPERATIONAL_ALERT_KEY_FIELDS: Record<string, string[]> = {
-  collector_warning: ['ensfacil', 'requisito', 'parametro', 'origen', 'objeto', 'motivo'],
-  security_alert_observed: ['ensfacil', 'agente_id', 'sistema', 'regla', 'descripcion'],
+  collector_warning: ['power_ens', 'requisito', 'parametro', 'origen', 'objeto', 'motivo'],
+  security_alert_observed: ['power_ens', 'agente_id', 'sistema', 'regla', 'descripcion'],
 };
 
 // Rows the panel shows.
@@ -118,7 +118,7 @@ const toRow = (
   options: OperationalAlertsOptions
 ): ImpactEventRowModel | undefined => {
   const f = (name: string) => (incident.fields[name] || '').trim();
-  const controlId = f('ensfacil');
+  const controlId = f('power_ens');
   // A security alert names the machine it happened on (`agente_id` and `sistema`); the rest belong to the emitter.
   const attributed = incident.eventType === 'security_alert_observed' && Boolean(f('agente_id') && f('sistema'));
   const agentId = attributed ? f('agente_id') : incident.agentId.trim();
@@ -140,7 +140,7 @@ const toRow = (
   const severity: ImpactEventSeverity = 'warning';
 
   const key = [incident.eventType, agentId, controlId, ...OPERATIONAL_ALERT_KEY_FIELDS[incident.eventType]
-    .filter(name => name !== 'ensfacil' && name !== 'agente_id' && name !== 'sistema')
+    .filter(name => name !== 'power_ens' && name !== 'agente_id' && name !== 'sistema')
     .map(f)].join('|');
 
   return {

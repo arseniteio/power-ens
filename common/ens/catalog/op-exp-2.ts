@@ -10,7 +10,7 @@ export const opExp2CatalogDefinition: ENSControlDefinition = {
     'op.exp.2 es el control de bastionado: exige que los equipos entren en operación ya configurados de forma segura.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.3.2',
-  source: { template: 'ENSFacil_Plantilla_op.exp.2', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.exp.2', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   requirements: [

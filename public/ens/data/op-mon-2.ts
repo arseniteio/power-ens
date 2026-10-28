@@ -66,7 +66,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Grado de implantación de las medidas de seguridad',
       description:
-        'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que ENSFácil da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
+        'Porcentaje de implantación de cada medida aplicable según la Declaración de Aplicabilidad (P-01), agregado por marco y global, con el resultado que Power ENS da a cada control. Es salida del motor, no un hecho: va al informe de op.mon.2 sin veredicto, y la serie que acredita que se consolida es EV-02.',
       format: 'json_line',
       events: [],
       wazuhRuleIds: [],
@@ -78,7 +78,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Serie histórica de los ciclos de métricas',
       description:
-        'Registro de ciclos de métricas de la organización (/etc/ensfacil/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de ENSFácil se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
+        'Registro de ciclos de métricas de la organización (/etc/power-ens/metrics-cycle-register.tsv): cada vez que se consolida y valida el informe de Power ENS se anota el periodo, la fecha de consolidación, el grado de implantación global y quién lo validó. El motor solo ve 30 días de hechos, así que la serie trimestral o anual no se puede reconstruir: se acredita con este registro. El último ciclo validado por un responsable de P-05 tiene que estar dentro de la periodicidad de P-02, con la Declaración de Aplicabilidad (P-01) configurada.',
       format: 'json_line',
       events: ['evidence_state', 'metrics_register_read', 'metrics_cycle_recorded'],
       wazuhRuleIds: ['111301', '111302'],
@@ -90,7 +90,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Métricas de comportamiento de la gestión de incidentes (R1)',
       description:
-        'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/ensfacil/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
+        'Indicadores de P-03 calculados con el registro de incidentes de op.exp.7 (/etc/power-ens/incident-register.tsv, mismo fichero y mismo formato de 13 columnas), reemitido con la etiqueta op.mon.2: incidentes por tipo y por severidad, tiempos medios de contención y de resolución, notificados al CCN-CERT y a la AEPD. Cada incidente del periodo tiene que tener los datos que necesita cada indicador. Sin incidentes en el periodo, los indicadores valen cero y cumple si el registro existe y el último ciclo de métricas está en plazo.',
       format: 'json_line',
       events: ['evidence_state', 'incident_register_read', 'incident_registered'],
       wazuhRuleIds: ['111303', '111304'],
@@ -102,7 +102,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Fiabilidad de la medición',
       description:
-        'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de ENSFácil al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
+        'Cobertura de la monitorización sobre la que se calculan las métricas: de los sistemas del alcance ENS (el grupo ens y el manager), cuántos tienen el agente conectado y todos sus recolectores de Power ENS al día (su último latido en las 24 h anteriores a la lectura y sin fallar). Se contrasta con el objetivo cobertura_monitorizacion de P-06, menos su tolerancia: un grado de implantación calculado sobre una monitorización incompleta no es un dato sólido.',
       format: 'json_line',
       events: ['evidence_state', 'agent_keepalive_observed', 'collector_heartbeat_observed'],
       wazuhRuleIds: ['111305', '111306'],
@@ -114,7 +114,7 @@ export const opMon2Control: ENSControl = {
       expectedStatus: 'CUMPLE',
       title: 'Controles no evaluables por falta de parámetros',
       description:
-        'Recuento y relación de los controles con requisitos que ENSFácil no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
+        'Recuento y relación de los controles con requisitos que Power ENS no puede evaluar porque falta configuración del cliente, con el parámetro que falta en cada caso. Es salida del motor: va al informe de op.mon.2 sin veredicto, frente al objetivo controles_no_evaluables de P-06 si se declara.',
       format: 'json_line',
       events: [],
       wazuhRuleIds: [],
@@ -162,7 +162,7 @@ export const opMon2Control: ENSControl = {
       id: 'P-02',
       name: 'periodicidad_calculo_metricas',
       description:
-        'Cada cuánto se consolida y valida un ciclo de métricas (el informe de ENSFácil que la organización anota en el registro de ciclos), con los días de margen que se admiten tras el fin del periodo y la fecha del cierre anual del informe del artículo 32 (MM-DD). Una sola fila. El plazo del último ciclo es la duración del periodo (mensual 31 días, trimestral 92, semestral 184, anual 366) más el margen.',
+        'Cada cuánto se consolida y valida un ciclo de métricas (el informe de Power ENS que la organización anota en el registro de ciclos), con los días de margen que se admiten tras el fin del periodo y la fecha del cierre anual del informe del artículo 32 (MM-DD). Una sola fila. El plazo del último ciclo es la duración del periodo (mensual 31 días, trimestral 92, semestral 184, anual 366) más el margen.',
       level: ['BAJO', 'MEDIO', 'ALTO'],
       requirements: ['op.mon.2.1', 'op.mon.2.r1.1', 'op.mon.2.r2.1'],
       type: 'table',
@@ -180,7 +180,7 @@ export const opMon2Control: ENSControl = {
       requirements: ['op.mon.2.r1.1'],
       type: 'list',
       usage:
-        'ENSFácil calcula cada indicador con las fases del registro y exige que cada incidente del periodo tenga los datos que el indicador necesita (clasificación, fase inicial, contención anotada, datos personales). Sin incidentes en el periodo, los indicadores valen cero y R1 cumple si el registro existe y el último ciclo está en plazo.',
+        'Power ENS calcula cada indicador con las fases del registro y exige que cada incidente del periodo tenga los datos que el indicador necesita (clasificación, fase inicial, contención anotada, datos personales). Sin incidentes en el periodo, los indicadores valen cero y R1 cumple si el registro existe y el último ciclo está en plazo.',
       missingBehavior:
         'R1 queda NO EVALUABLE (causa CONFIGURATION): no se sabe qué indicadores consolidar.',
     },
@@ -193,7 +193,7 @@ export const opMon2Control: ENSControl = {
       requirements: ['op.mon.2.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil exige que cada una de las tres columnas de recursos tenga al menos una partida declarada, y toma las cifras del último ciclo del registro. Se presentan como DATO DECLARADO: la herramienta las registra, no las verifica.',
+        'Power ENS exige que cada una de las tres columnas de recursos tenga al menos una partida declarada, y toma las cifras del último ciclo del registro. Se presentan como DATO DECLARADO: la herramienta las registra, no las verifica.',
       missingBehavior:
         'R2 queda NO EVALUABLE (causa CONFIGURATION): las cifras del registro no tienen un significado declarado.',
     },
@@ -206,7 +206,7 @@ export const opMon2Control: ENSControl = {
       requirements: ['op.mon.2.1', 'op.mon.2.r2.1'],
       type: 'table',
       usage:
-        'ENSFácil da por validado un ciclo solo si validado_por es un responsable de P-05 de su ámbito: da trazabilidad a un dato que después se reporta fuera de la organización.',
+        'Power ENS da por validado un ciclo solo si validado_por es un responsable de P-05 de su ámbito: da trazabilidad a un dato que después se reporta fuera de la organización.',
       missingBehavior:
         'op.mon.2.1 y R2 quedan NO EVALUABLES (causa CONFIGURATION): no se sabe quién tiene que validar los ciclos.',
     },
@@ -219,7 +219,7 @@ export const opMon2Control: ENSControl = {
       requirements: ['op.mon.2.1'],
       type: 'table',
       usage:
-        'El objetivo de cobertura_monitorizacion decide la fiabilidad de la medición (EV-04, op.mon.2.1): el porcentaje de sistemas del alcance con el agente conectado y todos sus recolectores de ENSFácil al día. Los demás objetivos no deciden nada: el informe presenta cada métrica frente a su objetivo y marca las desviaciones.',
+        'El objetivo de cobertura_monitorizacion decide la fiabilidad de la medición (EV-04, op.mon.2.1): el porcentaje de sistemas del alcance con el agente conectado y todos sus recolectores de Power ENS al día. Los demás objetivos no deciden nada: el informe presenta cada métrica frente a su objetivo y marca las desviaciones.',
       missingBehavior:
         'op.mon.2.1 queda NO EVALUABLE (causa CONFIGURATION): sin objetivo de cobertura no se puede decidir si la medición es fiable, y las demás métricas se presentan sin referencia.',
     },

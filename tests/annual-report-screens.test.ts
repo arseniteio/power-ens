@@ -57,7 +57,7 @@ const responseFor = (period?: string) => ({
 });
 
 // Period 2025: frozen twice (r1 by the job, r2 regenerated); reading r1 returns the archived one.
-const r1 = { revision: 1, frozenAt: '2026-04-01T00:30:00.000Z', frozenBy: 'ENSFácil (tarea diaria)' };
+const r1 = { revision: 1, frozenAt: '2026-04-01T00:30:00.000Z', frozenBy: 'Power ENS (tarea diaria)' };
 const r2 = { revision: 2, frozenAt: '2026-10-20T12:05:00.000Z', frozenBy: 'rsis', reason: 'Corrección de la DA' };
 let regenerationBlocked = false;
 const frozenResponse = (revision?: string) => ({
@@ -75,7 +75,7 @@ const puts: any[] = [];
 http.setENSConfigurationHttp(() => ({
   get: async (path: string, options: any) => {
     gets.push({ path, query: options?.query });
-    return path === '/api/ensfacil/annual-report'
+    return path === '/api/powerEns/annual-report'
       ? { statusCode: 200, error: 0, data: options?.query?.period === '2025' ? frozenResponse(options?.query?.revision) : responseFor(options?.query?.period) }
       : { statusCode: 200, error: 0, data: { configuration: null, metadata: null } };
   },
@@ -99,7 +99,7 @@ http.setENSConfigurationHttp(() => ({
 
   console.log('1. op.mon.2 detail: the annual report');
   let p = await h.render(ControlDetailENS, { control, onBack: () => undefined }, 6);
-  check('the panel asks the annual report route for the current period', gets.some(g => g.path === '/api/ensfacil/annual-report' && !g.query?.period));
+  check('the panel asks the annual report route for the current period', gets.some(g => g.path === '/api/powerEns/annual-report' && !g.query?.period));
   check('«Informe anual (art. 32)» with the period and its state', /Informe anual \(art\. 32\)/.test(p) && /Periodo 2027 \(del 2026-04-01 al 2027-03-31\), en curso: cifras de hoy/.test(p), p.slice(p.indexOf('Informe anual'), p.indexOf('Informe anual') + 600));
   check('the summary of the data set', /Grado de implantación de la organización: 80 %/.test(p));
   check('JSON and CSV downloads; no freeze of the open period', /Descargar JSON/.test(p) && /Descargar CSV/.test(p) && !/\[ Congelar \]/.test(p));
@@ -114,8 +114,8 @@ http.setENSConfigurationHttp(() => ({
   await h.click(/^Guardar$/);
   p = await h.rerender();
   const sent = puts[0]?.body;
-  check('saved through the maturity route with the version of the report', puts[0]?.path === '/api/ensfacil/maturity' && sent.kind === 'declaration' && sent.controlId === 'org.1' && sent.entry.applies === 'si' && sent.entry.level === 3 && JSON.stringify(sent.expectedVersion) === '{"seqNo":7,"primaryTerm":1}', sent);
-  check('...and the report is read again', gets.filter(g => g.path === '/api/ensfacil/annual-report').length >= 2);
+  check('saved through the maturity route with the version of the report', puts[0]?.path === '/api/powerEns/maturity' && sent.kind === 'declaration' && sent.controlId === 'org.1' && sent.entry.applies === 'si' && sent.entry.level === 3 && JSON.stringify(sent.expectedVersion) === '{"seqNo":7,"primaryTerm":1}', sent);
+  check('...and the report is read again', gets.filter(g => g.path === '/api/powerEns/annual-report').length >= 2);
 
   console.log('3. A closed period: «Congelar» with a reason');
   const select = h.findAll('EuiSelect').find(node => node.props.prepend === 'Periodo');
@@ -132,13 +132,13 @@ http.setENSConfigurationHttp(() => ({
   await h.rerender();
   await h.click(/^Congelar$/, 'EuiButton');
   await h.rerender();
-  check('the freeze is sent with the period, the reason and a null revision', posts[0]?.path === '/api/ensfacil/annual-report/freeze' && JSON.stringify(posts[0].body) === '{"period":"2026","reason":"Cierre del ejercicio","expectedRevision":null}', posts);
+  check('the freeze is sent with the period, the reason and a null revision', posts[0]?.path === '/api/powerEns/annual-report/freeze' && JSON.stringify(posts[0].body) === '{"period":"2026","reason":"Cierre del ejercicio","expectedRevision":null}', posts);
 
   console.log('4. A frozen period with an earlier revision');
   h.findAll('EuiSelect').find(node => node.props.prepend === 'Periodo')!.props.onChange({ target: { value: '2025' } });
   p = await h.rerender(6);
   const revisionSelect = () => h.findAll('EuiSelect').find(node => node.props.prepend === 'Revisión');
-  check('the frozen period offers its revisions, the current one marked', Boolean(revisionSelect()) && revisionSelect()!.props.options.map((o: any) => o.text).join(' | ') === 'r2 · 2026-10-20 · rsis (vigente) | r1 · 2026-04-01 · ENSFácil (tarea diaria)', revisionSelect()?.props.options);
+  check('the frozen period offers its revisions, the current one marked', Boolean(revisionSelect()) && revisionSelect()!.props.options.map((o: any) => o.text).join(' | ') === 'r2 · 2026-10-20 · rsis (vigente) | r1 · 2026-04-01 · Power ENS (tarea diaria)', revisionSelect()?.props.options);
   check('the current revision offers «Regenerar»', /\[ Regenerar \]/.test(p) && !h.findAll('EuiButtonEmpty').find(node => /Regenerar/.test(node.texto))!.props.isDisabled);
   regenerationBlocked = true;
   h.findAll('EuiSelect').find(node => node.props.prepend === 'Periodo')!.props.onChange({ target: { value: '2026' } });
@@ -157,7 +157,7 @@ http.setENSConfigurationHttp(() => ({
   console.log('5. Field 8 of the op.mon.2 report');
   const model = buildOpMon2ReportModel(result, [result], { annualReport: report });
   const field8 = model.fields.find((f: any) => f.id === 'op.mon.2.campo8');
-  check('field 8 is the summary of the same data set', JSON.stringify(field8.details) === JSON.stringify(describeAnnualReport(report)) && /ensfacil\.art32\.v1/.test(field8.value));
+  check('field 8 is the summary of the same data set', JSON.stringify(field8.details) === JSON.stringify(describeAnnualReport(report)) && /power-ens\.art32\.v1/.test(field8.value));
   const without = buildOpMon2ReportModel(result, [result]).fields.find((f: any) => f.id === 'op.mon.2.campo8');
   check('without the data set it keeps its lines', without.status === 'NO_APLICA' && /Grado de implantación/.test(without.details.join(' ')));
 

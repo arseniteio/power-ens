@@ -302,7 +302,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.1'],
       type: 'table',
       usage:
-        'ENSFácil detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
+        'Power ENS detecta accesos exitosos a estas rutas sin autenticación previa registrada, que es exactamente el supuesto que el requisito pretende impedir. Es la comprobación más directa de mp.s.2.1.',
       missingBehavior:
         'mp.s.2.1 NO EVALUABLE en su enunciado principal. No se puede detectar un acceso que obvia la autenticación.',
     },
@@ -341,7 +341,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.r1.2'],
       type: 'string',
       usage:
-        'ENSFácil registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
+        'Power ENS registra la referencia y controla el cumplimiento de la frecuencia declarada. Sin procedimiento con frecuencia definida, el refuerzo elegido queda sin umbral verificable.',
       missingBehavior:
         'El refuerzo de auditoría queda sin frecuencia verificable. mp.s.2.r1.2 NO ACREDITADO.',
     },
@@ -354,7 +354,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.r1.1', 'mp.s.2.r2.1'],
       type: 'select',
       usage:
-        'Determina qué refuerzo evalúa ENSFácil. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
+        'Determina qué refuerzo evalúa Power ENS. Si la categoría es ALTA y P-07 = R1, se emite incumplimiento directo: la auditoría de caja negra deja de ser suficiente al subir a ALTA.',
       missingBehavior:
         'No se puede determinar qué refuerzo es aplicable ni verificar su admisibilidad para la categoría.',
     },
@@ -367,7 +367,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.r1.1', 'mp.s.2.r2.1', 'mp.s.2.r2.2'],
       type: 'table',
       usage:
-        'ENSFácil conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
+        'Power ENS conserva el histórico, controla la frecuencia de P-06 y verifica que en modalidad R2 constan metodología y herramientas, que son exigencia expresa de mp.s.2.r2.2.',
       missingBehavior:
         'El refuerzo de auditoría queda sin acreditación documental. No consta qué se auditó ni con qué.',
     },
@@ -380,7 +380,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.r2.3'],
       type: 'table',
       usage:
-        'ENSFácil hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
+        'Power ENS hace seguimiento del cierre y alerta de hallazgos abiertos fuera de plazo. Cruza además con las detecciones en producción: un hallazgo declarado cerrado cuyo patrón sigue detectándose no está cerrado.',
       missingBehavior:
         'mp.s.2.r2.3 NO EVALUABLE. Es el incumplimiento más frecuente: se audita y no se corrige.',
     },
@@ -393,7 +393,7 @@ export const mpS2Control: ENSControl = {
       requirements: ['mp.s.2.r3.1'],
       type: 'table',
       usage:
-        'ENSFácil verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
+        'Power ENS verifica la configuración frente a los ataques característicos —envenenamiento de caché, confusión de petición, caché de respuestas autenticadas— e ingiere sus registros para detectar intentos. Una caché que almacena respuestas autenticadas es una fuga de información entre usuarios.',
       missingBehavior:
         'R3 NO EVALUABLE y es obligatorio en categoría ALTA. Los ataques sobre caché y proxy pasan inadvertidos.',
     },

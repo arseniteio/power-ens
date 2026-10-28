@@ -23,7 +23,7 @@
     "manager"
   ],
   "source": {
-    "template": "ENSFacil_Plantilla_op.acc.3",
+    "template": "PowerENS_Plantilla_op.acc.3",
     "version": "2.0",
     "date": "2026-10-15"
   },

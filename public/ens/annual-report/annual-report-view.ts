@@ -9,7 +9,7 @@ import type {
 } from '../../../common/ens/annual-report/annual-report-types';
 
 export const ENGINE_LABELS: Record<ENSAnnualMeasure['engine'], string> = {
-  MEDIDO: 'Medida por ENSFácil',
+  MEDIDO: 'Medida por Power ENS',
   SIN_MEDICION: 'Sin medición todavía',
   SIN_MOTOR: 'Sin motor',
 };

@@ -75,7 +75,7 @@ const field = (
 
 /**
  * Report model of mp.sw.2 (Aceptación y puesta en servicio).
- * Generated from the "Informe ENSFácil" sheet of the Excel.
+ * Generated from the "Informe Power ENS" sheet of the Excel.
  * The parameters shown in each field are chosen from the
  * field description in the Excel.
  */
@@ -111,7 +111,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Puestas en servicio del período  ·  fuente: Syscollector + ENSFácil (EV-01)
+  // Puestas en servicio del período  ·  fuente: Syscollector + Power ENS (EV-01)
   const campo2 = field(
     'mp.sw.2.campo2',
     'Puestas en servicio del período',
@@ -121,7 +121,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Aceptación previa acreditada  ·  fuente: ENSFácil (EV-02)
+  // Aceptación previa acreditada  ·  fuente: Power ENS (EV-02)
   const campo3 = field(
     'mp.sw.2.campo3',
     'Aceptación previa acreditada',
@@ -131,7 +131,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-02'),
   );
 
-  // Criterios de aceptación verificados  ·  fuente: SCA + ENSFácil (EV-06)
+  // Criterios de aceptación verificados  ·  fuente: SCA + Power ENS (EV-06)
   const campo4 = field(
     'mp.sw.2.campo4',
     'Criterios de aceptación verificados',
@@ -201,7 +201,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-08'),
   );
 
-  // Auditoría de código fuente (R2)  ·  fuente: ENSFácil (EV-10)
+  // Auditoría de código fuente (R2)  ·  fuente: Power ENS (EV-10)
   const campo11 = field(
     'mp.sw.2.campo11',
     'Auditoría de código fuente (R2)',
@@ -211,7 +211,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-10'),
   );
 
-  // Puntuación de cumplimiento mp.sw.2  ·  fuente: Motor ENSFácil
+  // Puntuación de cumplimiento mp.sw.2  ·  fuente: Motor Power ENS
   const campo12 = field(
     'mp.sw.2.campo12',
     'Puntuación de cumplimiento mp.sw.2',
@@ -221,7 +221,7 @@ export const buildMpSw2ReportModel = (
     evidenceObservations('EV-01'),
   );
 
-  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración ENSFácil + revisión
+  // Nivel de madurez (CMM — Anexo II ap. 6)  ·  fuente: Valoración Power ENS + revisión
   const campo13 = field(
     'mp.sw.2.campo13',
     'Nivel de madurez (CMM — Anexo II ap. 6)',

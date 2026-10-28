@@ -12,7 +12,7 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
     'op.nub.1 es mayoritariamente contractual: la conformidad y la certificación del proveedor, su pentest, la jurisdicción de los datos y el cifrado se declaran en la pantalla con su vigencia y se acreditan documentalmente. La parte técnica es la integración de los servicios en la nube con Wazuh (módulo configurado, registros que entran, errores, operaciones administrativas y accesos), medida en el manager sin credenciales.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
   annexSection: '4.5.1',
-  source: { template: 'ENSFacil_Plantilla_op.nub.1', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_op.nub.1', version: '2.0', date: '2026-10-15' },
   status: 'ACTIVE',
   version: '1.0.0',
   // The evidences of each requirement are the design's, not the template's. op.nub.1.1 (provider) and op.nub.1.r1.2 (op.pl.5) are documentary without technical evidence: the policy judges their tables (P-03, P-05) and takes them out of play (NO_APLICA) when P-01 or P-05 say so. No P-ATT.
@@ -69,7 +69,7 @@ export const opNub1CatalogDefinition: ENSControlDefinition = {
         reason:
           'Exigible en MEDIA y ALTA. En categoría BÁSICA no aplica.',
       },
-      // Documentary: ENSFácil has no op.pl.5. NO_APLICA with P-05 = "ninguno"; with services, the in-force op.pl.5 verification of each one (P-05).
+      // Documentary: Power ENS has no op.pl.5. NO_APLICA with P-05 = "ninguno"; with services, the in-force op.pl.5 verification of each one (P-05).
       evidenceIds: [],
       parameterIds: ['P-05'],
     },

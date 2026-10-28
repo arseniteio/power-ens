@@ -20,7 +20,7 @@ export type ENSNonConformityOrigin = 'MEDIDA' | 'NO_EVIDENCIADA';
 
 // Whose gap it is when the noncompliance is NO_EVIDENCIADA; decides who fixes it.
 //   CATALOG       the product does not declare what would accredit the requirement. True for all machines alike, never multiplied or attributed to an agent.
-//   CONFIGURATION a required parameter is missing or the declared policy is empty. Fixed by whoever configures ENSFácil.
+//   CONFIGURATION a required parameter is missing or the declared policy is empty. Fixed by whoever configures Power ENS.
 //   COLLECTION    NOTHING arrived from that machine (agent down, collector not run, no heartbeat). A COLLECTION failure, not a finding on the machine; fixed by whoever operates Wazuh and the agents.
 //   EVIDENCE      data arrived but is not enough (quality contract, unreadable field, or the agent declares it could not measure). Fixed by whoever maintains the evidence producer.
 export type ENSGapCause =

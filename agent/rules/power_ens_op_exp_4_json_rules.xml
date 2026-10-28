@@ -1,8 +1,8 @@
-<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/ensfacil_op_exp_4_json_rules.xml
+<!-- CANONICAL SOURCE: plugin-wazuh-ens/agent/rules/power_ens_op_exp_4_json_rules.xml
      Deployable copy so the procedure works on a server without access to the
      plugin repository. Byte-identical in the Linux runbook, the LDAP runbook and
      the plugin: checked by plugin-wazuh-ens/tests/check-consistency.py. -->
-<group name="ensfacil,op_exp_4,score,">
+<group name="power_ens,op_exp_4,score,">
 
   <!-- ================================================================
        op.exp.4 · Security maintenance and updates
@@ -30,14 +30,14 @@
 
   <rule id="110500" level="0">
     <decoded_as>json</decoded_as>
-    <field name="ensfacil">op.exp.4</field>
-    <description>op.exp.4 · evento ENSFácil base</description>
+    <field name="power_ens">op.exp.4</field>
+    <description>op.exp.4 · evento Power ENS base</description>
   </rule>
 
   <!-- ===== Vulnerabilities (Vulnerability Detector state) =====
 
        The three facts are written on the agent by the active-response script
-       `ensfacil-opexp4-vd.sh`, with what the manager bridge reads from the
+       `power-ens-opexp4-vd.sh`, with what the manager bridge reads from the
        Vulnerability Detector state index FOR THAT AGENT; hence they arrive with the
        agent's identity and not the manager's. -->
 

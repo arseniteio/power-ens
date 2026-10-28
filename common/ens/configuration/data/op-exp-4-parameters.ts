@@ -43,7 +43,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Es el parámetro central. Vulnerabilidad abierta más allá del plazo de su criticidad: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Toma la vulnerabilidad abierta más antigua de cada puntuación CVSS del Vulnerability Detector, la clasifica con P-08 y mide con el reloj el tiempo desde su detección frente a los días de la tabla.',
       evidenceIds: ['EV-02', 'EV-03'],
       ruleIds: [],
@@ -84,7 +84,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Todo cambio de software cuyo actor no figure en la tabla es mantenimiento no autorizado.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-04 contrasta el actor de cada transacción de software de la ventana con la columna «cuenta».',
       evidenceIds: ['EV-04'],
       ruleIds: [],
@@ -125,7 +125,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Fabricante en el inventario sin fuente de seguimiento declarada: punto ciego.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-06 exige que cada fabricante observado en el inventario figure en la columna «fabricante».',
       evidenceIds: ['EV-06'],
       ruleIds: [],
@@ -160,7 +160,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Cambio de software fuera de las franjas declaradas: hallazgo de procedimiento.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-07 sitúa el inicio de cada transacción de software, en hora local de la máquina, dentro o fuera de los tramos de su fila.',
       evidenceIds: ['EV-07'],
       ruleIds: [],
@@ -201,7 +201,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: true,
       wazuhUsage:
         'Producto instalado con fin de soporte vencido: hallazgo.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-05 contrasta cada producto que informa el agente con su fila y con la fecha que publique el fabricante en la máquina.',
       evidenceIds: ['EV-05'],
       ruleIds: [],
@@ -245,7 +245,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Versión que aparece en producción sin pasar antes por preproducción: hallazgo de R1.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-08 necesita los cambios de software de los DOS sistemas de la pareja. El motor evalúa cada máquina por separado, así que hoy la precedencia no se demuestra y R1 queda sin acreditar aunque la tabla esté rellena.',
       evidenceIds: ['EV-08'],
       ruleIds: [],
@@ -296,7 +296,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Cambio de software sin punto de reversión en la ventana previa: hallazgo de R2.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-09 busca, para cada transacción de software, un punto de reversión del mecanismo declarado creado en las horas previas a su inicio.',
       evidenceIds: ['EV-09'],
       ruleIds: [],
@@ -334,7 +334,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Clasifica cada vulnerabilidad para aplicarle el plazo de P-01.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-02 clasifica la puntuación CVSS de cada vulnerabilidad abierta con esta tabla antes de buscar su plazo en P-01.',
       evidenceIds: ['EV-02'],
       ruleIds: [],
@@ -375,7 +375,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Firmware observado distinto del declarado: desviación.',
-      ensfacilUsage:
+      powerEnsUsage:
         'EV-11 contrasta la versión de BIOS/UEFI que informa el agente con la fila de su dispositivo. La integridad del firmware exige herramientas del fabricante y ningún agente la demuestra.',
       evidenceIds: ['EV-11'],
       ruleIds: [],
@@ -428,7 +428,7 @@ export const opExp4Configuration: ENSControlConfiguration = {
       required: false,
       wazuhUsage:
         'Solo se aplica a requisitos sin evidencia técnica, por lo que nunca tapa una medida fallida.',
-      ensfacilUsage:
+      powerEnsUsage:
         'Solo se aplica a requisitos sin evidencia técnica. Se marca ATESTACION y se lee «acreditado documentalmente», no «cumple».',
       evidenceIds: [],
       ruleIds: [],

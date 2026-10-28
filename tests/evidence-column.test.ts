@@ -118,9 +118,9 @@ const validValue = (
     case 'table':
       return [parameter.example || ''];
     case 'path':
-      return '/var/lib/ensfacil';
+      return '/var/lib/power-ens';
     case 'url':
-      return 'https://ensfacil.example.org/api';
+      return 'https://power-ens.example.org/api';
     default:
       return 'valor';
   }

@@ -28,7 +28,7 @@
       "example": "srv01 | Linux",
       "required": true,
       "wazuhUsage": "Define en qué sistemas se ejecutan las comprobaciones SCA, FIM y log collection.",
-      "ensfacilUsage": "Delimita el alcance auditado y distingue un sistema que no reporta de uno que nunca se pidió auditar.",
+      "powerEnsUsage": "Delimita el alcance auditado y distingue un sistema que no reporta de uno que nunca se pidió auditar.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -55,7 +55,7 @@
       "example": "/etc/passwd",
       "required": true,
       "wazuhUsage": "Se configura en el módulo FIM de Wazuh como rutas a monitorizar. Cualquier cambio genera alerta.",
-      "ensfacilUsage": "Evidencia la integridad del SO comparando hash, modo y propietario de cada ruta con la pasada anterior y detectando cambios sin justificar.",
+      "powerEnsUsage": "Evidencia la integridad del SO comparando hash, modo y propietario de cada ruta con la pasada anterior y detectando cambios sin justificar.",
       "evidenceIds": [
         "EV-02"
       ],
@@ -88,7 +88,7 @@
       "example": "no",
       "required": true,
       "wazuhUsage": "SCA verifica permisos. Si P-03 = no, cualquier world-writable genera alerta; las excepciones se cargan como whitelist.",
-      "ensfacilUsage": "Distingue un world-writable que es incumplimiento de uno legítimo sin apagar la comprobación entera.",
+      "powerEnsUsage": "Distingue un world-writable que es incumplimiento de uno legítimo sin apagar la comprobación entera.",
       "evidenceIds": [
         "EV-01"
       ],
@@ -113,7 +113,7 @@
       "example": "Política de Control de Acceso v2.1, aprobada 01/01/2025",
       "required": true,
       "wazuhUsage": "Se incluye como referencia documental en el informe.",
-      "ensfacilUsage": "Acredita que los derechos de acceso responden a una decisión escrita del responsable del recurso, como exige op.acc.2.2, y da al informe la referencia normativa.",
+      "powerEnsUsage": "Acredita que los derechos de acceso responden a una decisión escrita del responsable del recurso, como exige op.acc.2.2, y da al informe la referencia normativa.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -142,8 +142,8 @@
         "Otro"
       ],
       "required": false,
-      "wazuhUsage": "ENSFácil verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.",
-      "ensfacilUsage": "Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).",
+      "wazuhUsage": "Power ENS verifica en logs y SCA que el modelo declarado se implementa y detecta usuarios con privilegios de admin no justificados.",
+      "powerEnsUsage": "Es la condición para juzgar si los privilegios observados responden a un modelo o son concesiones sin justificar (refuerzo R1).",
       "evidenceIds": [
         "EV-05"
       ],
@@ -165,8 +165,8 @@
       "type": "table",
       "example": "ops | /srv/datos | lectura,escritura",
       "required": false,
-      "wazuhUsage": "ENSFácil cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.",
-      "ensfacilUsage": "Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.",
+      "wazuhUsage": "Power ENS cruza los permisos de SCA (EV-01) y las ACL reales con esta tabla. Las diferencias generan alerta.",
+      "powerEnsUsage": "Verifica que el acceso ejercido por cada perfil coincide con el autorizado (op.acc.2.r1.2). Es un techo: conceder menos no es desviación, conceder más sí.",
       "evidenceIds": [
         "EV-04",
         "EV-06"
@@ -218,7 +218,7 @@
       "example": "027",
       "required": true,
       "wazuhUsage": "SCA verifica el umask en los perfiles de usuario y /etc/profile. Si es más permisivo que P-07, genera alerta.",
-      "ensfacilUsage": "Compara el umask efectivo de las fuentes del sistema con el mínimo exigido.",
+      "powerEnsUsage": "Compara el umask efectivo de las fuentes del sistema con el mínimo exigido.",
       "evidenceIds": [
         "EV-01"
       ],
@@ -243,7 +243,7 @@
       "example": "/srv/datos | 750 | root:ops | u:auditor:r-x",
       "required": true,
       "wazuhUsage": "Es la tabla contra la que se comparan las ACL reales de cada recurso. Una diferencia genera acl_deviation.",
-      "ensfacilUsage": "Acredita que los derechos responden a una decisión escrita del responsable (op.acc.2.2) y es la tabla contra la que se comparan modo, propietario y ACL reales.",
+      "powerEnsUsage": "Acredita que los derechos responden a una decisión escrita del responsable (op.acc.2.2) y es la tabla contra la que se comparan modo, propietario y ACL reales.",
       "evidenceIds": [
         "EV-04"
       ],
@@ -293,7 +293,7 @@
       "example": "jgomez | admin | sudo:total",
       "required": false,
       "wazuhUsage": "Se contrasta con la pertenencia real a grupos privilegiados y el uso de sudo. Un usuario con más de lo declarado genera excessive_privilege.",
-      "ensfacilUsage": "Verifica el refuerzo R1: contrasta cada cuenta con privilegio observada con lo declarado para ella.",
+      "powerEnsUsage": "Verifica el refuerzo R1: contrasta cada cuenta con privilegio observada con lo declarado para ella.",
       "evidenceIds": [
         "EV-05",
         "EV-06"
@@ -340,7 +340,7 @@
       "example": "/usr/bin/sudo",
       "required": true,
       "wazuhUsage": "Todo binario SUID/SGID fuera de esta lista se publica como suid_sgid no autorizado.",
-      "ensfacilUsage": "Distingue un binario SUID/SGID aprobado de uno que nadie ha revisado. Sin línea base, EV-07 no significa nada.",
+      "powerEnsUsage": "Distingue un binario SUID/SGID aprobado de uno que nadie ha revisado. Sin línea base, EV-07 no significa nada.",
       "evidenceIds": [
         "EV-07"
       ],
@@ -373,7 +373,7 @@
       "example": "/tmp",
       "required": false,
       "wazuhUsage": "Actúa como lista blanca de la comprobación world-writable: lo que figura aquí no genera alerta.",
-      "ensfacilUsage": "Distingue el world-writable legítimo del incumplimiento sin apagar la comprobación. Cada ruta exceptuada viaja por nombre en la evidencia.",
+      "powerEnsUsage": "Distingue el world-writable legítimo del incumplimiento sin apagar la comprobación. Cada ruta exceptuada viaja por nombre en la evidencia.",
       "evidenceIds": [
         "EV-01"
       ],
@@ -407,7 +407,7 @@
       "example": "sudo",
       "required": false,
       "wazuhUsage": "Define qué pertenencias se registran como group_membership privilegiada.",
-      "ensfacilUsage": "Define qué cuenta como privilegio administrativo en la máquina.",
+      "powerEnsUsage": "Define qué cuenta como privilegio administrativo en la máquina.",
       "evidenceIds": [
         "EV-05"
       ],

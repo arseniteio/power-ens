@@ -29,7 +29,7 @@
       "example": "ops | /srv/app | rw / dev | /srv/app | r",
       "required": true,
       "wazuhUsage": "Es el núcleo del control. Todo privilegio observado sin fila que lo ampare se presenta como acceso sin autorización expresa.",
-      "ensfacilUsage": "El agente emite un hecho por cada privilegio efectivo (sudo, grupos privilegiados, ACL del directorio) y el motor busca la fila de su rol, comprobando recurso y tipo de acceso.",
+      "powerEnsUsage": "El agente emite un hecho por cada privilegio efectivo (sudo, grupos privilegiados, ACL del directorio) y el motor busca la fila de su rol, comprobando recurso y tipo de acceso.",
       "evidenceIds": [
         "EV-01",
         "EV-02",
@@ -78,7 +78,7 @@
       "example": "rsec | global / admin_bd | bases de datos",
       "required": true,
       "wazuhUsage": "Los cambios de permisos y de pertenencia a grupos hechos por una cuenta ausente de esta lista se presentan como autorización otorgada por quien no era competente.",
-      "ensfacilUsage": "El motor comprueba que el actor de cada cambio de permisos, tomado de la traza de auditoría, figure en la lista. Se contrasta siempre quien hace el cambio, nunca la cuenta afectada.",
+      "powerEnsUsage": "El motor comprueba que el actor de cada cambio de permisos, tomado de la traza de auditoría, figure en la lista. Se contrasta siempre quien hace el cambio, nunca la cuenta afectada.",
       "evidenceIds": [
         "EV-03",
         "EV-04",
@@ -118,8 +118,8 @@
       "type": "duration_days",
       "example": "90 (trimestral) / o 180 (semestral) / o 365 (anual)",
       "required": true,
-      "wazuhUsage": "ENSFácil registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
-      "ensfacilUsage": "El motor toma la última revisión de P-08 y comprueba que no supere este plazo.",
+      "wazuhUsage": "Power ENS registra la fecha de la última revisión y avisa cuando se supera el plazo sin una nueva.",
+      "powerEnsUsage": "El motor toma la última revisión de P-08 y comprueba que no supere este plazo.",
       "evidenceIds": [
         "EV-03",
         "EV-04",
@@ -146,7 +146,7 @@
       "example": "ssh | 22 | 10.0.0.0/8",
       "required": true,
       "wazuhUsage": "Canal, puerto y origen de cada conexión remota quedan en la evidencia y en la traza.",
-      "ensfacilUsage": "Acompaña al informe como política exigible. Hoy el veredicto del acceso remoto se decide por la cuenta (contra P-05), no por el canal: ninguna comprobación automática lo contrasta todavía.",
+      "powerEnsUsage": "Acompaña al informe como política exigible. Hoy el veredicto del acceso remoto se decide por la cuenta (contra P-05), no por el canal: ninguna comprobación automática lo contrasta todavía.",
       "evidenceIds": [
         "EV-06"
       ],
@@ -171,7 +171,7 @@
       "example": "jgomez",
       "required": true,
       "wazuhUsage": "Todo acceso remoto de una cuenta ausente de esta lista se presenta como acceso remoto sin autorización expresa.",
-      "ensfacilUsage": "El agente emite cada acceso remoto con su cuenta (ssh y, en un servidor de directorio, binds LDAP correctos) y el motor comprueba que figure en la lista.",
+      "powerEnsUsage": "El agente emite cada acceso remoto con su cuenta (ssh y, en un servidor de directorio, binds LDAP correctos) y el motor comprueba que figure en la lista.",
       "evidenceIds": [
         "EV-06"
       ],
@@ -196,7 +196,7 @@
       "example": "wheel",
       "required": true,
       "wazuhUsage": "Las pertenencias a estos grupos, incluida la primaria, se recogen en cada pasada y se contrastan con la matriz P-01.",
-      "ensfacilUsage": "El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.",
+      "powerEnsUsage": "El agente emite un hecho por cada miembro de los grupos privilegiados observados, incluida la pertenencia primaria. Hoy se contrastan con P-01, no con esta lista, que acompaña al informe como política escrita.",
       "evidenceIds": [
         "EV-02",
         "EV-03",
@@ -222,8 +222,8 @@
       "type": "table",
       "example": "/datos/rrhh | rrhh / /datos/nominas | rrhh,direccion",
       "required": true,
-      "wazuhUsage": "ENSFácil registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
-      "ensfacilUsage": "El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.",
+      "wazuhUsage": "Power ENS registra los accesos a estos recursos y señala aquellos cuyo perfil no tiene justificación declarada, aunque tuviera permiso técnico.",
+      "powerEnsUsage": "El motor busca la fila del recurso y comprueba que el perfil de quien accede esté justificado. Cada recurso declarado debe estar vigilado en las reglas de auditoría del agente; si no, queda un hueco silencioso.",
       "evidenceIds": [
         "EV-07"
       ],
@@ -262,7 +262,7 @@
       "example": "2026-09-15 | servidores de producción | Responsable de Seguridad",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee: la revisión es una decisión de la organización.",
-      "ensfacilUsage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-03.",
+      "powerEnsUsage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-03.",
       "evidenceIds": [
         "EV-05"
       ],

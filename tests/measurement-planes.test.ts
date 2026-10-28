@@ -120,7 +120,7 @@ const fact = (
     eventType,
     sourceType: 'WAZUH_ALERT',
     timestamp: '2026-09-26T11:00:00Z',
-    tool: 'ENSFácil test',
+    tool: 'Power ENS test',
     ...extra,
   };
 };

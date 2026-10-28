@@ -22,7 +22,7 @@
     "manager"
   ],
   "source": {
-    "template": "ENSFacil_Plantilla_op.acc.1",
+    "template": "PowerENS_Plantilla_op.acc.1",
     "version": "2.0",
     "date": "2026-10-15"
   },
@@ -38,7 +38,7 @@
         "ALTO"
       ],
       "description": "Se podrá utilizar como identificador único los sistemas de identificación previstos en la normativa de aplicación, entre ellos, los sistemas de clave concertada y cualquier otro sistema que las administraciones consideren válido en los términos de la Ley 39/2015.",
-      "interpretation": "ENSFácil lo lee como unicidad del identificador: no se admiten cuentas genéricas o compartidas (P-04) con autenticación correcta (EV-03).",
+      "interpretation": "Power ENS lo lee como unicidad del identificador: no se admiten cuentas genéricas o compartidas (P-04) con autenticación correcta (EV-03).",
       "evidence_ids": [
         "EV-03"
       ],
@@ -57,7 +57,7 @@
         "ALTO"
       ],
       "description": "Cuando el usuario tenga diferentes roles frente al sistema (como ciudadano, trabajador del organismo o administrador, por ejemplo) recibirá identificadores singulares para cada perfil, de forma que se recaben los correspondientes registros de actividad y se delimiten los privilegios de cada perfil.",
-      "interpretation": "ENSFácil comprueba que las cuentas de servicio (P-03) no se usan para acceso interactivo (EV-05) y que una misma cuenta no ejerce a la vez privilegios de administración y de usuario (EV-06).",
+      "interpretation": "Power ENS comprueba que las cuentas de servicio (P-03) no se usan para acceso interactivo (EV-05) y que una misma cuenta no ejerce a la vez privilegios de administración y de usuario (EV-06).",
       "evidence_ids": [
         "EV-05",
         "EV-06"
@@ -76,7 +76,7 @@
         "ALTO"
       ],
       "description": "Cada entidad (usuario o proceso) que accede al sistema contará con un identificador singular que permita conocer el destinatario, los derechos de acceso que recibe y las acciones realizadas por dicha entidad.",
-      "interpretation": "ENSFácil contrasta el inventario de cuentas activas (EV-01) y los cambios en los ficheros de identidad (EV-02) con las cuentas genéricas (P-04) y de servicio (P-03) declaradas.",
+      "interpretation": "Power ENS contrasta el inventario de cuentas activas (EV-01) y los cambios en los ficheros de identidad (EV-02) con las cuentas genéricas (P-04) y de servicio (P-03) declaradas.",
       "evidence_ids": [
         "EV-01",
         "EV-02",
@@ -100,7 +100,7 @@
         "ALTO"
       ],
       "description": "Las cuentas de usuario se gestionarán de la siguiente forma: a) Cada cuenta estará asociada a un identificador único. b) Las cuentas deben ser inhabilitadas cuando: el usuario deja la organización; cesa en la función para la cual se requería la cuenta; o la persona que la autorizó da orden contraria. c) Las cuentas se retendrán durante el período necesario para atender las necesidades de trazabilidad de los registros de actividad (denominado «período de retención»).",
-      "interpretation": "ENSFácil comprueba que la cuenta se inhabilita dentro del plazo de P-05 tras la baja (EV-04) y que no se elimina antes del periodo de retención de P-06 (EV-08).",
+      "interpretation": "Power ENS comprueba que la cuenta se inhabilita dentro del plazo de P-05 tras la baja (EV-04) y que no se elimina antes del periodo de retención de P-06 (EV-08).",
       "evidence_ids": [
         "EV-01",
         "EV-02",
@@ -167,7 +167,7 @@
       ],
       "applicability_reason": "Refuerzo R1 exigible en nivel MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
       "description": "Se asegurará la existencia de una lista actualizada de usuarios autorizados, mantenida por el administrador del sistema o de la seguridad del sistema.",
-      "interpretation": "ENSFácil contrasta las cuentas activas (EV-01) con la lista de usuarios autorizados de P-07 (EV-07).",
+      "interpretation": "Power ENS contrasta las cuentas activas (EV-01) con la lista de usuarios autorizados de P-07 (EV-07).",
       "evidence_ids": [
         "EV-01",
         "EV-07"
@@ -552,7 +552,7 @@
       "class": "organisation",
       "name": "integracion_rrhh",
       "label": "Integración con RRHH",
-      "description": "Indica si ENSFácil recibe las altas y bajas de empleados de un sistema de recursos humanos o de un directorio. Admite sí o no.",
+      "description": "Indica si Power ENS recibe las altas y bajas de empleados de un sistema de recursos humanos o de un directorio. Admite sí o no.",
       "levels": [
         "BAJO",
         "MEDIO",

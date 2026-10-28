@@ -9,7 +9,7 @@ export const mpEq2CatalogDefinition: ENSControlDefinition = {
   // Governed by the dimension LEVEL, not the system category: evaluated with `authenticityLevel` of the global configuration and, if not declared, with the ENS level.
   levelDimension: 'A',
   annexSection: '5.3.2',
-  source: { template: 'ENSFacil_Plantilla_mp.eq.2', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.eq.2', version: '2.0', date: '2026-10-15' },
   description:
     'mp.eq.2 es uno de los controles más sencillos del ENS y de los que mejor se verifican con Wazuh: se reduce a dos temporizadores y a que el desbloqueo exija credenciales.',
   levels: ['MEDIO', 'ALTO'],

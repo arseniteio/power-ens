@@ -9,7 +9,7 @@ export const mpEq4CatalogDefinition: ENSControlDefinition = {
   // Governed by the dimension LEVEL, not the system category: evaluated with `confidentialityLevel` of the global configuration and, if not declared, with the ENS level.
   levelDimension: 'C',
   annexSection: '5.3.4',
-  source: { template: 'ENSFacil_Plantilla_mp.eq.4', version: '2.0', date: '2026-10-15' },
+  source: { template: 'PowerENS_Plantilla_mp.eq.4', version: '2.0', date: '2026-10-15' },
   description:
     'mp.eq.4 es el control de los dispositivos que no llevan agente: multifunción, multimedia, IoT y BYOD.',
   levels: ['BAJO', 'MEDIO', 'ALTO'],
