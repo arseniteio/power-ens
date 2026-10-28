@@ -1,10 +1,8 @@
-// Fields the evaluation route adds for the overview views (1.2.0, Task 2). Pure functions over what the
-// evaluation already holds in memory (built state, probe, series points): no extra reads. Kept apart from
-// `responses.ts` and `evaluation-service.ts` to hook in with one line each..
+// Fields the evaluation route adds for the overview views. Pure functions over what the evaluation already holds.
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
 import type { ENSControlSummaryEntry, ENSFreshness, ENSOverviewNonConformity } from '../../../common/ens/evaluation/types';
-import type { ENSProbeResult } from './queries';
+import type { ENSVerdictActivity } from './window';
 import { guiltyPart, parseMotive } from '../../../common/ens/evaluation/motive-parser';
 
 // `summary` and `overview`: each machine with what each control says ON ITS ROW (the Vista general matrix and
@@ -20,33 +18,17 @@ export const agentControlRows = (
     controls: agent.results.map(result => summaryOf(result.control.id, result)),
   }));
 
-// `overview`: collection freshness, from the probe already done for the fingerprint. The machines are those in
-// scope.
-export const freshnessOf = (
-  probe: Pick<ENSProbeResult, 'presence' | 'heartbeats' | 'controls'>,
-  meta: { evaluatedAt: string; scope: { id: string; name?: string }[] }
-): ENSFreshness => {
-  const inScope = new Set(meta.scope.map(agent => agent.id));
-  return {
-    checkedAt: meta.evaluatedAt,
-    agents: meta.scope.map(agent => {
-      const presence = probe.presence.find(p => p.agentId === agent.id);
-      const heartbeats = probe.heartbeats[agent.id] || [];
-      return {
-        agentId: agent.id,
-        count: presence?.count || 0,
-        earliest: presence?.earliest,
-        newest: presence?.newest,
-        lastHeartbeat: heartbeats.length ? heartbeats[heartbeats.length - 1] : undefined,
-      };
-    }),
-    cells: Object.entries(probe.controls).flatMap(([controlId, facts]) =>
-      Object.entries(facts.agents || {})
-        .filter(([agentId]) => inScope.has(agentId))
-        .map(([agentId, h]) => ({ controlId, agentId, count: h.count, newest: h.newest }))
-    ),
-  };
-};
+// `overview`: when the engine last judged each machine and each control on it. The machines are those in scope.
+export const freshnessOf = (activity: ENSVerdictActivity, meta: { evaluatedAt: string; scope: { id: string }[] }): ENSFreshness => ({
+  checkedAt: meta.evaluatedAt,
+  agents: meta.scope.map(agent => ({
+    agentId: agent.id,
+    count: activity.agents[agent.id]?.count || 0,
+    earliest: activity.agents[agent.id]?.earliest,
+    newest: activity.agents[agent.id]?.newest,
+  })),
+  cells: activity.cells,
+});
 
 // `overview`: the work queue, the non-conformities of the overview with their control. Only what the queue
 // draws: the headline (first sentence of the culprit evidence, same parser as the card) and machines by id. No

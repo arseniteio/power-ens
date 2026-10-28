@@ -21,10 +21,6 @@ import type {
   ENSRequirementResult,
 } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
-import { buildMaturityPdfContent, MaturityReportSection } from '../maturity/maturity-report';
-import { AnnualReportPanel } from '../annual-report/annual-report-panel';
-import type { ENSAnnualReport } from '../../../common/ens/annual-report/annual-report-types';
-import type { ENSControlMaturity } from '../../../common/ens/maturity/types';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import {
   getENSReportModelDefinition,
@@ -115,7 +111,7 @@ const ControlReport = ({
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
-  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta; maturity?: ENSControlMaturity; maturityError?: string }>({
+  const evaluation = useEnsEvaluation<{ result?: ENSComplianceResult; meta?: ENSEvaluationMeta }>({
     include: 'control',
     controlId,
     agentId,
@@ -144,12 +140,9 @@ const ControlReport = ({
   const exportable = canExportReport(view);
 
   const panoramaResults = panorama?.results;
-  // op.mon.2: the art. 32 data set (field 8 of the PDF is drawn from it).
-  const [annualReport, setAnnualReport] = useState<ENSAnnualReport | undefined>(undefined);
-
   const reportModel = useMemo(
-    () => definition.build(complianceResult, panoramaResults, { annualReport }),
-    [definition, complianceResult, panoramaResults, annualReport],
+    () => definition.build(complianceResult, panoramaResults),
+    [definition, complianceResult, panoramaResults],
   );
 
   // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
@@ -604,9 +597,6 @@ const ControlReport = ({
           margin: [0, 0, 0, 16],
         },
 
-        // The maturity (normative) after the result (operational), never inside it.
-        ...buildMaturityPdfContent(evaluation.data?.maturity, evaluation.data?.maturityError, Boolean(evaluation.data?.meta?.maturityPending)),
-
         { text: 'Campos del informe', style: 'h3' },
         { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
         {
@@ -877,16 +867,6 @@ const ControlReport = ({
 
       <EuiSpacer size='l' />
 
-      <MaturityReportSection maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} pending={Boolean(evaluation.data?.meta?.maturityPending)} />
-
-      <EuiSpacer size='l' />
-
-      {definition.usesAnnualReport && (
-        <>
-          <AnnualReportPanel onReport={setAnnualReport} />
-          <EuiSpacer size='l' />
-        </>
-      )}
 
       <EuiTitle size='xs'>
         <h3>Campos del informe</h3>

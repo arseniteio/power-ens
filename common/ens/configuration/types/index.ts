@@ -91,8 +91,6 @@ export interface ENSGlobalConfiguration {
   timezone: string;
   reportLanguage: 'es' | 'en';
   activePolicy: string;
-  // Maturity target per category (1.4.0); an absent key or category is the default (L2/L3/L4), never `null`.
-  maturityTargets?: Partial<Record<ENSLevel, 0 | 1 | 2 | 3 | 4 | 5>>;
 }
 
 export interface ENSControlParameter {

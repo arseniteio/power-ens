@@ -57,15 +57,24 @@ export const buildLatestPassRequest = (controlId: string, agentId: string, newes
     query: { bool: { filter: [...ofRow(controlId, agentId), { range: { '@timestamp': { gte: newest, lte: newest } } }] } },
   });
 
-export const buildDailyVerdictsRequest = (controlId: string, agentId: string, from: string, to: string) =>
+// The last control verdict of each day of the window, in the viewer's zone: the series needs no more.
+export const buildDailyVerdictsRequest = (controlId: string, agentId: string, from: string, to: string, timeZone: string) =>
   search({
-    size: 500,
-    sort: [{ '@timestamp': 'asc' }],
+    size: 0,
     query: {
       bool: {
         filter: [...ofRow(controlId, agentId), { term: { scope: 'control' } }, { range: { '@timestamp': { gte: from, lte: to } } }],
       },
     },
+    aggs: {
+      days: {
+        date_histogram: { field: '@timestamp', calendar_interval: 'day', time_zone: timeZone, min_doc_count: 1 },
+        aggs: { last: { top_hits: { size: 1, sort: [{ '@timestamp': 'desc' }] } } },
+      },
+    },
   });
+
+export const dailyVerdictsOf = (body: any): ENSEngineVerdict[] =>
+  (body?.aggregations?.days?.buckets || []).flatMap((bucket: any) => (bucket.last?.hits?.hits || []).map((hit: any) => hit._source));
 
 export const verdictsOf = (body: any): ENSEngineVerdict[] => (body?.hits?.hits || []).map((hit: any) => hit._source);

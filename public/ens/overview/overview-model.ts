@@ -1,5 +1,4 @@
 // Overview model without React (tests/overview-model.test.ts). Everything comes from ONE response of the evaluation route (`include=overview`).
-import { STALE_COLLECTOR_MAX_AGE_HOURS } from '../../../common/ens/core/evidence/stale-collector';
 import type {
   ENSAgentControlsRow,
   ENSControlSummaryEntry,
@@ -11,7 +10,8 @@ import { ENSMachineTally, tallyMachines } from '../controls/controls-list-model'
 import { classifyNonConformity, NonConformityClass } from '../controls/control-detail/nonconformity-class';
 
 export const HOUR = 60 * 60 * 1000;
-export const STALE_AFTER_MS = STALE_COLLECTOR_MAX_AGE_HOURS * HOUR;
+// The engine judges every hour: a machine without a verdict for a day has stopped reporting.
+export const STALE_AFTER_MS = 26 * HOUR;
 
 export interface OverviewMachine {
   agentId: string;
@@ -154,9 +154,6 @@ export interface MachineSummary {
   notMet: number;
   notEvidenced: number;
   newest?: string;
-  lastHeartbeat?: string;
-  // The date that decides `stale`: the later of the two.
-  lastSeen?: string;
   stale: boolean;
   worst: { controlId: string; status: string; score?: number }[];
 }
@@ -175,7 +172,6 @@ export const buildMachineSummaries = (
       counts[key] += 1;
     });
     const fresh = freshness.agents.find(a => a.agentId === machine.agentId);
-    const last = [fresh?.newest, fresh?.lastHeartbeat].filter(Boolean).sort().pop();
     return {
       ...machine,
       measured: controls.length,
@@ -183,9 +179,7 @@ export const buildMachineSummaries = (
       notMet: controls.reduce((n, c) => n + (c.requirementsNotMet || 0), 0),
       notEvidenced: controls.reduce((n, c) => n + (c.requirementsNotEvidenced || 0), 0),
       newest: fresh?.newest,
-      lastHeartbeat: fresh?.lastHeartbeat,
-      lastSeen: last,
-      stale: !last || nowMs - Date.parse(last) > STALE_AFTER_MS,
+      stale: !fresh?.newest || nowMs - Date.parse(fresh.newest) > STALE_AFTER_MS,
       worst: controls
         .filter(c => c.status !== 'CUMPLE' && c.status !== 'NO_APLICA')
         .sort(

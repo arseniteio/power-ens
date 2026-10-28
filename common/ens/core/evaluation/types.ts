@@ -60,7 +60,6 @@ export interface ENSNonConformity {
   parameterIds: string[];
 }
 
-import { ENSPolicyRuntimeResult } from '../policy-runtime';
 import { ENSLevel } from '../../configuration/types';
 import {
   ENSEvidenceCategory,
@@ -176,7 +175,6 @@ export interface ENSComplianceResult {
     description: string;
   };
 
-  policyRuntime?: ENSPolicyRuntimeResult;
 
   // Machines this result summarised. Filled only by consolidation, so "affects 6" and "affects all" are told apart.
   consolidatedAgents?: ENSAgentRef[];

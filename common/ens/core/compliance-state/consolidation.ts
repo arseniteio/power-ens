@@ -8,15 +8,8 @@ import type {
   ENSRequirementResult,
   ENSTraceabilityResult,
 } from '../evaluation/types';
-import type {
-  ENSAppliedParameter,
-  ENSPolicyDecision,
-  ENSPolicyRuntimeResult,
-  ENSRuntimeVariable,
-} from '../policy-runtime/types';
 import type { ENSAgentComplianceState } from './types';
 import { scoreByStatus } from '../evaluation/utils/score';
-import { withReplacedReason } from '../policy-runtime/reason-parts';
 
 interface ENSAgentResultEntry {
   agentId: string;
@@ -345,152 +338,6 @@ const consolidateEvidences = (entries: ENSAgentResultEntry[]): ENSEvidenceResult
   });
 };
 
-const consolidatePolicyDecisions = (
-  entries: Array<{
-    entry: ENSAgentResultEntry;
-    decision: ENSPolicyDecision;
-  }>
-): ENSPolicyDecision[] => {
-  const requirementIds = uniqueValues(entries.map((item) => item.decision.requirementId));
-
-  return requirementIds.map((requirementId) => {
-    const decisionEntries = entries.filter((item) => item.decision.requirementId === requirementId);
-
-    const template = decisionEntries[0].decision;
-
-    const status = consolidateENSStatuses(decisionEntries.map((item) => item.decision.status));
-
-    // The consolidated motive is another text: the first machine's parts do not describe it (`withReplacedReason`).
-    return withReplacedReason(template, {
-      status,
-      parameterIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.parameterIds)),
-      evidenceIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.evidenceIds)),
-      eventIds: uniqueValues(decisionEntries.flatMap((item) => item.decision.eventIds)),
-      runtimeVariables: uniqueValues(
-        decisionEntries.flatMap((item) => item.decision.runtimeVariables)
-      ),
-      trace: {
-        ...template.trace,
-        result: status === 'CUMPLE',
-        actual: decisionEntries
-          .map(
-            ({ entry, decision }) =>
-              `${getAgentLabel(entry)}: ` + `${decision.status} ` + `(${decision.trace.actual})`
-          )
-          .join(' | '),
-      },
-      reason:
-        'Consolidación por agente: ' +
-        decisionEntries
-          .map(({ entry, decision }) => `${getAgentLabel(entry)}=${decision.status}`)
-          .join(', '),
-    });
-  });
-};
-
-const formatRuntimeVariableValue = (value: ENSRuntimeVariable['value']): string => {
-  const serializedValue = JSON.stringify(value);
-
-  return serializedValue === undefined ? String(value) : serializedValue;
-};
-
-const consolidateRuntimeVariables = (
-  entries: Array<{
-    entry: ENSAgentResultEntry;
-    variable: ENSRuntimeVariable;
-  }>
-): ENSRuntimeVariable[] => {
-  const groupedVariables = new Map<
-    string,
-    Array<{
-      entry: ENSAgentResultEntry;
-      variable: ENSRuntimeVariable;
-    }>
-  >();
-
-  entries.forEach((item) => {
-    const current = groupedVariables.get(item.variable.name) || [];
-
-    current.push(item);
-
-    groupedVariables.set(item.variable.name, current);
-  });
-
-  return Array.from(groupedVariables.values()).map((variableEntries) => {
-    const template = variableEntries[0].variable;
-
-    return {
-      ...template,
-      value: variableEntries.map(
-        ({ entry, variable }) =>
-          `${getAgentLabel(entry)}=` + formatRuntimeVariableValue(variable.value)
-      ),
-      parameterIds: uniqueValues(variableEntries.flatMap(({ variable }) => variable.parameterIds)),
-      evidenceIds: uniqueValues(variableEntries.flatMap(({ variable }) => variable.evidenceIds)),
-      eventIds: uniqueValues(variableEntries.flatMap(({ variable }) => variable.eventIds)),
-      description: `${template.description} ` + 'Valores consolidados por agente.',
-    };
-  });
-};
-
-const consolidatePolicyRuntime = (
-  entries: ENSAgentResultEntry[]
-): ENSPolicyRuntimeResult | undefined => {
-  const runtimeEntries = entries.flatMap((entry) =>
-    entry.result.policyRuntime
-      ? [
-          {
-            entry,
-            runtime: entry.result.policyRuntime,
-          },
-        ]
-      : []
-  );
-
-  if (runtimeEntries.length === 0) {
-    return undefined;
-  }
-
-  const template = runtimeEntries[0].runtime;
-
-  const appliedParameters = uniqueByKey<ENSAppliedParameter>(
-    runtimeEntries.flatMap((item) => item.runtime.appliedParameters),
-    (parameter) => parameter.id
-  ).map((parameter) => ({
-    ...parameter,
-  }));
-
-  const decisions = consolidatePolicyDecisions(
-    runtimeEntries.flatMap((item) =>
-      item.runtime.decisions.map((decision) => ({
-        entry: item.entry,
-        decision,
-      }))
-    )
-  );
-
-  const runtimeVariables = consolidateRuntimeVariables(
-    runtimeEntries.flatMap((item) =>
-      item.runtime.runtimeVariables.map((variable) => ({
-        entry: item.entry,
-        variable,
-      }))
-    )
-  );
-
-  return {
-    controlId: template.controlId,
-    policyId: template.policyId,
-    evaluatedAt:
-      getLatestIsoDate(runtimeEntries.map((item) => item.runtime.evaluatedAt)) ||
-      template.evaluatedAt,
-    decisions,
-    appliedParameters,
-    runtimeVariables,
-  };
-};
-
-// Two cards are the same if they say exactly the same: requirement, origin and cause, motive, action, evidences and parameters. Two machines failing for different reasons still give two cards.
 const nonConformityKey = (nonConformity: ENSNonConformity): string =>
   [
     nonConformity.origin,
@@ -560,7 +407,6 @@ const consolidateControlResult = (entries: ENSAgentResultEntry[]): ENSCompliance
     control: {
       ...template.control,
     },
-    policyRuntime: consolidatePolicyRuntime(entries),
 
     // How many machines this summarises, so the screen can tell "missing on 6" and "missing on all" apart.
     consolidatedAgents: uniqueByKey(entries.map(toAgentRef), (agent) => agent.agentId),

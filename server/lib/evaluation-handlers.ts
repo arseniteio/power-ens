@@ -14,7 +14,6 @@ import {
   normalizeQuery,
 } from './evaluation/evaluation-service';
 import { buildEvaluationResponse, buildTraceabilityPage } from './evaluation/responses';
-import type { ENSMaturityService } from './maturity/maturity-service';
 
 const correct = (response: any, data: unknown) => response.ok({ body: { statusCode: 200, error: 0, data } });
 const failure = (response: any, statusCode: number, message: string) => response.customError({ statusCode, body: { message } });
@@ -45,8 +44,6 @@ export const createEvaluationHandlers = (options: {
   logger: Logger;
   securityEnabled: boolean;
   service?: ENSEvaluationService;
-  // Without it, responses carry no maturity (tests of the evaluation alone).
-  maturity?: ENSMaturityService;
 }) => {
   const { logger } = options;
   const service = options.service || createEvaluationService(options);
@@ -79,34 +76,22 @@ export const createEvaluationHandlers = (options: {
       const s = output.meta.stats;
       logger.debug(
         `Power ENS: evaluation ${query.include} ${query.controlId || '*'}/${query.agentId || '*'} in ${s.totalMs} ms ` +
-          `(${s.computed} rows computed, ${s.refreshingInBackground} refreshing, ${s.hits} facts read)`
+          `(${s.computed} rows computed, ${s.refreshingInBackground} refreshing)`
       );
-      // The maturity never fails the evaluation: without it the response says why.
-      let maturity: Awaited<ReturnType<ENSMaturityService['forEvaluation']>>;
-      let maturityError: string | undefined;
-      if (options.maturity) {
-        try {
-          maturity = await options.maturity.forEvaluation(clients(context), output, { retry: retryRefresh });
-        } catch (error: any) {
-          if (statusOf(error) === 499) throw error;
-          logger.warn(`Power ENS: could not compute the maturity: ${error?.message || error}`);
-          maturityError = 'No se pudo calcular la madurez; el detalle está en el log del dashboard.';
-        }
-      }
-      return buildEvaluationResponse(output, maturity, maturityError);
+      return buildEvaluationResponse(output);
     });
 
   // Probe: has anything changed since the last evaluation? A few hundred bytes; the browser requests the
   // evaluation again only if the fingerprint changes.
   const probe = (context: any, request: any, response: any) =>
-    withErrors(request, response, 'comprobar si hay hechos nuevos', 'check for new facts', async () => {
+    withErrors(request, response, 'comprobar si hay veredictos nuevos', 'check for new verdicts', async () => {
       const query = normalizeQuery(request?.query || {});
       const ctx = await service.loadContext(clients(context), query);
       return {
         fingerprint: service.viewFingerprint(ctx, query),
         checkedAt: ctx.now.toISOString(),
         configurationUpdatedAt: ctx.configurationUpdatedAt,
-        facts: { count: ctx.probe.count, newest: ctx.probe.newest },
+        verdicts: ctx.activity.total,
       };
     });
 

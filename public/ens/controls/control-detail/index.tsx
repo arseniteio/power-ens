@@ -51,9 +51,6 @@ import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
 import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
-import { MaturityHeadline, MaturityPanel } from '../../maturity/maturity-panel';
-import { AnnualReportPanel } from '../../annual-report/annual-report-panel';
-import { ENS_ANNUAL_REPORT_CONTROL } from '../../../../common/ens/annual-report/declared-measures';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
   ENS_PENDING_MEASUREMENT_LABEL,
@@ -146,14 +143,13 @@ export const ControlDetailENS = ({
     setTracePageIndex(0);
   }, [control.id, agentId]);
 
-  const newestFact = data?.meta?.facts?.newest;
-  const latestEvaluationDate = newestFact
-    ? new Date(newestFact).toLocaleDateString('es-ES')
+  const newestVerdict = data?.meta?.verdicts?.newest;
+  const latestEvaluationDate = newestVerdict
+    ? new Date(newestVerdict).toLocaleDateString('es-ES')
     : 'Sin datos';
 
   const totalMachines = (complianceResult?.consolidatedAgents || []).length;
 
-  // The agent name comes from the scope inventory, never from facts: the latest fact may be the manager's.
   const nameOf = (id?: string) => (id ? scopeAgents.find(agent => agent.id === id)?.name : undefined);
   const labelOf = (id?: string) => (id ? `${id} · ${nameOf(id) || 'sin nombre'}` : 'todas las máquinas');
 
@@ -266,9 +262,7 @@ export const ControlDetailENS = ({
   const classify = (item: (typeof nonConformityItems)[number]) =>
     classifyNonConformity(item, { controlConfigured: configuredControl });
 
-  const knownParts: KnownReasonParts[] = (complianceResult?.policyRuntime?.decisions || [])
-    .filter(decision => decision.reasonParts && decision.reasonParts.length > 0)
-    .map(decision => ({ reason: decision.reason, parts: decision.reasonParts! }));
+  const knownParts: KnownReasonParts[] = [];
 
   const handlers: MotiveViewHandlers = {
     // Configuration of the CHOSEN machine, the one the user returns to.
@@ -763,7 +757,6 @@ export const ControlDetailENS = ({
             </EuiText>
           )}
           <EuiSpacer size='s' />
-          {/* The traffic light (operational) and the maturity (normative) side by side, never mixed. */}
           <EuiFlexGroup gutterSize='s' responsive={false} wrap alignItems='center'>
             {data?.result && (
               <EuiFlexItem grow={false}>
@@ -773,9 +766,6 @@ export const ControlDetailENS = ({
                 </EuiBadge>
               </EuiFlexItem>
             )}
-            <EuiFlexItem grow={false}>
-              <MaturityHeadline maturity={data?.maturity} error={data?.maturityError} pending={Boolean(data?.meta?.maturityPending)} />
-            </EuiFlexItem>
           </EuiFlexGroup>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
@@ -1283,24 +1273,6 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='l' />
 
-        <MaturityPanel
-          controlId={control.id}
-          maturity={data?.maturity}
-          version={data?.maturityVersion}
-          pending={Boolean(data?.meta?.maturityPending)}
-          error={data?.maturityError}
-          onRecorded={evaluation.retry}
-          onRetry={evaluation.retry}
-        />
-
-        {control.id === ENS_ANNUAL_REPORT_CONTROL && (
-          <>
-            <EuiSpacer size='l' />
-            <AnnualReportPanel showMeasures />
-          </>
-        )}
-
-        <EuiSpacer size='l' />
 
         <EuiPanel>
           <RequirementTextsPanel controlId={control.id} />

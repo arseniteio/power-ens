@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import type { Logger } from '../../../../src/core/server';
 import { ENS_CONFIGURATION_INDEX } from '../../common/constants';
-import { assertCompleteResponse } from './evaluation/facts-reader';
+import { assertCompleteResponse } from './evaluation/search';
 
 export const ENS_CONFIGURATION_ACTIVE_DOCUMENT_ID = 'active';
 

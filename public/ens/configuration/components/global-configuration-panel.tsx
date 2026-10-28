@@ -22,11 +22,6 @@ import {
   ENSGlobalConfiguration,
   ENSLevel,
 } from '../../../../common/ens/configuration/types';
-import {
-  ENS_CATEGORY_NAMES,
-  ENS_DEFAULT_MATURITY_TARGETS,
-  ENS_MATURITY_LEVEL_NAMES,
-} from '../../../../common/ens/maturity/maturity-records';
 import { ENSCatalog } from '../../../../common/ens/catalog';
 import type { ENSLevelDimension } from '../../../../common/ens/catalog/types';
 import {
@@ -74,15 +69,6 @@ const describeDimensionUse = (dimension: ENSLevelDimension): string => {
     ? `Lo usan ${users.join(', ')}. Sin declarar, se usa el nivel ENS.`
     : 'Ningún control lo usa todavía. Sin declarar, se usa el nivel ENS.';
 };
-
-// Maturity target of a category. The first option leaves the category ABSENT: the default applies.
-const maturityTargetOptions = (level: ENSLevel) => [
-  { value: '', text: `Por defecto (L${ENS_DEFAULT_MATURITY_TARGETS[level]})` },
-  ...[0, 1, 2, 3, 4, 5].map(target => ({
-    value: String(target),
-    text: `L${target} · ${ENS_MATURITY_LEVEL_NAMES[target as 0 | 1 | 2 | 3 | 4 | 5]}`,
-  })),
-];
 
 const evaluationPeriodOptions = [
   {
@@ -192,25 +178,6 @@ export const GlobalConfigurationPanel = ({
     setSaveSuccess(undefined);
   };
 
-  // A category without a value is REMOVED, and an empty set of targets too: absent is the default.
-  const updateMaturityTarget = (level: ENSLevel, value: string) => {
-    setDraftConfiguration(currentConfiguration => {
-      const targets = { ...(currentConfiguration.maturityTargets || {}) };
-      if (value === '') {
-        delete targets[level];
-      } else {
-        targets[level] = Number(value) as 0 | 1 | 2 | 3 | 4 | 5;
-      }
-      const nextConfiguration = { ...currentConfiguration, maturityTargets: targets };
-      if (!Object.keys(targets).length) {
-        delete nextConfiguration.maturityTargets;
-      }
-      return nextConfiguration;
-    });
-
-    setSaveError(undefined);
-    setSaveSuccess(undefined);
-  };
 
   const levelsError = describeDimensionsAboveENSLevel(draftConfiguration);
 
@@ -383,35 +350,6 @@ export const GlobalConfigurationPanel = ({
           <EuiSpacer size='m' />
         </>
       )}
-
-      <EuiTitle size='xs'>
-        <h4>Objetivo de madurez por categoría</h4>
-      </EuiTitle>
-
-      <EuiText size='xs' color='subdued'>
-        <p>
-                    Madurez esperada por categoría: L2 en BÁSICA, L3 en MEDIA y L4 en ALTA, salvo que el auditor fije otra.
-        </p>
-      </EuiText>
-
-      <EuiSpacer size='s' />
-
-      {(['BAJO', 'MEDIO', 'ALTO'] as ENSLevel[]).map(level => (
-        <EuiFormRow
-          key={`maturity-${level}`}
-          label={`Objetivo de madurez ${ENS_CATEGORY_NAMES[level]} (nivel ${level})`}
-          fullWidth
-        >
-          <EuiSelect
-            options={maturityTargetOptions(level)}
-            value={draftConfiguration.maturityTargets?.[level] !== undefined ? String(draftConfiguration.maturityTargets[level]) : ''}
-            onChange={event => updateMaturityTarget(level, event.target.value)}
-            fullWidth
-          />
-        </EuiFormRow>
-      ))}
-
-      <EuiSpacer size='m' />
 
       <EuiFormRow
         label='Versión ENS'

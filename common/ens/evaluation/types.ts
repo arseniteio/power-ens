@@ -1,13 +1,6 @@
 // Shape of the `/api/powerEns/evaluation` responses the screens read.
 import type { ENSComplianceResult, ENSNonConformity } from '../core/evaluation/types';
 import type { ENSComplianceSummary } from '../core/compliance-state/types';
-import type { ENSControlMaturity, ENSControlMaturitySummary, ENSMaturityDistribution, ENSMaturityVersion } from '../maturity/types';
-
-// The maturity of the controls of a list view (organisation level); `distribution` only with every control computed.
-export interface ENSMaturityListEntry {
-  controls: ENSControlMaturitySummary[];
-  distribution?: ENSMaturityDistribution;
-}
 
 export interface ENSEvaluationMeta {
   // Fingerprint of the view data (the one the probe compares).
@@ -18,8 +11,6 @@ export interface ENSEvaluationMeta {
   pending?: { rows: number; controls: string[]; total: number };
   // The daily series is still being computed (in the background): the view goes without `timeline` and the browser asks again.
   seriesPending?: boolean;
-  // The maturity's inputs are still being read (in the background): the view goes without `maturity` and the browser asks again.
-  maturityPending?: boolean;
   // The last background refresh that failed: what is shown predates it.
   refreshError?: { message: string; at: string };
   // When the shown result was last confirmed current; while refreshing, the time of the oldest stale part.
@@ -30,7 +21,7 @@ export interface ENSEvaluationMeta {
   window: { from: string; to: string };
   agentId?: string;
   controlId?: string;
-  facts: { count: number; newest?: string };
+  verdicts: { count: number; newest?: string };
   scope: { id: string; name?: string; status?: string }[];
   inventory: { stale: boolean; newestTimestamp?: string; agents: number };
 }
@@ -39,8 +30,7 @@ export interface ENSEvaluationTimelinePoint {
   date: string;
   label: string;
   isCurrent: boolean;
-  // Facts (documents) known up to that day.
-  events: number;
+  events?: number;
   score?: number;
   status?: string;
   // Without control (list, panel, overview): each control's state that day in the view (the overview's per-control trend).
@@ -66,12 +56,6 @@ export interface ENSControlEvaluationResponse {
   traceabilityAvailable: number;
   agents: { agentId: string; agentName?: string; status: string; score?: number }[];
   timeline?: ENSEvaluationTimelinePoint[];
-  // The control's maturity, always the organisation's (also in a machine view); absent while it is computed.
-  maturity?: ENSControlMaturity;
-  // Version of the maturity document the view was computed with, sent back with a record (null: none yet).
-  maturityVersion?: ENSMaturityVersion | null;
-  // Why the maturity is missing, when it could not be computed.
-  maturityError?: string;
 }
 
 // A scope machine and what each control says on ITS row. A control not measured there does not appear (not even as NO_APLICA): it has no row.
@@ -89,18 +73,15 @@ export interface ENSSummaryEvaluationResponse {
   agents?: ENSAgentControlsRow[];
   // With `timelineDays`.
   timeline?: ENSEvaluationTimelinePoint[];
-  maturity?: ENSMaturityListEntry;
-  maturityError?: string;
 }
 
-// Collection freshness, from the probe (no further fact read): each control's last fact and count on each machine, and per machine its first, last and last collector heartbeat.
+// When the engine last judged each machine, and each control on it.
 export interface ENSFreshnessAgent {
   agentId: string;
   // Names appear once, in `meta.scope`.
   count: number;
   earliest?: string;
   newest?: string;
-  lastHeartbeat?: string;
 }
 
 export interface ENSFreshnessCell {

@@ -17,7 +17,6 @@ import {
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
 import { describeOrganizationFills, normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
-import { validateMaturityTargetsShape } from '../../common/ens/maturity/maturity-records';
 import { describeNewLevelOptionIssues } from '../../common/ens/configuration/services/level-options';
 
 interface Options {
@@ -106,11 +105,6 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
     const organizationErrors = validateOrganizationDataShape(bodyText.configuration.organizationData);
     if (organizationErrors.length) {
       return failure(response, 400, `configuration.organizationData no es válida: ${organizationErrors.slice(0, 5).join(' ')}`);
-    }
-
-    const targetErrors = validateMaturityTargetsShape(bodyText.configuration.global?.maturityTargets);
-    if (targetErrors.length) {
-      return failure(response, 400, `configuration.global no es válida: ${targetErrors.slice(0, 5).join(' ')}`);
     }
 
     const access = await administrator(context, response, 'save the configuration');

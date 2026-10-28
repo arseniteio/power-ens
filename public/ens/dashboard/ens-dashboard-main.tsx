@@ -1,8 +1,6 @@
 import React from 'react';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
-import { MaturityDistributionPanel } from '../maturity/maturity-distribution';
-import type { ENSMaturityListEntry } from '../../../common/ens/evaluation/types';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
@@ -66,8 +64,8 @@ const requirementStatusPresentation = (
 export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
 
-  // The panel is computed by the SERVER with all facts of the window; the browser receives the finished model.
-  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[]; maturity?: ENSMaturityListEntry; maturityError?: string }>({
+  // The server builds the panel from the engine verdicts; the browser receives the finished model.
+  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
     include: 'dashboard',
     agentId,
     timelineDays: 7,
@@ -920,11 +918,6 @@ export const EnsDashboardMain = () => {
             <div style={{ color: '#69707D', fontSize: 11 }}>{dashboardModel.impactEvents.summary}</div>
           )}
         </div>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        {/* The organisation's maturity (normative), apart from the compliance index (operational). */}
-        <MaturityDistributionPanel maturity={evaluation.data?.maturity} error={evaluation.data?.maturityError} onRetry={evaluation.retry} />
       </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>

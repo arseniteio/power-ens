@@ -36,9 +36,6 @@ import {
   normalizeOrganizationData,
   summarizeOrganizationMigration,
 } from '../organization/organization-data-migration';
-import { saveMaturityEntry } from '../../maturity/maturity-http-client';
-import type { ENSMaturitySaveResponse } from '../../maturity/maturity-http-client';
-import type { ENSMaturityRecordKind, ENSMaturityVersion } from '../../maturity/types';
 
 let hydrationPromise:
   | Promise<ENSConfigurationVersion>
@@ -321,10 +318,6 @@ const updateGlobalConfiguration = async (
     }
   });
 
-  // Same for the maturity targets: removed in the form, removed in the document.
-  if (!globalConfiguration.maturityTargets) {
-    delete candidateConfiguration.global.maturityTargets;
-  }
 
   const incoherentLevels = describeDimensionsAboveENSLevel(candidateConfiguration.global);
 
@@ -400,10 +393,3 @@ export const saveFromLatestConfiguration = (
     return saveActiveENSConfiguration(plan.configuration, plan.reason);
   });
 
-// Records one maturity entry over the maturity version the screen showed (its own document: no configuration 409).
-export const recordMaturityEntry = (
-  controlId: string,
-  kind: ENSMaturityRecordKind,
-  entry: Record<string, unknown>,
-  expectedVersion: ENSMaturityVersion | null
-): Promise<ENSMaturitySaveResponse> => saveMaturityEntry({ controlId, kind, entry, expectedVersion });

@@ -9,8 +9,6 @@ import {
   toTableRowCells,
 } from '../../configuration/services/parameter-value-validator';
 import type { ENSEvidenceResolved } from '../evidence/types';
-import type { ENSPolicyRuntimeResult } from '../policy-runtime/types';
-import { withReplacedReason } from '../policy-runtime/reason-parts';
 import { ENSAgentScope } from './types';
 
 // Measurement planes: where each control is measured. The ENS scope is resolved by the `ens` group, and the Wazuh manager (agent 000) cannot be in a group. Some controls are measured ONLY on the manager (op.exp.7, op.exp.9) and one on both planes (op.exp.8),
@@ -158,24 +156,6 @@ export const markEvidencesUnmatchedScope = (
       ],
     };
   });
-
-// `documental` decisions come from the configuration, not the declared machines: kept, like NO_APLICA (see `markPolicyRuntimeStale`).
-export const markPolicyRuntimeUnmatchedScope = (
-  policyRuntime: ENSPolicyRuntimeResult | undefined,
-  reason: string
-): ENSPolicyRuntimeResult | undefined =>
-  policyRuntime && {
-    ...policyRuntime,
-    decisions: policyRuntime.decisions.map(decision =>
-      decision.status === 'NO_APLICA' || decision.documental
-        ? decision
-        : withReplacedReason(decision, {
-            status: 'NO_EVALUABLE',
-            cause: 'CONFIGURATION',
-            reason,
-          })
-    ),
-  };
 
 // A manager-ONLY control belongs to the organisation, not a machine: in an agent's view it shows with the manager row's result.
 export const isManagerOnlyControl = (

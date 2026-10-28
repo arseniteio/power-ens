@@ -41,8 +41,6 @@ import { getActiveControlConfiguration } from '../../../common/ens/configuration
 import { describeTally } from '../controls/controls-list-model';
 import { ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
 import { ENS_NO_RESULT_PATTERN, ENS_THEME } from '../theme-colors';
-import { MaturityDistributionPanel } from '../maturity/maturity-distribution';
-import { describeMaturityCell } from '../maturity/maturity-view';
 import {
   buildMachineSummaries,
   buildMatrix,
@@ -225,11 +223,10 @@ export const OverviewENS = () => {
                 {
                   field: 'lastSeen',
                   name: 'Último dato',
-                  // The same date that decides red: the later of the last fact and the last collector heartbeat.
                   render: (_: any, m: any) => (
                     <EuiText size='xs' color={m.stale ? 'danger' : 'default'}>
-                      <span title={`Último hecho: ${m.newest || 'ninguno'} · último latido: ${m.lastHeartbeat || 'ninguno'}`}>
-                        {describeAge(m.lastSeen, now)}
+                      <span title={`Último veredicto: ${m.newest || 'ninguno'}`}>
+                        {describeAge(m.newest, now)}
                       </span>
                     </EuiText>
                   ),
@@ -325,15 +322,6 @@ export const OverviewENS = () => {
                         <EuiLink onClick={() => openDetail(row.controlId)} title={row.title}>
                           {row.controlId}
                         </EuiLink>
-                        {/* The control's maturity (organisation level), under its id. */}
-                        {(() => {
-                          const cell = describeMaturityCell(data.maturity?.controls.find(entry => entry.controlId === row.controlId));
-                          return (
-                            <EuiText size='xs' color={cell.belowTarget ? 'warning' : 'subdued'}>
-                              <span title={cell.title}>{cell.text}</span>
-                            </EuiText>
-                          );
-                        })()}
                       </EuiTableRowCell>
                       <EuiTableRowCell>
                         <EuiText size='xs' color='subdued'>
@@ -458,10 +446,6 @@ export const OverviewENS = () => {
             ))}
           </>
         )}
-
-        <EuiSpacer size='l' />
-
-        <MaturityDistributionPanel maturity={data?.maturity} error={data?.maturityError} onRetry={general.retry} />
 
         <EuiSpacer size='l' />
 
