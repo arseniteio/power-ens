@@ -18,9 +18,11 @@ import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/c
 import { ENS_NO_TEMPLATE } from '../../../../common/agent-configuration';
 import { getControlTemplates } from '../../../../common/ens/configuration/templates';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
-import { getAgentMeasurementPlane, getControlMeasurementPlanes } from '../../../../common/ens/core/scope/measurement-planes';
+import {
+  getAgentMeasurementPlane,
+  getControlMeasurementPlanes,
+} from '../../../../common/ens/core/scope/measurement-planes';
 import { getEffectiveTemplate } from '../../../../common/ens/configuration/agents/configuration-resolver';
-import { proposedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
 import {
   ENSAssignmentPreview,
   describeTemplateChoice,
@@ -144,16 +146,10 @@ export const ControlAssignmentPanel = ({
       field: 'agent',
       name: 'Plantilla',
       render: (_agent: unknown, row: ENSAgentRow) => {
-        const proposals = proposedTemplates(controlId, row.detection).filter(id => getEffectiveTemplate(configuration, row.id, controlId).template?.id !== id);
         const measured = planes.includes(getAgentMeasurementPlane(row.id));
         return (
           <div>
             <EuiText size='xs'><p>{describeEffectiveTemplate(configuration, row, controlId)}</p></EuiText>
-            {proposals.length > 0 && (
-              <EuiText size='xs' color='subdued'>
-                <p>Propuesta por sus datos: {proposals.map(id => `«${templates.find(item => item.id === id)?.name || id}»`).join(', ')}</p>
-              </EuiText>
-            )}
             {!measured && (
               <EuiText size='xs' color='subdued'>
                 <p>{planes.includes('manager') ? 'Se evalúa en el manager, con las filas de todos los agentes.' : 'No se evalúa en el manager.'}</p>

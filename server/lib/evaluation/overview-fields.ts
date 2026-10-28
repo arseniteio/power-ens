@@ -1,7 +1,11 @@
 // Fields the evaluation route adds for the overview views. Pure functions over what the evaluation already holds.
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
-import type { ENSControlSummaryEntry, ENSFreshness, ENSOverviewNonConformity } from '../../../common/ens/evaluation/types';
+import type {
+  ENSControlSummaryEntry,
+  ENSFreshness,
+  ENSOverviewNonConformity,
+} from '../../../common/ens/evaluation/types';
 import type { ENSVerdictActivity } from './window';
 import { guiltyPart, parseMotive } from '../../../common/ens/evaluation/motive-parser';
 

@@ -14,10 +14,10 @@ const isMessage = (value: unknown): value is EngineMessage =>
 
 const argText = (value: unknown): string => {
   if (value === undefined || value === null) return '';
-  if (isMessage(value)) return renderEngineMessage(value.code, value.args);
+  if (isMessage(value)) return renderEngineMessage(value.code, value.args) ?? '';
   if (Array.isArray(value)) {
     return value.every(isMessage)
-      ? value.map(item => renderEngineMessage(item.code, item.args)).join('; ')
+      ? value.map(item => renderEngineMessage(item.code, item.args) ?? '').join('; ')
       : value.map(String).join(', ');
   }
   return String(value);

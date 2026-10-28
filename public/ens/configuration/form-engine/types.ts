@@ -1,4 +1,9 @@
-import { ENSControlParameter, ENSControlParameterValues, ENSLevel, ENSMatchMode } from '../../../../common/ens/configuration/types';
+import {
+  ENSControlParameter,
+  ENSControlParameterValues,
+  ENSLevel,
+  ENSMatchMode,
+} from '../../../../common/ens/configuration/types';
 
 export interface ENSFormFieldProps {
   parameter: ENSControlParameter;

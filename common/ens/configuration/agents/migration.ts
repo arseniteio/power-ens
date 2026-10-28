@@ -1,9 +1,5 @@
 // MIGRATION TO SYSTEMS, lossless.
-import type {
-  ENSAgentProfile,
-  ENSConfigurationVersion,
-  ENSControlParameter,
-} from '../types';
+import type { ENSAgentProfile, ENSConfigurationVersion, ENSControlParameter } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
 import {
   getParameterColumns,
@@ -12,10 +8,7 @@ import {
   toTableRowCells,
 } from '../services/parameter-value-validator';
 import { getENSCatalogControl } from '../../catalog';
-import {
-  ENS_MANAGER_AGENT_ID,
-  getControlMeasurementPlanes,
-} from '../../core/scope/measurement-planes';
+import { ENS_MANAGER_AGENT_ID, getControlMeasurementPlanes } from '../../core/scope/measurement-planes';
 import { ENS_SYSTEM_KEY_COLUMNS } from './parameter-classes';
 import { isOrganizationDataParameter } from '../organization/organization-data-items';
 import { resolveControlConfigurationWithOrigins, rowKey } from './configuration-resolver';

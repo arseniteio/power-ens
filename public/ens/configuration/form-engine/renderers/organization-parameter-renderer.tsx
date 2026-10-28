@@ -2,7 +2,9 @@ import React from 'react';
 import { EuiFormRow, EuiLink, EuiText } from '@elastic/eui';
 
 import type { ENSControlParameter } from '../../../../../common/ens/configuration/types';
-import type { ENSOrganizationDataItem } from '../../../../../common/ens/configuration/organization/organization-data-items';
+import type {
+  ENSOrganizationDataItem,
+} from '../../../../../common/ens/configuration/organization/organization-data-items';
 import { organizationValueLines } from '../../../../../common/ens/configuration/organization/organization-data-form';
 import { useSetRouterSearch } from '../../../../routing/use-router-search';
 import { configurationSearchChanges } from '../../../../routing/configuration-link';

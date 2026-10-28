@@ -16,7 +16,9 @@ import {
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import { supportsParameterPattern } from '../../../../../common/ens/configuration/services/parameter-input';
 import { parameterAtLevel } from '../../../../../common/ens/configuration/services/parameter-value-validator';
-import { getActiveENSConfiguration } from '../../../../../common/ens/configuration/services/configuration-state-service';
+import {
+  getActiveENSConfiguration,
+} from '../../../../../common/ens/configuration/services/configuration-state-service';
 import { getENSCatalogControl } from '../../../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../../../common/ens/core/control-level';
 

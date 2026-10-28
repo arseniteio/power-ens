@@ -8,11 +8,7 @@ import {
   ENSParameterValueIssue,
   ENSParameterValueVerdict,
 } from '../types';
-import {
-  isEmptyParameterValue,
-  parameterAtLevel,
-  validateParameterValue,
-} from './parameter-value-validator';
+import { isEmptyParameterValue, parameterAtLevel, validateParameterValue } from './parameter-value-validator';
 
 const hasValue = (value: ENSControlParameter['value']): boolean =>
   !isEmptyParameterValue(value);

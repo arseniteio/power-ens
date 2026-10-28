@@ -29,7 +29,10 @@ import type {
 import { ENS_SYSTEM_TYPES, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
 import { ENSControlTemplate, describeTemplate } from '../../../../common/ens/configuration/templates';
 import type { ENSTemplateInput } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
-import { getParameterClass, isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
+import {
+  getParameterClass,
+  isAgentLevelParameter,
+} from '../../../../common/ens/configuration/agents/parameter-classes';
 import { isEmptyParameterValue } from '../../../../common/ens/configuration/services/parameter-value-validator';
 import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 import { ParameterRendererFactory } from '../form-engine';

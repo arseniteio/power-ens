@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  EuiDescriptionList,
-  EuiPanel,
-  EuiSpacer,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui';
+import { EuiDescriptionList, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 
 import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import { GlobalConfigurationPanel } from './global-configuration-panel';

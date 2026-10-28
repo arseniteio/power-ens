@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
-import {
-  EuiButton,
-  EuiButtonEmpty,
-  EuiCallOut,
-  EuiFieldText,
-  EuiFormRow,
-  EuiSpacer,
-  EuiText,
-} from '@elastic/eui';
+import { EuiButton, EuiButtonEmpty, EuiCallOut, EuiFieldText, EuiFormRow, EuiSpacer, EuiText } from '@elastic/eui';
 
 import {
   buildClearedControlConfiguration,
   summarizeControlConfigurationReset,
 } from '../../../../common/ens/configuration/services/configuration-reset-service';
-import { updateActiveControlConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
+import {
+  updateActiveControlConfiguration,
+} from '../../../../common/ens/configuration/services/configuration-state-service';
 import type { ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 
 // Deletes the declared configuration of a control.

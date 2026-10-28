@@ -8,7 +8,11 @@ import {
   ENSParameterType,
 } from '../types';
 import { ENS_DIMENSION_LEVEL_KEYS } from '../../core/control-level';
-import { ENS_MATCH_MODES, validateAgentsConfigurationShape, validateCustomTemplatesShape } from '../../../agent-configuration';
+import {
+  ENS_MATCH_MODES,
+  validateAgentsConfigurationShape,
+  validateCustomTemplatesShape,
+} from '../../../agent-configuration';
 import { validateOrganizationDataShape } from '../organization/organization-data-shape';
 
 type UnknownRecord = Record<string, unknown>;

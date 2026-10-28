@@ -3,7 +3,10 @@ import { EuiFieldText, EuiFormRow, EuiSelect, EuiSpacer, EuiText } from '@elasti
 
 import type { ENSMatchMode } from '../../../../../common/agent-configuration';
 import type { ENSFormFieldProps } from '../types';
-import { compileParameterPattern, patternFromItems } from '../../../../../common/ens/configuration/services/parameter-pattern';
+import {
+  compileParameterPattern,
+  patternFromItems,
+} from '../../../../../common/ens/configuration/services/parameter-pattern';
 import {
   toParameterListItems,
   validateParameterValue,

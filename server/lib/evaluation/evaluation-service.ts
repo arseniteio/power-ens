@@ -10,7 +10,9 @@ import { buildMonitoringInventoryRequest, inventoryFromMonitoring } from '../../
 import { ENSCatalog } from '../../../common/ens/catalog';
 import { defaultENSConfigurationTemplate } from '../../../common/ens/configuration/data/default-configuration';
 import { ensConfigurationRepository } from '../../../common/ens/configuration/repository';
-import { assertENSConfigurationVersion } from '../../../common/ens/configuration/services/configuration-structure-validator';
+import {
+  assertENSConfigurationVersion,
+} from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
 import { normalizeOrganizationData } from '../../../common/ens/configuration/organization/organization-data-migration';
@@ -141,6 +143,8 @@ interface ENSEvaluationContext {
 interface CutPoint {
   status: string;
   score?: number;
+  // Machines with a verdict that day: tells a machine that got worse from one that stopped reporting.
+  machines?: number;
 }
 
 // Daily points of a row for a time zone and a today (`key`), by day-end instant.
@@ -471,7 +475,7 @@ export const createEvaluationService = ({
         traceabilityStored: own ? Math.min(own.traceabilityTotal, ENS_EVALUATION_LIMITS.traceabilityStored) : 0,
         traceabilityTotal: own?.traceabilityTotal || 0,
         rows: own ? [{ agentId: query.agentId, result: own.result }] : [],
-        pointAt: iso => (own ? own.cuts.points[iso] : null),
+        pointAt: iso => (own ? { ...(own.cuts.points[iso] || { status: 'NO_EVALUABLE' }), machines: own.cuts.points[iso] ? 1 : 0 } : null),
       };
     }
 
@@ -502,7 +506,8 @@ export const createEvaluationService = ({
             return { agentId: agent.id, agentName: agent.name, result: resultStatusStub(controlId, point?.status || 'NO_EVALUABLE', point?.score) };
           })
         );
-        return atCut ? { status: atCut.status, score: atCut.score } : null;
+        const machines = controlRows.filter(({ row }) => row.cuts.points[iso]).length;
+        return atCut ? { status: atCut.status, score: atCut.score, machines } : null;
       },
     };
   };
@@ -519,17 +524,20 @@ export const createEvaluationService = ({
       const base = { date: iso, label: cut.label, isCurrent: cut.isCurrent };
       if (query.controlId) {
         const view = views.get(query.controlId);
-        const at = cut.isCurrent ? view?.result : view?.pointAt(iso);
-        return { ...base, score: at?.score, status: at?.status || 'NO_EVALUABLE' };
+        if (cut.isCurrent) return { ...base, score: view?.result?.score, status: view?.result?.status || 'NO_EVALUABLE', events: view?.rows.length || 0 };
+        const at = view?.pointAt(iso);
+        return { ...base, score: at?.score, status: at?.status || 'NO_EVALUABLE', events: at?.machines || 0 };
       }
       if (cut.isCurrent) {
-        return { ...base, score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) };
+        const events = controls.reduce((n, controlId) => n + (views.get(controlId)?.rows.length || 0), 0);
+        return { ...base, events, score: state!.controlSummary.scoreAverage, controls: perControlOfResults(state!.results) };
       }
       const points = controls.map(controlId => views.get(controlId)?.pointAt(iso));
+      const events = points.reduce((n, point) => n + (point?.machines || 0), 0);
       const results = controls
         .map((controlId, i) => (points[i] ? resultStatusStub(controlId, points[i]!.status, points[i]!.score) : undefined))
         .filter((r): r is ENSComplianceResult => Boolean(r));
-      return { ...base, score: buildComplianceState(results).controlSummary.scoreAverage, controls: perControlOfPoint(controls, points) };
+      return { ...base, events, score: buildComplianceState(results).controlSummary.scoreAverage, controls: perControlOfPoint(controls, points) };
     });
 
   const run = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery, options: ENSRunOptions = {}) => {

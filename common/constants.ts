@@ -9,7 +9,7 @@ export const POWER_ENS_APP_CATEGORY = {
   id: 'wz-category-security-operations',
   label: 'Security operations',
   order: 400,
-  euiIconType: 'securityApp',
+  euiIconType: 'securityApp' as const,
 };
 
 const POWER_ENS_API_BASE = '/api/powerEns';

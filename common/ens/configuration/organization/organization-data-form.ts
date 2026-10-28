@@ -1,9 +1,5 @@
 // The item as a form field, whether a value is valid for every parameter that reads it, and its warnings.
-import type {
-  ENSAgentParameterValue,
-  ENSConfigurationVersion,
-  ENSControlParameter,
-} from '../types';
+import type { ENSAgentParameterValue, ENSConfigurationVersion, ENSControlParameter } from '../types';
 import {
   isEmptyParameterValue,
   toParameterTableRows,

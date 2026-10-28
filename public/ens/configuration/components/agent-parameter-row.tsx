@@ -12,7 +12,11 @@ import {
   EuiText,
 } from '@elastic/eui';
 
-import type { ENSAgentParameterValue, ENSControlParameter, ENSMatchMode } from '../../../../common/ens/configuration/types';
+import type {
+  ENSAgentParameterValue,
+  ENSControlParameter,
+  ENSMatchMode,
+} from '../../../../common/ens/configuration/types';
 import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 import { ParameterRendererFactory, parameterAnchorId } from '../form-engine';
 import {

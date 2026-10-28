@@ -158,7 +158,7 @@ export const AgentsTab = ({
       id,
       agent: inventoryAgent || { id, groups: [] },
       inScope: false,
-      detection: detectAgentSystem(inventoryAgent || { id }, data.facts[id]),
+      detection: detectAgentSystem(inventoryAgent || { id }),
     };
     return (
       <AgentConfigurationPage

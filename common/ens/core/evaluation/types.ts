@@ -61,10 +61,7 @@ export interface ENSNonConformity {
 }
 
 import { ENSLevel } from '../../configuration/types';
-import {
-  ENSEvidenceCategory,
-  ENSEvidenceCriticality,
-} from '../evidence/types';
+import { ENSEvidenceCategory, ENSEvidenceCriticality } from '../evidence/types';
 import { ENSDataSourceType } from '../data-source/types';
 
 export type ENSComplianceStatus =

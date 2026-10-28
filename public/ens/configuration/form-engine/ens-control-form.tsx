@@ -1,9 +1,6 @@
 import React from 'react';
 
-import {
-  ENSControlFormProps,
-  ParameterRendererFactory,
-} from '.';
+import { ENSControlFormProps, ParameterRendererFactory } from '.';
 import { findOrganizationDataLink } from '../../../../common/ens/configuration/organization/organization-data-items';
 import { OrganizationParameterRenderer } from './renderers/organization-parameter-renderer';
 

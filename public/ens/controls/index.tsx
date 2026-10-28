@@ -10,10 +10,7 @@ import { EuiFacetGroup, EuiIcon, EuiLink, EuiPage, EuiPanel, EuiSpacer, EuiText,
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';
-import {
-  getActiveControlConfiguration,
-  getActiveENSConfiguration,
-} from '../../../common/ens/configuration/services';
+import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../common/ens/core/control-level';

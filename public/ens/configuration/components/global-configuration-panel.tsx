@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   EuiButton,
   EuiCallOut,
@@ -15,9 +11,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import {
-  updateActiveGlobalConfiguration,
-} from '../../../../common/ens/configuration/services';
+import { updateActiveGlobalConfiguration } from '../../../../common/ens/configuration/services';
 import { ENSGlobalConfiguration } from '../../../../common/ens/configuration/types';
 import { ENSCatalog } from '../../../../common/ens/catalog';
 import type { ENSLevelDimension } from '../../../../common/ens/catalog/types';

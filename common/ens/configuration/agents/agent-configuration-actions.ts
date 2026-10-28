@@ -9,7 +9,13 @@ import type {
   ENSMatchMode,
   ENSSystemType,
 } from '../types';
-import { ENS_CUSTOM_TEMPLATE_KEYS, ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
+import {
+  ENS_CUSTOM_TEMPLATE_KEYS,
+  ENS_NO_TEMPLATE,
+  ENS_SYSTEM_TYPE_LABELS,
+  knownSystemType,
+  normalizeAgentId,
+} from '../../../agent-configuration';
 import { isEmptyParameterValue } from '../services/parameter-value-validator';
 import { ENSConfigurationRegistry, getENSControlConfiguration } from '../registry';
 import {

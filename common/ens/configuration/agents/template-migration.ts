@@ -1,16 +1,8 @@
 // Pins «none» and merges first-wins exactly where needed for every agent to resolve as in 1.2.0.
-import type {
-  ENSAgentProfile,
-  ENSConfigurationVersion,
-  ENSCustomTemplate,
-} from '../types';
+import type { ENSAgentProfile, ENSConfigurationVersion, ENSCustomTemplate } from '../types';
 import { ENS_NO_TEMPLATE, knownSystemType } from '../../../agent-configuration';
 import { ENS_PARAMETER_CLASSES } from './parameter-classes';
-import {
-  getPlatformSource,
-  getTypeDefaultTemplate,
-  hasTemplateParameters,
-} from '../templates';
+import { getPlatformSource, getTypeDefaultTemplate, hasTemplateParameters } from '../templates';
 import { cloneDocument } from './profile-identity';
 
 type ENSTemplateModelDocument = Pick<ENSConfigurationVersion, 'controls' | 'agents' | 'templates'>;

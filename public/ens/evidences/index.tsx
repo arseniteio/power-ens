@@ -23,24 +23,16 @@ import {
 } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../../common/ens/catalog';
-import { ENS_PENDING_MEASUREMENT_LABEL, isPendingMeasurement } from '../../../common/ens/catalog/support/measurement-plan';
-// Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
-import type {
-  ENSComplianceResult,
-  ENSGapCause,
-  ENSObservationGroup,
-} from '../../../common/ens/core/evaluation/types';
 import {
-  filterByENSPrefix,
-  listENSFamilies,
-  resolveENSSectionOpenState,
-} from '../control-filter/prefix';
+  ENS_PENDING_MEASUREMENT_LABEL,
+  isPendingMeasurement,
+} from '../../../common/ens/catalog/support/measurement-plan';
+// Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
+import type { ENSComplianceResult, ENSGapCause, ENSObservationGroup } from '../../../common/ens/core/evaluation/types';
+import { filterByENSPrefix, listENSFamilies, resolveENSSectionOpenState } from '../control-filter/prefix';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
 import type { MotiveLine } from '../controls/control-detail/motive-cell';
-import {
-  machinesLabel,
-  summarizeMotives,
-} from '../controls/control-detail/general-view';
+import { machinesLabel, summarizeMotives } from '../controls/control-detail/general-view';
 import { statusLabel } from '../../../common/ens/core/status-label';
 
 // A row of the evidences table. No `control` column: the section header says it.

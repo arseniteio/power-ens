@@ -1,7 +1,6 @@
 import type { ENSPlatformSource } from './types';
 
-// Standard Linux (Ubuntu) server. Proposed to agents with a Linux-family `os.platform` and no LDAP collector
-// facts.
+// Standard Linux (Ubuntu) server: the default of agents whose inventory `os.platform` is of the Linux family.
 
 const UBUNTU_SYSTEM_ACCOUNTS = [
   '_apt', 'backup', 'bin', 'daemon', 'dhcpcd', 'fwupd-refresh', 'games', 'irc',
@@ -32,30 +31,16 @@ const LINUX_CRITICAL_PATHS = [
   '/etc/login.defs',
 ];
 
-export const LINUX_SECURITY_CONFIGURATION_PATHS = [
-  '/etc/ssh', '/etc/pam.d', '/etc/security', '/etc/login.defs', '/etc/sudoers',
-  '/etc/sudoers.d', '/etc/audit', '/var/ossec/etc/ossec.conf',
-  '/etc/sysctl.conf', '/etc/sysctl.d', '/etc/apparmor', '/etc/apparmor.d',
-  '/etc/nftables.conf', '/etc/ufw', '/etc/iptables',
-];
-
-export const LINUX_AUDITABLE_EVENTS = [
-  'autenticación | sshd, sudo, auditd | 3',
-  'cambios de configuración | auditd | 5',
-];
-
-export const AUDITD_RECORD_FIELDS = 'auditd | auid | msg=audit(...) | exe, name | type | success, res';
-
 export const linuxUbuntuTemplate: ENSPlatformSource = {
   id: 'linux-ubuntu',
   label: 'Linux',
-  description: 'Ubuntu 22.04 y 24.04 con el agente de Wazuh y los recolectores de Power ENS. La lista de SUID es la de 22.04 y 24.04 juntas.',
+  description: 'Ubuntu 22.04 y 24.04 con el agente de Wazuh y el agente OSCompliance. La lista de SUID es la de 22.04 y 24.04 juntas.',
   kind: 'base',
   systemTypes: ['linux'],
   sources: [
     'op.acc.2-access-requirements/etc/opacc2.env.example (rutas críticas, grupos privilegiados, excepciones world-writable)',
     'ejemplos de los bloques semilla de config/',
-    'valores reales de un laboratorio con Ubuntu 22.04 y 24.04, sin lo que es de Zimbra, de Windows o de esa instalación',
+    'valores reales de un laboratorio con Ubuntu 22.04 y 24.04',
   ],
   values: {
     'op.acc.1': {
@@ -91,45 +76,6 @@ export const linuxUbuntuTemplate: ENSPlatformSource = {
       'P-07': ['ssh | si | Responsable de Seguridad | si'],
       'P-08': ['sudo'],
       'P-11': ['sshd:version_software'],
-    },
-    'op.exp.2': {
-      'P-03': [
-        'ubuntu | imagen cloud de Ubuntu',
-        'guest | cuenta de invitado',
-        'user | cuenta genérica de pruebas',
-        'test | cuenta de pruebas',
-        'demo | cuenta de demostración',
-      ],
-    },
-    'op.exp.3': {
-      'P-01': [
-        'wazuh-agent', 'jq', 'auditd', 'audispd-plugins', 'curl',
-        'libpam-pwquality', 'chrony', 'clamav', 'clamav-daemon',
-        'clamav-freshclam', 'clamdscan',
-      ],
-      'P-04': LINUX_SECURITY_CONFIGURATION_PATHS,
-    },
-    'op.exp.4': {
-      'P-03': [
-        'ubuntu | Ubuntu Security Notices y Vulnerability Detector | RSS',
-        'canonical | Snap Store y Ubuntu Security Notices | RSS',
-        'wazuh | Wazuh security advisories | GitHub',
-      ],
-      'P-05': ['Ubuntu | 24.04 | 2029-05-31', 'Ubuntu | 22.04 | 2027-06-01'],
-    },
-    'op.exp.6': {
-      'P-01': ['servidor | clamav | /var/log/clamav/clamav.log'],
-      'P-04': ['sistema | proteccion_tiempo_real | si'],
-      'P-07': ['* | /boot', '* | /usr/bin', '* | /usr/sbin', '* | /etc', '* | /lib/modules'],
-    },
-    'op.exp.8': {
-      'P-01': LINUX_AUDITABLE_EVENTS,
-      'P-03': [AUDITD_RECORD_FIELDS],
-      'P-08': ['root | total | todos', 'syslog | escritura | registros del sistema'],
-    },
-    'op.exp.10': {
-      'P-02': ['/etc/ssh | 600 | root'],
-      'P-08': ['root | claves de host SSH | total'],
     },
   },
 };

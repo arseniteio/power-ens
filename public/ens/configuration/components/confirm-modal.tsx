@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  EuiCallOut,
-  EuiConfirmModal,
-  EuiFieldText,
-  EuiFormRow,
-  EuiSpacer,
-} from '@elastic/eui';
+import { EuiCallOut, EuiConfirmModal, EuiFieldText, EuiFormRow, EuiSpacer } from '@elastic/eui';
 
 interface ConfirmModalProps {
   title: string;

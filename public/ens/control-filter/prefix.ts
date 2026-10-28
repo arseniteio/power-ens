@@ -4,8 +4,6 @@
 import { ENSPrefixFilterResult } from './types';
 import { compareENSFamiliesByAnnex } from '../../../common/ens/catalog';
 
-;
-
 const splitENSId = (id: string): string[] =>
   String(id).trim().toLowerCase().split('.');
 

@@ -1,7 +1,13 @@
 // A parsed motive (motive-parser.ts) rendered for reading: badges, lists, es-ES dates (ISO in `title`) and parameters linking to Configuración.
 import React, { useState } from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
-import { formatTimestamp, MotiveList, MotivePart, ParsedMotive, splitTimestamps } from '../../../../common/ens/evaluation/motive-parser';
+import {
+  formatTimestamp,
+  MotiveList,
+  MotivePart,
+  ParsedMotive,
+  splitTimestamps,
+} from '../../../../common/ens/evaluation/motive-parser';
 
 import { statusBadgeColor } from '../../status-colors';
 import { ENS_THEME } from '../../theme-colors';
@@ -23,6 +29,28 @@ export interface MotiveViewHandlers {
 }
 
 const VISIBLE_LIST_SIZE = 5;
+
+// A badge that is a link only when there is somewhere to go.
+export const LinkBadge = ({
+  onClick,
+  label,
+  children,
+  ...badge
+}: {
+  onClick?: () => void;
+  label: string;
+  children: React.ReactNode;
+  color: string;
+  iconType?: string;
+  title?: string;
+}) =>
+  onClick ? (
+    <EuiBadge {...badge} onClick={onClick} onClickAriaLabel={label}>
+      {children}
+    </EuiBadge>
+  ) : (
+    <EuiBadge {...badge}>{children}</EuiBadge>
+  );
 
 const WithDates = ({ texto: text }: { texto: string }) => (
   <>
@@ -86,15 +114,15 @@ export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: 
       const detail = info?.value !== undefined ? `${info.value}${info.origin ? ` (${info.origin})` : ''}` : undefined;
       return (
         <EuiFlexItem grow={false} key={parameter.id}>
-          <EuiBadge
+          <LinkBadge
             color='hollow'
             iconType='gear'
             title={detail ? `Valor que aplica: ${detail}` : `Configurar ${parameter.id}`}
             onClick={handlers.onParameter ? () => handlers.onParameter!(parameter.id) : undefined}
-            onClickAriaLabel={`Configurar ${parameter.id}`}
+            label={`Configurar ${parameter.id}`}
           >
             {text}
-          </EuiBadge>
+          </LinkBadge>
           {detail && (
             <EuiText size='xs' color='subdued'>
               <span>{`aplica: ${detail}`}</span>
@@ -112,13 +140,13 @@ const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePa
       <div style={{ marginBottom: 4 }}>
         {part.evidenceId && (
           <>
-            <EuiBadge
+            <LinkBadge
               color='hollow'
               onClick={handlers.onEvidence ? () => handlers.onEvidence!(part.evidenceId!) : undefined}
-              onClickAriaLabel={`Ver ${part.evidenceId} en Evidencias`}
+              label={`Ver ${part.evidenceId} en Evidencias`}
             >
               {part.evidenceId}
-            </EuiBadge>{' '}
+            </LinkBadge>{' '}
             <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
           </>
         )}

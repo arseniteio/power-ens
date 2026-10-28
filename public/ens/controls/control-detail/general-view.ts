@@ -1,8 +1,5 @@
 // Shape of the control detail overview: without a selected agent it answers what happens with the control, not with each machine.
-import type {
-  ENSAgentRef,
-  ENSObservationGroup,
-} from '../../../../common/ens/core/evaluation/types';
+import type { ENSAgentRef, ENSObservationGroup } from '../../../../common/ens/core/evaluation/types';
 
 // Distinct motives shown in a cell before counting the rest; the fourth would make the row scroll.
 const MAX_VISIBLE_MOTIVES = 3;

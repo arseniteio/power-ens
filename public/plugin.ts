@@ -17,7 +17,7 @@ export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEn
       title: POWER_ENS_APP_TITLE,
       order: POWER_ENS_APP_ORDER,
       category: POWER_ENS_APP_CATEGORY,
-      euiIconType: ensLogo,
+      icon: ensLogo,
       mount: async (params: AppMountParameters) => {
         const { renderApp } = await import('./application');
         const [coreStart, depsStart] = await core.getStartServices();

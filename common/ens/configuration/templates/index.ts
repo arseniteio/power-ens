@@ -10,21 +10,14 @@ import { getControlMeasurementPlanes } from '../../core/scope/measurement-planes
 import { ENS_PARAMETER_CLASSES, isAgentLevelParameter } from '../agents/parameter-classes';
 import type { ENSPlatformSource } from './types';
 import { linuxUbuntuTemplate } from './linux-ubuntu';
-import { zimbraLdapTemplate } from './zimbra-ldap';
 import { windowsServerTemplate } from './windows-server';
 import { managerWazuhTemplate } from './manager';
-import { pbsBackupTemplate } from './pbs-backup';
-import { zimbraNeBackupTemplate } from './zimbra-ne-backup';
 
-;
 
 const ENS_PLATFORM_SOURCES: ENSPlatformSource[] = [
   linuxUbuntuTemplate,
-  zimbraLdapTemplate,
   windowsServerTemplate,
   managerWazuhTemplate,
-  pbsBackupTemplate,
-  zimbraNeBackupTemplate,
 ];
 
 export interface ENSControlTemplate {

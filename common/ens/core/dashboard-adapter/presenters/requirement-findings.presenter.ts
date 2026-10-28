@@ -1,8 +1,5 @@
 import { ENSComplianceState } from '../../compliance-state/types';
-import {
-  RequirementFindingsModel,
-  RequirementFindingRowModel,
-} from '../models/requirement-findings.model';
+import { RequirementFindingsModel, RequirementFindingRowModel } from '../models/requirement-findings.model';
 import { scoreByStatus } from '../../evaluation/utils/score';
 
 const familyNames: Record<string, string> = {

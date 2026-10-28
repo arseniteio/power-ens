@@ -1,20 +1,15 @@
 import React from 'react';
-import {
-  EuiBadge,
-  EuiButton,
-  EuiHorizontalRule,
-  EuiPanel,
-  EuiSpacer,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui';
+import { EuiBadge, EuiButton, EuiHorizontalRule, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 
 import type {
   ENSConfigurationVersion,
   ENSControlConfiguration,
   ENSLevel,
 } from '../../../../common/ens/configuration/types';
-import { getParameterClass, isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
+import {
+  getParameterClass,
+  isAgentLevelParameter,
+} from '../../../../common/ens/configuration/agents/parameter-classes';
 import { hasTemplateParameters } from '../../../../common/ens/configuration/templates';
 import { useRouterSearch } from '../../../routing/use-router-search';
 import { ENSConfigurationTarget, parseConfigurationBack } from '../../../routing/configuration-link';

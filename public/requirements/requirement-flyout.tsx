@@ -119,7 +119,7 @@ export const RequirementFlyout = ({
           </p>
         </EuiText>
         <EuiSpacer size="s" />
-        <EuiBasicTable
+        <EuiBasicTable<FactRow>
           items={rows}
           itemId="id"
           columns={COLUMNS}

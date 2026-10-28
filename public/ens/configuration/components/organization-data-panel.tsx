@@ -33,7 +33,9 @@ import type {
   ENSOrganizationCandidate,
   ENSOrganizationItemState,
 } from '../../../../common/ens/configuration/organization/organization-data-migration';
-import { describeOrganizationDataView } from '../../../../common/ens/configuration/organization/organization-data-items';
+import {
+  describeOrganizationDataView,
+} from '../../../../common/ens/configuration/organization/organization-data-items';
 import {
   describeOrganizationChoice,
   organizationCrossChecks,

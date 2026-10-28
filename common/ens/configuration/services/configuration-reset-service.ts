@@ -5,10 +5,7 @@
 // the screen asks to type it.
 // `value` and its match mode are deleted; `defaultValue` stays (part of the parameter definition).
 // Types from the file, never from a high-level barrel.
-import type {
-  ENSControlConfiguration,
-  ENSControlParameter,
-} from '../types';
+import type { ENSControlConfiguration, ENSControlParameter } from '../types';
 import { isOrganizationDataParameter } from '../organization/organization-data-items';
 
 interface ENSConfigurationResetSummary {

@@ -1,6 +1,10 @@
 // Controls column and requirements column of the classic view, from the descriptions (ens-requirements.ts) and the counts.
 import { ENSCatalog, compareENSControlIdsByAnnex } from '../../common/ens/catalog';
-import { ENSProvenancedText, describeRequirementTexts, describeUncatalogedText } from '../../common/ens/catalog/support/provenance';
+import {
+  ENSProvenancedText,
+  describeRequirementTexts,
+  describeUncatalogedText,
+} from '../../common/ens/catalog/support/provenance';
 
 export interface ENSRequirementRow { id: string; control: string; description: string; count: number }
 interface ENSControlRow { id: string; count: number }

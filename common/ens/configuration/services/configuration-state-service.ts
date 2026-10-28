@@ -1,12 +1,5 @@
-import {
-  ENSConfigurationVersion,
-  ENSControlConfiguration,
-  ENSGlobalConfiguration,
-} from '../types';
-import {
-  ENSConfigurationHydrationState,
-  ensConfigurationRepository,
-} from '../repository';
+import { ENSConfigurationVersion, ENSControlConfiguration, ENSGlobalConfiguration } from '../types';
+import { ENSConfigurationHydrationState, ensConfigurationRepository } from '../repository';
 import {
   ENSConfigurationExpectedVersion,
   ENSConfigurationMetadata,
@@ -14,16 +7,10 @@ import {
   getENSConfiguration,
   saveENSConfiguration,
 } from './configuration-http-client';
-import {
-  assertENSConfigurationVersion,
-} from './configuration-structure-validator';
+import { assertENSConfigurationVersion } from './configuration-structure-validator';
 import { resolveControlConfigurationForAgent } from '../agents/configuration-resolver';
 import { describeNewLevelOptionIssues } from './level-options';
-import {
-  ENS_DIMENSION_LEVEL_KEYS,
-  ENS_DIMENSIONS,
-  describeDimensionsAboveENSLevel,
-} from '../../core/control-level';
+import { ENS_DIMENSION_LEVEL_KEYS, ENS_DIMENSIONS, describeDimensionsAboveENSLevel } from '../../core/control-level';
 import {
   ENSTemplateMigrationPlan,
   planTemplateMigration,

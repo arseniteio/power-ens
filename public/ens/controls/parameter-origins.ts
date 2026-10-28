@@ -1,5 +1,7 @@
 // The value a machine was evaluated with and its origin, from the configuration resolver. Without a machine, the aggregate view.
-import { resolveControlConfigurationWithOrigins } from '../../../common/ens/configuration/agents/configuration-resolver';
+import {
+  resolveControlConfigurationWithOrigins,
+} from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSResolvedValueOrigin } from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSConfigurationVersion, ENSMatchMode } from '../../../common/ens/configuration/types';
 

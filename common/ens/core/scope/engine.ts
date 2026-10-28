@@ -1,8 +1,5 @@
 import type { ENSConfigurationScope } from '../../configuration/types';
-import {
-  ENS_MANAGER_AGENT_ID,
-  isManagerAgentId,
-} from './measurement-planes';
+import { ENS_MANAGER_AGENT_ID, isManagerAgentId } from './measurement-planes';
 import { ENSAgentScope } from './types';
 
 const normalizeGroup = (group: string): string =>

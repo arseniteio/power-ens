@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  EuiBadge,
-  EuiBasicTable,
-  EuiButton,
-  EuiButtonEmpty,
-  EuiCallOut,
-  EuiSpacer,
-  EuiText,
-} from '@elastic/eui';
+import { EuiBadge, EuiBasicTable, EuiButton, EuiButtonEmpty, EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type {
@@ -20,7 +12,11 @@ import { ENSConfigurationRegistry, getENSControlConfiguration } from '../../../.
 import { resolveControlConfigurationState } from '../../../../common/ens/configuration/services/validation-engine';
 import { getBuiltinTemplates, getCustomTemplates } from '../../../../common/ens/configuration/templates';
 import { effectiveSystemType } from '../../../../common/ens/configuration/agents/system-detection';
-import { addMissingControls, getAgentGaps, getMissingCatalogControls } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
+import {
+  addMissingControls,
+  getAgentGaps,
+  getMissingCatalogControls,
+} from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { errorMessage } from './confirm-modal';

@@ -118,7 +118,7 @@ export const TemplateCorrespondencePanel = ({ controlId }: { controlId: string }
       <EuiTitle size='xxs'>
         <h4>{title}</h4>
       </EuiTitle>
-      <EuiBasicTable items={rows} columns={correspondenceColumns(oursName)} />
+      <EuiBasicTable<ENSTemplateCorrespondenceRow> items={rows} columns={correspondenceColumns(oursName)} />
     </>
   );
 

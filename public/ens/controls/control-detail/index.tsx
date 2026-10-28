@@ -23,13 +23,11 @@ import {
 import { ENSControl } from '../../types';
 // Import from the types file, never from the `../../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type { ENSObservationGroup } from '../../../../common/ens/core/evaluation/types';
+import { describeScope, machinesLabel, compliantRequirementLabel, summarizeMotives } from './general-view';
 import {
-  describeScope,
-  machinesLabel,
-  compliantRequirementLabel,
-  summarizeMotives,
-} from './general-view';
-import { getActiveControlConfiguration, getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
+  getActiveControlConfiguration,
+  getActiveENSConfiguration,
+} from '../../../../common/ens/configuration/services';
 import { ControlEvolutionChart } from './evolution-chart';
 import { MotiveCell } from './motive-cell';
 import { NonConformityCard } from './nonconformity-card';
@@ -48,8 +46,16 @@ import { detailConfigurationChanges } from '../../../routing/configuration-link'
 import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
-import { ENS_PROPOSAL_TEXT_PROVENANCE, describeAnnexSection, describeControlSource } from '../../../../common/ens/catalog/support/provenance';
-import { describeApplicableLevel, describeApplicableLevelLabel, describeControlAxis } from '../../../../common/ens/core/control-level';
+import {
+  ENS_PROPOSAL_TEXT_PROVENANCE,
+  describeAnnexSection,
+  describeControlSource,
+} from '../../../../common/ens/catalog/support/provenance';
+import {
+  describeApplicableLevel,
+  describeApplicableLevelLabel,
+  describeControlAxis,
+} from '../../../../common/ens/core/control-level';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
@@ -133,6 +139,7 @@ export const ControlDetailENS = ({
     () =>
       (data?.timeline || []).map(point => ({
         ...point,
+        status: point.status || 'NO_EVALUABLE',
         date: new Date(point.date),
       })),
     [data],
@@ -1528,7 +1535,7 @@ export const ControlDetailENS = ({
                 totalItemCount: traceabilityAvailable,
                 pageSizeOptions: [5, 10, 25, 50],
               }}
-              onChange={({ page }) => {
+              onChange={({ page }: { page?: { index: number; size: number } }) => {
                 if (page) {
                   setTracePageIndex(page.index);
                   setTracePageSize(page.size);
@@ -1642,7 +1649,7 @@ export const ControlDetailENS = ({
                   const scopeText =
                     nonConformity.cause === 'CATALOG'
                       ? 'Todas las máquinas · no depende de ninguna'
-                      : scope;
+                      : scope || '';
 
                   return (
                     <EuiFlexItem

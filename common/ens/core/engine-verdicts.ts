@@ -2,7 +2,10 @@ import { ENSCatalog } from '../catalog';
 import type { ENSControlDefinition, ENSRequirementDefinition } from '../catalog/types';
 import type { ENSLevel } from '../configuration/types';
 // From the files, not the `configuration/services` barrel (it drags `kibana-services` into the engine graph).
-import { getActiveControlConfiguration, getActiveENSConfiguration } from '../configuration/services/configuration-state-service';
+import {
+  getActiveControlConfiguration,
+  getActiveENSConfiguration,
+} from '../configuration/services/configuration-state-service';
 import { validateControlConfiguration } from '../configuration/services/validation-engine';
 import { resolveControlLevel } from './control-level';
 import { renderEngineMessage } from '../catalog/engine-messages';
@@ -15,8 +18,6 @@ import type {
   ENSNonConformity,
   ENSRequirementResult,
 } from './evaluation/types';
-
-;
 
 export interface ENSEngineVerdict {
   '@timestamp': string;
@@ -239,7 +240,7 @@ export const buildENSResultFromVerdicts = (
   };
 };
 
-// One point per day end: the latest control verdict of the day before it.
+// One point per day end with a verdict: the latest control verdict of the day before it.
 export const verdictSeriesPoints = (
   cutoffs: Date[],
   daily: ENSEngineVerdict[]
@@ -249,10 +250,10 @@ export const verdictSeriesPoints = (
     .filter(item => Number.isFinite(item.time))
     .sort((a, b) => a.time - b.time);
   return Object.fromEntries(
-    cutoffs.map(cutoff => {
+    cutoffs.flatMap(cutoff => {
       const end = cutoff.getTime();
       const last = ascending.filter(item => item.time <= end && item.time > end - 86400e3).pop()?.v;
-      return [cutoff.toISOString(), last ? { status: statusOfVerdict(last.status), score: last.score } : { status: 'NO_EVALUABLE' as const }];
+      return last ? [[cutoff.toISOString(), { status: statusOfVerdict(last.status), score: last.score }]] : [];
     })
   );
 };

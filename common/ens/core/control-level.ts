@@ -1,8 +1,5 @@
 import { ENSControlDefinition, ENSLevelDimension } from '../catalog/types';
-import {
-  ENSGlobalConfiguration,
-  ENSLevel,
-} from '../configuration/types';
+import { ENSGlobalConfiguration, ENSLevel } from '../configuration/types';
 
 type ENSDimensionLevelKey =
   | 'confidentialityLevel'

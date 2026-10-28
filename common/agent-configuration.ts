@@ -1,12 +1,11 @@
 // Top-level keys, not inside parameters: inject-control.py keeps only `value` and the validator only scalars and lists.
 
-export type ENSSystemType = 'linux' | 'zimbra-ldap' | 'windows' | 'manager';
+export type ENSSystemType = 'linux' | 'windows' | 'manager';
 
-export const ENS_SYSTEM_TYPES: ENSSystemType[] = ['linux', 'zimbra-ldap', 'windows', 'manager'];
+export const ENS_SYSTEM_TYPES: ENSSystemType[] = ['linux', 'windows', 'manager'];
 
 export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   linux: 'Linux',
-  'zimbra-ldap': 'Servidor LDAP',
   windows: 'Windows',
   manager: 'Manager Wazuh',
 };

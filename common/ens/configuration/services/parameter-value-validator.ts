@@ -1,9 +1,4 @@
-import {
-  ENSControlParameter,
-  ENSLevel,
-  ENSParameterColumn,
-  ENSParameterValueVerdict,
-} from '../types';
+import { ENSControlParameter, ENSLevel, ENSParameterColumn, ENSParameterValueVerdict } from '../types';
 import { ENS_MATCH_MODES } from '../../../agent-configuration';
 import { compileParameterPattern } from './parameter-pattern';
 import { supportsParameterPattern } from './parameter-input';

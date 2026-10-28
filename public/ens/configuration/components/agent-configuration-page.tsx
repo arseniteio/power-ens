@@ -24,11 +24,7 @@ import type {
   ENSMatchMode,
   ENSSystemType,
 } from '../../../../common/ens/configuration/types';
-import {
-  ENS_NO_TEMPLATE,
-  ENS_SYSTEM_TYPES,
-  ENS_SYSTEM_TYPE_LABELS,
-} from '../../../../common/agent-configuration';
+import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPES, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { parseConfigurationBack } from '../../../routing/configuration-link';
 import { useRouterSearch } from '../../../routing/use-router-search';
@@ -42,7 +38,7 @@ import {
   resolveControlConfigurationWithOrigins,
 } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import { getParameterClass } from '../../../../common/ens/configuration/agents/parameter-classes';
-import { effectiveSystemType, proposedTemplates } from '../../../../common/ens/configuration/agents/system-detection';
+import { effectiveSystemType } from '../../../../common/ens/configuration/agents/system-detection';
 import {
   ENSAgentChangePreview,
   ENSAssignmentPreview,
@@ -470,7 +466,6 @@ export const AgentConfigurationPage = ({
         const assigned = current.assignedId;
         const value = choices[control.controlId] ?? (assigned === undefined ? BY_TYPE : assigned);
         const typeDefault = getTypeDefaultTemplate(control.controlId, storedType);
-        const proposals = proposedTemplates(control.controlId, row.detection);
         const templateLabel = current.template
           ? `${current.template.name}${current.via === 'type' ? ' (de serie)' : ''}`
           : assigned === undefined && !typeLabel.stored
@@ -501,7 +496,7 @@ export const AgentConfigurationPage = ({
                         { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
                         ...templates.map(template => ({
                           value: template.id,
-                          text: `${template.name}${template.builtin ? ' (de serie)' : ''}${proposals.includes(template.id) ? ' (propuesta por sus datos)' : ''}`,
+                          text: `${template.name}${template.builtin ? ' (de serie)' : ''}`,
                         })),
                         { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
                         ...(assigned && assigned !== ENS_NO_TEMPLATE && !templates.some(template => template.id === assigned)

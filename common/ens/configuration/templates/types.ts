@@ -1,7 +1,4 @@
-import type {
-  ENSAgentParameterValue,
-  ENSSystemType,
-} from '../../../agent-configuration';
+import type { ENSAgentParameterValue, ENSSystemType } from '../../../agent-configuration';
 
 // Only grounded values (seed block, runbook example or lab without installation data): the rest stays unset.
 export interface ENSPlatformSource {

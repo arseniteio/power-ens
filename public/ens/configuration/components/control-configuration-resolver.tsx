@@ -1,24 +1,13 @@
 import React, { useState } from 'react';
-import {
-  EuiBadge,
-  EuiButton,
-  EuiPanel,
-  EuiSpacer,
-  EuiText,
-} from '@elastic/eui';
+import { EuiBadge, EuiButton, EuiPanel, EuiSpacer, EuiText } from '@elastic/eui';
 
 import {
   ENSControlConfigurationState,
   ENSControlConfigurationStateStatus,
   resolveControlConfigurationState,
 } from '../../../../common/ens/configuration/services';
-import {
-  ENSControlConfiguration,
-  ENSLevel,
-} from '../../../../common/ens/configuration/types';
-import {
-  ConfigurationSession,
-} from '../sessions';
+import { ENSControlConfiguration, ENSLevel } from '../../../../common/ens/configuration/types';
+import { ConfigurationSession } from '../sessions';
 
 interface ControlConfigurationResolverProps {
   control: ENSControlConfiguration;

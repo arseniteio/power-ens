@@ -2,10 +2,7 @@
 import { ENSComplianceState } from '../../compliance-state/types';
 // `import type`: only a type; as a value it would drag the whole engine into this presenter. See the header of `dashboard-adapter.ts`.
 import type { ENSComplianceTimelinePoint } from '../../timeline/compliance-timeline';
-import {
-  EvolutionModel,
-  EvolutionRowModel,
-} from '../models/evolution.model';
+import { EvolutionModel, EvolutionRowModel } from '../models/evolution.model';
 
 export const buildEvolutionModel = (
   complianceState: ENSComplianceState,

@@ -1,7 +1,11 @@
-import type { ENSAgentParameterValue, ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
+import type {
+  ENSAgentParameterValue,
+  ENSAgentsConfiguration,
+  ENSCustomTemplate,
+  ENSMatchMode,
+} from '../../../agent-configuration';
 
 export type {
-  
   ENSAgentParameterValue,
   ENSAgentProfile,
   ENSAgentsConfiguration,

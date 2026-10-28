@@ -1,8 +1,4 @@
-import React, {
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   EuiBadge,
   EuiButton,
@@ -26,10 +22,7 @@ import { summarizeTemplateMigration } from '../../../../common/ens/configuration
 import { ENSLevel } from '../../../../common/ens/configuration/types';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../../common/ens/core/control-level';
-import {
-  useRouterSearch,
-  useSetRouterSearch,
-} from '../../../routing/use-router-search';
+import { useRouterSearch, useSetRouterSearch } from '../../../routing/use-router-search';
 import {
   ENSConfigurationTarget,
   configurationBackChanges,

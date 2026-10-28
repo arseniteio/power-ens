@@ -9,11 +9,7 @@ import type {
   ENSSystemType,
 } from '../types';
 import { ENS_NO_TEMPLATE, knownSystemType, normalizeAgentId } from '../../../agent-configuration';
-import {
-  toParameterListItems,
-  toParameterTableRows,
-  toTableRowCells,
-} from '../services/parameter-value-validator';
+import { toParameterListItems, toParameterTableRows, toTableRowCells } from '../services/parameter-value-validator';
 import { withMatchMode } from '../services/parameter-pattern';
 import { getENSCatalogControl } from '../../catalog';
 import type { ENSControlDefinition } from '../../catalog/types';

@@ -29,11 +29,16 @@ import {
   ParsedMotive,
   partToText,
 } from '../../../../common/ens/evaluation/motive-parser';
-import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadgeColor } from './motive-view';
+import {
+  LinkBadge,
+  MotiveText,
+  MotiveView,
+  MotiveViewHandlers,
+  ParameterBadges,
+  statusBadgeColor,
+} from './motive-view';
 import { ENS_THEME } from '../../theme-colors';
 import { statusLabel } from '../../../../common/ens/core/status-label';
-
-;
 
 interface NonConformityItem {
   id: string;
@@ -222,13 +227,13 @@ export const NonConformityCard = ({
           <p style={{ marginBottom: 0 }}>
             {culprit?.evidenceId && (
               <>
-                <EuiBadge
+                <LinkBadge
                   color='hollow'
                   onClick={handlers.onEvidence ? () => handlers.onEvidence!(culprit.evidenceId!) : undefined}
-                  onClickAriaLabel={`Ver ${culprit.evidenceId} en Evidencias`}
+                  label={`Ver ${culprit.evidenceId} en Evidencias`}
                 >
                   <strong>{culprit.evidenceId}</strong>
-                </EuiBadge>{' '}
+                </LinkBadge>{' '}
                 <EuiBadge color={statusBadgeColor(culprit.status)}>{statusLabel(culprit.status)}</EuiBadge>{' '}
               </>
             )}
@@ -272,13 +277,13 @@ export const NonConformityCard = ({
             {reading.otrasNoConformes.map((part, i) => (
               <EuiText size='xs' key={`${part.evidenceId}-${i}`}>
                 <p style={{ marginBottom: 2 }}>
-                  <EuiBadge
+                  <LinkBadge
                     color='hollow'
                     onClick={handlers.onEvidence && part.evidenceId ? () => handlers.onEvidence!(part.evidenceId!) : undefined}
-                    onClickAriaLabel={`Ver ${part.evidenceId} en Evidencias`}
+                    label={`Ver ${part.evidenceId} en Evidencias`}
                   >
                     {part.evidenceId}
-                  </EuiBadge>{' '}
+                  </LinkBadge>{' '}
                   <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
                   <MotiveText texto={part.summary} />
                 </p>

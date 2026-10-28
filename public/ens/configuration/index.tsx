@@ -1,26 +1,10 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import {
-  EuiButton,
-  EuiCallOut,
-  EuiPage,
-  EuiSpacer,
-} from '@elastic/eui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { EuiButton, EuiCallOut, EuiPage, EuiSpacer } from '@elastic/eui';
 
 import { LoadingSpinner } from '../../platform/loading-spinner';
 import { loadENSAgentInventory } from '../../agents/load-agent-inventory';
-import type {
-  ENSAgentScope,
-} from '../../../common/ens/core/scope';
-import {
-  getENSScopeHydrationState,
-  hydrateENSScope,
-  retryENSScopeHydration,
-} from '../../../common/ens/core/scope';
+import type { ENSAgentScope } from '../../../common/ens/core/scope';
+import { getENSScopeHydrationState, hydrateENSScope, retryENSScopeHydration } from '../../../common/ens/core/scope';
 
 import {
   getENSConfigurationHydrationState,

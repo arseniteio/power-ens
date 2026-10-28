@@ -16,7 +16,10 @@ import {
   validateCustomTemplatesShape,
 } from '../../common/agent-configuration';
 import { validateOrganizationDataShape } from '../../common/ens/configuration/organization/organization-data-shape';
-import { describeOrganizationFills, normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
+import {
+  describeOrganizationFills,
+  normalizeOrganizationData,
+} from '../../common/ens/configuration/organization/organization-data-migration';
 import { describeNewLevelOptionIssues } from '../../common/ens/configuration/services/level-options';
 
 interface Options {

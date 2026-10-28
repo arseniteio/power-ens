@@ -30,7 +30,8 @@ export interface ENSEvaluationTimelinePoint {
   date: string;
   label: string;
   isCurrent: boolean;
-  events?: number;
+  // Machines with a verdict that day (a set view: summed over its controls).
+  events: number;
   score?: number;
   status?: string;
   // Without control (list, panel, overview): each control's state that day in the view (the overview's per-control trend).

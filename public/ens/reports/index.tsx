@@ -1,9 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import {
-  EuiPanel, EuiTitle, EuiText, EuiSpacer, EuiFlexGroup, EuiFlexItem,
-  EuiBadge, EuiHealth, EuiBasicTable, EuiButton, EuiHorizontalRule,
-  EuiButtonIcon, EuiAccordion, EuiButtonEmpty, EuiCallOut, EuiFieldSearch,
-  EuiFilterGroup, EuiFilterButton, EuiStat,
+  EuiPanel,
+  EuiTitle,
+  EuiText,
+  EuiSpacer,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiBadge,
+  EuiHealth,
+  EuiBasicTable,
+  EuiButton,
+  EuiHorizontalRule,
+  EuiButtonIcon,
+  EuiAccordion,
+  EuiButtonEmpty,
+  EuiCallOut,
+  EuiFieldSearch,
+  EuiFilterGroup,
+  EuiFilterButton,
+  EuiStat,
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
@@ -16,16 +31,10 @@ import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measu
 import { canExportReport, reportViewState } from './report-view-state';
 import { describeParameterForMachine } from '../controls/parameter-origins';
 // Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
-import type {
-  ENSComplianceResult,
-  ENSRequirementResult,
-} from '../../../common/ens/core/evaluation/types';
+import type { ENSComplianceResult, ENSRequirementResult } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
-import {
-  getENSReportModelDefinition,
-  listENSControlsWithoutReportModel,
-} from './registry';
+import { getENSReportModelDefinition, listENSControlsWithoutReportModel } from './registry';
 import type { ENSReportModelDefinition } from './registry';
 import type { ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import {
@@ -38,7 +47,11 @@ import {
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
-import { ProvenanceLabel, ProvenancedText, TemplateCorrespondencePanel } from '../controls/control-detail/requirement-texts';
+import {
+  ProvenanceLabel,
+  ProvenancedText,
+  TemplateCorrespondencePanel,
+} from '../controls/control-detail/requirement-texts';
 import { ENS_PROPOSAL_TEXT_PROVENANCE } from '../../../common/ens/catalog/support/provenance';
 import {
   REPORT_CRITERION_NOTE,
@@ -50,16 +63,12 @@ import {
   reportRequirementTexts,
 } from './report-provenance';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
-import {
-  filterByENSPrefix,
-  listENSFamilies,
-  resolveENSSectionOpenState,
-} from '../control-filter/prefix';
+import { filterByENSPrefix, listENSFamilies, resolveENSSectionOpenState } from '../control-filter/prefix';
 import { statusLabel } from '../../../common/ens/core/status-label';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
-const fmt = (iso) => {
+const fmt = (iso?: string) => {
   if (!iso || iso === '-') return '-';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -180,7 +189,7 @@ const ControlReport = ({
     ? (evidenceAgent?.agentName || evidenceAgent?.agentId || `Agente ${agentId}`)
     : 'Todos los agentes';
 
-  const formatPercent = (value) => (value !== null ? value + '%' : 'N/A');
+  const formatPercent = (value: number | null) => (value !== null ? value + '%' : 'N/A');
 
   const provenText =
     engineApplicable === null
@@ -245,7 +254,7 @@ const ControlReport = ({
     texts: reportRequirementTexts(controlId, requirement.id),
   }));
 
-  const formatParameterValue = (value, matchMode?: string) => {
+  const formatParameterValue = (value: unknown, matchMode?: string) => {
     if (matchMode === 'regex' && typeof value === 'string' && value) {
       return `Expresión regular: ${value}`;
     }
@@ -278,7 +287,7 @@ const ControlReport = ({
         : '',
   }));
 
-  const parameterBadgeColor = (status) =>
+  const parameterBadgeColor = (status: string) =>
     status === 'CONFIGURED'
       ? 'success'
       : status === 'NOT_APPLICABLE'
@@ -287,7 +296,7 @@ const ControlReport = ({
       ? 'danger'
       : 'warning';
 
-  const parameterPdfColor = (status) =>
+  const parameterPdfColor = (status: string) =>
     status === 'CONFIGURED'
       ? '#4caf50'
       : status === 'INVALID'
@@ -526,7 +535,7 @@ const ControlReport = ({
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [40, 60, 40, 60],
-      footer: (currentPage, pageCount) => ({
+      footer: (currentPage: number, pageCount: number) => ({
         columns: [
           { text: 'Power ENS sobre Wazuh', alignment: 'left', fontSize: 7, color: '#999', margin: [40, 0, 0, 0] },
           { text: currentPage + ' / ' + pageCount, alignment: 'right', fontSize: 7, color: '#999', margin: [0, 0, 40, 0] },

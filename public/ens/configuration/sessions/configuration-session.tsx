@@ -1,13 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  EuiAccordion,
-  EuiButton,
-  EuiCallOut,
-  EuiPanel,
-  EuiSpacer,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui';
+import { EuiAccordion, EuiButton, EuiCallOut, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 
 import { ENSControlForm, parameterAnchorId } from '../form-engine';
 import { applyENSControlParameterValues } from '../engine';

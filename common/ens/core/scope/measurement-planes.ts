@@ -1,13 +1,7 @@
-import type {
-  ENSControlDefinition,
-  ENSMeasurementPlane,
-} from '../../catalog/types';
+import type { ENSControlDefinition, ENSMeasurementPlane } from '../../catalog/types';
 import type { ENSControlConfiguration } from '../../configuration/types';
 // From the file, not the `configuration/services` barrel (it drags `kibana-services` into the engine graph).
-import {
-  toParameterListItems,
-  toTableRowCells,
-} from '../../configuration/services/parameter-value-validator';
+import { toParameterListItems, toTableRowCells } from '../../configuration/services/parameter-value-validator';
 import { ENSAgentScope } from './types';
 
 // Measurement planes: where each control is measured. The ENS scope is resolved by the `ens` group, and the Wazuh manager (agent 000) cannot be in a group. Some controls are measured ONLY on the manager (op.exp.7, op.exp.9) and one on both planes (op.exp.8),

@@ -1,10 +1,7 @@
 import type { ENSConfigurationScope } from '../../configuration/types';
 import { ENSCatalog } from '../../catalog';
 import { resolveAgentsByConfigurationScope } from './engine';
-import {
-  applyManagerPlaneToScope,
-  isManagerPlaneActive,
-} from './measurement-planes';
+import { applyManagerPlaneToScope, isManagerPlaneActive } from './measurement-planes';
 import { ENSAgentScope } from './types';
 
 type ENSScopeHydrationStatus = 'NOT_STARTED' | 'LOADING' | 'READY' | 'ERROR';

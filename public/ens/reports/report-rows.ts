@@ -1,9 +1,5 @@
 /** Rows of the 'Campos del informe' table, on screen and in the signed PDF. Keys live in a type, so reading a missing key is a compile error. */
-import type {
-  ENSReportField,
-  ENSReportFieldStatus,
-  ENSReportModel,
-} from './registry';
+import type { ENSReportField, ENSReportFieldStatus, ENSReportModel } from './registry';
 
 export interface ENSReportRow {
   campo: string;
