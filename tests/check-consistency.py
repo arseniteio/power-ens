@@ -122,7 +122,7 @@ def catalog_states():
             entry = json.load(f)
         states[entry["control"]] = entry["status"]
     for file in sorted(os.listdir(folder)):
-        if not file.endswith(".ts") or file in ("index.ts", "types.ts", "engine-catalog.ts"):
+        if not file.endswith(".ts") or file in ("index.ts", "types.ts", "engine-catalog.ts", "engine-messages.ts"):
             continue
         with open(os.path.join(folder, file), encoding="utf-8") as f:
             text = f.read()

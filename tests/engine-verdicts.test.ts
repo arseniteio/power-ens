@@ -24,6 +24,7 @@ const pass = (agentId: string, name: string, at: string, evidence06: string) => 
   verdict({ '@timestamp': at, scope: 'requirement', control: 'op.acc.1', requirement: 'op.acc.1.r1.3', agent: { id: agentId, name }, status: 'NON_COMPLIANT', evidenced: false, reason: 'not evidenced: EV-07 (CONFIGURATION)' }),
   verdict({ '@timestamp': at, scope: 'evidence', control: 'op.acc.1', evidence: 'EV-06', agent: { id: agentId, name }, status: evidence06, reason: 'no separate admin identity: ubuntu (sudo)' }),
   verdict({ '@timestamp': at, scope: 'evidence', control: 'op.acc.1', evidence: 'EV-07', agent: { id: agentId, name }, status: 'NOT_EVALUABLE', cause: 'CONFIGURATION', reason: 'P-07: not set' }),
+  verdict({ '@timestamp': at, scope: 'evidence', control: 'op.acc.1', evidence: 'EV-01', agent: { id: agentId, name }, status: 'NOT_APPLICABLE', reason: 'op.acc.1 is disabled in the configuration', reason_code: 'evidence.control_disabled', reason_args: { control: 'op.acc.1' } }),
 ];
 
 const monitor = (id: string, name: string): FakeDoc => ({
@@ -50,6 +51,7 @@ const logger: any = { info() {}, warn() {}, debug() {}, error() {} };
   const result = sheet.views.get('op.acc.1')!.result!;
   check('the control status and score are the engine\'s latest pass', result.status === 'PARCIAL' && result.score === 75, [result.status, result.score]);
   check('each requirement carries its verdict', result.requirements.find(r => r.id === 'op.acc.1.2')?.status === 'NO_CUMPLE' && result.requirements.find(r => r.id === 'op.acc.1.1')?.status === 'CUMPLE');
+  check('a reason with a code is shown in Spanish', result.evidences.find(e => e.id === 'EV-01')!.observations[0] === 'op.acc.1 está desactivado en la configuración', result.evidences.find(e => e.id === 'EV-01')!.observations);
   check('each evidence carries its verdict and reason', result.evidences.find(e => e.id === 'EV-06')?.status === 'NO_CUMPLE' && result.evidences.find(e => e.id === 'EV-06')!.observations[0].includes('ubuntu'));
   const measured = result.nonConformities.find(nc => nc.requirementId === 'op.acc.1.2');
   check('a measured failure opens a MEDIDA non-conformity on its evidence', measured?.origin === 'MEDIDA' && measured.evidenceIds.join() === 'EV-06', measured);

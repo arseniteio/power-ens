@@ -1,4 +1,5 @@
-// Copies the engine catalog of the controls it judges and writes their seed blocks from it.
+// Copies the engine catalog of the controls it judges, and the Spanish texts of its reasons, and writes their
+// seed blocks from it.
 //
 //   CORE_SRC=../oscompliance-ens npx tsx config/sync-catalog.ts
 //
@@ -16,6 +17,7 @@ const source = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens
 for (const name of readdirSync(vendored).filter(file => file.endsWith('.json'))) {
   copyFileSync(join(source, name), join(vendored, name));
 }
+copyFileSync(join(source, '..', '..', 'messages', 'es.json'), join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json'));
 
 // Imported after the copy so the blocks come from the files just copied.
 const { ENGINE_CATALOG, controlBlockOf } = require('../common/ens/catalog/engine-catalog');

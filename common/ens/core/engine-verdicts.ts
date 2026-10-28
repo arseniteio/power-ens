@@ -5,6 +5,7 @@ import type { ENSLevel } from '../configuration/types';
 import { getActiveControlConfiguration, getActiveENSConfiguration } from '../configuration/services/configuration-state-service';
 import { validateControlConfiguration } from '../configuration/services/validation-engine';
 import { resolveControlLevel } from './control-level';
+import { renderEngineMessage } from '../catalog/engine-messages';
 import { getEvidenceDefinitions } from './evidence/registry';
 import type {
   ENSComplianceResult,
@@ -27,6 +28,8 @@ export interface ENSEngineVerdict {
   status: string;
   cause?: string;
   reason?: string;
+  reason_code?: string;
+  reason_args?: Record<string, unknown>;
   evidenced?: boolean;
   attested?: boolean;
   score?: number;
@@ -43,6 +46,10 @@ const STATUS: Record<string, ENSComplianceStatus> = {
   NOT_EVALUABLE: 'NO_EVALUABLE',
   NOT_APPLICABLE: 'NO_APLICA',
 };
+
+// What the reader sees: the engine's message in Spanish, or its English text when the reason has no code yet.
+export const reasonOf = (verdict?: ENSEngineVerdict): string | undefined =>
+  verdict && (renderEngineMessage(verdict.reason_code, verdict.reason_args) ?? verdict.reason);
 
 export const statusOfVerdict = (status?: string): ENSComplianceStatus => (status && STATUS[status]) || 'NO_EVALUABLE';
 
@@ -100,7 +107,7 @@ export const buildENSResultFromVerdicts = (
       controlId,
       status: verdict ? statusOfVerdict(verdict.status) : 'NO_EVALUABLE',
       description: definition.description,
-      observations: [verdict?.reason || noVerdict],
+      observations: [reasonOf(verdict) || noVerdict],
       requirements: definition.requirements,
       levels: definition.levels,
       category: definition.category,
@@ -128,7 +135,7 @@ export const buildENSResultFromVerdicts = (
       evidenced: verdict ? verdict.evidenced === true : false,
       ...(verdict?.attested ? { attested: true } : {}),
       score: status === 'CUMPLE' ? 100 : 0,
-      observations: [verdict?.reason || (applicable ? noVerdict : requirement.applicability.reason || `No aplica en nivel ${level}.`)],
+      observations: [reasonOf(verdict) || (applicable ? noVerdict : requirement.applicability.reason || `No aplica en nivel ${level}.`)],
       evidenceIds: requirement.evidenceIds,
     };
   });
@@ -146,7 +153,7 @@ export const buildENSResultFromVerdicts = (
           id,
           evidenceId: against[0]?.evidence || definition.evidenceIds[0] || 'ENS',
           requirementId: requirement.id,
-          finding: against.map(v => `${v.evidence}: ${v.reason}`).join('; ') || requirement.observations[0],
+          finding: against.map(v => `${v.evidence}: ${reasonOf(v)}`).join('; ') || requirement.observations[0],
           impact: `Impide cumplir ${controlId} en nivel ${level}.`,
           requiredAction: `Corregir en la máquina lo que señala ${against.map(v => v.evidence).join(', ') || requirement.id}.`,
           origin: 'MEDIDA' as const,
@@ -161,7 +168,7 @@ export const buildENSResultFromVerdicts = (
         id,
         evidenceId: pending[0]?.evidence || (cause === 'CONFIGURATION' ? 'CONFIG' : 'ENS'),
         requirementId: requirement.id,
-        finding: pending.map(v => `${v.evidence}: ${v.reason}`).join('; ') || requirement.observations[0],
+        finding: pending.map(v => `${v.evidence}: ${reasonOf(v)}`).join('; ') || requirement.observations[0],
         impact: `Sin prueba no se puede dar por cumplido ${controlId} en nivel ${level}.`,
         requiredAction: ACTION_BY_CAUSE[cause],
         origin: 'NO_EVIDENCIADA' as const,
@@ -212,7 +219,7 @@ export const buildENSResultFromVerdicts = (
     missingEvidences: evidences.filter(evidence => evidence.status === 'NO_EVALUABLE').map(evidence => evidence.id),
     relatedRules: [...new Set(evidences.flatMap(evidence => evidence.relatedRules))],
     nonConformities,
-    observations: [controlVerdict?.reason || noVerdict],
+    observations: [reasonOf(controlVerdict) || noVerdict],
     traceability: [
       { source: 'CATALOG', reference: controlId, description: 'Definición del control ENS.', controlId },
       ...verdicts
@@ -220,7 +227,7 @@ export const buildENSResultFromVerdicts = (
         .map(v => ({
           source: 'EVIDENCE' as const,
           reference: v.evidence as string,
-          description: v.reason || '',
+          description: reasonOf(v) || '',
           controlId,
           evidenceId: v.evidence,
           status: statusOfVerdict(v.status),

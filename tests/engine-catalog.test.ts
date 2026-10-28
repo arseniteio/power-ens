@@ -24,6 +24,8 @@ const core = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens')
 if (existsSync(core)) {
   const drifted = files.filter(file => readFileSync(join(vendored, file), 'utf8') !== readFileSync(join(core, file), 'utf8'));
   check('the copy is byte for byte the oscompliance-ens catalog (config/sync-catalog.ts)', drifted.length === 0, drifted);
+  const texts = join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json');
+  check('so are the Spanish texts of its reasons', readFileSync(texts, 'utf8') === readFileSync(join(core, '..', '..', 'messages', 'es.json'), 'utf8'));
 } else {
   console.log(`  skip the oscompliance-ens catalog is not at ${core}`);
 }

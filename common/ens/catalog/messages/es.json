@@ -1,0 +1,22 @@
+{
+  "cause.COLLECTION": "sin recogida",
+  "cause.CONFIGURATION": "sin configurar",
+  "cause.EVIDENCE": "evidencia insuficiente",
+  "requirement.control_disabled": "control desactivado en la configuración",
+  "requirement.declared_out_of_level": "{reason}",
+  "requirement.out_of_level": "rige en {levels}; nivel ENS activo {level}",
+  "requirement.attested": "acreditado documentalmente: {reference}",
+  "requirement.no_attestation": "no demostrado: no hay evidencia técnica ni atestación P-ATT con referencia y enlace válido",
+  "requirement.evidence_cause": "{evidence} ({cause})",
+  "requirement.non_compliant": "no cumple: {evidences}",
+  "requirement.not_evidenced": "no demostrado: {evidences}",
+  "requirement.compliant": "cumple: {evidences}",
+  "requirement.none_applies": "no demostrado: no aplica ninguna de {evidences}",
+  "requirement.decision_gap_cause": "no demostrado ({cause}): {reason}",
+  "requirement.decision_gap": "no demostrado: {reason}",
+  "control.none_applies": "no aplica ningún requisito",
+  "control.disabled": "control desactivado en la configuración",
+  "control.summary": "{compliant} de {applicable} requisitos aplicables cumplen; {measured} medidos",
+  "evidence.control_disabled": "{control} está desactivado en la configuración",
+  "evidence.out_of_level": "{evidence} rige en {levels}; nivel ENS activo {level}"
+}
