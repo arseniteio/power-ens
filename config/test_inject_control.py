@@ -177,7 +177,7 @@ def main():
                   "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
 
         # --- the per-system layer (1.2.0) survives seeding
-        agents_doc = {"028": {"templates": ["zimbra-ldap"],
+        agents_doc = {"028": {"templates": ["windows-server"],
                            "controls": {"op.acc.1": {"parameters": {"P-07": ["u | s | r"], "P-99": "x"}}}}}
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))],
                                            "agents": json.loads(json.dumps(agents_doc))},

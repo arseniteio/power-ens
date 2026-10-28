@@ -1,34 +1,11 @@
 import type { ENSControlParameter } from '../types';
-import { ENSEvidenceCatalog } from '../../core/evidence/catalog';
-import { isEngineJudged } from '../../core/engine-judged';
 import { engineCatalogEntry } from '../../catalog/engine-catalog';
 
-const PATTERN_PRIMITIVES = ['NINGUNO_EN_LISTA', 'TODOS_EN_LISTA', 'NINGUNO_FUERA_DE_LISTA'];
-
-const flatListJudgments = (parameter: Pick<ENSControlParameter, 'controlId' | 'id'>) =>
-  ENSEvidenceCatalog.filter(
-    evidence =>
-      evidence.controlId === parameter.controlId &&
-      evidence.judgment?.parameterId === parameter.id &&
-      !evidence.judgment.parameterColumn &&
-      PATTERN_PRIMITIVES.includes(evidence.judgment.primitive)
-  );
-
-// Patterns only where the engine compares whole values with a flat list; a table, a threshold or a document has another contract.
-// The OSCompliance engine declares them in its catalog (`pattern`).
+// Patterns only where the engine compares whole values with a flat list; its catalog declares them (`pattern`).
 export const supportsParameterPattern = (parameter: Pick<ENSControlParameter, 'controlId' | 'id' | 'type' | 'columns'>): boolean =>
   ['list', 'string'].includes(parameter.type) &&
   !parameter.columns?.length &&
-  (isEngineJudged(parameter.controlId)
-    ? engineCatalogEntry(parameter.controlId).parameters[parameter.id]?.pattern === true
-    : flatListJudgments(parameter).length > 0);
-
-// «Texto exacto» on a forbidden list ignores case, in the engine and in judgment.ts; its regex proposal must too.
-export const ignoresCaseInExactMode = (parameter: Pick<ENSControlParameter, 'controlId' | 'id'>): boolean => {
-  if (isEngineJudged(parameter.controlId)) return true;
-  const judgments = flatListJudgments(parameter);
-  return judgments.length > 0 && judgments.every(evidence => evidence.judgment!.primitive === 'NINGUNO_EN_LISTA');
-};
+  engineCatalogEntry(parameter.controlId)?.parameters[parameter.id]?.pattern === true;
 
 export const splitsParameterOnSpaces = (parameter: Pick<ENSControlParameter, 'controlId' | 'id'>): boolean =>
   parameter.controlId === 'op.acc.1' && ['P-03', 'P-04'].includes(parameter.id);

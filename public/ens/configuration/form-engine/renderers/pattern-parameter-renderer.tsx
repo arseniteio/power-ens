@@ -11,7 +11,6 @@ import {
   toParameterListItems,
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
-import { ignoresCaseInExactMode } from '../../../../../common/ens/configuration/services/parameter-input';
 import { ListParameterRenderer } from './list-parameter-renderer';
 import { TextParameterRenderer } from './text-parameter-renderer';
 
@@ -36,7 +35,7 @@ export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchMo
     let nextValue = drafts[next];
     if (!Object.prototype.hasOwnProperty.call(drafts, next) && next === 'regex') {
       const items = parameter.type === 'list' ? toParameterListItems(value) : typeof value === 'string' && value ? [value] : [];
-      nextValue = patternFromItems(items, ignoresCaseInExactMode(parameter));
+      nextValue = patternFromItems(items, true);
     }
     onMatchModeChange?.(parameter.name, next);
     onChange(parameter.name, nextValue);

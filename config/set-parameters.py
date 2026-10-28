@@ -32,7 +32,7 @@ AGENT VALUES (plugin 1.2.0). The `agents` key declares a machine's own values by
       "agents": {
         "001": {
           "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
-          "op.exp.4": { "P-04": null }
+          "op.acc.5": { "P-02": null }
         }
       }
     }
@@ -51,14 +51,14 @@ control's template; without it the assignment is untouched:
         "001": {
           "op.acc.1": { "template": "linux-ubuntu", "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
           "op.acc.2": { "template": "custom-servidores-web" },
-          "op.exp.2": { "template": "none" },
-          "op.exp.4": { "template": null }
+          "op.acc.3": { "template": "none" },
+          "op.acc.4": { "template": null }
         }
       }
     }
 
-The value is the id of a built-in template of the control (`linux-ubuntu`, `zimbra-ldap`,
-`windows-server`, `manager-wazuh`, `pbs-backup`, `zimbra-ne-backup`, whichever the control has) or of
+The value is the id of a built-in template of the control (`linux-ubuntu`, `windows-server`,
+`manager-wazuh`, whichever the control has) or of
 a custom template in `configuration.templates` of the same control; `none` leaves the agent without
 template (common values) and `null` removes the assignment (the built-in of its type applies again).
 Applied value order: own setting, assigned template, built-in of its type, control common value. A
@@ -96,9 +96,9 @@ key sets an item by its id (list in Configuración > General > «Datos de la org
     }
 
 `null` (or empty) removes the item and its value in every parameter that reads it. The P-xx form keeps
-working: a parameter that is organisation data (op.acc.1 P-11, op.exp.4 P-06…) writes to its item, and
+working: a parameter that is organisation data (op.acc.1 P-11, op.acc.2 P-12…) writes to its item, and
 the plan lists every other parameter that changes with it. A parameter that reads only part of an item
-(op.exp.3 P-03 is the «configuracion» rows of «Personal autorizado») changes only that part. If the item
+(op.acc.4 P-02 is the «autorizaciones» rows of «Personal autorizado») changes only that part. If the item
 has no value yet and the parameter reads only part of it, only the parameter is written: the plugin moves
 it to the item on load, or shows the conflict. Per-agent values work as before.
 
@@ -194,20 +194,13 @@ def agent_id(value):
 
 
 def classes():
-    """Parameter classification: the JSON object of `parameter-classes.ts` plus the
-    engine catalog copy in `common/ens/catalog/engine/`. None if absent (script outside the repo)."""
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens",
-                        "configuration", "agents", "parameter-classes.ts")
-    try:
-        with open(path, encoding="utf-8") as f:
-            source = f.read()
-    except OSError:
+    """Parameter classification, from the engine catalog copy in `common/ens/catalog/engine/`.
+    None if absent (script outside the repo)."""
+    engine = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens", "catalog", "engine")
+    if not os.path.isdir(engine):
         return None
-    start = source.index("{", source.index("HAND_PARAMETER_CLASSES:"))
-    end = source.index("\n};", start)
-    found = json.loads(source[start:end + 2])
-    engine = os.path.join(os.path.dirname(path), "..", "..", "catalog", "engine")
-    for name in sorted(os.listdir(engine)) if os.path.isdir(engine) else []:
+    found = {}
+    for name in sorted(os.listdir(engine)):
         with open(os.path.join(engine, name), encoding="utf-8") as f:
             entry = json.load(f)
         found[entry["control"]] = {pid: p["class"] for pid, p in entry["parameters"].items()}
@@ -216,25 +209,12 @@ def classes():
 
 # Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
 BUILTIN_TEMPLATES = {
-    "mp.info.6": ["linux-ubuntu", "zimbra-ldap", "pbs-backup", "zimbra-ne-backup"],
-    "op.acc.1": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
-    "op.acc.2": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
-    "op.acc.3": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
-    "op.acc.4": ["linux-ubuntu", "zimbra-ldap", "windows-server", "manager-wazuh"],
-    "op.acc.5": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
-    "op.acc.6": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
-    "op.cont.3": ["manager-wazuh"],
-    "op.exp.1": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.2": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.3": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.4": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.5": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.6": ["linux-ubuntu", "zimbra-ldap"],
-    "op.exp.7": ["manager-wazuh"],
-    "op.exp.8": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
-    "op.exp.10": ["linux-ubuntu", "zimbra-ldap"],
-    "op.mon.1": ["manager-wazuh"],
-    "op.mon.3": ["linux-ubuntu", "zimbra-ldap", "manager-wazuh"],
+    "op.acc.1": ["linux-ubuntu", "windows-server", "manager-wazuh"],
+    "op.acc.2": ["linux-ubuntu", "windows-server", "manager-wazuh"],
+    "op.acc.3": ["linux-ubuntu", "windows-server", "manager-wazuh"],
+    "op.acc.4": ["linux-ubuntu", "windows-server", "manager-wazuh"],
+    "op.acc.5": ["linux-ubuntu", "manager-wazuh"],
+    "op.acc.6": ["linux-ubuntu", "manager-wazuh"],
 }
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"

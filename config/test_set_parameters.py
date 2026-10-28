@@ -103,7 +103,7 @@ def main():
     server = HTTPServer(("127.0.0.1", 0), Index)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = "http://127.0.0.1:{}".format(server.server_port)
-    agents_doc = {"028": {"templates": ["zimbra-ldap"], "controls": {"op.acc.1": {"parameters": {"P-07": ["a | b | c"]}}}}}
+    agents_doc = {"028": {"templates": ["windows-server"], "controls": {"op.acc.1": {"parameters": {"P-07": ["a | b | c"]}}}}}
 
     with tempfile.TemporaryDirectory() as tmp:
         reset(agents_doc)
@@ -122,7 +122,7 @@ def main():
         check("agent · own value, with the id normalised (28 → 028)",
                   r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"]["parameters"]["P-11"] == ["sudo", "wheel"], r.stdout + r.stderr)
         check("agent · keeps what it already had (P-07, templates)",
-                  cfg["agents"]["028"]["controls"]["op.acc.1"]["parameters"]["P-07"] == ["a | b | c"] and cfg["agents"]["028"]["templates"] == ["zimbra-ldap"], str(cfg["agents"]["028"]))
+                  cfg["agents"]["028"]["controls"]["op.acc.1"]["parameters"]["P-07"] == ["a | b | c"] and cfg["agents"]["028"]["templates"] == ["windows-server"], str(cfg["agents"]["028"]))
         check("agent · creates the profile of a new agent", cfg["agents"]["024"]["controls"]["op.acc.1"]["parameters"]["P-07"] == ["x | y | z"], str(cfg["agents"].get("024")))
         check("agent · the organization value does not change", cfg["controls"][0]["parameters"][3]["value"] == ["sudo"], str(cfg["controls"][0]))
 
@@ -172,13 +172,13 @@ def main():
 
         custom = [{"id": "custom-web", "controlId": "op.acc.1", "name": "Web", "values": {"P-11": ["wheel"]}}]
         reset_130({"028": {"detectedType": "linux", "controls": {"op.acc.1": {"parameters": {"P-07": ["a | b | c"]}}}}}, custom)
-        r = run_script(url, tmp, {"agents": {"028": {"op.acc.1": {"template": "custom-web"}}, "024": {"op.acc.1": {"template": "zimbra-ldap", "P-07": ["x | y | z"]}}}}, "--apply")
+        r = run_script(url, tmp, {"agents": {"028": {"op.acc.1": {"template": "custom-web"}}, "024": {"op.acc.1": {"template": "windows-server", "P-07": ["x | y | z"]}}}}, "--apply")
         cfg = state["doc"]["configuration"]
         check("template · assigns a custom template and keeps the overrides",
                   r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"] == {"parameters": {"P-07": ["a | b | c"]}, "templateId": "custom-web"},
                   r.stdout + r.stderr + json.dumps(cfg.get("agents")))
         check("template · a built-in and an override together, for a new agent",
-                  cfg["agents"]["024"]["controls"]["op.acc.1"] == {"templateId": "zimbra-ldap", "parameters": {"P-07": ["x | y | z"]}}, json.dumps(cfg["agents"].get("024")))
+                  cfg["agents"]["024"]["controls"]["op.acc.1"] == {"templateId": "windows-server", "parameters": {"P-07": ["x | y | z"]}}, json.dumps(cfg["agents"].get("024")))
         check("template · custom templates survive", cfg.get("templates") == custom)
         r = run_script(url, tmp, {"agents": {"028": {"op.acc.1": {"template": "none"}}, "024": {"op.acc.1": {"template": None, "P-07": None}}}}, "--apply")
         cfg = state["doc"]["configuration"]
@@ -263,10 +263,8 @@ def main():
         org_doc = {"configuration": {"controls": [
             {"controlId": "op.acc.1", "parameters": [{"id": "P-11", "type": "list", "value": ["sudo"]}, {"id": "P-06", "type": "duration_days", "value": 365}]},
             {"controlId": "op.acc.2", "parameters": [{"id": "P-12", "type": "list", "value": ["sudo"]}]},
-            {"controlId": "op.acc.4", "parameters": [{"id": "P-06", "type": "list", "value": ["root"]}]},
-            {"controlId": "op.exp.3", "parameters": [{"id": "P-03", "type": "list", "value": ["dioni"]}]},
-            {"controlId": "mp.info.6", "parameters": [{"id": "P-07", "type": "list", "value": ["root"]}, {"id": "P-03", "type": "duration_days", "value": 30}]},
-            {"controlId": "op.acc.5", "parameters": [{"id": "P-08", "type": "duration_days"}]},
+            {"controlId": "op.acc.4", "parameters": [{"id": "P-06", "type": "list", "value": ["root"]}, {"id": "P-02", "type": "table", "value": ["dioni | servidores"]}]},
+            {"controlId": "op.acc.5", "parameters": [{"id": "P-08", "type": "duration_days", "value": 30}]},
         ]}}
 
         def org_param(control_id, parameter_id):
@@ -296,20 +294,13 @@ def main():
               and "value" not in org_param("op.acc.2", "P-12") and "null" not in json.dumps(cfg), r.stdout + r.stderr)
 
         state["doc"] = json.loads(json.dumps(org_doc))
-        r = run_script(url, tmp, {"op.exp.3": {"P-03": ["ana"]}}, "--apply")
+        r = run_script(url, tmp, {"op.acc.4": {"P-02": ["ana | servidores"]}}, "--apply")
         check("organisation · part of an item without value: only the parameter is written",
-              r.returncode == 0 and org_param("op.exp.3", "P-03")["value"] == ["ana"] and "organizationData" not in state["doc"]["configuration"]
+              r.returncode == 0 and org_param("op.acc.4", "P-02")["value"] == ["ana | servidores"] and "organizationData" not in state["doc"]["configuration"]
               and "has no value yet" in r.stdout, r.stdout + r.stderr)
-        run_script(url, tmp, {"organization": {"personal_autorizado": ["root | configuracion, copias", "ana | mantenimiento | srv"]}}, "--apply")
-        r = run_script(url, tmp, {"op.exp.3": {"P-03": ["bob"]}}, "--apply")
-        cfg = state["doc"]["configuration"]
-        check("organisation · part of an item: only its rows change, the other uses stay",
-              r.returncode == 0 and cfg["organizationData"]["values"]["personal_autorizado"] == ["root | copias", "ana | mantenimiento | srv", "bob | configuracion"]
-              and org_param("op.exp.3", "P-03")["value"] == ["bob"] and org_param("mp.info.6", "P-07")["value"] == ["root"],
-              r.stdout + r.stderr + json.dumps(cfg.get("organizationData")))
-        run_script(url, tmp, {"organization": {"retencion": ["cuentas | | 400", "copias | | 45"]}}, "--apply")
+        run_script(url, tmp, {"organization": {"retencion": ["cuentas | | 400", "accesos | | 45"]}}, "--apply")
         check("organisation · a one-value parameter reads its row as a number",
-              org_param("op.acc.1", "P-06")["value"] == 400 and org_param("mp.info.6", "P-03")["value"] == 45,
+              org_param("op.acc.1", "P-06")["value"] == 400 and org_param("op.acc.5", "P-08")["value"] == 45,
               json.dumps(state["doc"]["configuration"]["controls"]))
 
         for name, content, reason in [
@@ -317,12 +308,12 @@ def main():
             ("the informative item", {"organization": {"sistemas_alcance": ["x"]}}, "has no item sistemas_alcance"),
             ("a mode on an item", {"organization": {"grupos_privilegiados": {"value": "^a$", "matchMode": "regex"}}}, "takes a plain value"),
             ("an item set twice", {"organization": {"grupos_privilegiados": ["a"]}, "op.acc.1": {"P-11": ["b"]}}, "is set twice"),
-            ("a value that does not fit the item", {"op.exp.3": {"P-03": ["a | b"]}}, "does not fit there"),
+            ("a value that does not fit the item", {"op.acc.4": {"P-02": ["a | b | c"]}}, "does not fit there"),
             ("two rows for a one-value parameter", {"organization": {"retencion": ["accesos | VPN | 365", "accesos | web | 90"]}},
              "op.acc.5 P-08 lee un solo valor: dejar una sola fila con uso «accesos» en «Plazos de retención»"),
         ]:
             state["doc"] = json.loads(json.dumps(org_doc))
-            state["doc"]["configuration"]["organizationData"] = {"values": {"personal_autorizado": ["root | configuracion"]}}
+            state["doc"]["configuration"]["organizationData"] = {"values": {"personal_autorizado": ["root | autorizaciones"]}}
             version = state["version"]
             r = run_script(url, tmp, content, "--apply")
             check("organisation · refuses " + name, r.returncode == 1 and reason in r.stderr and state["version"] == version, r.stdout + r.stderr)

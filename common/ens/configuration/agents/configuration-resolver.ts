@@ -17,7 +17,6 @@ import { ENSControlTemplate, findControlTemplate, getTypeDefaultTemplate } from 
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
 import { needsTemplateMigration, planTemplateMigration } from './template-migration';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
-import { isEngineJudged } from '../../core/engine-judged';
 
 export const ENS_MANAGER_AGENT = ENS_MANAGER_AGENT_ID;
 
@@ -164,12 +163,7 @@ export const isUnionParameter = (
     return true;
   }
 
-  return (
-    getParameterClass(controlId, parameterId) === 'system' &&
-    !isEngineJudged(controlId) &&
-    (control?.measurementPlanes || []).includes('manager') &&
-    isManagerRow(agentId)
-  );
+  return false;
 };
 
 const rowsOf = (parameter: ENSControlParameter, value: unknown): string[] =>

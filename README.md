@@ -1,6 +1,6 @@
 # Power ENS
 
-Wazuh dashboard plugin for the Spanish National Security Framework (ENS, RD 311/2022). It holds the policy parameters of each control and shows compliance per control and machine.
+Wazuh dashboard plugin for the Spanish National Security Framework (ENS, RD 311/2022). It holds the policy parameters of each control and shows compliance per control and machine. It judges nothing: every result is a verdict of the OSCompliance engine, read from `oscompliance-verdicts`.
 
 ## Build
 
@@ -10,7 +10,7 @@ docker run --rm -v "$PWD:/src:ro" -v "$PWD/dist:/dist" power-ens-osd-builder:2.1
   bash -c 'bash /src/config/build-plugin.sh /osd && cp /osd/plugins/powerEns/build/powerEns-2.19.5.zip /dist/'
 ```
 
-Result: `dist/power-ens-2.19.5.zip`, for Wazuh Dashboard 4.14.7 (OpenSearch Dashboards 2.19.5).
+Result: `dist/powerEns-2.19.5.zip`, for Wazuh Dashboard 4.14.7 (OpenSearch Dashboards 2.19.5).
 
 ## Test
 

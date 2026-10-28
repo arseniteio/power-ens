@@ -6,7 +6,7 @@ const search = (body: unknown) => ({ index: ENS_VERDICTS_INDEX, ignore_unavailab
 
 const ofRow = (controlId: string, agentId: string) => [{ term: { control: controlId } }, { term: { 'agent.id': agentId } }];
 
-const VERDICTS_PROBE_PAGE = 1000;
+export const VERDICTS_PROBE_PAGE = 1000;
 
 // First and newest control verdict per control and machine, a page at a time: a row is recomputed only when the
 // newest changes.

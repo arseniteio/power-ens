@@ -11,7 +11,8 @@
   "scripts": {
     "build": "yarn plugin-helpers build --opensearch-dashboards-version=2.19.5",
     "plugin-helpers": "node ../../scripts/plugin_helpers",
-    "osd": "node ../../scripts/osd"
+    "osd": "node ../../scripts/osd",
+    "test": "tsx --test 'tests/**/*.test.ts'"
   },
   "dependencies": {
     "pdfmake": "0.2.7",
