@@ -14,7 +14,7 @@ import { withMatchMode } from '../services/parameter-pattern';
 import { getENSCatalogControl } from '../../catalog';
 import type { ENSControlDefinition } from '../../catalog/types';
 import { ENSControlTemplate, findControlTemplate, getTypeDefaultTemplate } from '../templates';
-import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
+import { isAgentLevelParameter } from './parameter-classes';
 import { needsTemplateMigration, planTemplateMigration } from './template-migration';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
@@ -146,25 +146,13 @@ export const getInheritedSetting = (
   return { value: common?.value, ...(common?.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}) };
 };
 
-const isManagerRow = (agentId?: string): boolean =>
-  agentId === undefined || normalizeAgentId(agentId) === ENS_MANAGER_AGENT;
-
-// Parameters that describe other machines are read whole by the manager row, so they resolve by union. The
-// OSCompliance engine judges the manager as one more machine: its controls never union.
+// A control's scope list names other machines: every row reads it whole, so its values add up.
 export const isUnionParameter = (
   controlId: string,
   parameterId: string,
-  agentId?: string,
+  _agentId?: string,
   catalogLookup: CatalogLookup = defaultCatalogLookup
-): boolean => {
-  const control = catalogLookup(controlId);
-
-  if (control?.scopeParameter === parameterId) {
-    return true;
-  }
-
-  return false;
-};
+): boolean => catalogLookup(controlId)?.scopeParameter === parameterId;
 
 const rowsOf = (parameter: ENSControlParameter, value: unknown): string[] =>
   (parameter.type === 'table'
