@@ -26,5 +26,5 @@ const argText = (value: unknown): string => {
 // Same rules as the engine's catalog.Message.Render; an unknown code is undefined so the caller falls back.
 export const renderEngineMessage = (code?: string, args?: Record<string, unknown>): string | undefined => {
   if (!code || TEXTS[code] === undefined) return undefined;
-  return TEXTS[code].replace(/\{([a-z_]+)\}/g, (_, name: string) => argText(args?.[name]));
+  return TEXTS[code].replace(/\{([a-z_]+)\}/g, (_, name: string) => argText(args?.[name])).trim();
 };
