@@ -1,0 +1,10 @@
+{
+  "_nota": "ACTIVE controls judged WITHOUT rules of their own in agent/rules, with the reason. Read by tests/check-consistency.py (check 14) and tests/draft-control.test.ts (block 7). An ACTIVE control without rules that is not listed here fails both. A control listed here cannot accredit any rule.",
+  "op.cont.2": "Documentary control: the continuity plan, alternative-means contracts, roles and training are declared on the Configuration screen and the policy judges their validity. Nothing is collected on any machine, so it ships no rules.",
+  "op.acc.1": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts.",
+  "op.acc.2": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts.",
+  "op.acc.3": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts.",
+  "op.acc.4": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts.",
+  "op.acc.5": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts.",
+  "op.acc.6": "Judged by the OSCompliance engine: the Go agent sends facts (rules 119000-119004 of the monorepo) and the plugin only reads its verdicts from oscompliance-verdicts."
+}

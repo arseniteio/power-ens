@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# An ACTIVE control without a runbook makes tests/check-consistency.py fail unless declared with a reason in tests/controls-without-runbook.json.
-#   bash tests/runbookless-control.test.sh
+# An ACTIVE control without rules makes tests/check-consistency.py fail unless declared with a reason in tests/controls-without-rules.json.
+#   bash tests/control-without-rules.test.sh
 #
 # Runs the REAL check on a plugin copy with an invented ACTIVE control without a runbook (op.zzz.9, a copy of op.exp.10's catalog); only check 14 is looked at.
 set -u
@@ -23,7 +23,7 @@ grep -q "^  id: 'op.zzz.9',\$" "$PLUGIN/common/ens/catalog/op-zzz-9.ts" \
 
 # Declares (or not) op.zzz.9 in the list, with the reason passed in.
 declare_control() {
-  python3 - "$PLUGIN/tests/controls-without-runbook.json" "$@" <<'PY'
+  python3 - "$PLUGIN/tests/controls-without-rules.json" "$@" <<'PY'
 import json, sys
 path = sys.argv[1]
 declared = json.load(open(path, encoding="utf-8"))
@@ -36,10 +36,10 @@ PY
 
 run_check() { python3 "$PLUGIN/tests/check-consistency.py" 2>&1 | sed -n '/=== 14\./,$p'; }
 
-echo "1. ACTIVE, without runbook and undeclared: fails"
+echo "1. ACTIVE, without rules and undeclared: fails"
 declare_control
 output="$(run_check)"
-if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: ACTIVE without runbook and undeclared$'; then
+if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: ACTIVE without rules and undeclared$'; then
   ok "check 14 flags it"
 else
   fail "check 14 does not flag it"; printf '%s\n' "$output" | sed 's/^/       | /'
@@ -53,7 +53,7 @@ if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9'; then
 else
   ok "declared, check 14 admits it"
 fi
-if printf '%s\n' "$output" | grep -qE 'without runbook: (.*, )?op\.zzz\.9(,|$)'; then
+if printf '%s\n' "$output" | grep -qE 'without rules: (.*, )?op\.zzz\.9(,|$)'; then
   ok "and names it among those judged without a runbook"
 else
   fail "does not name it among those judged without a runbook"; printf '%s\n' "$output" | sed 's/^/       | /'
@@ -62,7 +62,7 @@ fi
 echo "3. Declared without a reason: fails"
 declare_control "   "
 output="$(run_check)"
-if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: declared without runbook but without a reason$'; then
+if printf '%s\n' "$output" | grep -q '^FAIL   op.zzz.9: declared without rules but without a reason$'; then
   ok "an empty reason is not valid"
 else
   fail "an empty reason passes"; printf '%s\n' "$output" | sed 's/^/       | /'

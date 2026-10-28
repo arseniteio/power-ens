@@ -185,7 +185,7 @@ section('1. Catalog: Availability, ALTO only, no facts and no runbook');
     })
   );
 
-  const withoutRunbook = JSON.parse(readFileSync(join(__dirname, 'controls-without-runbook.json'), 'utf-8'));
+  const withoutRunbook = JSON.parse(readFileSync(join(__dirname, 'controls-without-rules.json'), 'utf-8'));
   const jsonBlock = JSON.parse(readFileSync(join(__dirname, '..', 'config', 'op-cont-2-control-block.json'), 'utf-8'));
 
   check('declared without a runbook, with a motive', typeof withoutRunbook['op.cont.2'] === 'string' && withoutRunbook['op.cont.2'].length > 20);

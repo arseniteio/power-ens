@@ -9,7 +9,7 @@ export const opCont2CatalogDefinition: ENSControlDefinition = {
   // Annex II applies op.cont.2 by the Availability LEVEL, not the system category, and only at ALTO: evaluated with `availabilityLevel` of the global configuration and, if not declared, the ENS level. A MEDIA-category system cannot have D at ALTO, so there it is always NO_APLICA.
   levelDimension: 'D',
   // Belongs to the ORGANISATION, not a machine: the plan, its functions, contracts and training are declared on the Configuration screen and the policy judges their validity (`policies/op-cont-2.policy.ts`). Evaluated once, on the manager row (000).
-  // No runbook or rules: no machine emits facts for it (`tests/controls-without-runbook.json`).
+  // No rules: no machine emits facts for it (`tests/controls-without-rules.json`).
   measurementPlanes: ['manager'],
   description:
     'op.cont.2 es un control de planificación y su acreditación es documental: existe el plan, identifica funciones, contempla medios alternativos contratados, se ha formado a las personas y está integrado con los demás planes de la organización.',

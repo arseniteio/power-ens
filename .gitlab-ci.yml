@@ -30,8 +30,6 @@ test:
     # The engine imports re2js, so the TypeScript suites need the dependencies.
     - npx --yes yarn@1.22.22 install --frozen-lockfile --ignore-scripts --non-interactive
   script:
-    # check-consistency.py busca los runbooks junto al plugin.
-    - ci/clone-runbooks.sh "$(dirname "$CI_PROJECT_DIR")"
     - ci/run-tests.sh
 
 build:

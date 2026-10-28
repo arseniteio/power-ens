@@ -82,7 +82,7 @@ section('1. Each control\'s state is consistent with what it can measure');
 
     if (c.status === 'DRAFT') {
       // A DRAFT control may declare the template's evidences (they are shown with the source they need), but none
-      // can accredit a rule: a rule exists only when a runbook deploys it.
+      // can accredit a rule: a rule exists only when agent/rules ships it.
       const rules = ENSEvidenceCatalog.filter(evidence => evidence.controlId === controlId).flatMap(
         evidence => evidence.relatedRules
       );
@@ -478,15 +478,15 @@ section('6c. A control without collector accuses nobody, not even of missing par
   ensConfigurationRepository.reset();
 }
 
-section('7. An ACTIVE control without a runbook must be declared');
+section('7. An ACTIVE control without rules must be declared');
 
-const NO_RUNBOOK: Record<string, string> = Object.fromEntries(
-  Object.entries(require('./controls-without-runbook.json') as Record<string, string>).filter(
+const NO_RULES: Record<string, string> = Object.fromEntries(
+  Object.entries(require('./controls-without-rules.json') as Record<string, string>).filter(
     ([clave]) => !clave.startsWith('_')
   )
 );
 
-const runbookProblem = (
+const rulesProblem = (
   c: Pick<ENSControlDefinition, 'id' | 'status'>,
   rules: string[],
   declaredItems: Record<string, string>
@@ -500,15 +500,15 @@ const runbookProblem = (
   if (!declared) {
     return rules.length
       ? undefined
-      : 'ACTIVE sin runbook (no acredita ninguna regla) y sin declarar en tests/controls-without-runbook.json';
+      : 'ACTIVE without rules (accredits none) and not declared in tests/controls-without-rules.json';
   }
 
   if (!String(declaredItems[c.id]).trim()) {
-    return 'declarado sin runbook pero sin motivo';
+    return 'declared without rules but without a reason';
   }
 
   return rules.length
-    ? `declarado sin runbook y acredita reglas (${rules.join(', ')}): una regla solo existe si un runbook la despliega`
+    ? `declared without rules and accredits rules (${rules.join(', ')}): an accredited rule must ship in agent/rules`
     : undefined;
 };
 
@@ -519,51 +519,51 @@ const rulesOf = (controlId: string): string[] =>
 
 {
   for (const c of ENSCatalog) {
-    const problem = runbookProblem(c, rulesOf(c.id), NO_RUNBOOK);
+    const problem = rulesProblem(c, rulesOf(c.id), NO_RULES);
 
     check(
-      `${c.id} · ${Object.prototype.hasOwnProperty.call(NO_RUNBOOK, c.id) ? 'declared without runbook' : 'matches its runbook'}`,
+      `${c.id} · ${Object.prototype.hasOwnProperty.call(NO_RULES, c.id) ? 'declared without rules' : 'matches its rules'}`,
       problem === undefined,
       problem
     );
   }
 
   check(
-    'each control declared without a runbook carries its motive',
-    Object.values(NO_RUNBOOK).every(motive => String(motive).trim().length > 0),
-    Object.keys(NO_RUNBOOK).join(', ')
+    'each control declared without rules carries its motive',
+    Object.values(NO_RULES).every(motive => String(motive).trim().length > 0),
+    Object.keys(NO_RULES).join(', ')
   );
 
   check(
-    'op.cont.2 is declared without a runbook (spec §5.4)',
-    Object.prototype.hasOwnProperty.call(NO_RUNBOOK, 'op.cont.2')
+    'op.cont.2 is declared without rules (spec §5.4)',
+    Object.prototype.hasOwnProperty.call(NO_RULES, 'op.cont.2')
   );
 
   const invented = { id: 'op.zzz.9', status: 'ACTIVE' as const };
 
   check(
     'ACTIVE, no rules and undeclared: fails',
-    runbookProblem(invented, [], {}) !== undefined
+    rulesProblem(invented, [], {}) !== undefined
   );
   check(
     'reversal · declared with its motive: matches',
-    runbookProblem(invented, [], { 'op.zzz.9': 'control documental' }) === undefined
+    rulesProblem(invented, [], { 'op.zzz.9': 'control documental' }) === undefined
   );
   check(
-    'reversal · with rules (has a runbook) and undeclared: matches',
-    runbookProblem(invented, ['111999'], {}) === undefined
+    'reversal · with rules (ships rules) and undeclared: matches',
+    rulesProblem(invented, ['111999'], {}) === undefined
   );
   check(
     'declared but without a motive: fails',
-    runbookProblem(invented, [], { 'op.zzz.9': '  ' }) !== undefined
+    rulesProblem(invented, [], { 'op.zzz.9': '  ' }) !== undefined
   );
   check(
-    'declared without a runbook and accrediting rules: fails',
-    runbookProblem(invented, ['111999'], { 'op.zzz.9': 'control documental' }) !== undefined
+    'declared without rules and accrediting rules: fails',
+    rulesProblem(invented, ['111999'], { 'op.zzz.9': 'control documental' }) !== undefined
   );
   check(
     'in DRAFT nothing is required',
-    runbookProblem({ id: 'op.zzz.9', status: 'DRAFT' }, [], {}) === undefined
+    rulesProblem({ id: 'op.zzz.9', status: 'DRAFT' }, [], {}) === undefined
   );
 }
 
