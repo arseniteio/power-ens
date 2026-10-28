@@ -1,6 +1,6 @@
 // Splits a nonconformity motive for reading.
 
-export const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
+const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
 
 export interface MotiveList {
   // Position of the part in the text (without "Además"): `text.slice(start, end)` is exactly `values.join('; ') + (more ? ` y ${more} más` : '')`.
@@ -35,7 +35,7 @@ export interface ParsedMotive {
 }
 
 // Text formed by published parts (as `compositeReason`).
-export const knownPartsText = (parts: KnownReasonParts['parts']): string =>
+const knownPartsText = (parts: KnownReasonParts['parts']): string =>
   parts
     .map(p => `${p.evidenceId} ${p.status}: ${p.text}${p.secondary?.length ? `${p.text ? ' ' : ''}Además: ${p.secondary.join(' ')}` : ''}`)
     .join(' | ');
@@ -69,7 +69,7 @@ const firstSentence = (text: string): { summary: string; detail: string } => {
 // two sentences separated by "; " are not a list.
 const MAX_VALUE_LENGTH = 160;
 
-export const findList = (text: string): MotiveList | undefined => {
+const findList = (text: string): MotiveList | undefined => {
   const firstSeparator = text.indexOf('; ');
   if (firstSeparator < 0) return undefined;
   const before = text.slice(0, firstSeparator);
@@ -181,11 +181,6 @@ export const parseMotive = (raw: string, known: KnownReasonParts[] = []): Parsed
 export const partToText = (p: Pick<MotivePart, 'evidenceId' | 'status' | 'text' | 'secondary'>): string =>
   `${p.evidenceId ? `${p.evidenceId} ${p.status}: ` : ''}${p.text}${
     p.secondary !== undefined ? `${p.text ? ' ' : ''}${ALSO}${p.secondary}` : ''
-  }`;
-
-export const motiveToText = (m: ParsedMotive): string =>
-  `${m.machines ? `[${m.machines}] ` : ''}${m.policy ? `Resuelta por la política del control (${m.policy.policyId}), que mide esta evidencia junto a ${m.policy.requirementId}: ` : ''}${
-    m.question !== undefined ? `${QUESTION}${m.question}` : m.parts.map(partToText).join(' | ')
   }`;
 
 // The part to read first for a nonconformity: that of one of its evidences that does NOT comply; else the first that does not conform; else the first.

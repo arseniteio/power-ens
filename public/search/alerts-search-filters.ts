@@ -1,11 +1,11 @@
 // Filters the dashboard search bar adds to the ENS screen queries. No React or dashboard: the builders come from outside (the data plugin start contract in the app).
 
-export interface AlertsSearchBuilders<P, T> {
+interface AlertsSearchBuilders<P, T> {
   buildQuery: (indexPattern: P) => unknown;
   buildTimeFilter: (indexPattern: P, timeRange: T) => unknown;
 }
 
-export interface AlertsSearchFilters {
+interface AlertsSearchFilters {
   filters: unknown[];
   queryError?: string;
 }

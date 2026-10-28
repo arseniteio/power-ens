@@ -1,6 +1,6 @@
 // Index pattern lookup for the bar, by exact title. No React or dashboard: the service comes from outside (`data.indexPatterns`), so tests/alerts-index-pattern.test.ts can drive it.
 
-export interface IndexPatternLookupService<P> {
+interface IndexPatternLookupService<P> {
   // OSD 2.19.5: `getIdsWithTitle(refresh = false)`; with `true` it rereads the saved patterns instead of serving the first list.
   getIdsWithTitle: (refresh?: boolean) => Promise<Array<{ id: string; title: string }>>;
   get: (id: string) => Promise<P>;

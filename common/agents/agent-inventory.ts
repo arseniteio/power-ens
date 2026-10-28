@@ -4,9 +4,9 @@ import { ENS_MONITORING_INDEX } from '../constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
 
-export const ENS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
+const ENS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 
-export interface ENSAgentInventory {
+interface ENSAgentInventory {
   agents: ENSAgentScope[];
   newestTimestamp?: string;
   stale: boolean;

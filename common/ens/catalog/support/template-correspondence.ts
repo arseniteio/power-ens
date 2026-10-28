@@ -20,7 +20,7 @@ export interface ENSTemplateCorrespondenceRow {
   note: string;
 }
 
-export interface ENSTemplateCorrespondence {
+interface ENSTemplateCorrespondence {
   controlId: string;
   title: string;
   summary: string;

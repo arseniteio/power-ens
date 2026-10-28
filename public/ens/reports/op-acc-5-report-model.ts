@@ -1,6 +1,6 @@
-import type { ENSComplianceResult } from '../../../common/ens/core';
+import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
-export type OpAcc5ReportFieldStatus =
+type OpAcc5ReportFieldStatus =
   | 'CUMPLE'
   | 'PARCIAL'
   | 'NO_CUMPLE'
@@ -8,7 +8,7 @@ export type OpAcc5ReportFieldStatus =
   | 'NO_APLICA'
   | 'SIN_DATOS';
 
-export interface OpAcc5ReportField {
+interface OpAcc5ReportField {
   id: string;
   title: string;
   status: OpAcc5ReportFieldStatus;
@@ -18,7 +18,7 @@ export interface OpAcc5ReportField {
   producerGaps: string[];
 }
 
-export interface OpAcc5ReportModel {
+interface OpAcc5ReportModel {
   controlId: string;
   status: OpAcc5ReportFieldStatus;
   score: number | null;

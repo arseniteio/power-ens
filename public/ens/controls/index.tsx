@@ -6,21 +6,7 @@ import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import type { ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
-import {
-  EuiBadge,
-  EuiBasicTable,
-  EuiFacetButton,
-  EuiFacetGroup,
-  EuiButtonEmpty,
-  EuiHealth,
-  EuiIcon,
-  EuiLink,
-  EuiPage,
-  EuiPanel,
-  EuiSpacer,
-  EuiText,
-  EuiTitle,
-} from '@elastic/eui';
+import { EuiFacetGroup, EuiIcon, EuiLink, EuiPage, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';

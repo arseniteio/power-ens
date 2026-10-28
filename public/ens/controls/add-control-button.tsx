@@ -6,7 +6,7 @@ import { saveFromLatestConfiguration } from '../../../common/ens/configuration/s
 
 export const NOT_IN_CONFIGURATION_TEXT = 'No está en la configuración activa';
 
-export const addControlWithDefaults = (controlId: string) =>
+const addControlWithDefaults = (controlId: string) =>
   saveFromLatestConfiguration(latest => {
     const result = addMissingControls(latest, [controlId]);
     return result.added.length

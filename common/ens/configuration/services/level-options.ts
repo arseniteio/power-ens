@@ -12,7 +12,7 @@ type LevelDocument = { global?: Partial<ENSConfigurationVersion['global']>; cont
 export const controlLevelIn = (document: LevelDocument, controlId: string): ENSLevel =>
   resolveControlLevel(getENSCatalogControl(controlId) || {}, (document.global?.ensLevel || 'BAJO') as ENSLevel, document.global);
 
-export const describeLevelOptionIssues = (document: LevelDocument): string[] =>
+const describeLevelOptionIssues = (document: LevelDocument): string[] =>
   (document.controls || []).flatMap(control =>
     (control.parameters || []).flatMap(parameter => {
       const declared = getENSControlConfiguration(control.controlId)?.parameters.find(item => item.id === parameter.id);

@@ -12,7 +12,7 @@ export interface ENSControlView {
   result: ENSComplianceResult;
 }
 
-export interface ENSControlPartition {
+interface ENSControlPartition {
   controlId: string;
   result?: ENSComplianceResult;
   rows: { agentId: string; result: ENSComplianceResult }[];

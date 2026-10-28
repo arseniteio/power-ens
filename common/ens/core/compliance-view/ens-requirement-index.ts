@@ -8,7 +8,7 @@
 
 import { ENSCatalog } from '../../catalog';
 
-export interface ENSRequirementCount {
+interface ENSRequirementCount {
   key: string;
   doc_count: number;
 }
@@ -57,7 +57,7 @@ export const ENS_REQUIREMENT_COUNT_AGGS = {
   },
 };
 
-export const splitENSRequirementList = (value: unknown): string[] =>
+const splitENSRequirementList = (value: unknown): string[] =>
   Array.from(
     new Set(
       String(value ?? '')
@@ -165,26 +165,4 @@ export const buildENSRequirementQuery = (requirementId: string) => {
   });
 
   return { bool: { should, minimum_should_match: 1 } };
-};
-
-// Search-bar filter for a requirement: `custom`, because it is not a field equal to a value. `meta` carries what each screen needs (index pattern, who controls it).
-export const buildENSRequirementFilter = (
-  requirementId: string,
-  meta: Record<string, unknown> = {}
-) => {
-  const query = buildENSRequirementQuery(requirementId);
-
-  return {
-    meta: {
-      alias: `ENS ${String(requirementId ?? '').trim()}`,
-      negate: false,
-      disabled: false,
-      type: 'custom',
-      key: 'query',
-      value: JSON.stringify(query),
-      ...meta,
-    },
-    query,
-    $state: { store: 'appState' },
-  };
 };

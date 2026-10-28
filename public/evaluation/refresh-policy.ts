@@ -4,23 +4,23 @@
 // - A stored result served while the server recalculates (`meta.refreshing`) is requested again after 10 s.
 // - First load (`meta.pending`, `meta.seriesPending`, `meta.maturityPending`): every 2 s for 2 minutes, then every 15 s.
 // - At most 2 concurrent requests in the whole app.
-export const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-export const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
-export const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
-export const EVALUATION_PENDING_RETRY_MS = 2 * 1000;
-export const EVALUATION_PENDING_FAST_FOR_MS = 2 * 60 * 1000;
-export const EVALUATION_PENDING_SLOW_RETRY_MS = 15 * 1000;
+const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
+const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
+const EVALUATION_PENDING_RETRY_MS = 2 * 1000;
+const EVALUATION_PENDING_FAST_FOR_MS = 2 * 60 * 1000;
+const EVALUATION_PENDING_SLOW_RETRY_MS = 15 * 1000;
 // After a failure the next automatic attempt waits twice as long each time, up to 5 minutes.
-export const EVALUATION_BACKOFF_MAX_MS = 5 * 60 * 1000;
+const EVALUATION_BACKOFF_MAX_MS = 5 * 60 * 1000;
 
-export const backoffAfter = (failures: number): number =>
+const backoffAfter = (failures: number): number =>
   Math.min(EVALUATION_BACKOFF_MAX_MS, EVALUATION_REFRESHING_RETRY_MS * 2 ** Math.max(0, failures - 1));
-export const EVALUATION_MAX_CONCURRENT = 2;
+const EVALUATION_MAX_CONCURRENT = 2;
 
-export const shouldProbe = (lastCheckAt: number | undefined, now: number, visible: boolean): boolean =>
+const shouldProbe = (lastCheckAt: number | undefined, now: number, visible: boolean): boolean =>
   visible && (lastCheckAt === undefined || now - lastCheckAt >= EVALUATION_REFRESH_INTERVAL_MS);
 
-export const shouldReload = (
+const shouldReload = (
   probeFingerprint: string | undefined,
   dataFingerprint: string | undefined,
   evaluatedAt: string | undefined,
@@ -75,7 +75,7 @@ export interface EvaluationViewState<T> {
   refreshing: boolean;
 }
 
-export type EvaluationEvent<T> =
+type EvaluationEvent<T> =
   | { type: 'load'; key: string }
   | { type: 'refresh'; key: string }
   | { type: 'success'; key: string; data: T }
@@ -83,7 +83,7 @@ export type EvaluationEvent<T> =
 
 export const initialEvaluationState = <T>(): EvaluationViewState<T> => ({ loading: true, refreshing: false });
 
-export const evaluationReducer = <T>(state: EvaluationViewState<T>, event: EvaluationEvent<T>): EvaluationViewState<T> => {
+const evaluationReducer = <T>(state: EvaluationViewState<T>, event: EvaluationEvent<T>): EvaluationViewState<T> => {
   switch (event.type) {
     case 'load':
       return { key: event.key, data: undefined, error: undefined, loading: true, refreshing: false };
@@ -115,7 +115,7 @@ export const visibleEvaluation = <T>(state: EvaluationViewState<T>, key: string)
 // - A load cancelled by the screen is not an error; a timeout is, and it is shown with 'Reintentar'.
 // - The probe never interrupts a load, and its clock resets when machine or control change.
 // - Requesting the same key again does not clear what is shown: it is refreshed on top.
-export interface EvaluationControllerDeps<T> {
+interface EvaluationControllerDeps<T> {
   fetch: (controller: AbortController, options?: { retryRefresh?: boolean }) => Promise<T>;
   probe: (controller: AbortController) => Promise<{ fingerprint: string }>;
   now: () => number;

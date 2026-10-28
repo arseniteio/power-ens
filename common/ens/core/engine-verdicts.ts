@@ -16,7 +16,7 @@ import type {
   ENSRequirementResult,
 } from './evaluation/types';
 
-export { ENGINE_JUDGED_CONTROLS, isEngineJudged } from './engine-judged';
+;
 
 export interface ENSEngineVerdict {
   '@timestamp': string;
@@ -48,10 +48,10 @@ const STATUS: Record<string, ENSComplianceStatus> = {
 };
 
 // What the reader sees: the engine's message in Spanish, or its English text when the reason has no code yet.
-export const reasonOf = (verdict?: ENSEngineVerdict): string | undefined =>
+const reasonOf = (verdict?: ENSEngineVerdict): string | undefined =>
   verdict && (renderEngineMessage(verdict.reason_code, verdict.reason_args) ?? verdict.reason);
 
-export const statusOfVerdict = (status?: string): ENSComplianceStatus => (status && STATUS[status]) || 'NO_EVALUABLE';
+const statusOfVerdict = (status?: string): ENSComplianceStatus => (status && STATUS[status]) || 'NO_EVALUABLE';
 
 const GAP_CAUSES: ENSGapCause[] = ['CATALOG', 'CONFIGURATION', 'COLLECTION', 'EVIDENCE'];
 

@@ -1,6 +1,6 @@
-export type ENSLevel = 'BAJO' | 'MEDIO' | 'ALTO';
+type ENSLevel = 'BAJO' | 'MEDIO' | 'ALTO';
 
-export type ENSStatus =
+type ENSStatus =
   | 'CUMPLE'
   | 'PARCIAL'
   | 'NO_CUMPLE'
@@ -13,7 +13,7 @@ export interface ENSScope {
   highLevelStatus: ENSStatus;
 }
 
-export interface ENSExpectedLevelResult {
+interface ENSExpectedLevelResult {
   status?: ENSStatus;
   score?: number;
   statusWithoutRestore?: ENSStatus;

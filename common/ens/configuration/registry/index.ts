@@ -20,9 +20,3 @@ export const getENSControlConfiguration = (
   controlId: string
 ): ENSControlConfiguration | undefined =>
   ENSConfigurationRegistry.find(control => control.controlId === controlId);
-
-export const getEnabledENSControls = (): ENSControlConfiguration[] =>
-  ENSConfigurationRegistry.filter(control => control.enabled);
-
-export const getENSParametersByControl = (controlId: string) =>
-  getENSControlConfiguration(controlId)?.parameters || [];

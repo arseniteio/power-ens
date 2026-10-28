@@ -261,7 +261,7 @@ const slug = (text: string): string =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40) || 'plantilla';
 
-export const newTemplateId = (configuration: Pick<ENSConfigurationVersion, 'templates'>, name: string): string => {
+const newTemplateId = (configuration: Pick<ENSConfigurationVersion, 'templates'>, name: string): string => {
   const taken = new Set(getCustomTemplates(configuration).map(template => template.id));
   const base = `custom-${slug(name)}`;
   let id = base;
@@ -425,7 +425,7 @@ export const setAgentTypeOverride = (
     agent
   );
 
-export interface ENSDetectedTypeEntry {
+interface ENSDetectedTypeEntry {
   agentId: string;
   agent?: ENSDetectableAgent;
   detection: ENSSystemDetection;
@@ -516,7 +516,7 @@ export const addMissingControls = (
 
 // --- completeness -------------------------------------------------------------
 
-export interface ENSAgentCompleteness {
+interface ENSAgentCompleteness {
   withValue: number;
   total: number;
   ownValues: number;

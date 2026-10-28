@@ -10,7 +10,7 @@ type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
 // What the control list draws for each: the state and how many applicable requirements fail (and of those, how
 // many for lack of evidence).
-export const controlSummaryOf = (controlId: string, result?: ENSComplianceResult) => {
+const controlSummaryOf = (controlId: string, result?: ENSComplianceResult) => {
   // `applicable` is set by the requirement evaluator even if the type does not declare it; same filter the list
   // row used.
   const requirements = (result?.requirements || []).filter(requirement => (requirement as { applicable?: boolean }).applicable);

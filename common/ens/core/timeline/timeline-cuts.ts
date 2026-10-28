@@ -17,7 +17,7 @@ export interface ENSTimelineCut {
   events: ENSNormalizedEvent[];
 }
 
-export interface ENSTimelineCutsOptions {
+interface ENSTimelineCutsOptions {
   // Maximum number of days. Each cut is a full engine pass.
   days?: number;
   now?: Date;
@@ -29,7 +29,7 @@ export interface ENSTimelineCutsOptions {
 
 const DEFAULT_DAYS = 7;
 
-export const startOfDay = (date: Date): Date => {
+const startOfDay = (date: Date): Date => {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
 
@@ -126,7 +126,7 @@ const zonedMidnight = (year: number, month: number, day: number, timeZone: strin
   return new Date(timestamp);
 };
 
-export const zonedCalendar = (timeZone: string): ENSTimelineCalendar => {
+const zonedCalendar = (timeZone: string): ENSTimelineCalendar => {
   const start = (date: Date): Date => {
     const p = zonedParts(date, timeZone);
 
@@ -255,54 +255,4 @@ export const planENSTimelineCuts = (
   });
 
   return cuts;
-};
-
-export const buildENSTimelineCuts = (
-  events: ENSNormalizedEvent[] = [],
-  options: ENSTimelineCutsOptions = {}
-): ENSTimelineCut[] => {
-  const now = options.now || new Date();
-
-  // Sorted ONCE, and each cut is a prefix of this array; a `filter` per point would walk the same thousands of events per day.
-  const sorted = events
-    .map(event => ({
-      event,
-      time: new Date(event.timestamp).getTime(),
-    }))
-    .filter(item => Number.isFinite(item.time))
-    .sort((left, right) => left.time - right.time);
-
-  const nowMs = now.getTime();
-
-  // A future-dated event (skewed agent clock) cannot define the series origin or extend it forward. It does enter today's point (see `planENSTimelineCuts`).
-  const past = sorted.filter(
-    item => item.time <= nowMs
-  );
-
-  // Cuts advance over a sorted array, so the prefix only grows: this index advances once over the whole series.
-  let cursor = 0;
-
-  return planENSTimelineCuts(past[0]?.time, past.length, { ...options, now }).map(
-    cut => {
-      if (cut.isCurrent) {
-        return { ...cut, events };
-      }
-
-      const cutoffMs = cut.cutoff.getTime();
-
-      while (
-        cursor < past.length &&
-        past[cursor].time <= cutoffMs
-      ) {
-        cursor += 1;
-      }
-
-      return {
-        ...cut,
-        events: past
-          .slice(0, cursor)
-          .map(item => item.event),
-      };
-    }
-  );
 };

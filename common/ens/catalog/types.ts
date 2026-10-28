@@ -4,12 +4,12 @@ export type ENSRequirementKind = 'BASE' | 'REFUERZO';
 
 export type ENSControlStatus = 'ACTIVE' | 'DRAFT' | 'DEPRECATED';
 
-export type ENSRequirementDecisionMode =
+type ENSRequirementDecisionMode =
   | 'ALL_REQUIRED'
   | 'ANY_REQUIRED'
   | 'MANUAL_REVIEW';
 
-export type ENSMissingEvidenceBehavior =
+type ENSMissingEvidenceBehavior =
   | 'PARTIAL'
   | 'FAIL'
   | 'IGNORE';

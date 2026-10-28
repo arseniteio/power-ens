@@ -35,7 +35,7 @@ const getParameterCandidateValue = (
 };
 
 /** Verdict of a parameter for the active level, with the reason if invalid. "Configured" means configured with a value valid for its type. */
-export const getParameterVerdict = (
+const getParameterVerdict = (
   parameter: ENSControlParameter,
   activeLevel: ENSLevel
 ): {
@@ -71,13 +71,6 @@ export const getParameterVerdict = (
     verdict,
   };
 };
-
-export const getParameterStatus = (
-  parameter: ENSControlParameter,
-  activeLevel: ENSLevel
-): ENSParameterStatus =>
-  getParameterVerdict(parameter, activeLevel)
-    .status;
 
 export const validateControlConfiguration = (
   control: ENSControlConfiguration,

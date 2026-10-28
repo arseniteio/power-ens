@@ -3,7 +3,7 @@ import { resolveControlConfigurationWithOrigins } from '../../../common/ens/conf
 import type { ENSResolvedValueOrigin } from '../../../common/ens/configuration/agents/configuration-resolver';
 import type { ENSConfigurationVersion, ENSMatchMode } from '../../../common/ens/configuration/types';
 
-export interface ENSParameterForMachine {
+interface ENSParameterForMachine {
   id: string;
   label?: string;
   value: string;
@@ -15,7 +15,7 @@ export interface ENSParameterForMachine {
 
 const MAX = 140;
 
-export const summarizeParameterValue = (value: unknown): { text: string; empty: boolean } => {
+const summarizeParameterValue = (value: unknown): { text: string; empty: boolean } => {
   if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
     return { text: 'sin valor', empty: true };
   }
@@ -29,7 +29,7 @@ export const summarizeParameterValue = (value: unknown): { text: string; empty: 
   return { text: text.length > MAX ? `${text.slice(0, MAX).trimEnd()}…` : text, empty: false };
 };
 
-export const describeValueOrigin = (origin: ENSResolvedValueOrigin | undefined, empty: boolean): string => {
+const describeValueOrigin = (origin: ENSResolvedValueOrigin | undefined, empty: boolean): string => {
   if (!origin) return 'el control no está en la configuración activa';
   if (origin.source === 'agent') return 'ajuste propio de esta máquina';
   if (origin.source === 'template') {

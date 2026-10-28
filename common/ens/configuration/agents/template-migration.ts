@@ -34,7 +34,7 @@ export interface ENSTemplateMigrationPlan<T extends ENSTemplateModelDocument = E
   dropped: { agentId: string; templateId: string }[];
 }
 
-export const isTemplateModelDocument = (configuration: Pick<ENSTemplateModelDocument, 'templates'>): boolean =>
+const isTemplateModelDocument = (configuration: Pick<ENSTemplateModelDocument, 'templates'>): boolean =>
   Array.isArray(configuration.templates);
 
 export const needsTemplateMigration = (configuration: ENSTemplateModelDocument): boolean =>

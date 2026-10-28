@@ -1,8 +1,7 @@
 // Without React, so the links are tested; `configView=sistemas` keeps 1.2.0 links working.
-import { withRouterSearch } from './router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
-export const CONFIGURATION_TAB_ID = 'configuration';
+const CONFIGURATION_TAB_ID = 'configuration';
 
 export type ENSConfigurationView = 'controls' | 'agents' | 'general';
 
@@ -47,21 +46,11 @@ export const configurationSearchChanges = (
   configItem: target.view === 'general' ? clean(target.itemId) : undefined,
 });
 
-// Keeps whatever else is in `search` (the chosen machine).
-export const buildConfigurationSearch = (
-  target: { controlId?: string; agentId?: string; parameterId?: string },
-  search: string = ''
-): string =>
-  withRouterSearch(search, {
-    control: undefined,
-    ...configurationSearchChanges({ ...target, view: target.agentId ? 'agents' : 'controls' }),
-  });
-
 // From the control detail, round trip: 'Configurar este control' opens Configuración with `control` and `agentId` kept in the URL and `configBack` naming the tab to return to.
-export const CONFIGURATION_BACK_PARAM = 'configBack';
-export const CONTROL_DETAIL_TAB_ID = ENS_CONTROL_DETAIL_TAB_ID;
+const CONFIGURATION_BACK_PARAM = 'configBack';
+const CONTROL_DETAIL_TAB_ID = ENS_CONTROL_DETAIL_TAB_ID;
 
-export interface ENSDetailConfigurationTarget {
+interface ENSDetailConfigurationTarget {
   controlId: string;
   agentId?: string;
   parameterId?: string;
@@ -70,7 +59,7 @@ export interface ENSDetailConfigurationTarget {
   parameterIsAgentLevel?: boolean;
 }
 
-export const detailConfigurationTarget = (target: ENSDetailConfigurationTarget): Partial<ENSConfigurationTarget> => {
+const detailConfigurationTarget = (target: ENSDetailConfigurationTarget): Partial<ENSConfigurationTarget> => {
   const agentId = clean(target.agentId);
   const byMachine = Boolean(agentId) && (target.parameterId ? Boolean(target.parameterIsAgentLevel) : Boolean(target.hasAgentLevelParameters));
   return byMachine

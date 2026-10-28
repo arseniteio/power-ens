@@ -10,7 +10,7 @@ import type { ENSAgentOS } from '../../core/scope/types';
 import { getBuiltinTemplate } from '../templates';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
-export const ENS_MANAGER_ID = ENS_MANAGER_AGENT_ID;
+const ENS_MANAGER_ID = ENS_MANAGER_AGENT_ID;
 
 export interface ENSDetectableAgent {
   id: string;
@@ -19,7 +19,7 @@ export interface ENSDetectableAgent {
   os?: ENSAgentOS;
 }
 
-export interface ENSDetectionFacts {
+interface ENSDetectionFacts {
   planes?: Record<string, number>;
   backupOrigins?: Record<string, number>;
 }
@@ -104,7 +104,7 @@ export const detectAgentSystem = (
   };
 };
 
-export interface ENSEffectiveSystemType {
+interface ENSEffectiveSystemType {
   type?: ENSSystemType;
   manual: boolean;
   // "detectado por ..." or "corregido a mano (detectado: ...)".

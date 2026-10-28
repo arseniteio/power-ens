@@ -9,7 +9,7 @@ import { getCollectedControls } from '../templates';
 import { isAgentLevelParameter } from './parameter-classes';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
 
-export interface ENSAgentControl {
+interface ENSAgentControl {
   controlId: string;
   controlName: string;
   level: ENSLevel;

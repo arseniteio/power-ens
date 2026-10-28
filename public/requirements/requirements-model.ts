@@ -3,8 +3,8 @@ import { ENSCatalog, compareENSControlIdsByAnnex } from '../../common/ens/catalo
 import { ENSProvenancedText, describeRequirementTexts, describeUncatalogedText } from '../../common/ens/catalog/support/provenance';
 
 export interface ENSRequirementRow { id: string; control: string; description: string; count: number }
-export interface ENSControlRow { id: string; count: number }
-export interface ENSRequirementsModel { controls: ENSControlRow[]; requirements: ENSRequirementRow[] }
+interface ENSControlRow { id: string; count: number }
+interface ENSRequirementsModel { controls: ENSControlRow[]; requirements: ENSRequirementRow[] }
 
 export const controlOf = (requirementId: string): string => requirementId.split('.').slice(0, 3).join('.');
 

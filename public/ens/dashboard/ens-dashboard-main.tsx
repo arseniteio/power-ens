@@ -8,7 +8,6 @@ import { IncoherentLevelsNotice } from '../configuration/components/incoherent-l
 import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
 import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
-import { formatTimestamp } from '../../../common/ens/evaluation/motive-parser';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {
@@ -20,19 +19,6 @@ const findingSeverityColor = (severity: string): string => {
   }
 
   return '#BD271E';
-};
-
-// Severity of an operational alert: red when the engine judged it, amber for a warning.
-const alertSeverityPresentation = (severity: string): { color: string; label: string } => {
-  if (severity === 'error') {
-    return { color: '#BD271E', label: 'INCIDENCIA' };
-  }
-
-  if (severity === 'warning') {
-    return { color: '#F5A700', label: 'ADVERTENCIA' };
-  }
-
-  return { color: '#69707D', label: 'INFORMACIÓN' };
 };
 
 const requirementStatusPresentation = (
@@ -873,55 +859,10 @@ export const EnsDashboardMain = () => {
           </div>
         </div>
 
-        <div style={card}>
-          <div style={title}>
-            {dashboardModel.impactEvents.title}
-          </div>
-          
-          {/* One row per incident: the same problem observed many times is one alert (ENS-DASH-004). */}
-          {dashboardModel.impactEvents.error ? (
-            <div style={{ color: '#BD271E', fontSize: 13, marginTop: 12 }}>{dashboardModel.impactEvents.error}</div>
-          ) : dashboardModel.impactEvents.rows.length ? (
-            dashboardModel.impactEvents.rows.map(row => {
-              const severity = alertSeverityPresentation(row.severity);
-              return (
-                <div
-                  key={row.id}
-                  style={{
-                    borderLeft: `4px solid ${severity.color}`,
-                    padding: '8px 10px',
-                    marginBottom: 8,
-                    background: '#F7F9FC',
-                    borderRadius: 4,
-                    fontSize: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 4, fontSize: 11 }}>
-                    <span style={{ color: severity.color, fontWeight: 700 }}>{severity.label}</span>
-                    <span style={{ color: '#69707D' }}>{row.controlId}</span>
-                  </div>
-                  <div style={{ fontWeight: 600, marginBottom: 3 }}>{row.agentName || row.agentId}</div>
-                  <div title={row.description}>{row.label}</div>
-                  <div style={{ marginTop: 5, fontSize: 11, color: '#69707D' }}>
-                    Última observación: {formatTimestamp(row.lastObserved)}
-                    {row.countLabel ? ` · ${row.countLabel}` : ''}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div style={{ color: '#69707D', fontSize: 13, marginTop: 12 }}>
-              Sin alertas operativas en la ventana y el alcance de esta vista.
-            </div>
-          )}
-          {dashboardModel.impactEvents.summary && (
-            <div style={{ color: '#69707D', fontSize: 11 }}>{dashboardModel.impactEvents.summary}</div>
-          )}
-        </div>
       </div>
 
       <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>
-        ⓘ El índice de cumplimiento lo calcula el servidor con todos los hechos ENS de la ventana de evaluación. Cada 5 minutos se comprueba si han llegado hechos nuevos y, solo entonces, se vuelve a calcular.
+        ⓘ El índice de cumplimiento sale de los veredictos del motor OSCompliance. Cada 5 minutos se comprueba si hay veredictos nuevos y, solo entonces, se vuelve a calcular.
       </div>
     </div>
   );

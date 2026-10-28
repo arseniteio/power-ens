@@ -22,7 +22,7 @@ import { resolveControlConfigurationWithOrigins, rowKey } from './configuration-
 import { ENSDetectableAgent, agentAliases } from './system-detection';
 import { cloneDocument, profileIdentity } from './profile-identity';
 
-export interface ENSMigrationMove {
+interface ENSMigrationMove {
   agentId: string;
   agentName?: string;
   controlId: string;
@@ -33,7 +33,7 @@ export interface ENSMigrationMove {
   mode: 'movida' | 'copiada';
 }
 
-export interface ENSMigrationWarning {
+interface ENSMigrationWarning {
   controlId: string;
   parameterId: string;
   row: string;
@@ -43,13 +43,13 @@ export interface ENSMigrationWarning {
   candidates?: string[];
 }
 
-export interface ENSMigrationIncomplete {
+interface ENSMigrationIncomplete {
   agentId: string;
   controlId: string;
   parameterId: string;
 }
 
-export interface ENSMigrationPlan {
+interface ENSMigrationPlan {
   configuration: ENSConfigurationVersion;
   moves: ENSMigrationMove[];
   warnings: ENSMigrationWarning[];
@@ -61,7 +61,7 @@ export interface ENSMigrationPlan {
   emptyScope?: boolean;
 }
 
-export interface ENSMigrationOptions {
+interface ENSMigrationOptions {
   // In-scope (evaluated) machines; without scope, the whole inventory. If none, the migration does nothing
   // (`emptyScope`).
   scopeAgentIds?: string[];

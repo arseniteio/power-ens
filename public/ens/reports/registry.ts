@@ -1,5 +1,4 @@
 /** Report model registry by control. There is no default model: a control without one has no report (`undefined`), never another control's. */
-import { compareENSControlIdsByAnnex } from '../../../common/ens/catalog';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
 import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
@@ -84,7 +83,7 @@ const reportModelDefinitions: ENSReportModelDefinition[] = [
 ];
 
 // Exported so tests can exercise the guards below with their own list.
-export const buildENSReportModelRegistry = (
+const buildENSReportModelRegistry = (
   definitions: ENSReportModelDefinition[]
 ): Map<string, ENSReportModelDefinition> => {
   const registry = new Map<string, ENSReportModelDefinition>();
@@ -119,16 +118,6 @@ export const getENSReportModelDefinition = (
   controlId: string
 ): ENSReportModelDefinition | undefined =>
   reportModelRegistry.get((controlId || '').trim());
-
-export const getRegisteredENSReportControls = (): string[] =>
-  Array.from(reportModelRegistry.keys()).sort(compareENSControlIdsByAnnex);
-
-export const buildENSReportModel = (
-  controlId: string,
-  result: ENSComplianceResult | undefined,
-  panorama?: ENSComplianceResult[]
-): ENSReportModel | undefined =>
-  getENSReportModelDefinition(controlId)?.build(result, panorama);
 
 // Which controls have no report model: it makes the omission visible.
 export const listENSControlsWithoutReportModel = (

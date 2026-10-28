@@ -8,7 +8,7 @@ import type {
 import { ENS_SYSTEM_TYPE_LABELS, knownSystemType } from '../../../../common/agent-configuration';
 import type { ENSSystemDetection } from '../../../../common/ens/configuration/agents/system-detection';
 
-export interface ENSAgentTypeLabel {
+interface ENSAgentTypeLabel {
   text: string;
   color: 'hollow' | 'accent' | 'warning';
   // The type the built-in template follows is stored in the profile.

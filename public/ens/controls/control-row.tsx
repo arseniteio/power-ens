@@ -4,24 +4,12 @@ import { EuiBadge, EuiFacetButton, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner,
 import { ENS_STATUS_COLORS } from '../status-colors';
 import { ENS_THEME } from '../theme-colors';
 import { EVALUATION_ERROR_TITLE, evaluationErrorText } from '../../platform/facts-read-error';
-import type { ENSControlSummaryEntry } from '../../../common/ens/evaluation/types';
 import { controlRowWaitLabel } from './control-row-state';
 import type { ENSControlListEntry, ENSMachineTally } from './controls-list-model';
 import { describeTally } from './controls-list-model';
 import { AddControlWithDefaultsButton, NOT_IN_CONFIGURATION_TEXT } from './add-control-button';
 import { ENS_PENDING_MEASUREMENT_LABEL } from '../../../common/ens/catalog';
 import { statusLabel } from '../../../common/ens/core/status-label';
-
-export interface ControlRowData {
-  id: string;
-  title: string;
-  levels: string;
-  status: string;
-  alerts: number;
-  pending: number;
-}
-
-export type ControlRowSummary = ENSControlSummaryEntry;
 
 interface ControlRowProps {
   entry: ENSControlListEntry;
@@ -33,7 +21,7 @@ interface ControlRowProps {
   onConfigurationChanged?: () => void;
 }
 
-export const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
+const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
   const spans = [
     { estado: 'CUMPLE', n: tally.cumple },
     { estado: 'PARCIAL', n: tally.parcial },

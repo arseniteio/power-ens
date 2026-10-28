@@ -1,15 +1,15 @@
 // App tabs, with the same ids and names as the integrated version: links with `tabView=` keep working.
 
-export interface ENSTab {
+interface ENSTab {
   id: string;
   name: string;
   // Configuración loads on its own; the others wait for configuration and scope.
   withBootstrap: boolean;
 }
 
-export const ENS_REQUIREMENTS_TAB_ID = 'controls';
-export const ENS_EVENTS_TAB_ID = 'events';
-export const ENS_OVERVIEW_TAB_ID = 'overview';
+const ENS_REQUIREMENTS_TAB_ID = 'controls';
+const ENS_EVENTS_TAB_ID = 'events';
+const ENS_OVERVIEW_TAB_ID = 'overview';
 export const ENS_CONTROL_DETAIL_TAB_ID = 'plugins';
 
 export const ENS_TABS: ENSTab[] = [

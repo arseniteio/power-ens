@@ -74,7 +74,7 @@ const PROFILE_KEYS = ['name', 'aliases', 'detectedType', 'detectedBy', 'typeOver
 const CONTROL_KEYS = ['templateId', 'parameters', 'matchModes'];
 export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description', 'systemType', 'values', 'matchModes'];
 
-export const isMatchMode = (value: unknown): value is ENSMatchMode => ENS_MATCH_MODES.includes(value as ENSMatchMode);
+const isMatchMode = (value: unknown): value is ENSMatchMode => ENS_MATCH_MODES.includes(value as ENSMatchMode);
 
 // Fatal like an invalid `value`: a pattern read with the wrong mode would be judged as a literal name.
 const validateMatchModesShape = (value: unknown, path: string): string[] => {
@@ -264,7 +264,7 @@ export const checkCustomTemplatesKeys = (
       )
     : [];
 
-export interface ENSAgentsKeyCheck {
+interface ENSAgentsKeyCheck {
   // Profiles stored with a key that is not an id: their value does not apply.
   errors: string[];
   // What this version does not know and ignores.

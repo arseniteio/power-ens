@@ -9,9 +9,9 @@ export interface ENSAgentPlatformFacts {
   backupOrigins: Record<string, number>;
 }
 
-export const ENS_PLATFORM_FACTS_WINDOW = 'now-30d';
+const ENS_PLATFORM_FACTS_WINDOW = 'now-30d';
 
-export const buildPlatformFactsRequest = () => ({
+const buildPlatformFactsRequest = () => ({
   index: ENS_ALERTS_INDEX,
   body: {
     size: 0,
@@ -48,7 +48,7 @@ const countBuckets = (buckets: any[] | undefined): Record<string, number> => {
   return output;
 };
 
-export const platformFactsFromAggregations = (aggregations: any): Record<string, ENSAgentPlatformFacts> => {
+const platformFactsFromAggregations = (aggregations: any): Record<string, ENSAgentPlatformFacts> => {
   const output: Record<string, ENSAgentPlatformFacts> = {};
   (aggregations?.agentes?.buckets || []).forEach((bucket: any) => {
     const id = normalizeAgentId(bucket?.key);

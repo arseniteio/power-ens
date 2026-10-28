@@ -16,10 +16,10 @@ export interface HomeSetupLike {
   featureCatalogue?: { register(entry: HomeFeatureCatalogueEntry): void };
 }
 
-export const HOME_CARD_DESCRIPTION =
+const HOME_CARD_DESCRIPTION =
   'Cumplimiento del Esquema Nacional de Seguridad: controles, evidencias, no conformidades e informes.';
 
-export const buildHomeCard = (icon: string): HomeFeatureCatalogueEntry => ({
+const buildHomeCard = (icon: string): HomeFeatureCatalogueEntry => ({
   id: POWER_ENS_PLUGIN_ID,
   title: POWER_ENS_APP_TITLE,
   description: HOME_CARD_DESCRIPTION,

@@ -2,7 +2,7 @@
 
 export const FACTS_READ_ERROR_TITLE = 'No se pudieron leer los hechos';
 
-export const factsReadErrorCause = (error: unknown): string => {
+const factsReadErrorCause = (error: unknown): string => {
   const message = (error as any)?.message ?? (typeof error === 'string' ? error : '');
   const text = String(message || '').trim();
   return text || 'el índice no respondió y no dio motivo';

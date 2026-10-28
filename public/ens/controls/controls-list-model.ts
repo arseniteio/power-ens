@@ -4,7 +4,7 @@ import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measur
 import { describePendingMeasurement, getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
 import { describeLevelSource } from '../../../common/ens/core/control-level';
 
-export interface ENSListControl {
+interface ENSListControl {
   id: string;
   title: string;
   activeLevels: string[];
@@ -33,7 +33,7 @@ export interface ENSControlListEntry {
   machines?: ENSMachineTally;
 }
 
-export interface ENSControlListOptions {
+interface ENSControlListOptions {
   agentId?: string;
   summaries: Map<string, ENSControlSummaryEntry>;
   agentRows?: ENSAgentControlsRow[];

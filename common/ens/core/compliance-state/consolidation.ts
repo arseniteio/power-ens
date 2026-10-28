@@ -152,7 +152,7 @@ const getEarliestIsoDate = (values: Array<string | undefined>): string | undefin
 
 // Consolidates VERDICTS across agents. Control and requirement states arriving here no longer include NO_EVALUABLE (what is not proven is NO_CUMPLE), so its branches are exercised only by EVIDENCES,
 // which keep it as a raw observation.
-export const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComplianceStatus => {
+const consolidateENSStatuses = (statuses: ENSComplianceStatus[]): ENSComplianceStatus => {
   const applicableStatuses = statuses.filter((status) => status !== 'NO_APLICA');
 
   if (applicableStatuses.length === 0) {
@@ -470,16 +470,4 @@ export const consolidateAgentComplianceResultByControl = (
   );
 
   return entries.length > 0 ? consolidateControlResult(entries) : undefined;
-};
-
-export const consolidateAgentComplianceResults = (
-  agents: ENSAgentComplianceState[]
-): ENSComplianceResult[] => {
-  const controlIds = uniqueValues(
-    agents.flatMap((agent) => agent.results.map((result) => result.control.id))
-  );
-
-  return controlIds
-    .map((controlId) => consolidateAgentComplianceResultByControl(agents, controlId))
-    .filter((result): result is ENSComplianceResult => Boolean(result));
 };

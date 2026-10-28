@@ -1,7 +1,7 @@
 import { ENSControlDefinition } from '../types';
 
 // The one comparator of dotted identifiers (ENS ids and Annex II sections): segment by segment, numbers as numbers, '4.3.2' < '4.3.10', 'op.exp.1' < 'op.exp.10'.
-export const compareENSIds = (a: string, b: string): number => {
+const compareENSIds = (a: string, b: string): number => {
   const left = String(a).trim().toLowerCase().split('.');
   const right = String(b).trim().toLowerCase().split('.');
 

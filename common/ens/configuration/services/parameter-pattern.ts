@@ -1,7 +1,7 @@
 import { RE2JS, RE2JSSyntaxException } from 're2js';
 import type { ENSMatchMode } from '../../../agent-configuration';
 
-export const MAX_PARAMETER_PATTERN_LENGTH = 512;
+const MAX_PARAMETER_PATTERN_LENGTH = 512;
 const MAX_PATTERN_PROGRAM_SIZE = 10000;
 
 // RE2 error descriptions (re2js `Parser.ERR_*`) in the words the screen uses.

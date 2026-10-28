@@ -33,9 +33,9 @@ import { MotiveText, MotiveView, MotiveViewHandlers, ParameterBadges, statusBadg
 import { ENS_THEME } from '../../theme-colors';
 import { statusLabel } from '../../../../common/ens/core/status-label';
 
-export type { NonConformityClass } from './nonconformity-class';
+;
 
-export interface NonConformityItem {
+interface NonConformityItem {
   id: string;
   requirement: string;
   // Distinguishes a measured failure from a missing proof and gives the card background; not tied to `status`, since every drawn card is OPEN.
@@ -70,7 +70,7 @@ interface ParsedLine {
   motivo: ParsedMotive;
 }
 
-export const readCardMotive = (
+const readCardMotive = (
   lines: MotiveLine[],
   evidenceIds: string[],
   finding: string,
@@ -107,15 +107,15 @@ export const readCardMotive = (
 };
 
 // Layout of the culprit part (no React, tested in tests/nonconformity-card.test.ts): headline (first sentence), remainder of that sentence if cut, and rest of the part.
-export const HEADLINE_MAX = 200;
+const HEADLINE_MAX = 200;
 const INTRO_MIN = 15;
 
-export interface CardTextBlock {
+interface CardTextBlock {
   text: string;
   list?: MotiveList;
 }
 
-export interface CardPartLayout {
+interface CardPartLayout {
   headline: string;
   cutAtWord: boolean;
   rest?: CardTextBlock;
@@ -128,7 +128,7 @@ const skipSpaces = (text: string, i: number) => {
   return i;
 };
 
-export const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, max: number = HEADLINE_MAX): CardPartLayout => {
+const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, max: number = HEADLINE_MAX): CardPartLayout => {
   const sentence = part.summary;
   const text = part.text;
   const list = part.list;

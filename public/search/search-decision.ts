@@ -1,6 +1,6 @@
 // What `useEsSearch` decides on each parameter change, without React. Two keys: the data key (filters, aggregations, cap, order) and `refreshKey`, which only asks to look again.
 
-export type ENSSearchDecision = 'start' | 'skip' | 'abort-and-start';
+type ENSSearchDecision = 'start' | 'skip' | 'abort-and-start';
 
 export const decideSearch = (inProgress: string | undefined, newValue: string): ENSSearchDecision => {
   if (inProgress === undefined) return 'start';
@@ -16,7 +16,7 @@ export const searchDataKey = (params: Record<string, unknown>): string => {
 export const isOwnCancellation = (signal?: { aborted: boolean }): boolean => Boolean(signal?.aborted);
 
 // Repeated notices: 17 rows failing the same way at once give a single notice. The registry belongs to the module (shared by all searches) and remembers when each message was given.
-export const ENS_SEARCH_TOAST_WINDOW_MS = 60 * 1000;
+const ENS_SEARCH_TOAST_WINDOW_MS = 60 * 1000;
 
 export const shouldToast = (
   log: Map<string, number>,

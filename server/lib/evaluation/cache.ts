@@ -7,7 +7,7 @@
 // marked, and recomputes behind.
 export const EVALUATION_TTL_MS = 60 * 60 * 1000;
 
-export interface CacheEntry<T> {
+interface CacheEntry<T> {
   value: T;
   fingerprint: string;
   storedAt: number;
@@ -122,55 +122,6 @@ export class CancelSignal implements Cancellable {
     if (this.cancelled) return;
     this.cancelled = true;
     this.listeners.splice(0).forEach(listener => listener());
-  }
-}
-
-// The same computation (one control on one machine, same fingerprint) is shared by all requests needing it at
-// once. If all waiters leave (the browser closes the request), it is cancelled; the one launched to refresh in
-// the background is not.
-export class SharedTasks<T> {
-  private readonly running = new Map<string, { promise: Promise<T>; waiters: number; signal: CancelSignal; pinned: boolean }>();
-
-  get size(): number {
-    return this.running.size;
-  }
-
-  // In progress and not cancelled (a cancelled one serves nobody).
-  has(key: string): boolean {
-    const entry = this.running.get(key);
-    return Boolean(entry && !entry.signal.aborted);
-  }
-
-  run(key: string, task: (signal: Cancellable) => Promise<T>, waiter?: Cancellable): Promise<T> {
-    let entry = this.running.get(key);
-    // A cancelled computation is not shared: whoever arrives now starts another (the cancelled one's `finally`
-    // does not delete the new one).
-    if (entry && entry.signal.aborted) entry = undefined;
-    if (!entry) {
-      const signal = new CancelSignal();
-      const promise = Promise.resolve()
-        .then(() => task(signal))
-        .finally(() => {
-          if (this.running.get(key)?.promise === promise) this.running.delete(key);
-        });
-      entry = { promise, waiters: 0, signal, pinned: false };
-      this.running.set(key, entry);
-    }
-    const actual = entry;
-    if (!waiter) {
-      actual.pinned = true;
-      return actual.promise;
-    }
-    actual.waiters += 1;
-    let loose = false;
-    const looseOne = () => {
-      if (loose) return;
-      loose = true;
-      actual.waiters -= 1;
-      if (actual.waiters <= 0 && !actual.pinned) actual.signal.cancel();
-    };
-    waiter.onAbort(looseOne);
-    return actual.promise.finally(looseOne);
   }
 }
 

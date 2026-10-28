@@ -16,12 +16,3 @@ export interface ENSAgentOS {
   version?: string;
   uname?: string;
 }
-
-export interface ENSScopeResult {
-  agentId: string;
-  agentName?: string;
-  inScope: boolean;
-  scopeGroup: string;
-  matchedGroups: string[];
-  reason: string;
-}

@@ -106,7 +106,7 @@ export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: 
   </EuiFlexGroup>
 );
 
-export const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePart; handlers: MotiveViewHandlers; withSummary?: boolean }) => (
+const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePart; handlers: MotiveViewHandlers; withSummary?: boolean }) => (
   <div style={{ marginBottom: 8 }}>
     <EuiText size='s'>
       <div style={{ marginBottom: 4 }}>

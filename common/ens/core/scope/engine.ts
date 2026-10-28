@@ -3,9 +3,7 @@ import {
   ENS_MANAGER_AGENT_ID,
   isManagerAgentId,
 } from './measurement-planes';
-import { ENSAgentScope, ENSScopeResult } from './types';
-
-export const ENS_SCOPE_GROUP = 'ens';
+import { ENSAgentScope } from './types';
 
 const normalizeGroup = (group: string): string =>
   group.trim().toLowerCase();
@@ -15,7 +13,7 @@ const normalizeAgentId = (
 ): string =>
   agentId.trim();
 
-export type ENSScopeAgentQueryFilter =
+type ENSScopeAgentQueryFilter =
   | {
       terms: {
         'agent.id': string[];
@@ -131,36 +129,3 @@ export const resolveAgentsByConfigurationScope = (
     )
   );
 };
-
-export const isAgentInENSScope = (
-  agent: ENSAgentScope
-): ENSScopeResult => {
-  const normalizedGroups = agent.groups.map(normalizeGroup);
-  const scopeGroup = normalizeGroup(ENS_SCOPE_GROUP);
-  const inScope = normalizedGroups.includes(scopeGroup);
-
-  const matchedGroups = agent.groups.filter(
-    group => normalizeGroup(group) === scopeGroup
-  );
-
-  return {
-    agentId: agent.id,
-    agentName: agent.name,
-    inScope,
-    scopeGroup: ENS_SCOPE_GROUP,
-    matchedGroups,
-    reason: inScope
-      ? `El agente pertenece al grupo '${ENS_SCOPE_GROUP}' y entra en el alcance ENS.`
-      : `El agente no pertenece al grupo '${ENS_SCOPE_GROUP}' y queda fuera del alcance ENS.`,
-  };
-};
-
-export const filterAgentsInENSScope = (
-  agents: ENSAgentScope[]
-): ENSAgentScope[] =>
-  agents.filter(agent => isAgentInENSScope(agent).inScope);
-
-export const getAgentScopeResults = (
-  agents: ENSAgentScope[]
-): ENSScopeResult[] =>
-  agents.map(isAgentInENSScope);

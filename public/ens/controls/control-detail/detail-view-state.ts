@@ -3,7 +3,7 @@
 // 2. While loading or after a failure the last result of the SAME control is shown, labelled with its machine and time.
 // 3. With nothing to show: loading, or the error with 'Reintentar'. Another control never inherits anything.
 
-export interface ENSDetailRequest {
+interface ENSDetailRequest {
   controlId: string;
   agentId?: string;
 }
@@ -13,13 +13,13 @@ export interface ENSRetainedEvaluation<T> extends ENSDetailRequest {
   computedAt?: string;
 }
 
-export interface ENSEvaluationSnapshot<T> {
+interface ENSEvaluationSnapshot<T> {
   data?: T;
   error?: unknown;
   isLoading: boolean;
 }
 
-export type ENSDetailView<T> =
+type ENSDetailView<T> =
   | { kind: 'loading' }
   | { kind: 'error'; error: unknown }
   | {

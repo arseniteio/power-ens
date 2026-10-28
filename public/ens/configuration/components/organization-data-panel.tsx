@@ -51,7 +51,7 @@ interface OrganizationDataPanelProps {
   onConfigurationSaved: () => void;
 }
 
-export const organizationItemAnchorId = (itemId: string): string => `ens-org-${itemId}`.replace(/[^A-Za-z0-9_-]/g, '_');
+const organizationItemAnchorId = (itemId: string): string => `ens-org-${itemId}`.replace(/[^A-Za-z0-9_-]/g, '_');
 
 const MAX_LINES = 8;
 

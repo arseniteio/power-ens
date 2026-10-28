@@ -11,7 +11,7 @@ import type {
 } from '../types';
 import { isOrganizationDataParameter } from '../organization/organization-data-items';
 
-export interface ENSConfigurationResetSummary {
+interface ENSConfigurationResetSummary {
   controlId: string;
   // Number of parameters that had a value before deleting.
   clearedParameters: number;

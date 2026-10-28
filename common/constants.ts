@@ -12,23 +12,14 @@ export const POWER_ENS_APP_CATEGORY = {
   euiIconType: 'securityApp',
 };
 
-export const POWER_ENS_API_BASE = '/api/powerEns';
+const POWER_ENS_API_BASE = '/api/powerEns';
 export const POWER_ENS_CONFIGURATION_PATH = `${POWER_ENS_API_BASE}/configuration`;
 // The plugin server does the evaluation (since 1.2.0): the browser receives the result and downloads no facts.
 export const POWER_ENS_EVALUATION_PATH = `${POWER_ENS_API_BASE}/evaluation`;
-// Maturity records of each control (save) and its daily snapshots (read), since 1.4.0.
-export const POWER_ENS_MATURITY_PATH = `${POWER_ENS_API_BASE}/maturity`;
-// Annual report of art. 32 (read, export) and its freeze, since 1.4.0.
-export const POWER_ENS_ANNUAL_REPORT_PATH = `${POWER_ENS_API_BASE}/annual-report`;
-
-// Version written in the header of each annual report; `tests/plugin-manifest.test.ts` keeps it equal to the manifest.
-export const POWER_ENS_PLUGIN_VERSION = '1.4.0';
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
 export const ENS_CONFIGURATION_INDEX = 'wazuh-ens-configuration';
-// One document per control and day (status, score, coverage, accredited and assessed maturity).
-export const ENS_SNAPSHOTS_INDEX = 'wazuh-ens-snapshots';
 // Written by the OSCompliance engine: one verdict per evidence and pass, per requirement and day, per control and day.
 export const ENS_VERDICTS_INDEX = 'oscompliance-verdicts';
 

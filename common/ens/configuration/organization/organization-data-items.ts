@@ -304,10 +304,7 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   }
 ];
 
-export const getOrganizationDataItem = (itemId: string): ENSOrganizationDataItem | undefined =>
-  ENS_ORGANIZATION_DATA_ITEMS.find(item => item.id === itemId);
-
-export interface ENSOrganizationDataLink {
+interface ENSOrganizationDataLink {
   item: ENSOrganizationDataItem;
   view: ENSOrganizationDataView;
 }

@@ -4,7 +4,7 @@ import {
   ENSLevel,
 } from '../configuration/types';
 
-export type ENSDimensionLevelKey =
+type ENSDimensionLevelKey =
   | 'confidentialityLevel'
   | 'integrityLevel'
   | 'traceabilityLevel'
@@ -35,7 +35,7 @@ const LEVEL_RANK: Record<ENSLevel, number> = { BAJO: 1, MEDIO: 2, ALTO: 3 };
 const isENSLevel = (value: unknown): value is ENSLevel =>
   typeof value === 'string' && value in LEVEL_RANK;
 
-export const compareENSLevels = (a: ENSLevel, b: ENSLevel): number => LEVEL_RANK[a] - LEVEL_RANK[b];
+const compareENSLevels = (a: ENSLevel, b: ENSLevel): number => LEVEL_RANK[a] - LEVEL_RANK[b];
 
 // The dimensions a control declares, always as a list (the catalog accepts one or several).
 export const listControlDimensions = (
@@ -51,7 +51,7 @@ export const listControlDimensions = (
 };
 
 // Level of one dimension: the declared one or, with the key absent, `level`.
-export const resolveDimensionLevel = (
+const resolveDimensionLevel = (
   dimension: ENSLevelDimension,
   level: ENSLevel,
   global?: Partial<ENSGlobalConfiguration>

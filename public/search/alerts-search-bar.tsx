@@ -9,7 +9,7 @@ import { getData, getNavigation } from '../services';
 import { findIndexPatternByTitle, IndexPatternLookup } from './alerts-index-pattern';
 import { buildAlertsSearchFilters } from './alerts-search-filters';
 
-export interface AlertsSearchBar {
+interface AlertsSearchBar {
   searchBar: React.ReactNode;
   filters: unknown[];
   // For the `refreshKey` of `useEsSearch`: it rises on 'Actualizar' and on auto-refresh. With an absolute range the recomputed filters have the same JSON, so without it no new search would run.

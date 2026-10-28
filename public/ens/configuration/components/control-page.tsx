@@ -25,7 +25,7 @@ import { ControlAssignmentPanel } from './control-assignment-panel';
 import { ENSAgentsData, buildAgentRows } from './use-agents-data';
 
 // Only common parameters judge the common state: agent-level ones are judged per agent.
-export const commonParameterIds = (control: ENSControlConfiguration): string[] =>
+const commonParameterIds = (control: ENSControlConfiguration): string[] =>
   control.parameters
     .filter(parameter => {
       const parameterClass = getParameterClass(control.controlId, parameter.id);

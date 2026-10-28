@@ -307,7 +307,7 @@ const validateUrl = (
 // Stored as `string[]`: one row per element, fields separated by `|` (same format as multi-field list items). A
 // cell cannot contain `|` or newlines.
 
-export const TABLE_FIELD_SEPARATOR = ' | ';
+const TABLE_FIELD_SEPARATOR = ' | ';
 
 export const getParameterColumns = (
   parameter: ENSControlParameter
@@ -361,7 +361,7 @@ const isBlankRow = (row: string): boolean =>
   );
 
 /** Serializes a row. An all-empty row is stored as an empty string so it still counts as absent. */
-export const tableRowFromCells = (
+const tableRowFromCells = (
   cells: string[]
 ): string => {
   const cleanOnes = cells.map(cell =>
@@ -670,7 +670,7 @@ const validateTable = (
 // Single criterion shared by the form and the validator. A `select` without `options` accepts any text (blocks
 // seeded before options existed).
 
-export const getParameterOptions = (
+const getParameterOptions = (
   parameter: ENSControlParameter
 ): string[] =>
   (parameter.options || [])
@@ -678,7 +678,7 @@ export const getParameterOptions = (
     .filter(Boolean);
 
 /** The options offered at a level: `optionsByLevel` where it narrows them, every option otherwise. */
-export const getParameterOptionsAtLevel = (
+const getParameterOptionsAtLevel = (
   parameter: ENSControlParameter,
   level?: ENSLevel
 ): string[] => {
@@ -705,7 +705,7 @@ export const hasParameterOptions = (
   getParameterOptions(parameter).length > 0;
 
 /** Declared option matching the received value in canonical form, or `undefined`. Case- and whitespace-tolerant (shared with column options via `matchOption`). */
-export const matchParameterOption = (
+const matchParameterOption = (
   parameter: ENSControlParameter,
   value: ENSControlParameter['value']
 ): string | undefined =>
@@ -868,7 +868,7 @@ const validateStatementOfApplicability = (
     : VALID;
 };
 
-export const PARAMETER_REFINEMENTS: ParameterRefinement[] = [
+const PARAMETER_REFINEMENTS: ParameterRefinement[] = [
   {
     controlId: 'op.mon.2',
     name: 'declaracion_aplicabilidad',
@@ -970,7 +970,7 @@ export interface ENSSelectOption {
   legacy: boolean;
 }
 
-export interface ENSSelectFieldModel {
+interface ENSSelectFieldModel {
   options: ENSSelectOption[];
   selected: string;
   legacyValue?: string;
@@ -1042,13 +1042,13 @@ export interface ENSTableCellModel {
   placeholder?: string;
 }
 
-export interface ENSTableRowModel {
+interface ENSTableRowModel {
   cells: ENSTableCellModel[];
   // Extra fields the row carries beyond the declared columns; kept and shown joined to the last cell.
   overflow: number;
 }
 
-export interface ENSTableFieldModel {
+interface ENSTableFieldModel {
   columns: ENSParameterColumn[];
   rows: ENSTableRowModel[];
 }

@@ -33,7 +33,7 @@ interface MotiveCellProps {
   handlers?: MotiveViewHandlers;
 }
 
-export const cellLine = (text: string, evidenceId?: string, known: KnownReasonParts[] = []) => {
+const cellLine = (text: string, evidenceId?: string, known: KnownReasonParts[] = []) => {
   const motive = parseMotive(text, known);
   const part =
     (evidenceId && motive.parts.find(p => p.evidenceId === evidenceId)) ||

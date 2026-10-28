@@ -1,4 +1,3 @@
-import { ENSComplianceStatus, ENSGapCause } from '../evaluation/types';
 import { ENSLevel } from '../../configuration/types';
 import { ENSDataSourceType } from '../data-source/types';
 
@@ -39,7 +38,7 @@ export interface ENSEvidenceQualityRequirements {
 //   ANTIGUEDAD_MAXIMA      The latest fact is not older than the deadline. The only EXISTENTIAL primitive (ONE recent fact suffices), so it never passes by absence.
 // Against a policy TABLE:
 //   CONFORME_A_TABLA        Each observed fact matches ITS row in the table, column by column (op.acc.2.2).
-export type ENSEvidenceJudgmentPrimitive =
+type ENSEvidenceJudgmentPrimitive =
   | 'NINGUNO_EN_LISTA'
   | 'TODOS_EN_LISTA'
   | 'NINGUNO_FUERA_DE_LISTA'
@@ -49,7 +48,7 @@ export type ENSEvidenceJudgmentPrimitive =
   | 'CONFORME_A_TABLA';
 
 // A policy-table column checked against a fact field. Declared separately on purpose: the column is what the owner DECIDED ('acl_esperada'), the field what the agent OBSERVED ('acl').
-export interface ENSEvidenceTableCheck {
+interface ENSEvidenceTableCheck {
   column: string;
   factField: string;
 }
@@ -133,57 +132,3 @@ export interface ENSEvidenceDefinition {
   // This evidence's collector only declares gaps (`evidence_state` NO_EVALUABLE with cause), never verdicts. An event declaring CUMPLE, NO_CUMPLE or PARCIAL is incompatible and resolves nothing.
   agentDeclaresOnlyGaps?: boolean;
 }
-
-export interface ENSEvidenceResolved {
-  id: string;
-  controlId: string;
-  title: string;
-  description: string;
-  status: ENSComplianceStatus;
-  requirements: string[];
-  levels: ENSLevel[];
-  category: ENSEvidenceCategory;
-  criticality: ENSEvidenceCriticality;
-  sourceTypes: ENSDataSourceType[];
-  expectedEventTypes: string[];
-  relatedRules: string[];
-  auditQuestion: string;
-  qualityRequirements?: ENSEvidenceQualityRequirements;
-  lastSeen?: string;
-  agentId?: string;
-  agentName?: string;
-  resolvedEventId?: string;
-  resolvedEventType?: string;
-  resolvedSourceType?: ENSDataSourceType;
-  resolvedSource?: string;
-  resolvedRuleId?: string;
-  resolvedRuleDescription?: string;
-  resolvedAttributes?: Record<string, unknown>;
-  latestSuccessfulEventId?: string;
-  latestSuccessfulAttributes?: Record<string, unknown>;
-  observations: string[];
-
-  // WHY there is no measure; travels only with `status` NO_EVALUABLE.
-  //   COLLECTION     nothing arrived: agent down, collector not run, no heartbeat.
-  //   EVIDENCE       data arrived but is not enough: quality contract, unreadable field, or the agent says it could not measure.
-  //   CONFIGURATION  the parameter to judge against is missing or empty.
-  // Never CATALOG: that cause belongs to the requirement, not the evidence.
-  gapCause?: ENSGapCause;
-}
-
-// The part of the resolved evidence copied from the catalog before anything is known about the verdict or the event. Built by `engine.ts`, also consumed by `judgment.ts`.
-export type ENSEvidenceBaseFields = Omit<
-  ENSEvidenceResolved,
-  | 'status'
-  | 'observations'
-  | 'gapCause'
-  | 'lastSeen'
-  | 'agentId'
-  | 'agentName'
-  | 'resolvedEventId'
-  | 'resolvedEventType'
-  | 'resolvedSourceType'
-  | 'resolvedSource'
-  | 'resolvedRuleId'
-  | 'resolvedRuleDescription'
->;

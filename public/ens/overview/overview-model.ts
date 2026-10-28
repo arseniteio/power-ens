@@ -9,11 +9,11 @@ import type {
 import { ENSMachineTally, tallyMachines } from '../controls/controls-list-model';
 import { classifyNonConformity, NonConformityClass } from '../controls/control-detail/nonconformity-class';
 
-export const HOUR = 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
 // The engine judges every hour: a machine without a verdict for a day has stopped reporting.
-export const STALE_AFTER_MS = 26 * HOUR;
+const STALE_AFTER_MS = 26 * HOUR;
 
-export interface OverviewMachine {
+interface OverviewMachine {
   agentId: string;
   agentName?: string;
   status?: string;
@@ -44,7 +44,7 @@ export type MatrixCell =
   | { kind: 'not-measured'; reason?: string }
   | { kind: 'pending' };
 
-export interface MatrixRow {
+interface MatrixRow {
   controlId: string;
   title: string;
   overall?: ENSControlSummaryEntry;
@@ -56,7 +56,7 @@ export interface MatrixRow {
   pendingMeasurement?: string;
 }
 
-export interface MatrixOptions {
+interface MatrixOptions {
   isManagerOnly: (controlId: string) => boolean;
   notMeasuredReason: (controlId: string, agentId: string) => string | undefined;
   pendingMeasurement?: (controlId: string) => string | undefined;
@@ -124,7 +124,7 @@ export const describeOverviewPending = (
       }
     : undefined;
 
-export type FreshnessCell =
+type FreshnessCell =
   | { kind: 'fresh' | 'stale'; newest: string; count: number }
   | { kind: 'never'; count: 0 }
   | { kind: 'not-expected' };
@@ -144,7 +144,7 @@ export const freshnessCell = (
 
 const SEVERITY_RANK: Record<string, number> = { NO_CUMPLE: 0, PARCIAL: 1, NO_EVALUABLE: 2, CUMPLE: 3, NO_APLICA: 4 };
 
-export interface MachineSummary {
+interface MachineSummary {
   agentId: string;
   agentName?: string;
   status?: string;
@@ -194,7 +194,7 @@ export const buildMachineSummaries = (
     };
   });
 
-export interface WorkItem {
+interface WorkItem {
   controlId: string;
   nc: ENSOverviewNonConformity;
   // First sentence of the culprit evidence (computed by the server with motive-parser.ts, the same parser as the card).
@@ -204,7 +204,7 @@ export interface WorkItem {
   machines: string;
 }
 
-export interface WorkGroup {
+interface WorkGroup {
   owner: string;
   clase: NonConformityClass;
   items: WorkItem[];
@@ -244,7 +244,7 @@ export const buildWorkQueue = (
     .sort((a, b) => a.clase.orden - b.clase.orden);
 };
 
-export interface TrendControlRow {
+interface TrendControlRow {
   controlId: string;
   cells: { date: string; label: string; status?: string; score?: number }[];
   changed: boolean;

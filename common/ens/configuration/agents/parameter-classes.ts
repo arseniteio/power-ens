@@ -4,7 +4,7 @@
 // their collector decides which ones go per system or per platform, with their built-in templates.
 import { ENGINE_CATALOG, toParameterClasses } from '../../catalog/engine-catalog';
 
-export type ENSParameterClass = 'organisation' | 'system' | 'platform';
+type ENSParameterClass = 'organisation' | 'system' | 'platform';
 
 const HAND_PARAMETER_CLASSES: Record<string, Record<string, ENSParameterClass>> =
 {
@@ -73,6 +73,3 @@ export const isAgentLevelParameter = (controlId: string, parameterId: string): b
   const parameterClass = getParameterClass(controlId, parameterId);
   return parameterClass === 'system' || parameterClass === 'platform';
 };
-
-export const getSystemKeyColumn = (controlId: string, parameterId: string): string | undefined =>
-  ENS_SYSTEM_KEY_COLUMNS[controlId]?.[parameterId];

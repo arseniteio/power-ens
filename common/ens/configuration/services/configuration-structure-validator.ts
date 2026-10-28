@@ -13,7 +13,7 @@ import { validateOrganizationDataShape } from '../organization/organization-data
 
 type UnknownRecord = Record<string, unknown>;
 
-export interface ENSConfigurationStructureValidation {
+interface ENSConfigurationStructureValidation {
   valid: boolean;
   errors: string[];
 }
@@ -553,11 +553,6 @@ export const validateENSConfigurationStructure = (
     errors,
   };
 };
-
-export const isENSConfigurationVersion = (
-  value: unknown
-): value is ENSConfigurationVersion =>
-  validateENSConfigurationStructure(value).valid;
 
 export const assertENSConfigurationVersion = (
   value: unknown

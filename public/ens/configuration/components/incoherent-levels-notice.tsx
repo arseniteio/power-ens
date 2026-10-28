@@ -11,7 +11,7 @@ import { configurationSearchChanges } from '../../../routing/configuration-link'
 import { useSetRouterSearch } from '../../../routing/use-router-search';
 
 // «Disponibilidad (D) ALTO supera el nivel ENS MEDIO»; undefined when the levels are coherent.
-export const describeIncoherentLevelsLine = (global?: Partial<ENSGlobalConfiguration>): string | undefined => {
+const describeIncoherentLevelsLine = (global?: Partial<ENSGlobalConfiguration>): string | undefined => {
   const above = findDimensionsAboveENSLevel(global);
 
   if (!above.length || !global) {

@@ -39,7 +39,7 @@ export interface ENSResolvedValueOrigin {
   contributors?: string[];
 }
 
-export interface ENSEffectiveTemplate {
+interface ENSEffectiveTemplate {
   template?: ENSControlTemplate;
   via: 'assigned' | 'type' | 'none';
   // The stored assignment, even when it names a template that no longer exists.
@@ -89,7 +89,7 @@ export const getEffectiveTemplate = (
   return effectiveTemplateOf(model, profileOf(model, agentId), controlId);
 };
 
-export interface ENSAgentLevelValue {
+interface ENSAgentLevelValue {
   value: ENSAgentParameterValue;
   origin: ENSResolvedValueOrigin;
   // The mode stored with this value at its level; absent is exact.
@@ -150,13 +150,6 @@ export const getInheritedSetting = (
   const common = model.controls.find(control => control.controlId === controlId)?.parameters.find(parameter => parameter.id === parameterId);
   return { value: common?.value, ...(common?.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}) };
 };
-
-export const getInheritedValue = (
-  configuration: ENSResolvable,
-  agentId: string,
-  controlId: string,
-  parameterId: string
-): ENSAgentParameterValue | undefined => getInheritedSetting(configuration, agentId, controlId, parameterId).value;
 
 const isManagerRow = (agentId?: string): boolean =>
   agentId === undefined || normalizeAgentId(agentId) === ENS_MANAGER_AGENT;
@@ -226,7 +219,7 @@ const resolveUnion = (
   return contributors.length ? { value: rows, contributors } : undefined;
 };
 
-export interface ENSResolvedControlConfiguration {
+interface ENSResolvedControlConfiguration {
   configuration: ENSControlConfiguration;
   origins: Record<string, ENSResolvedValueOrigin>;
 }

@@ -124,7 +124,6 @@ export const ControlDetailENS = ({
   retained.current = nextRetained(request, evaluation, retained.current, computedAt);
   const data = view.kind === 'shown' ? view.data : undefined;
   const displayedAgent = view.kind === 'shown' ? view.agentId : agentId;
-  const error = view.kind === 'error' ? view.error : view.kind === 'shown' ? view.error : undefined;
 
   const ensLevel = data?.meta?.level || getActiveENSConfiguration().global.ensLevel;
   const complianceResult = data?.result;

@@ -1,7 +1,7 @@
 // Searches as the viewing user. OpenSearch answers 200 with partial results if a shard fails: each search sends
 // `allow_partial_search_results=false` and the response is still checked, so nothing is judged on partial data.
 
-export class ENSIncompleteDataError extends Error {
+class ENSIncompleteDataError extends Error {
   statusCode = 503;
   constructor(detail: string) {
     super(`Datos incompletos: ${detail}. No se ha evaluado nada con ellos; reintentar.`);
@@ -9,7 +9,7 @@ export class ENSIncompleteDataError extends Error {
   }
 }
 
-export class ENSEvaluationCancelledError extends Error {
+class ENSEvaluationCancelledError extends Error {
   statusCode = 499;
   constructor() {
     super('Evaluación cancelada: nadie espera ya su resultado.');

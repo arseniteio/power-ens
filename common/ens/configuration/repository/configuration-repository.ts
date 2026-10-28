@@ -18,7 +18,7 @@ export interface ENSConfigurationHydrationState {
   error?: string;
 }
 
-export interface ENSConfigurationRepository {
+interface ENSConfigurationRepository {
   getActive(): ENSConfigurationVersion;
 
   replaceActive(

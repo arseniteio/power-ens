@@ -184,17 +184,6 @@ export const getActiveENSConfiguration =
   (): ENSConfigurationVersion =>
     ensConfigurationRepository.getActive();
 
-export const getConfiguredControls =
-  (): ENSControlConfiguration[] =>
-    getActiveENSConfiguration().controls;
-
-export const getConfiguredControlById = (
-  controlId: string
-): ENSControlConfiguration | undefined =>
-  getConfiguredControls().find(
-    control => control.controlId === controlId
-  );
-
 // The single entry point of the configuration into the engine; see `agents/configuration-resolver.ts`.
 export const getActiveControlConfiguration = (
   controlId: string,
@@ -286,10 +275,6 @@ const updateControlConfiguration = async (
   );
 };
 
-export const getENSConfigurationHistory =
-  (): ENSConfigurationVersion[] =>
-    ensConfigurationRepository.getHistory();
-
 export const updateActiveGlobalConfiguration = (
   globalConfiguration: ENSGlobalConfiguration
 ): Promise<ENSConfigurationVersion> => inSaveQueue(() => updateGlobalConfiguration(globalConfiguration));
@@ -356,7 +341,7 @@ const updateGlobalConfiguration = async (
 
 // Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous
 // version in the history and an entry with `changeReason` in `auditTrail`.
-export const saveActiveENSConfiguration = async (
+const saveActiveENSConfiguration = async (
   candidateConfiguration: ENSConfigurationVersion,
   changeReason: string
 ): Promise<ENSConfigurationVersion> => {

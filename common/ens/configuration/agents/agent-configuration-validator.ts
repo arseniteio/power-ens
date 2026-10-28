@@ -25,7 +25,7 @@ import {
   isReservedTemplateId,
 } from '../templates';
 
-export interface ENSAgentConfigurationIssue {
+interface ENSAgentConfigurationIssue {
   agentId: string;
   controlId?: string;
   parameterId?: string;
@@ -36,7 +36,7 @@ export interface ENSAgentConfigurationIssue {
   message: string;
 }
 
-export interface ENSTemplateIssue {
+interface ENSTemplateIssue {
   templateId: string;
   controlId?: string;
   parameterId?: string;
@@ -223,7 +223,7 @@ export const validateCustomTemplates = (
   return issues;
 };
 
-export interface ENSAgentConfigurationSummary {
+interface ENSAgentConfigurationSummary {
   agentId: string;
   name?: string;
   type?: string;

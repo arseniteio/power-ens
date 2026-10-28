@@ -112,13 +112,6 @@ export interface ENSOverviewEvaluationResponse extends ENSSummaryEvaluationRespo
   nonConformities: ENSOverviewNonConformity[];
 }
 
-export interface ENSResultsEvaluationResponse {
-  meta: ENSEvaluationMeta;
-  controlSummary: ENSComplianceSummary;
-  results: ENSComplianceResult[];
-  timeline?: ENSEvaluationTimelinePoint[];
-}
-
 export interface ENSTraceabilityPageResponse {
   meta: ENSEvaluationMeta;
   total: number;

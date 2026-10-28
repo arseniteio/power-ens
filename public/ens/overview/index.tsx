@@ -58,7 +58,7 @@ import { statusLabel } from '../../../common/ens/core/status-label';
 // A control not measured on a machine is a striped gap, not the NO_APLICA grey.
 const STRIPED = ENS_NO_RESULT_PATTERN;
 
-export const MATRIX_MACHINE_MIN_WIDTH = 64;
+const MATRIX_MACHINE_MIN_WIDTH = 64;
 const STICKY_CELL: React.CSSProperties = { position: 'sticky', left: 0, background: ENS_THEME.surface, zIndex: 1 };
 
 // Still computing (partial first load): neither a result nor 'not measured'.

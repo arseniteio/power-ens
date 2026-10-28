@@ -26,7 +26,7 @@ const UBUNTU_SUID = [
 ];
 
 // `OPACC2_RUTAS_CRITICAS` from `op.acc.2-access-requirements/etc/opacc2.env.example`.
-export const LINUX_CRITICAL_PATHS = [
+const LINUX_CRITICAL_PATHS = [
   '/etc/passwd', '/etc/shadow', '/etc/group', '/etc/gshadow', '/etc/sudoers',
   '/etc/sudoers.d', '/etc/ssh/sshd_config', '/etc/crontab', '/etc/cron.d',
   '/etc/login.defs',

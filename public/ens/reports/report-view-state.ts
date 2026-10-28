@@ -1,14 +1,14 @@
 // What a control's report section shows, without React (tests/report-view-state.test.ts). Never a filler that looks measured.
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
 
-export type ENSReportViewState =
+type ENSReportViewState =
   | { kind: 'error'; error: unknown }
   | { kind: 'loading' }
   | { kind: 'not-measured'; title: string; text: string; reason?: ENSNotMeasuredReason }
   | { kind: 'panorama-loading' }
   | { kind: 'ready' };
 
-export interface ENSReportViewInput {
+interface ENSReportViewInput {
   controlId: string;
   agentId?: string;
   agentLabel?: string;

@@ -1,4 +1,4 @@
-import { ENSComplianceResult, ENSComplianceStatus } from '../evaluation/types';
+import { ENSComplianceResult } from '../evaluation/types';
 
 export interface ENSComplianceSummary {
   totalControls: number;
@@ -47,5 +47,3 @@ export interface ENSComplianceState {
   summary: ENSComplianceSummary;
   agents: ENSAgentComplianceState[];
 }
-
-export type ENSComplianceStatusFilter = ENSComplianceStatus | 'ALL';

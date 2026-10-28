@@ -4,6 +4,5 @@ export * from './findings.presenter';
 export * from './family.presenter';
 export * from './requirement-findings.presenter';
 export * from './level-summary.presenter';
-export * from './impact-events.presenter';
 export * from './evolution.presenter';
 export * from './requirements-summary.presenter';

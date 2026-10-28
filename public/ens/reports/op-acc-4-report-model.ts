@@ -1,6 +1,6 @@
-import type { ENSComplianceResult } from '../../../common/ens/core';
+import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
-export type OpAcc4ReportFieldStatus =
+type OpAcc4ReportFieldStatus =
   | 'CUMPLE'
   | 'PARCIAL'
   | 'NO_CUMPLE'
@@ -8,7 +8,7 @@ export type OpAcc4ReportFieldStatus =
   | 'NO_APLICA'
   | 'SIN_DATOS';
 
-export interface OpAcc4ReportField {
+interface OpAcc4ReportField {
   id: string;
   title: string;
   status: OpAcc4ReportFieldStatus;
@@ -18,7 +18,7 @@ export interface OpAcc4ReportField {
   producerGaps: string[];
 }
 
-export interface OpAcc4ReportModel {
+interface OpAcc4ReportModel {
   controlId: string;
   status: OpAcc4ReportFieldStatus;
   score: number | null;
@@ -77,24 +77,15 @@ const field = (
 export const buildOpAcc4ReportModel = (
   result: ENSComplianceResult | undefined,
 ): OpAcc4ReportModel => {
-  const parameters = new Map(
-    (result?.parameters || []).map(parameter => [parameter.id, parameter]),
-  );
-
   const evidences = new Map(
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
   );
-
-  const parameterValue = (parameterId: string): unknown =>
-    parameters.get(parameterId)?.value;
 
   const evidenceStatus = (evidenceId: string): OpAcc4ReportFieldStatus =>
     asStatus(evidences.get(evidenceId)?.status);
 
   const evidenceObservations = (evidenceId: string): string[] =>
     evidences.get(evidenceId)?.observations || [];
-
-  const level = (result?.level || '').toUpperCase();
 
   const field1 = field(
     'op.acc.4.campo1',

@@ -8,7 +8,7 @@ const ENS_CONFIGURATION_API_PATH = POWER_ENS_CONFIGURATION_PATH;
 
 // HTTP client of the dashboard core. Lives in `common/` (shared with the server), which cannot import from
 // `public/`: the browser registers it at startup (`public/services.ts`).
-export interface ENSConfigurationHttp {
+interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal; query?: Record<string, string> }): Promise<T>;
   put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
   post<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
@@ -19,8 +19,6 @@ let httpProvider: (() => ENSConfigurationHttp) | undefined;
 export const setENSConfigurationHttp = (provider: () => ENSConfigurationHttp): void => {
   httpProvider = provider;
 };
-
-export const getENSConfigurationHttp = (): ENSConfigurationHttp => getHttp();
 
 const getHttp = (): ENSConfigurationHttp => {
   if (!httpProvider) {
@@ -59,7 +57,7 @@ interface ENSConfigurationApiResponse {
 }
 
 // Keys checked by the route schema (server/routes/configuration.ts); tests/configuration-route-schema.test.ts.
-export interface ENSConfigurationSaveRequest {
+interface ENSConfigurationSaveRequest {
   configuration: ENSConfigurationVersion;
   changeReason?: string;
   // null: there was no configuration when it was loaded, so it must still not exist.
@@ -99,7 +97,7 @@ const getResponseData = (
 
 // The server explains in `body.message` why it rejects a request; the core HTTP client only reports the status
 // text.
-export const withServerReason = (error: any): Error => {
+const withServerReason = (error: any): Error => {
   const reason = error?.body?.message;
 
   return typeof reason === 'string' && reason.trim()
@@ -123,15 +121,10 @@ export async function getENSConfiguration(): Promise<
   return getResponseData(response);
 }
 
-export const SAVE_TIMED_OUT =
+const SAVE_TIMED_OUT =
   'El guardado no ha respondido a tiempo y puede haberse aplicado o no. Recarga la página para ver la configuración actual.';
 
 let saveTimeoutMs = ENS_REQUEST_TIMEOUT_MS;
-
-// Tests only: a save that hangs is cut after this many milliseconds.
-export const setENSConfigurationSaveTimeout = (milliseconds: number): void => {
-  saveTimeoutMs = milliseconds;
-};
 
 export async function saveENSConfiguration(
   configuration: ENSConfigurationVersion,

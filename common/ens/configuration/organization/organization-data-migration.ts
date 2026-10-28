@@ -153,7 +153,7 @@ const uniqueCandidates = (candidates: (ENSOrganizationCandidate | undefined)[]):
   });
 };
 
-export const describeOrganizationItem = (
+const describeOrganizationItem = (
   configuration: ENSOrganizationDocument,
   item: ENSOrganizationDataItem
 ): ENSOrganizationItemState => {

@@ -2,7 +2,7 @@ import type { CoreSetup, Logger, Plugin, PluginInitializerContext } from '../../
 import { registerConfigurationRoutes } from './routes/configuration';
 import { registerEvaluationRoutes } from './routes/evaluation';
 
-export interface PowerEnsServerSetupDeps {
+interface PowerEnsServerSetupDeps {
   securityDashboards?: unknown;
 }
 

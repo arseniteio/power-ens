@@ -42,9 +42,9 @@ import {
 import type { ENSVerdictsProbe } from './verdict-queries';
 import { overviewQueryFlags, perControlOfPoint, perControlOfResults } from './overview-fields';
 
-export type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
+type ENSEvaluationInclude = 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
 
-export interface ENSEvaluationQuery {
+interface ENSEvaluationQuery {
   agentId?: string;
   controlId?: string;
   include: ENSEvaluationInclude;
@@ -56,7 +56,7 @@ export interface ENSEvaluationQuery {
   timelineControls?: boolean;
 }
 
-export interface ENSEvaluationClients {
+interface ENSEvaluationClients {
   asCurrentUser: any;
   asInternalUser: any;
 }
@@ -77,7 +77,7 @@ const normalizeAgentId = (value: string): string => {
 
 const sha = (...parts: unknown[]): string => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 16);
 
-export const isValidTimeZone = (timeZone?: string): boolean => {
+const isValidTimeZone = (timeZone?: string): boolean => {
   if (!timeZone) return false;
   try {
     new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
@@ -123,7 +123,7 @@ export const normalizeQuery = (query: Record<string, unknown>): ENSEvaluationQue
   };
 };
 
-export interface ENSEvaluationContext {
+interface ENSEvaluationContext {
   now: Date;
   userKey: string;
   configuration: ENSConfigurationVersion;
@@ -163,13 +163,13 @@ interface StoredRow {
 const compress = (list: ENSTraceabilityResult[]): Buffer | null =>
   list.length ? deflateRawSync(Buffer.from(JSON.stringify(list), 'utf8')) : null;
 
-export const decompressTraceability = (data: Buffer | null): ENSTraceabilityResult[] =>
+const decompressTraceability = (data: Buffer | null): ENSTraceabilityResult[] =>
   data ? JSON.parse(inflateRawSync(data).toString('utf8')) : [];
 
 const storedRowBytes = (row: StoredRow): number =>
   JSON.stringify(row.result).length + (row.traceability?.length || 0) + ENS_EVALUATION_LIMITS.maxTimelineDays * 80 + 512;
 
-export const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({ ...result, traceability: [] });
+const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({ ...result, traceability: [] });
 
 // The configuration document is re-read only when its stamp (`_seq_no`, `_primary_term`) changes.
 const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
@@ -186,7 +186,7 @@ const readConfigurationStamp = async (client: any): Promise<string | undefined> 
   return doc ? `${doc.updatedAt || ''}|${doc.configuration?.updatedAt || ''}|${hit._seq_no ?? ''}|${hit._primary_term ?? ''}` : undefined;
 };
 
-export interface ENSEvaluationServiceOptions {
+interface ENSEvaluationServiceOptions {
   logger: Logger;
   securityEnabled: boolean;
   clock?: () => Date;
@@ -197,7 +197,7 @@ export interface ENSEvaluationServiceOptions {
   firstResponseMs?: number;
 }
 
-export interface ENSRunOptions {
+interface ENSRunOptions {
   // Answer with the stored data even if no longer valid, and recompute behind.
   allowStale?: boolean;
   // Whoever waits for the answer (cancelled if it leaves).
@@ -207,7 +207,7 @@ export interface ENSRunOptions {
 }
 
 // A control's view for the request: its result, traceability and rows.
-export interface ENSViewPartition {
+interface ENSViewPartition {
   controlId: string;
   result?: ENSComplianceResult;
   traceability: () => ENSTraceabilityResult[];
@@ -217,7 +217,7 @@ export interface ENSViewPartition {
   pointAt: (cutoffIso: string) => CutPoint | null | undefined;
 }
 
-export const FIRST_RESPONSE_MS = 1500;
+const FIRST_RESPONSE_MS = 1500;
 const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'overview', 'dashboard'];
 // A failed cold computation is reported in following requests for this time, without relaunching it on every poll.
 const COLD_FAILURE_MS = 30 * 1000;

@@ -7,14 +7,6 @@ export type ENSDataSourceType =
   | 'SCRIPT'
   | 'INVENTORY';
 
-export interface ENSDataSourceDefinition {
-  id: string;
-  name: string;
-  type: ENSDataSourceType;
-  description: string;
-  enabled: boolean;
-}
-
 export interface ENSNormalizedEvent {
   id: string;
 

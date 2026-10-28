@@ -4,12 +4,12 @@
 import { ENSPrefixFilterResult } from './types';
 import { compareENSFamiliesByAnnex } from '../../../common/ens/catalog';
 
-export { compareENSIds } from '../../../common/ens/catalog';
+;
 
-export const splitENSId = (id: string): string[] =>
+const splitENSId = (id: string): string[] =>
   String(id).trim().toLowerCase().split('.');
 
-export const normalizeENSPrefixQuery = (raw: string): string =>
+const normalizeENSPrefixQuery = (raw: string): string =>
   String(raw ?? '')
     .trim()
     .toLowerCase();
@@ -74,7 +74,7 @@ export const filterByENSPrefix = <T>(
   };
 };
 
-export const ensFamilyOf = (id: string): string => {
+const ensFamilyOf = (id: string): string => {
   const segments = splitENSId(id);
 
   return segments.length > 1
@@ -89,7 +89,7 @@ export const listENSFamilies = (ids: readonly string[]): string[] => {
 };
 
 // Sections start closed; with exactly one matching control the section starts open.
-export const isENSSectionOpenByDefault = (matchedCount: number): boolean =>
+const isENSSectionOpenByDefault = (matchedCount: number): boolean =>
   matchedCount === 1;
 
 export const resolveENSSectionOpenState = (

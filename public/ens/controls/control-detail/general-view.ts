@@ -5,14 +5,14 @@ import type {
 } from '../../../../common/ens/core/evaluation/types';
 
 // Distinct motives shown in a cell before counting the rest; the fourth would make the row scroll.
-export const MAX_VISIBLE_MOTIVES = 3;
+const MAX_VISIBLE_MOTIVES = 3;
 
-export const MAX_NAMED_MACHINES = 4;
+const MAX_NAMED_MACHINES = 4;
 
-export const machineDisplayName = (agent: ENSAgentRef): string =>
+const machineDisplayName = (agent: ENSAgentRef): string =>
   agent.agentName ? `${agent.agentName} (${agent.agentId})` : agent.agentId;
 
-export const listMachines = (agents: ENSAgentRef[]): string => {
+const listMachines = (agents: ENSAgentRef[]): string => {
   const names = agents.map(machineDisplayName);
   const visibleItems = names.slice(0, MAX_NAMED_MACHINES);
   const rest = names.length - visibleItems.length;
@@ -53,14 +53,14 @@ export const machinesLabel = (
     : `${agents.length} máquinas${allLabel(agents, totalMachines)}`;
 
 // Most widespread first; the sort is stable, so ties keep their order.
-export const sortMotives = (
+const sortMotives = (
   groups: ENSObservationGroup[],
 ): ENSObservationGroup[] =>
   [...groups].sort(
     (left, right) => right.agents.length - left.agents.length,
   );
 
-export interface MotiveSummary {
+interface MotiveSummary {
   visibles: ENSObservationGroup[];
 
   // Counts distinct motives left out, never machines.

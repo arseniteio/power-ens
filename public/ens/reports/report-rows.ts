@@ -19,18 +19,18 @@ export interface ENSReportRow {
   estado: ENSReportFieldStatus;
 }
 
-export interface ENSReportPdfTextRun {
+interface ENSReportPdfTextRun {
   text: string;
   color?: string;
   bold?: boolean;
 }
 
-export interface ENSReportPdfCell {
+interface ENSReportPdfCell {
   style: string;
   text: ENSReportPdfTextRun[];
 }
 
-export const ENS_REPORT_NO_EVIDENCE = 'Evidencia no disponible';
+const ENS_REPORT_NO_EVIDENCE = 'Evidencia no disponible';
 
 // Key the on-screen 'Evidencia' column reads; defined here so a loose literal cannot drift.
 export const ENS_REPORT_EVIDENCE_FIELD = 'evidencia';

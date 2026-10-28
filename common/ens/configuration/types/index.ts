@@ -1,7 +1,7 @@
 import type { ENSAgentParameterValue, ENSAgentsConfiguration, ENSCustomTemplate, ENSMatchMode } from '../../../agent-configuration';
 
 export type {
-  ENSAgentControlOverrides,
+  
   ENSAgentParameterValue,
   ENSAgentProfile,
   ENSAgentsConfiguration,
@@ -219,4 +219,3 @@ export interface ENSConfigurationAuditEntry {
   summary: string;
 }
 
-export * from './configuration-session';

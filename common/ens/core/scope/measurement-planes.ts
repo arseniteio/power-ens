@@ -8,7 +8,6 @@ import {
   toParameterListItems,
   toTableRowCells,
 } from '../../configuration/services/parameter-value-validator';
-import type { ENSEvidenceResolved } from '../evidence/types';
 import { ENSAgentScope } from './types';
 
 // Measurement planes: where each control is measured. The ENS scope is resolved by the `ens` group, and the Wazuh manager (agent 000) cannot be in a group. Some controls are measured ONLY on the manager (op.exp.7, op.exp.9) and one on both planes (op.exp.8),
@@ -19,7 +18,7 @@ import { ENSAgentScope } from './types';
 export const ENS_MANAGER_AGENT_ID = '000';
 
 // Manager name when the agent inventory lacks it. The name its own events carry does not replace it: identity comes from the scope.
-export const ENS_MANAGER_FALLBACK_NAME = 'Manager de Wazuh';
+const ENS_MANAGER_FALLBACK_NAME = 'Manager de Wazuh';
 
 const DEFAULT_MEASUREMENT_PLANES: ENSMeasurementPlane[] = ['agent'];
 
@@ -40,13 +39,13 @@ export const getAgentMeasurementPlane = (
 ): ENSMeasurementPlane =>
   isManagerAgentId(agentId) ? 'manager' : 'agent';
 
-export const isControlMeasuredOnPlane = (
+const isControlMeasuredOnPlane = (
   control: ENSMeasuredControl,
   plane: ENSMeasurementPlane
 ): boolean => getControlMeasurementPlanes(control).includes(plane);
 
 // Is this control evaluated on this machine's row?
-export const isControlMeasuredOnAgent = (
+const isControlMeasuredOnAgent = (
   control: ENSMeasuredControl,
   agentId: string
 ): boolean =>
@@ -59,7 +58,7 @@ type ENSScopedControl = Pick<ENSControlDefinition, 'scopeParameter'>;
 
 // Lowercase names of the declared machines. Each entry is a machine and, after a vertical bar, whatever the parameter adds (criticality in P-04: `srv-bd01 | ALTA`); only the name counts.
 // `undefined` if the control declares no scope parameter: measured everywhere.
-export const getDeclaredScopeAgentNames = (
+const getDeclaredScopeAgentNames = (
   control: ENSScopedControl,
   configuration: ENSControlConfiguration | undefined
 ): string[] | undefined => {
@@ -86,7 +85,7 @@ export const getDeclaredScopeAgentNames = (
 };
 
 // Is this machine one of the declared? The Wazuh agent name, case-insensitive, as the owner writes it on screen.
-export const isAgentNameDeclared = (
+const isAgentNameDeclared = (
   agentName: string | undefined,
   declared: string[]
 ): boolean => {
@@ -94,68 +93,6 @@ export const isAgentNameDeclared = (
 
   return name !== '' && declared.includes(name);
 };
-
-// Is this machine in the control's declared scope? A control without scope parameter is on all; with an empty parameter, on none.
-export const isControlInDeclaredScope = (
-  control: ENSScopedControl,
-  agentName: string | undefined,
-  configuration: ENSControlConfiguration | undefined
-): boolean => {
-  const declared = getDeclaredScopeAgentNames(control, configuration);
-
-  return declared === undefined || isAgentNameDeclared(agentName, declared);
-};
-
-// Without a row, a control whose declared scope names NO known machine (empty, or names matching no agent) has nobody to expect facts from: what could not be measured is CONFIGURATION, not collection.
-// These two mark the result like that, as `stale-collector.ts` marks a stopped collector's.
-export const describeUnmatchedDeclaredScope = (
-  parameterId: string,
-  declared: string[]
-): string =>
-  declared.length
-    ? `Ninguna de las máquinas que declara ${parameterId} (${declared.join(', ')}) coincide con un agente del alcance ENS: ninguna máquina declarada envía datos. Revisa los nombres en la pantalla de Configuración.`
-    : `${parameterId} no declara ninguna máquina: el control solo se mide en las máquinas declaradas, y sin ninguna no hay qué medir.`;
-
-// A declared machine outside the ENS scope: counts as a declared machine without data, and the motive says why this can happen.
-export const describeOutOfScopeDeclaredMachine = (
-  parameterId: string,
-  name: string
-): string =>
-  `${parameterId} declara ${name}, que no es ninguna máquina del alcance ENS: nombre mal escrito o máquina fuera del grupo ens. Cuenta como una máquina declarada sin datos.`;
-
-export const markEvidencesUnmatchedScope = (
-  evidences: ENSEvidenceResolved[],
-  reason: string
-): ENSEvidenceResolved[] =>
-  evidences.map(evidence => {
-    if (evidence.status === 'NO_APLICA') {
-      return evidence;
-    }
-
-    const {
-      resolvedEventId,
-      resolvedEventType,
-      resolvedSourceType,
-      resolvedSource,
-      resolvedRuleId,
-      resolvedRuleDescription,
-      resolvedAttributes,
-      latestSuccessfulEventId,
-      latestSuccessfulAttributes,
-      ...rest
-    } = evidence;
-
-    return {
-      ...rest,
-      status: 'NO_EVALUABLE',
-      gapCause: 'CONFIGURATION',
-      resolvedAttributes: { motivo: reason, causa: 'CONFIGURATION' },
-      observations: [
-        `${evidence.id} NO_EVALUABLE: ${reason}`,
-        `Pregunta de auditoría: ${evidence.auditQuestion}`,
-      ],
-    };
-  });
 
 // A manager-ONLY control belongs to the organisation, not a machine: in an agent's view it shows with the manager row's result.
 export const isManagerOnlyControl = (

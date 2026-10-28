@@ -13,7 +13,7 @@ interface TabErrorBoundaryState {
   error?: Error;
 }
 
-export const describeRenderError = (error: unknown): string => {
+const describeRenderError = (error: unknown): string => {
   const text = String((error as any)?.message || error || '').trim();
   return text || 'Error desconocido al pintar la pantalla.';
 };

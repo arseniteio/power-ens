@@ -13,7 +13,7 @@ import {
 import type { ENSOrganizationDataItem } from './organization-data-items';
 import { organizationViewValue, singleValueExtraRows } from './organization-data-views';
 
-export const ORGANIZATION_FIELD_ID = 'Dato común';
+const ORGANIZATION_FIELD_ID = 'Dato común';
 
 type ENSDocument = Pick<ENSConfigurationVersion, 'controls'>;
 
@@ -37,7 +37,7 @@ export const organizationDataParameter = (item: ENSOrganizationDataItem): ENSCon
   ifNotConfigured: '',
 });
 
-export interface ENSOrganizationValueIssue {
+interface ENSOrganizationValueIssue {
   // The item label, or the parameter that would read an invalid value («op.acc.1 P-11»).
   source: string;
   reason: string;
@@ -121,7 +121,7 @@ export const organizationCrossChecks = (configuration: ENSDocument, itemId: stri
     : [`op.exp.9 P-01 dice «${String(selector.value)}» y la fila de incidentes de este dato ${declared ? 'nombra' : 'no nombra'} el registro de Power ENS: comprobar que sean la misma herramienta.`];
 };
 
-export interface ENSOrganizationChoiceChange {
+interface ENSOrganizationChoiceChange {
   parameter: string;
   // Rows the parameter loses (ports, origins, entries), rows it gains and what it ends with.
   removed: string[];

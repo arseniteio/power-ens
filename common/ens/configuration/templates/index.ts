@@ -16,9 +16,9 @@ import { managerWazuhTemplate } from './manager';
 import { pbsBackupTemplate } from './pbs-backup';
 import { zimbraNeBackupTemplate } from './zimbra-ne-backup';
 
-export type { ENSPlatformSource } from './types';
+;
 
-export const ENS_PLATFORM_SOURCES: ENSPlatformSource[] = [
+const ENS_PLATFORM_SOURCES: ENSPlatformSource[] = [
   linuxUbuntuTemplate,
   zimbraLdapTemplate,
   windowsServerTemplate,

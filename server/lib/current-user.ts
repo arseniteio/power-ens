@@ -3,13 +3,13 @@
 // nobody to restrict. Any other doubt closes access.
 import { POWER_ENS_ADMIN_ROLES } from '../../common/constants';
 
-export interface ENSCurrentUser {
+interface ENSCurrentUser {
   username: string;
   roles: string[];
   administrator: boolean;
 }
 
-export class CurrentUserError extends Error {
+class CurrentUserError extends Error {
   constructor(message: string, public statusCode: number) {
     super(message);
   }

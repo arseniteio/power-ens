@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { parseRouterSearch, withRouterSearch } from './router-search';
 
-export { parseRouterSearch, withRouterSearch };
+;
 
 export const useRouterSearch = (): Record<string, string> => parseRouterSearch(useLocation().search);
 

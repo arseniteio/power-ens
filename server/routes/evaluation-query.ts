@@ -4,7 +4,7 @@
 // dependencies, and `tests/evaluation-route-query.test.ts` runs each screen's real queries through it.
 // The other checks (catalog control, in-scope machine, IANA zone, bounded pages) are done by `normalizeQuery`,
 // with a 400 and the reason.
-export const EVALUATION_QUERY_FIELDS: Record<string, number> = {
+const EVALUATION_QUERY_FIELDS: Record<string, number> = {
   // All views.
   agentId: 64,
   controlId: 64,
@@ -21,7 +21,7 @@ export const EVALUATION_QUERY_FIELDS: Record<string, number> = {
 };
 
 // The minimum of `@osd/config-schema` needed to build it (the real `schema` is passed from the route).
-export interface EvaluationQuerySchemaBuilder {
+interface EvaluationQuerySchemaBuilder {
   object(props: any, options: any): any;
   maybe(type: any): any;
   string(options: any): any;

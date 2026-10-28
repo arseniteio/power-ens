@@ -6,9 +6,9 @@ import { ENSControlDefinition } from '../types';
 // not accused of failing: the screen shows «Sin medición todavía» and, per evidence, the data source it needs.
 // Sources come from the auditor v2.0 analysis (§5): the evidence sheet of each template and the platform columns.
 
-export type ENSMeasurementWave = 'A' | 'B' | 'C';
+type ENSMeasurementWave = 'A' | 'B' | 'C';
 
-export const ENS_MEASUREMENT_WAVE_TEXTS: Record<ENSMeasurementWave, string> = {
+const ENS_MEASUREMENT_WAVE_TEXTS: Record<ENSMeasurementWave, string> = {
   A: 'oleada A: sin fuentes nuevas, reutiliza lo que Wazuh ya recoge',
   B: 'oleada B: reutiliza recolectores existentes y añade los registros de los servicios',
   C: 'oleada C: necesita fuentes que hoy no llegan a Wazuh (cortafuegos, proxy, red o métricas)',
@@ -16,7 +16,7 @@ export const ENS_MEASUREMENT_WAVE_TEXTS: Record<ENSMeasurementWave, string> = {
 
 export const ENS_PENDING_MEASUREMENT_LABEL = 'Sin medición todavía';
 
-export interface ENSPlannedMeasurement {
+interface ENSPlannedMeasurement {
   controlId: string;
   wave: ENSMeasurementWave;
   // What the control needs as a whole, in one line.
@@ -29,7 +29,7 @@ export interface ENSPlannedMeasurement {
 
 const CONFIGURATION_SCREEN = 'en la pantalla de Configuración';
 
-export const ENS_PLANNED_MEASUREMENTS: ENSPlannedMeasurement[] = [
+const ENS_PLANNED_MEASUREMENTS: ENSPlannedMeasurement[] = [
   {
     controlId: 'mp.eq.2',
     wave: 'A',
@@ -226,7 +226,7 @@ export const ENS_PLANNED_MEASUREMENTS: ENSPlannedMeasurement[] = [
   },
 ];
 
-export const getPlannedMeasurement = (controlId: string): ENSPlannedMeasurement | undefined =>
+const getPlannedMeasurement = (controlId: string): ENSPlannedMeasurement | undefined =>
   ENS_PLANNED_MEASUREMENTS.find(plan => plan.controlId === controlId);
 
 // The source one evidence of a control without collector needs; undefined for measured controls.

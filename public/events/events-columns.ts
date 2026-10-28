@@ -2,7 +2,7 @@
 import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import { buildRawFactsFilters } from '../search/raw-facts-filters';
 
-export interface ENSEventColumn {
+interface ENSEventColumn {
   id: string;
   label: string;
   initialWidth?: number;

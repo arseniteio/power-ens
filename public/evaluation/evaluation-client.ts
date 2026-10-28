@@ -6,7 +6,7 @@ import { RequestLimiter } from './refresh-policy';
 import type { ENSTraceabilityPageResponse } from '../../common/ens/evaluation/types';
 
 // A cold evaluation reads the whole window (about 20-30 s for the whole scope); the one-minute search timeout is not enough.
-export const EVALUATION_TIMEOUT_MS = 180 * 1000;
+const EVALUATION_TIMEOUT_MS = 180 * 1000;
 
 export interface ENSEvaluationParams {
   include: 'summary' | 'results' | 'dashboard' | 'control' | 'overview';
@@ -18,7 +18,7 @@ export interface ENSEvaluationParams {
 
 const limiter = new RequestLimiter();
 
-export const browserTimeZone = (): string | undefined => {
+const browserTimeZone = (): string | undefined => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch {

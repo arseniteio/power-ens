@@ -7,9 +7,9 @@ import {
 } from './measurement-planes';
 import { ENSAgentScope } from './types';
 
-export type ENSScopeHydrationStatus = 'NOT_STARTED' | 'LOADING' | 'READY' | 'ERROR';
+type ENSScopeHydrationStatus = 'NOT_STARTED' | 'LOADING' | 'READY' | 'ERROR';
 
-export interface ENSScopeHydrationState {
+interface ENSScopeHydrationState {
   status: ENSScopeHydrationStatus;
   scopeKey: string | null;
   inventoryCount: number;
@@ -17,7 +17,7 @@ export interface ENSScopeHydrationState {
   error?: string;
 }
 
-export type ENSAgentInventoryLoader = () => Promise<ENSAgentScope[]>;
+type ENSAgentInventoryLoader = () => Promise<ENSAgentScope[]>;
 
 let activeScopeAgents: ENSAgentScope[] = [];
 

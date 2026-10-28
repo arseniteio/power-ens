@@ -1,6 +1,6 @@
-import type { ENSComplianceResult } from '../../../common/ens/core';
+import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 
-export type OpAcc1ReportFieldStatus =
+type OpAcc1ReportFieldStatus =
   | 'CUMPLE'
   | 'PARCIAL'
   | 'NO_CUMPLE'
@@ -8,7 +8,7 @@ export type OpAcc1ReportFieldStatus =
   | 'NO_APLICA'
   | 'SIN_DATOS';
 
-export interface OpAcc1ReportField {
+interface OpAcc1ReportField {
   id: string;
   title: string;
   status: OpAcc1ReportFieldStatus;
@@ -18,7 +18,7 @@ export interface OpAcc1ReportField {
   producerGaps: string[];
 }
 
-export interface OpAcc1ReportModel {
+interface OpAcc1ReportModel {
   controlId: string;
   status: OpAcc1ReportFieldStatus;
   score: number | null;
@@ -83,13 +83,6 @@ export const buildOpAcc1ReportModel = (
 
   const evidences = new Map(
     (result?.evidences || []).map(evidence => [evidence.id, evidence]),
-  );
-
-  const requirements = new Map(
-    (result?.requirements || []).map(requirement => [
-      requirement.id,
-      requirement,
-    ]),
   );
 
   const parameterValue = (parameterId: string): unknown =>

@@ -18,10 +18,7 @@ import {
 import {
   updateActiveGlobalConfiguration,
 } from '../../../../common/ens/configuration/services';
-import {
-  ENSGlobalConfiguration,
-  ENSLevel,
-} from '../../../../common/ens/configuration/types';
+import { ENSGlobalConfiguration } from '../../../../common/ens/configuration/types';
 import { ENSCatalog } from '../../../../common/ens/catalog';
 import type { ENSLevelDimension } from '../../../../common/ens/catalog/types';
 import {
