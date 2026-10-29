@@ -1,0 +1,655 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.1",
+  "title": "Inventario de activos",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.1",
+  "description": "op.exp.1 exige un inventario actualizado de todos los elementos del sistema, con su naturaleza y su responsable. El inventario técnico es el de Syscollector de Wazuh; la organización declara responsables, naturaleza, activos sin agente y revisiones.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.1.1",
+      "title": "Inventario actualizado con naturaleza y responsable",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se mantendrá un inventario actualizado de todos los elementos del sistema, detallando su naturaleza e identificando a su responsable; es decir, la persona que toma las decisiones relativas al mismo.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-08",
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.exp.1.r1.1",
+      "title": "Etiquetado físico del equipamiento (R1)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo no exigible en ninguna categoría: el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el índice.",
+      "description": "Refuerzo R1 – Inventario de etiquetado: El etiquetado del equipamiento y del cableado formará parte del inventario.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT"
+      ]
+    },
+    {
+      "id": "op.exp.1.r2.1",
+      "title": "Visualización continua del estado de la red (R2)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo no exigible en ninguna categoría: el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el índice.",
+      "description": "Refuerzo R2 – Identificación periódica de activos: Se dispondrá de herramientas que permitan visualizar de forma continua el estado de todos los equipos en la red, en particular, los servidores y los dispositivos de red y de comunicaciones.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.exp.1.r3.1",
+      "title": "Categorización de activos críticos (R3)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo no exigible en ninguna categoría: el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el índice.",
+      "description": "Refuerzo R3 – Identificación de activos críticos: Se dispondrá de herramientas que permitan categorizar los activos críticos por contexto de la organización y riesgos de seguridad.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.exp.1.r4.1",
+      "title": "Relación de componentes software de terceros (R4)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo no exigible en ninguna categoría: el Anexo II solo exige op.exp.1.1. Sale NO_APLICA y no cuenta en el índice.",
+      "description": "Refuerzo R4 – Lista de componentes software: Se mantendrá actualizada una relación formal de los componentes software de terceros empleados en el despliegue del sistema. Esta lista incluirá librerías software y los servicios requeridos para su despliegue (plataforma o entorno operacional). El contenido de la lista de componentes será equivalente a lo requerido en [mp.sw.1.r5].",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Inventario de hardware y sistema operativo",
+      "description": "Sistema operativo, kernel, arquitectura, CPU y memoria de cada máquina, del inventario de Syscollector. Se da por actualizado si Syscollector está activo con sus escaneos de sistema y hardware, cada P-08 horas o menos, y el agente ha contactado con el manager en ese plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Wazuh tiene el hardware y el sistema operativo de esta máquina y lo renueva dentro de P-08?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Inventario de software instalado",
+      "description": "Paquetes instalados en cada máquina, del inventario de Syscollector. Se da por actualizado con el escaneo de paquetes activo, cada P-08 horas o menos, y el agente en contacto en ese plazo. Cubre de hecho la relación de componentes de R4.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1",
+        "op.exp.1.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Wazuh tiene el software instalado en esta máquina y lo renueva dentro de P-08?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Inventario de red: direcciones, puertos y procesos",
+      "description": "Direcciones de red, puertos en escucha y procesos de cada máquina, del inventario de Syscollector: lo que dice qué servicios presta. Se da por actualizado con los escaneos de red, puertos y procesos activos, cada P-08 horas o menos, y el agente en contacto en ese plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Wazuh tiene las direcciones, los puertos y los procesos de esta máquina y los renueva dentro de P-08?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Visualización continua del estado de los equipos",
+      "description": "Estado del agente de Wazuh y su último contacto con el manager. Una máquina que deja de reportar más de P-08 horas ya no tiene el inventario al día. Cubre de hecho lo que pide R2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1",
+        "op.exp.1.r2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿El agente de esta máquina está activo y ha contactado con el manager dentro de P-08?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Detección de activos nuevos no inventariados",
+      "description": "Hosts de la tabla de vecinos de la máquina (ARP), sin sondear la red. Cada IP tiene que ser de un activo sin agente de P-02 o de una máquina con agente. No ve hosts que no hablen con esta máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo host que habla con esta máquina está inventariado, con agente o en P-02?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Revisión periódica del inventario",
+      "description": "Última revisión formal del inventario anotada en P-09, contra el plazo de P-04. El motivo cuenta además los paquetes instalados, actualizados o eliminados desde esa revisión.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Consta una revisión del inventario dentro del plazo de P-04?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Cobertura del inventario frente a activos declarados",
+      "description": "La máquina tiene que figurar en P-01 por su nombre de agente, con responsable y con una naturaleza de la taxonomía de P-03. Es la parte organizativa de op.exp.1.1 que Wazuh no puede ver.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina figura en P-01 con responsable y naturaleza?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "system",
+      "name": "responsables_por_activo",
+      "label": "Responsables por activo",
+      "description": "Activos con agente, uno por fila: nombre del agente en Wazuh, responsable («la persona que toma las decisiones relativas al mismo»), rol y naturaleza según P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "srv-web01 | J. Gómez | Resp. Sistemas | HW servidor",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "naturaleza",
+          "label": "Naturaleza (P-03)",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "El motor busca la fila cuyo activo es el nombre del agente y comprueba responsable y naturaleza.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar: ninguna máquina tiene responsable declarado."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "activos_sin_agente",
+      "label": "Activos sin agente",
+      "description": "Elementos que no admiten agente (switches, routers, firewalls, impresoras, SAI, OT/IoT), uno por fila: nombre, tipo según P-03, IP si la tiene y responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "sw-core01 | switch | 10.0.0.1 | M. López",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ip",
+          "label": "IP",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 acepta como conocido todo vecino cuya IP está en esta tabla.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "naturaleza_activos_taxonomia",
+      "label": "Taxonomía de naturaleza de los activos",
+      "description": "Naturalezas posibles de un activo: servidor, estación de trabajo, electrónica de red, servicio, aplicación, soporte, instalación. Los valores de naturaleza (P-01) y tipo (P-02) salen de esta lista.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "list",
+      "example": "HW servidor, HW red, SW aplicación, SW base, servicio, soporte, instalación",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 comprueba que la naturaleza de la máquina en P-01 sea una de esta lista.",
+      "if_not_configured": "EV-07 no comprueba la naturaleza.",
+      "evidence_ids": [
+        "EV-07"
+      ]
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "periodicidad_revision_inventario_dias",
+      "label": "Periodicidad de revisión del inventario (días)",
+      "description": "Días máximos entre dos revisiones formales del inventario. El ENS exige que esté actualizado sin fijar plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "duration_days",
+      "example": "90",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 mide la antigüedad de la última revisión de P-09 contra este plazo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "umbral_alerta_activo_nuevo",
+      "label": "Alerta ante un activo nuevo",
+      "description": "Si un activo nuevo sin inventariar se atiende de inmediato o en el informe periódico.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "select",
+      "example": "periódica",
+      "options": [
+        "inmediata",
+        "periódica"
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: no cambia ningún veredicto. Sale en el informe.",
+      "if_not_configured": "Se entiende el modo periódico."
+    },
+    "P-06": {
+      "class": "system",
+      "name": "activos_criticos",
+      "label": "Activos críticos",
+      "description": "Activos críticos por contexto de la organización y riesgo (R3, no exigible).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.r3.1"
+      ],
+      "type": "table",
+      "example": "srv-bd01 | alta | contiene datos personales",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: R3 sale NO_APLICA. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto: R3 no es exigible."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_inventario_horas",
+      "label": "Antigüedad máxima del inventario técnico (horas)",
+      "description": "Horas que puede pasar una máquina sin renovar su inventario ni contactar con el manager. Syscollector escanea cada hora por defecto.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente informa del intervalo de Syscollector de su configuración.",
+      "engine_usage": "EV-01 a EV-03 exigen un intervalo de Syscollector y un último contacto dentro de este plazo; EV-04, el último contacto.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04"
+      ],
+      "if_not_configured": "EV-01 a EV-04 quedan sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "registro_revisiones_inventario",
+      "label": "Registro de revisiones del inventario",
+      "description": "Revisiones formales del inventario hechas, una por fila: fecha, alcance y responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "2026-09-15 | todo el sistema | Responsable de Sistemas",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee: la revisión es una decisión de la organización.",
+      "engine_usage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-04.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí, el etiquetado del equipamiento y del cableado (R1).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.1.r1.1 | Procedimiento de etiquetado de activos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto: R1 no es exigible."
+    }
+  },
+  "report": [
+    {
+      "id": "inventario",
+      "title": "Inventario técnico de las máquinas",
+      "description": "Hardware, sistema operativo, software y red de cada máquina, del inventario de Syscollector.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03"
+      ],
+      "parameters": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "cobertura",
+      "title": "Cobertura del inventario",
+      "description": "Máquinas con responsable y naturaleza declarados en P-01.",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "componentes",
+      "title": "Relación de componentes software",
+      "description": "Software instalado en cada máquina; cubre de hecho R4.",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "monitorizacion",
+      "title": "Estado de monitorización de los equipos",
+      "description": "Estado y último contacto de cada agente; cubre de hecho R2.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "nuevos",
+      "title": "Activos no inventariados detectados",
+      "description": "Vecinos de red que no son una máquina con agente ni un activo de P-02.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "revision",
+      "title": "Revisión periódica del inventario",
+      "description": "Última revisión de P-09 frente al plazo de P-04, y cambios de software desde entonces.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-04",
+        "P-09"
+      ]
+    },
+    {
+      "id": "sin_agente",
+      "title": "Activos sin agente declarados",
+      "description": "Inventario declarado de lo que no admite agente.",
+      "evidences": [],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "criticos",
+      "title": "Activos críticos",
+      "description": "Refuerzo R3, no exigible.",
+      "evidences": [],
+      "parameters": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "atestaciones",
+      "title": "Atestaciones documentales",
+      "description": "Etiquetado del equipamiento y del cableado (R1, no exigible).",
+      "evidences": [],
+      "parameters": [
+        "P-ATT"
+      ]
+    }
+  ]
+}

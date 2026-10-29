@@ -9,6 +9,7 @@ import { compileParameterPattern } from '../../common/ens/configuration/services
 import { normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
 import { isAgentLevelParameter } from '../../common/ens/configuration/agents/parameter-classes';
 import { withCatalogControls } from '../../common/ens/configuration/services/catalog-controls';
+import { ENGINE_CATALOG } from '../../common/ens/catalog/engine-catalog';
 import { getBuiltinTemplates } from '../../common/ens/configuration/templates';
 import type { ENSConfigurationVersion } from '../../common/ens/configuration/types';
 
@@ -24,7 +25,7 @@ describe('the default configuration', () => {
   });
 
   test('declares every engine control', () => {
-    assert.deepEqual(freshConfiguration().controls.map(control => control.controlId).sort(), ['op.acc.1', 'op.acc.2', 'op.acc.3', 'op.acc.4', 'op.acc.5', 'op.acc.6']);
+    assert.deepEqual(freshConfiguration().controls.map(control => control.controlId).sort(), ENGINE_CATALOG.map(entry => entry.control).sort());
   });
 
   test('rejects a document that is not one', () => {

@@ -1,0 +1,363 @@
+{
+  "controlId": "op.exp.1",
+  "controlName": "Inventario de activos",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.1",
+      "name": "responsables_por_activo",
+      "label": "Responsables por activo",
+      "description": "Activos con agente, uno por fila: nombre del agente en Wazuh, responsable («la persona que toma las decisiones relativas al mismo»), rol y naturaleza según P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "srv-web01 | J. Gómez | Resp. Sistemas | HW servidor",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "El motor busca la fila cuyo activo es el nombre del agente y comprueba responsable y naturaleza.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar: ninguna máquina tiene responsable declarado.",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "naturaleza",
+          "label": "Naturaleza (P-03)",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.1",
+      "name": "activos_sin_agente",
+      "label": "Activos sin agente",
+      "description": "Elementos que no admiten agente (switches, routers, firewalls, impresoras, SAI, OT/IoT), uno por fila: nombre, tipo según P-03, IP si la tiene y responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "sw-core01 | switch | 10.0.0.1 | M. López",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 acepta como conocido todo vecino cuya IP está en esta tabla.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ip",
+          "label": "IP",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.1",
+      "name": "naturaleza_activos_taxonomia",
+      "label": "Taxonomía de naturaleza de los activos",
+      "description": "Naturalezas posibles de un activo: servidor, estación de trabajo, electrónica de red, servicio, aplicación, soporte, instalación. Los valores de naturaleza (P-01) y tipo (P-02) salen de esta lista.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "list",
+      "example": "HW servidor, HW red, SW aplicación, SW base, servicio, soporte, instalación",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 comprueba que la naturaleza de la máquina en P-01 sea una de esta lista.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 no comprueba la naturaleza."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.1",
+      "name": "periodicidad_revision_inventario_dias",
+      "label": "Periodicidad de revisión del inventario (días)",
+      "description": "Días máximos entre dos revisiones formales del inventario. El ENS exige que esté actualizado sin fijar plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "duration_days",
+      "example": "90",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 mide la antigüedad de la última revisión de P-09 contra este plazo.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.1",
+      "name": "umbral_alerta_activo_nuevo",
+      "label": "Alerta ante un activo nuevo",
+      "description": "Si un activo nuevo sin inventariar se atiende de inmediato o en el informe periódico.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "select",
+      "example": "periódica",
+      "options": [
+        "inmediata",
+        "periódica"
+      ],
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: no cambia ningún veredicto. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Se entiende el modo periódico."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.1",
+      "name": "activos_criticos",
+      "label": "Activos críticos",
+      "description": "Activos críticos por contexto de la organización y riesgo (R3, no exigible).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.r3.1"
+      ],
+      "type": "table",
+      "example": "srv-bd01 | alta | contiene datos personales",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: R3 sale NO_APLICA. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto: R3 no es exigible.",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.1",
+      "name": "antiguedad_maxima_inventario_horas",
+      "label": "Antigüedad máxima del inventario técnico (horas)",
+      "description": "Horas que puede pasar una máquina sin renovar su inventario ni contactar con el manager. Syscollector escanea cada hora por defecto.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "El agente informa del intervalo de Syscollector de su configuración.",
+      "powerEnsUsage": "EV-01 a EV-03 exigen un intervalo de Syscollector y un último contacto dentro de este plazo; EV-04, el último contacto.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 a EV-04 quedan sin demostrar."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.1",
+      "name": "registro_revisiones_inventario",
+      "label": "Registro de revisiones del inventario",
+      "description": "Revisiones formales del inventario hechas, una por fila: fecha, alcance y responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.1.1"
+      ],
+      "type": "table",
+      "example": "2026-09-15 | todo el sistema | Responsable de Sistemas",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee: la revisión es una decisión de la organización.",
+      "powerEnsUsage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-04.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.1",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí, el etiquetado del equipamiento y del cableado (R1).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.1.r1.1 | Procedimiento de etiquetado de activos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto: R1 no es exigible.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

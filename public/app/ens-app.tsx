@@ -20,7 +20,6 @@ const VIEWS: Record<string, React.ComponentType> = {
   dashboard: React.lazy(() => import('../ens/dashboard/ens-dashboard-main').then(m => ({ default: m.EnsDashboardMain }))),
   overview: React.lazy(() => import('../ens/overview').then(m => ({ default: m.OverviewENS }))),
   configuration: ConfigurationENS,
-  controls: React.lazy(() => import('../requirements/requirements-view').then(m => ({ default: m.RequirementsView }))),
   events: React.lazy(() => import('../events/events-view').then(m => ({ default: m.EventsView }))),
   plugins: React.lazy(() => import('../ens/controls').then(m => ({ default: m.ControlsENS }))),
   'ens-informes': React.lazy(() => import('../ens/reports').then(m => ({ default: m.ReportsENS }))),

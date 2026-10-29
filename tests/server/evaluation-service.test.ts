@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ENS_VERDICTS_INDEX } from '../../common/constants';
+import { ENGINE_CATALOG } from '../../common/ens/catalog/engine-catalog';
 import { normalizeQuery } from '../../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse } from '../../server/lib/evaluation/responses';
 import { activeConfiguration, AGENT, createClock, createLab, enginePass, inventoryDoc, MANAGER, waitUntil } from '../support/lab';
@@ -104,7 +105,7 @@ describe('the evaluation of the whole scope', () => {
     const { clients, service } = labWithOnePass();
     const run = await service.run(clients, { include: 'summary', timeZone: 'UTC' });
     const response: any = buildEvaluationResponse(run);
-    assert.equal(response.controls.length, 6);
+    assert.equal(response.controls.length, ENGINE_CATALOG.length);
     assert.equal(response.controls.find((c: any) => c.controlId === 'op.acc.1').status, 'PARCIAL');
     assert.deepEqual(response.agents.map((a: any) => a.agentId).sort(), [MANAGER.id, AGENT.id]);
   });

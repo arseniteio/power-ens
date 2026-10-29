@@ -3,30 +3,12 @@ export * from './support/measurement-plan';
 export * from './support/order';
 export * from './support/provenance';
 export * from './support/template-correspondence';
-export * from './op-acc-1';
-export * from './op-acc-2';
-export * from './op-acc-3';
-export * from './op-acc-4';
-export * from './op-acc-5';
-export * from './op-acc-6';
 
 import { ENSControlDefinition } from './types';
 import { compareControlsByAnnex } from './support/order';
-import { opAcc1CatalogDefinition } from './op-acc-1';
-import { opAcc2CatalogDefinition } from './op-acc-2';
-import { opAcc3CatalogDefinition } from './op-acc-3';
-import { opAcc4CatalogDefinition } from './op-acc-4';
-import { opAcc5CatalogDefinition } from './op-acc-5';
-import { opAcc6CatalogDefinition } from './op-acc-6';
+import { ENGINE_CATALOG, toControlDefinition } from './engine-catalog';
 
-export const ENSCatalog: ENSControlDefinition[] = [
-  opAcc1CatalogDefinition,
-  opAcc2CatalogDefinition,
-  opAcc3CatalogDefinition,
-  opAcc4CatalogDefinition,
-  opAcc5CatalogDefinition,
-  opAcc6CatalogDefinition,
-].sort(compareControlsByAnnex);
+export const ENSCatalog: ENSControlDefinition[] = ENGINE_CATALOG.map(toControlDefinition).sort(compareControlsByAnnex);
 
 export const getENSCatalogControl = (
   controlId: string

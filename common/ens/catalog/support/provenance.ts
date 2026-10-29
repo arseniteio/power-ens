@@ -31,9 +31,6 @@ export const describeRequirementTexts = (
   ...(requirement.interpretation ? [provenanced('CRITERION', requirement.interpretation)] : []),
 ];
 
-// A text whose source is unknown (not in the catalog) is never presented as the norm.
-export const describeUncatalogedText = (text: string): ENSProvenancedText => provenanced('CRITERION', text);
-
 const formatISODate = (date: string): string => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
 

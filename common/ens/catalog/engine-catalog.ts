@@ -1,6 +1,6 @@
 // The controls the OSCompliance engine judges are defined once, in its catalog (oscompliance-ens
 // catalog/controls/ens). `common/ens/catalog/engine/` is a byte-for-byte copy kept by
-// `config/sync-catalog.sh`; `tests/engine-catalog.test.ts` fails when it drifts.
+// `config/sync-catalog.ts`; `tests/engine-catalog.test.ts` fails when it drifts.
 import type { ENSControlConfiguration, ENSControlParameter } from '../configuration/types';
 import type { ENSEvidenceDefinition } from '../core/evidence/types';
 import type { ENSControlDefinition } from './types';
@@ -10,8 +10,9 @@ import opAcc3 from './engine/op.acc.3.json';
 import opAcc4 from './engine/op.acc.4.json';
 import opAcc5 from './engine/op.acc.5.json';
 import opAcc6 from './engine/op.acc.6.json';
+import opExp1 from './engine/op.exp.1.json';
 
-export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6];
+export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1];
 
 const defined = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;

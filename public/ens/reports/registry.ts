@@ -58,7 +58,7 @@ const formatValue = (value: unknown): string => {
 
 const isSet = (value: unknown): boolean => (Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '');
 
-export const buildReportModel = (entry: any, result: ENSComplianceResult | undefined): ENSReportModel => {
+const buildReportModel = (entry: any, result: ENSComplianceResult | undefined): ENSReportModel => {
   const evidences = new Map<string, ENSEvidenceResult>((result?.evidences || []).map(evidence => [evidence.id, evidence]));
   const parameters = new Map((result?.parameters || []).map(parameter => [parameter.id, parameter]));
   const score = result && typeof result.score === 'number' ? result.score : null;
