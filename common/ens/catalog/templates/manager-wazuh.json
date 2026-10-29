@@ -162,9 +162,7 @@
         "/etc/ssh/sshd_config | 600 | root",
         "/etc/sudoers | 440 | root",
         "/etc/crontab | 600 | root",
-        "/boot/grub/grub.cfg | 600 | root",
-        "/var/ossec/etc/ossec.conf | 660 | root:wazuh",
-        "/var/ossec/etc/client.keys | 640 | root:wazuh"
+        "/boot/grub/grub.cfg | 600 | root"
       ]
     }
   }
