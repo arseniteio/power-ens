@@ -103,6 +103,7 @@
   "opacc2.acl_read_a_incomplete_b_of_c_acl_record": "lectura de ACL {a} incompleta: llegaron {b} de {c} acl_record",
   "opacc2.critical_files_changed_a": "ficheros críticos modificados: {a}",
   "opacc2.critical_paths_fim_does_not_watch_in_tim": "rutas críticas que FIM no vigila a tiempo: {a}",
+  "opacc2.declared_missing": "P-08 declara recursos que esta máquina no tiene: {paths} (comprobados los otros {verified})",
   "opacc2.elevation_not_local": "{method} de {from} a {to} (no es una cuenta local)",
   "opacc2.elevation_unnamed_grants": "{method} de {from} a {to} (sudoers concede a cuentas sin nombre)",
   "opacc2.elevations_cannot_be_seen_a": "no se pueden ver las elevaciones: {a}",
