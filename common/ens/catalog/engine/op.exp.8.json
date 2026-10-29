@@ -1,0 +1,1053 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.8",
+  "title": "Registro de la actividad",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Trazabilidad (ÚNICA dimensión)",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.8",
+  "description": "op.exp.8 es el control en el que Wazuh es el propio control: cada máquina registra su actividad con los campos mínimos y la entrega sin huecos, el reloj está sincronizado, la retención y las copias del indexer son las declaradas y solo el personal autorizado lee los registros.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.8",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.8.1",
+      "title": "Registro de auditoría con los campos mínimos",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se generará un registro de auditoría, que incluirá, al menos, el identificador del usuario o entidad asociado al evento, fecha y hora, sobre qué información se realiza el evento, tipo de evento y el resultado del evento (fallo o éxito), según la política de seguridad y los procedimientos asociados a la misma.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-03",
+        "EV-04",
+        "EV-13"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.exp.8.2",
+      "title": "Registros de actividad activos en los servidores",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se activarán los registros de actividad en los servidores.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-12"
+      ]
+    },
+    {
+      "id": "op.exp.8.r1.1",
+      "title": "Revisión periódica de los registros (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se revisarán informalmente, de forma periódica, los registros de actividad, buscando patrones anormales.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-04",
+        "P-13"
+      ]
+    },
+    {
+      "id": "op.exp.8.r2.1",
+      "title": "Referencia de tiempo sincronizada y protegida (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "El sistema deberá disponer de una referencia de tiempo (timestamp) para facilitar las funciones de registro de eventos y auditoría. La modificación de la referencia de tiempo del sistema será una función de administración y, en caso de realizarse su sincronización con otros dispositivos, deberán utilizarse mecanismos de autenticación e integridad.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.exp.8.r3.1",
+      "title": "Eventos auditados y retención documentados (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "En la documentación de seguridad del sistema se deberán indicar los eventos de seguridad que serán auditados y el tiempo de retención de los registros antes de ser eliminados.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.exp.8.r4.1",
+      "title": "Acceso a los registros solo para personal autorizado (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en MEDIO y ALTO. Para BAJO debe mostrarse como NO_APLICA.",
+      "description": "Los registros de actividad y, en su caso, las copias de seguridad de los mismos, solamente podrán ser accedidos o eliminarse por personal debidamente autorizado.",
+      "evidence_ids": [
+        "EV-08",
+        "EV-09",
+        "EV-13"
+      ],
+      "parameter_ids": [
+        "P-08",
+        "P-09",
+        "P-14"
+      ]
+    },
+    {
+      "id": "op.exp.8.r5.1",
+      "title": "Análisis de la actividad en busca de compromisos (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "El sistema deberá implementar herramientas para analizar y revisar la actividad del sistema y la información de auditoría, en búsqueda de comprometimientos de la seguridad posibles o reales.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.8.r5.2",
+      "title": "Recolección, correlación y respuesta automáticas (R5)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Exigible en ALTO. Para BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Se dispondrá de un sistema automático de recolección de registros, correlación de eventos y respuesta automática ante los mismos.",
+      "evidence_ids": [
+        "EV-11",
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-11"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Generación y conservación del registro de auditoría",
+      "description": "auditd activo en la máquina y Wazuh leyendo su registro de auditoría y un registro del sistema (journald, syslog o auth.log).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina genera y entrega su registro de auditoría?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Cobertura de registro en los servidores",
+      "description": "Estado del agente de Wazuh y su último contacto con el manager, frente al silencio máximo de P-12.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿El agente de esta máquina está entregando su registro?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Suficiencia de los campos del registro de auditoría",
+      "description": "Registros de auditoría del periodo que traen usuario, fecha y hora, objeto, tipo de evento y resultado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los registros de auditoría de esta máquina traen los campos mínimos?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Continuidad de la ingesta y detección de lagunas",
+      "description": "Registros de monitorización de Wazuh del periodo: ningún hueco mayor que P-12 ni el agente desconectado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1",
+        "op.exp.8.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina ha entregado su registro sin huecos?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Registro de las revisiones periódicas de los registros (R1)",
+      "description": "Última revisión de los registros anotada en P-13, frente a la periodicidad de P-04.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Consta una revisión de los registros dentro del plazo de P-04?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Sincronización del reloj y protección de la referencia de tiempo (R2)",
+      "description": "Servicio de sincronización de la máquina, si está sincronizada, su desfase frente a P-06, sus fuentes frente a P-05 y si están autenticadas.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El reloj de esta máquina está sincronizado con una referencia protegida?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Retención efectiva de los registros frente a la declarada (R3)",
+      "description": "Edad a la que la política ISM del indexer borra las alertas, frente a la mayor retención de P-07.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿El indexer conserva las alertas al menos lo que declara P-07?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Control de acceso a los registros de actividad (R4)",
+      "description": "Permisos de los registros de P-14: ninguno legible por todos ni con ACL para cuentas fuera de P-08.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo el personal autorizado puede leer los registros de esta máquina?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Protección de las copias de seguridad de los registros (R4)",
+      "description": "Último snapshot correcto del indexer frente a la periodicidad más corta de P-09.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay copia reciente de los registros del indexer?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Análisis automático en busca de comprometimientos (R5)",
+      "description": "Conjuntos de reglas de P-10 desplegados en el manager: el ruleset de Wazuh y las reglas propias.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r5.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿El manager analiza la actividad con los conjuntos de reglas declarados?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Sistema automático de recolección, correlación y respuesta (R5)",
+      "description": "Cada acción de respuesta automática de P-11 es una respuesta activa que el manager envía a la máquina y cuyo script está en ella.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r5.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Las respuestas automáticas previstas están desplegadas en esta máquina?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Respuestas automáticas ejecutadas (R5)",
+      "description": "Respuestas activas ejecutadas en la máquina en el periodo.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r5.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Qué respuestas automáticas se han ejecutado en esta máquina?"
+    },
+    {
+      "id": "EV-13",
+      "title": "Integridad del propio sistema de registro",
+      "description": "El agente de Wazuh reporta y su configuración (/var/ossec/etc) está vigilada por el FIM.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1",
+        "op.exp.8.r4.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿El sistema de registro de esta máquina está protegido?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "platform",
+      "name": "eventos_auditables",
+      "label": "Eventos auditables",
+      "description": "Eventos de seguridad que se auditan, con su fuente y nivel mínimo de alerta.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1",
+        "op.exp.8.r3.1"
+      ],
+      "type": "table",
+      "example": "autenticación | sshd, sudo, auditd | 3",
+      "columns": [
+        {
+          "name": "categoria_evento",
+          "label": "Categoría de evento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "nivel_minimo",
+          "label": "Nivel mínimo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: R3 lo exige en la documentación. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "system",
+      "name": "servidores_en_alcance",
+      "label": "Servidores en alcance",
+      "description": "Servidores donde deben estar activos los registros de actividad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.2"
+      ],
+      "type": "table",
+      "example": "srv-web-01 | Ubuntu 24.04 | servidor web",
+      "columns": [
+        {
+          "name": "servidor",
+          "label": "Servidor (nombre del agente)",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "so",
+          "label": "Sistema operativo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: cada máquina del alcance se juzga. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-03": {
+      "class": "platform",
+      "name": "campos_minimos_registro",
+      "label": "Mapeo de los campos mínimos por fuente",
+      "description": "En qué campo lleva cada fuente los cinco datos mínimos de op.exp.8.1.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.1"
+      ],
+      "type": "table",
+      "example": "auditd | auid | msg=audit(...) | exe, name | type | success, res",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "usuario",
+          "label": "Usuario o entidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha_hora",
+          "label": "Fecha y hora",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "objeto",
+          "label": "Objeto",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tipo_evento",
+          "label": "Tipo de evento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-03 lee los campos del registro de auditoría. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "periodicidad_revision_registros_dias",
+      "label": "Periodicidad de la revisión de los registros (días)",
+      "description": "Días máximos entre dos revisiones de los registros de actividad.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r1.1"
+      ],
+      "type": "duration_days",
+      "example": "30",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 mide la antigüedad de la última revisión de P-13.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar.",
+      "min_value": 1
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "fuente_tiempo_ntp",
+      "label": "Fuentes de tiempo y método de sincronización",
+      "description": "Servidores de tiempo de referencia y método de autenticación (NTP, NTS o clave).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r2.1"
+      ],
+      "type": "table",
+      "example": "ntp.organizacion.es | NTS",
+      "columns": [
+        {
+          "name": "fuente_tiempo",
+          "label": "Fuente de tiempo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "metodo",
+          "label": "Método de autenticación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "El agente informa de las fuentes en uso.",
+      "engine_usage": "EV-06 exige una fuente de esta lista y autenticación si el método la pide.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 no comprueba las fuentes."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "desviacion_maxima_reloj_segundos",
+      "label": "Desviación máxima del reloj (segundos)",
+      "description": "Desfase máximo admitido del reloj, en segundos.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r2.1"
+      ],
+      "type": "number",
+      "example": "1",
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "El agente informa del desfase que mide chrony.",
+      "engine_usage": "EV-06 compara el desfase con este máximo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "retencion_registros_dias",
+      "label": "Retención de los registros por categoría (días)",
+      "description": "Días de retención de los registros por categoría.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r3.1"
+      ],
+      "type": "table",
+      "example": "autenticación | 365",
+      "columns": [
+        {
+          "name": "categoria_evento",
+          "label": "Categoría de evento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dias_retencion",
+          "label": "Días de retención",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 compara la mayor retención con la política ISM del indexer.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "platform",
+      "name": "personal_autorizado_registros",
+      "label": "Cuentas autorizadas a acceder a los registros",
+      "description": "Cuentas autorizadas a acceder a los registros de actividad, con permiso y alcance.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r4.1"
+      ],
+      "type": "table",
+      "example": "root | lectura | todos",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "permiso",
+          "label": "Permiso",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance_indices",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 falla con una ACL de lectura para otra cuenta.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "copias_seguridad_registros",
+      "label": "Copias de seguridad de los registros",
+      "description": "Copias de los registros: alcance, destino, frecuencia (días, o diaria, semanal, mensual) y si su acceso está restringido.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r4.1"
+      ],
+      "type": "table",
+      "example": "índices de alertas | repositorio de snapshots | diaria | sí",
+      "columns": [
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "frecuencia",
+          "label": "Frecuencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "acceso_restringido",
+          "label": "Acceso restringido a",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 exige un snapshot correcto del indexer dentro de la frecuencia más corta.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "reglas_correlacion_activas",
+      "label": "Conjuntos de reglas de análisis desplegados",
+      "description": "Conjuntos de reglas que deben estar desplegados en el manager: wazuh (el ruleset oficial) y propias (reglas de etc/rules).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r5.1"
+      ],
+      "type": "table",
+      "example": "wazuh | todos los eventos de P-01 | sí",
+      "columns": [
+        {
+          "name": "conjunto_reglas",
+          "label": "Conjunto de reglas",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "cobertura",
+          "label": "Cobertura (categorías de P-01)",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mapeo_attck",
+          "label": "Mapeo ATT&CK",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente del manager informa de sus ficheros de reglas.",
+      "engine_usage": "EV-10 exige cada conjunto en el manager.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "respuesta_automatica_configurada",
+      "label": "Respuestas automáticas previstas",
+      "description": "Acciones de respuesta automática previstas: el comando de respuesta activa (firewall-drop, disable-account…), su disparador, alcance y reversión.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r5.2"
+      ],
+      "type": "table",
+      "example": "firewall-drop | fuerza bruta SSH | servidores | 600 s",
+      "columns": [
+        {
+          "name": "accion",
+          "label": "Acción (comando)",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "disparador",
+          "label": "Disparador",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reversion",
+          "label": "Reversión",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente informa de los scripts de respuesta activa.",
+      "engine_usage": "EV-11 exige cada acción enviada a la máquina e instalada.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_keepalive_horas",
+      "label": "Silencio máximo tolerado de un servidor (horas)",
+      "description": "Horas que puede pasar una máquina sin comunicar con el manager ni dejar registro de monitorización.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.2"
+      ],
+      "type": "duration_hours",
+      "example": "2",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 y EV-04 lo usan como silencio máximo.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-04"
+      ],
+      "if_not_configured": "EV-02 y EV-04 quedan sin demostrar.",
+      "min_value": 1
+    },
+    "P-13": {
+      "class": "organisation",
+      "name": "registro_revisiones_registros",
+      "label": "Registro de revisiones de los registros",
+      "description": "Revisiones periódicas de los registros de actividad, una por fila: fecha, revisor, alcance y hallazgos.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r1.1"
+      ],
+      "type": "table",
+      "example": "2026-10-15 | RSI | autenticaciones y sudo | sin hallazgos",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "revisor",
+          "label": "Revisor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee: la revisión es un acto de la organización.",
+      "engine_usage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-04.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-14": {
+      "class": "platform",
+      "name": "rutas_registros_actividad",
+      "label": "Rutas de los registros de actividad",
+      "description": "Ficheros y directorios de los registros de actividad de la máquina cuyo acceso se controla.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.8.r4.1"
+      ],
+      "type": "list",
+      "example": "/var/log/audit",
+      "required": true,
+      "agent_usage": "El agente lee su modo, propietario y ACL: el motor le pasa las rutas en la configuración del grupo.",
+      "engine_usage": "EV-08 exige que ninguna sea legible por todos ni por cuentas fuera de P-08.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.8.r3.1 | Política de registro y retención | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "registro",
+      "title": "Registro de auditoría",
+      "description": "auditd, registros que lee Wazuh y campos mínimos.",
+      "evidences": [
+        "EV-01",
+        "EV-03"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "entrega",
+      "title": "Entrega y continuidad",
+      "description": "Estado de los agentes y huecos en la entrega.",
+      "evidences": [
+        "EV-02",
+        "EV-04",
+        "EV-13"
+      ],
+      "parameters": [
+        "P-02",
+        "P-12"
+      ]
+    },
+    {
+      "id": "revision",
+      "title": "Revisión de los registros",
+      "description": "Última revisión frente a la periodicidad.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-04",
+        "P-13"
+      ]
+    },
+    {
+      "id": "tiempo",
+      "title": "Referencia de tiempo",
+      "description": "Sincronización, desfase y fuentes.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "retencion",
+      "title": "Retención y copias",
+      "description": "Política ISM del indexer y último snapshot.",
+      "evidences": [
+        "EV-07",
+        "EV-09"
+      ],
+      "parameters": [
+        "P-07",
+        "P-09"
+      ]
+    },
+    {
+      "id": "acceso",
+      "title": "Acceso a los registros",
+      "description": "Quién puede leer los registros de cada máquina.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-08",
+        "P-14"
+      ]
+    },
+    {
+      "id": "analisis",
+      "title": "Análisis y respuesta",
+      "description": "Reglas desplegadas y respuestas automáticas.",
+      "evidences": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "parameters": [
+        "P-10",
+        "P-11"
+      ]
+    }
+  ]
+}

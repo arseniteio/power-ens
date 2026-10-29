@@ -230,6 +230,14 @@
         "/usr/bin",
         "/usr/sbin"
       ]
+    },
+    "op.exp.8": {
+      "P-14": [
+        "/var/log/auth.log",
+        "/var/log/syslog",
+        "/var/log/audit",
+        "/var/ossec/logs"
+      ]
     }
   }
 }
