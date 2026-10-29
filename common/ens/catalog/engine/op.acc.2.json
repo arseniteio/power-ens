@@ -628,5 +628,83 @@
       ],
       "if_not_configured": "El agente aplica su lista de fábrica (sudo, wheel, admin, adm y root) y el informe no cita una decisión del cliente."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "recursos",
+      "title": "Recursos sin control de acceso detectados",
+      "description": "Comprobación automatizada de que los recursos del sistema (ficheros, directorios, servicios, puertos) tienen controles de acceso que impiden su uso no autorizado. Detecta world-writable no permitidos, permisos abiertos y umask insuficiente.",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "umask",
+      "title": "Configuración de umask",
+      "description": "Comprobación automatizada de que los recursos del sistema (ficheros, directorios, servicios, puertos) tienen controles de acceso que impiden su uso no autorizado. Detecta world-writable no permitidos, permisos abiertos y umask insuficiente.",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "cambios_so",
+      "title": "Cambios en componentes del SO en el período",
+      "description": "Vigilancia de cambios (creación, modificación, eliminación, cambio de permisos) en los componentes del sistema operativo y sus ficheros o registros de configuración declarados en P-02.",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "accesos_denegados",
+      "title": "Accesos denegados en el período",
+      "description": "Accesos denegados a recursos del sistema (top recursos y usuarios)",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "acls",
+      "title": "Estado de las ACLs por recurso",
+      "description": "Auditoría de que los derechos de acceso a cada recurso siguen la política interna (P-04) y las decisiones del responsable del recurso. Detecta recursos con ACLs que difieren de la tabla P-06.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": [
+        "P-04",
+        "P-06"
+      ]
+    },
+    {
+      "id": "suid_sgid",
+      "title": "Binarios SUID/SGID y ficheros sin propietario",
+      "description": "Binarios SUID/SGID y ficheros sin propietario detectados por rootcheck",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "privilegios",
+      "title": "Estado de privilegios individuales (Refuerzo R1)",
+      "description": "Comprobación de que cada usuario autorizado tiene privilegios mantenidos individualmente y de que restringen el tipo de acceso según P-05 y P-06. Detecta usuarios con privilegios excesivos o sin definición individual.",
+      "evidences": [
+        "EV-05",
+        "EV-06"
+      ],
+      "parameters": [
+        "P-05",
+        "P-06"
+      ]
+    }
+  ]
 }

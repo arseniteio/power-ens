@@ -523,5 +523,79 @@
       ],
       "if_not_configured": "op.acc.4.4 queda sin demostrar."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "campo2",
+      "title": "Verificación de denegación por defecto",
+      "description": "Resultado de los checks de denegación por defecto en cada sistema: política de firewall, shares con permisos a",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo3",
+      "title": "Privilegios no autorizados detectados",
+      "description": "Listado de privilegios configurados en los sistemas que no tienen correspondencia en la matriz P-01. Para cada",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo4",
+      "title": "Cuentas con privilegios excesivos",
+      "description": "Cuentas cuyos privilegios superan el mínimo imprescindible: sudo sin restricción, cuentas de servicio en grupo",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo5",
+      "title": "Cambios en grupos privilegiados",
+      "description": "Altas y bajas registradas en los grupos de P-06 durante el período. Para cada evento: cuenta afectada, grupo,",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo6",
+      "title": "Cambios de permisos por cuenta no competente",
+      "description": "Eventos de concesión, alteración o anulación de permisos ejecutados por cuentas fuera de P-02. Detalle: actor,",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo7",
+      "title": "Estado de la revisión periódica de permisos",
+      "description": "Fecha de la última revisión de permisos registrada, días transcurridos, plazo exigido (P-03) y marca de cumpli",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo8",
+      "title": "Accesos remotos en el período",
+      "description": "Registro de conexiones remotas: cuenta, canal, puerto, IP de origen, fecha y duración. Marca de conformidad co",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo9",
+      "title": "Accesos a recursos de necesidad de conocer",
+      "description": "Accesos registrados a los recursos de P-07 con identificación del perfil que accede. Marca de si el perfil tie",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": []
+    }
+  ]
 }

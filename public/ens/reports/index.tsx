@@ -88,23 +88,12 @@ const CAUSE_LABEL: Record<string, string> = {
   EVIDENCE: 'evidencia insuficiente',
 };
 
-interface ENSReportPanorama {
-  results?: ENSComplianceResult[];
-  loading: boolean;
-  error?: Error;
-  meta?: ENSEvaluationMeta;
-  refreshing?: boolean;
-  retry?: () => void;
-}
-
 const ControlReport = ({
   controlId,
   definition,
-  panorama,
 }: {
   controlId: string;
   definition: ENSReportModelDefinition;
-  panorama?: ENSReportPanorama;
 }) => {
   const { agentId } = useRouterSearch();
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
@@ -137,8 +126,6 @@ const ControlReport = ({
     error,
     hasData: Boolean(evaluation.data),
     hasResult: Boolean(complianceResult),
-    usesPanorama: Boolean(panorama),
-    panoramaLoading: Boolean(panorama?.loading),
     notMeasured: () => {
       const catalog = getENSCatalogControl(controlId);
       return catalog && agentId
@@ -148,10 +135,9 @@ const ControlReport = ({
   });
   const exportable = canExportReport(view);
 
-  const panoramaResults = panorama?.results;
   const reportModel = useMemo(
-    () => definition.build(complianceResult, panoramaResults),
-    [definition, complianceResult, panoramaResults],
+    () => definition.build(complianceResult),
+    [definition, complianceResult],
   );
 
   // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
@@ -781,16 +767,10 @@ const ControlReport = ({
     );
   }
 
-  if (view.kind === 'loading' || view.kind === 'panorama-loading') {
+  if (view.kind === 'loading') {
     return (
       <>
-        <EvaluationLoading
-          message={
-            view.kind === 'loading'
-              ? 'Evaluando el control en el servidor con todos los hechos de la ventana…'
-              : 'Evaluando todos los controles para el panorama del informe (grado de implantación, controles no evaluables, art. 32)…'
-          }
-        />
+        <EvaluationLoading message='Leyendo los veredictos del motor…' />
         <EuiButton iconType='download' size='s' fill isDisabled>
           Exportar PDF
         </EuiButton>
@@ -801,34 +781,6 @@ const ControlReport = ({
   return (
     <>
       <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
-      {panorama?.meta ? (
-        <EvaluationStatusLine label='Panorama de todos los controles' meta={panorama.meta} refreshing={panorama.refreshing} onRetry={panorama.retry} />
-      ) : null}
-      {panorama?.error ? (
-        <>
-          <EuiCallOut
-            size='s'
-            color='warning'
-            iconType='alert'
-            title='No se han podido leer los hechos de todos los controles'
-          >
-            <EuiText size='xs'>
-              <p>
-                El grado de implantación, los controles no evaluables y los
-                datos del art. 32 salen sin datos. El veredicto del control no
-                depende de esta consulta.
-              </p>
-              <p>{String(panorama.error?.message || panorama.error)}</p>
-            </EuiText>
-            {panorama.retry ? (
-              <EuiButtonEmpty size='xs' iconType='refresh' onClick={panorama.retry}>
-                Reintentar
-              </EuiButtonEmpty>
-            ) : null}
-          </EuiCallOut>
-          <EuiSpacer size='s' />
-        </>
-      ) : null}
       <EuiFlexGroup justifyContent='spaceBetween' alignItems='center'>
         <EuiFlexItem>
           <EuiText size='xs' color='subdued'>
@@ -930,43 +882,6 @@ const ControlReport = ({
         Exportar PDF
       </EuiButton>
     </>
-  );
-};
-
-// A report that gathers all controls (`usesAllControls`, op.mon.2) issues a SECOND query only to compute each control's result.
-const ControlReportWithPanorama = ({
-  controlId,
-  definition,
-}: {
-  controlId: string;
-  definition: ENSReportModelDefinition;
-}) => {
-  const { agentId } = useRouterSearch();
-
-  // The overview result is computed by the server with all facts of the window; the hook never returns another machine's.
-  const evaluation = useEnsEvaluation<{ results: ENSComplianceResult[]; meta?: ENSEvaluationMeta }>({
-    include: 'results',
-    agentId,
-  });
-  const { error } = evaluation;
-  const valid = {
-    valor: evaluation.data ? { results: evaluation.data.results } : undefined,
-    cargando: !evaluation.data && !error,
-  };
-
-  return (
-    <ControlReport
-      controlId={controlId}
-      definition={definition}
-      panorama={{
-        results: valid.valor?.results,
-        loading: valid.cargando,
-        error,
-        meta: evaluation.data?.meta,
-        refreshing: evaluation.isRefreshing,
-        retry: evaluation.retry,
-      }}
-    />
   );
 };
 
@@ -1251,17 +1166,10 @@ export const ReportsENS = () => {
                 {/* Mounted ONLY while the section is open: each `<ControlReport>` requests its control's evaluation. Without a model there is no fallback report. */}
                 {isOpen(entry.controlId) ? (
                   entry.reportModelDefinition ? (
-                    entry.reportModelDefinition.usesAllControls ? (
-                      <ControlReportWithPanorama
-                        controlId={entry.controlId}
-                        definition={entry.reportModelDefinition}
-                      />
-                    ) : (
-                      <ControlReport
-                        controlId={entry.controlId}
-                        definition={entry.reportModelDefinition}
-                      />
-                    )
+                    <ControlReport
+                      controlId={entry.controlId}
+                      definition={entry.reportModelDefinition}
+                    />
                   ) : (
                     <ControlWithoutReportModel entry={entry} />
                   )

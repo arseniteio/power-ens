@@ -5,7 +5,6 @@ type ENSReportViewState =
   | { kind: 'error'; error: unknown }
   | { kind: 'loading' }
   | { kind: 'not-measured'; title: string; text: string; reason?: ENSNotMeasuredReason }
-  | { kind: 'panorama-loading' }
   | { kind: 'ready' };
 
 interface ENSReportViewInput {
@@ -15,8 +14,6 @@ interface ENSReportViewInput {
   error?: unknown;
   hasData: boolean;
   hasResult: boolean;
-  usesPanorama: boolean;
-  panoramaLoading: boolean;
   notMeasured: () => ENSNotMeasuredReason | undefined;
 }
 
@@ -39,7 +36,6 @@ export const reportViewState = (input: ENSReportViewInput): ENSReportViewState =
       reason,
     };
   }
-  if (input.usesPanorama && input.panoramaLoading) return { kind: 'panorama-loading' };
   return { kind: 'ready' };
 };
 

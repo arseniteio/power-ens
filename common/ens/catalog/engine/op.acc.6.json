@@ -1028,5 +1028,92 @@
       "evidence_ids": [],
       "if_not_configured": "Los requisitos documentales quedan sin acreditar y cuentan en contra: lo que no se demuestra, no cumple."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "campo2",
+      "title": "Accesos por zona de origen",
+      "description": "Distribución de las autenticaciones del período según procedan de zona controlada o no controlada, con el porc",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo3",
+      "title": "Accesos sin doble factor desde zona no controlada",
+      "description": "Relación detallada de autenticaciones procedentes de zona no controlada sin segundo factor: usuario, IP de ori",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo4",
+      "title": "Acceso remoto — conformidad con R9",
+      "description": "Por cada canal de P-07: conexiones registradas, verificación de cifrado del tráfico, usuarios que lo utilizaro",
+      "evidences": [
+        "EV-07",
+        "EV-08"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo5",
+      "title": "Intentos fallidos y bloqueos",
+      "description": "Cuentas que superaron el umbral P-05 con indicación de si el bloqueo se aplicó. Patrones de ataque detectados",
+      "evidences": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo6",
+      "title": "Antigüedad y robustez de las credenciales",
+      "description": "Distribución de la antigüedad de las credenciales activas frente a P-04, relación de las que superan el plazo,",
+      "evidences": [
+        "EV-05",
+        "EV-11"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo7",
+      "title": "Reacción ante compromiso y bajas de personal",
+      "description": "Incidencias de compromiso y bajas registradas en el período, con el tiempo hasta la inhabilitación efectiva de",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo8",
+      "title": "Registro de accesos — cobertura (R5)",
+      "description": "Volumen de eventos de autenticación ingeridos por fuente de P-03, verificación de continuidad del registro e i",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo9",
+      "title": "Renovación de autenticación en puntos críticos (R6)",
+      "description": "Operaciones de P-08 ejecutadas en el período con indicación de si fueron precedidas de reautenticación singula",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo10",
+      "title": "Credenciales sin utilización prolongada (R7)",
+      "description": "Cuentas habilitadas cuyo último acceso supera P-09 días: usuario, días de inactividad, privilegios asociados y",
+      "evidences": [
+        "EV-10"
+      ],
+      "parameters": []
+    }
+  ]
 }

@@ -467,5 +467,62 @@
       "evidence_ids": [],
       "if_not_configured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "campo2",
+      "title": "Cuentas con funciones incompatibles detectadas",
+      "description": "Listado de cuentas que han ejercido funciones incompatibles en el período. Para cada una: cuenta, funciones de",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo3",
+      "title": "Tareas críticas y concurrencia verificada",
+      "description": "Para cada tarea crítica de P-04 ejecutada en el período: número de personas distintas implicadas, identificaci",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo4",
+      "title": "Inventario de acciones por cuenta y función",
+      "description": "Tabla agregada de todas las acciones ejecutadas en el período, agrupadas por cuenta y clasificadas por función",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo5",
+      "title": "Segregación configuración / mantenimiento (R1)",
+      "description": "Cuentas que han aunado funciones de configuración y mantenimiento en la ventana P-06. Detalle de las acciones",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo6",
+      "title": "Cuentas de auditoría — separación funcional (R1)",
+      "description": "Estado de cada cuenta de P-05: acciones ejecutadas en el período y marca de si alguna excede la función de aud",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo7",
+      "title": "Accesos a la información de seguridad (R3)",
+      "description": "Registro de accesos a la configuración de seguridad y consolas de gestión, con identificación de la cuenta y s",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": []
+    }
+  ]
 }

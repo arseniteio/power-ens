@@ -1,16 +1,143 @@
 {
   "id": "manager-wazuh",
   "name": "Manager Wazuh",
-  "description": "El manager de Wazuh, auditado como una máquina más.",
+  "description": "El manager de Wazuh sobre Linux, auditado como una máquina más: los mismos valores que Linux.",
   "kind": "base",
   "system_type": "manager",
   "type_default": true,
   "values": {
-    "op.acc.1": {},
-    "op.acc.2": {},
-    "op.acc.3": {},
-    "op.acc.4": {},
+    "op.acc.1": {
+      "P-01": "Local",
+      "P-03": [
+        "_apt",
+        "backup",
+        "bin",
+        "daemon",
+        "dhcpcd",
+        "fwupd-refresh",
+        "games",
+        "irc",
+        "landscape",
+        "list",
+        "lp",
+        "mail",
+        "man",
+        "messagebus",
+        "news",
+        "nobody",
+        "polkitd",
+        "pollinate",
+        "proxy",
+        "sshd",
+        "sync",
+        "sys",
+        "syslog",
+        "systemd-network",
+        "systemd-resolve",
+        "systemd-timesync",
+        "tcpdump",
+        "tss",
+        "uucp",
+        "uuidd",
+        "wazuh",
+        "www-data",
+        "root"
+      ],
+      "P-10": 1000,
+      "P-11": [
+        "sudo",
+        "wheel",
+        "admin"
+      ]
+    },
+    "op.acc.2": {
+      "P-02": [
+        "/etc/passwd",
+        "/etc/shadow",
+        "/etc/group",
+        "/etc/gshadow",
+        "/etc/sudoers",
+        "/etc/sudoers.d",
+        "/etc/ssh/sshd_config",
+        "/etc/crontab",
+        "/etc/cron.d",
+        "/etc/login.defs"
+      ],
+      "P-10": [
+        "/usr/bin/at",
+        "/usr/bin/chage",
+        "/usr/bin/chfn",
+        "/usr/bin/chsh",
+        "/usr/bin/crontab",
+        "/usr/bin/expiry",
+        "/usr/bin/fusermount3",
+        "/usr/bin/gpasswd",
+        "/usr/bin/mount",
+        "/usr/bin/newgrp",
+        "/usr/bin/passwd",
+        "/usr/bin/ssh-agent",
+        "/usr/bin/su",
+        "/usr/bin/sudo",
+        "/usr/bin/umount",
+        "/usr/lib/dbus-1.0/dbus-daemon-launch-helper",
+        "/usr/lib/openssh/ssh-keysign",
+        "/usr/lib/polkit-1/polkit-agent-helper-1",
+        "/usr/lib/x86_64-linux-gnu/utempter/utempter",
+        "/usr/sbin/pam_extrausers_chkpwd",
+        "/usr/sbin/unix_chkpwd",
+        "/usr/bin/pkexec",
+        "/usr/libexec/camel-lock-helper-1.2",
+        "/usr/libexec/polkit-agent-helper-1",
+        "/usr/lib/xorg/Xorg.wrap",
+        "/usr/sbin/pppd"
+      ],
+      "P-11": [
+        "/tmp",
+        "/var/tmp",
+        "/dev/shm"
+      ],
+      "P-12": [
+        "sudo",
+        "wheel",
+        "admin",
+        "adm",
+        "root"
+      ]
+    },
+    "op.acc.3": {
+      "P-03": [
+        "desarrollo | /usr/bin/git",
+        "operacion | /usr/bin/systemctl",
+        "operacion | /usr/bin/crontab",
+        "autorizacion | /usr/sbin/visudo",
+        "autorizacion | /usr/sbin/usermod",
+        "autorizacion | /usr/sbin/useradd",
+        "configuracion | /usr/bin/nano | /usr/bin/vim | /usr/bin/tee",
+        "mantenimiento | /usr/bin/apt | /usr/bin/dpkg | /usr/bin/apt-get",
+        "auditoria | /usr/sbin/ausearch | /usr/sbin/auditctl | /var/log/audit"
+      ]
+    },
+    "op.acc.4": {
+      "P-06": [
+        "root",
+        "sudo",
+        "adm"
+      ]
+    },
     "op.acc.5": {},
-    "op.acc.6": {}
+    "op.acc.6": {
+      "P-03": [
+        "local"
+      ],
+      "P-07": [
+        "ssh | si | Responsable de Seguridad | si"
+      ],
+      "P-08": [
+        "sudo"
+      ],
+      "P-11": [
+        "sshd:version_software"
+      ]
+    }
   }
 }

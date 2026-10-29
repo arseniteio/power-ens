@@ -1,20 +1,9 @@
-/** Report model registry by control. There is no default model: a control without one has no report (`undefined`), never another control's. */
-import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
+// The report of a control, built from its catalog fields (`report` in the engine catalog) and the engine verdicts.
+import { ENGINE_CATALOG } from '../../../common/ens/catalog/engine-catalog';
+import { statusLabel } from '../../../common/ens/core/status-label';
+import type { ENSComplianceResult, ENSEvidenceResult } from '../../../common/ens/core/evaluation/types';
 
-import { buildOpAcc1ReportModel } from './op-acc-1-report-model';
-import { buildOpAcc2ReportModel } from './op-acc-2-report-model';
-import { buildOpAcc3ReportModel } from './op-acc-3-report-model';
-import { buildOpAcc4ReportModel } from './op-acc-4-report-model';
-import { buildOpAcc5ReportModel } from './op-acc-5-report-model';
-import { buildOpAcc6ReportModel } from './op-acc-6-report-model';
-
-export type ENSReportFieldStatus =
-  | 'CUMPLE'
-  | 'PARCIAL'
-  | 'NO_CUMPLE'
-  | 'NO_EVALUABLE'
-  | 'NO_APLICA'
-  | 'SIN_DATOS';
+export type ENSReportFieldStatus = 'CUMPLE' | 'PARCIAL' | 'NO_CUMPLE' | 'NO_EVALUABLE' | 'NO_APLICA' | 'SIN_DATOS';
 
 export interface ENSReportField {
   id: string;
@@ -23,6 +12,7 @@ export interface ENSReportField {
   value: string;
   evidenceIds: string[];
   details: string[];
+  // Parameters the field needs that have no value yet.
   producerGaps: string[];
 }
 
@@ -38,91 +28,84 @@ export interface ENSReportModel {
 
 export interface ENSReportModelDefinition {
   controlId: string;
-
   name: string;
-
-  build: (
-    result: ENSComplianceResult | undefined,
-    panorama?: ENSComplianceResult[]
-  ) => ENSReportModel;
-
-  usesAllControls?: boolean;
+  build: (result: ENSComplianceResult | undefined) => ENSReportModel;
 }
 
-const reportModelDefinitions: ENSReportModelDefinition[] = [
-  {
-    controlId: 'op.acc.1',
-    name: 'op.acc.1 - Identificación',
-    build: buildOpAcc1ReportModel,
-  },
-  {
-    controlId: 'op.acc.2',
-    name: 'op.acc.2 - Requisitos de acceso',
-    build: buildOpAcc2ReportModel,
-  },
-  {
-    controlId: 'op.acc.3',
-    name: 'op.acc.3 - Segregación de funciones y tareas',
-    build: buildOpAcc3ReportModel,
-  },
-  {
-    controlId: 'op.acc.4',
-    name: 'op.acc.4 - Proceso de gestión de derechos de acceso',
-    build: buildOpAcc4ReportModel,
-  },
-  {
-    controlId: 'op.acc.5',
-    name: 'op.acc.5 - Mecanismo de autenticación (usuarios externos)',
-    build: buildOpAcc5ReportModel,
-  },
-  {
-    controlId: 'op.acc.6',
-    name: 'op.acc.6 - Mecanismo de autenticación (usuarios de la organización)',
-    build: buildOpAcc6ReportModel,
-  },
-];
+interface CatalogReportField {
+  id: string;
+  title: string;
+  description: string;
+  evidences: string[];
+  parameters: string[];
+}
 
-// Exported so tests can exercise the guards below with their own list.
-const buildENSReportModelRegistry = (
-  definitions: ENSReportModelDefinition[]
-): Map<string, ENSReportModelDefinition> => {
-  const registry = new Map<string, ENSReportModelDefinition>();
+// Worst first: the field takes the status of its worst evidence.
+const SEVERITY: ENSReportFieldStatus[] = ['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE', 'CUMPLE', 'NO_APLICA'];
 
-  for (const definition of definitions) {
-    const controlId = (definition.controlId || '').trim();
+const asStatus = (status?: string): ENSReportFieldStatus =>
+  SEVERITY.includes(status as ENSReportFieldStatus) ? (status as ENSReportFieldStatus) : 'SIN_DATOS';
 
-    if (!controlId) {
-      throw new Error(
-        `Report model "${definition.name}" has no valid controlId.`
-      );
-    }
+const worstOf = (statuses: ENSReportFieldStatus[]): ENSReportFieldStatus =>
+  statuses.length ? SEVERITY.find(status => statuses.includes(status)) || 'SIN_DATOS' : 'SIN_DATOS';
 
-    if (registry.has(controlId)) {
-      throw new Error(
-        `Duplicate report model for control ${controlId}.`
-      );
-    }
-
-    registry.set(controlId, definition);
-  }
-
-  return registry;
+const formatValue = (value: unknown): string => {
+  if (Array.isArray(value)) return value.length ? value.join(', ') : 'Sin valor';
+  if (value === undefined || value === null || value === '') return 'Sin valor';
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  return String(value);
 };
 
-const reportModelRegistry = buildENSReportModelRegistry(
-  reportModelDefinitions
+const isSet = (value: unknown): boolean => (Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '');
+
+export const buildReportModel = (entry: any, result: ENSComplianceResult | undefined): ENSReportModel => {
+  const evidences = new Map<string, ENSEvidenceResult>((result?.evidences || []).map(evidence => [evidence.id, evidence]));
+  const parameters = new Map((result?.parameters || []).map(parameter => [parameter.id, parameter]));
+  const score = result && typeof result.score === 'number' ? result.score : null;
+
+  const status: ENSReportField = {
+    id: `${entry.control}.estado`,
+    title: 'Estado del control',
+    status: asStatus(result?.status),
+    value: result ? `${statusLabel(result.status)}${score !== null ? ` · ${score} %` : ''}` : 'Sin datos',
+    evidenceIds: [],
+    details: result?.observations || [],
+    producerGaps: [],
+  };
+
+  const fields = (entry.report as CatalogReportField[]).map(field => ({
+    id: `${entry.control}.${field.id}`,
+    title: field.title,
+    status: worstOf(field.evidences.map(id => asStatus(evidences.get(id)?.status))),
+    value: field.description,
+    evidenceIds: field.evidences,
+    details: [
+      ...field.evidences.map(id => `${id}: ${evidences.get(id)?.observations?.[0] || 'sin veredicto'}`),
+      ...field.parameters.map(id => `${[id, parameters.get(id)?.label].filter(Boolean).join(' ')}: ${formatValue(parameters.get(id)?.value)}`),
+    ],
+    producerGaps: field.parameters.filter(id => !isSet(parameters.get(id)?.value)),
+  }));
+
+  return {
+    controlId: entry.control,
+    status: asStatus(result?.status),
+    score,
+    coverage: result ? result.coverage : null,
+    level: result?.level || '',
+    evaluatedAt: result?.evaluatedAt,
+    fields: [status, ...fields],
+  };
+};
+
+const definitions = new Map<string, ENSReportModelDefinition>(
+  ENGINE_CATALOG.map(entry => [
+    entry.control,
+    { controlId: entry.control, name: `${entry.control} - ${entry.title}`, build: (result: ENSComplianceResult | undefined) => buildReportModel(entry, result) },
+  ])
 );
 
-// `undefined` for a control without a registered model; never a fallback model.
-export const getENSReportModelDefinition = (
-  controlId: string
-): ENSReportModelDefinition | undefined =>
-  reportModelRegistry.get((controlId || '').trim());
+// `undefined` for a control without a report: never another control's.
+export const getENSReportModelDefinition = (controlId: string): ENSReportModelDefinition | undefined => definitions.get((controlId || '').trim());
 
-// Which controls have no report model: it makes the omission visible.
-export const listENSControlsWithoutReportModel = (
-  controlIds: string[]
-): string[] =>
-  controlIds.filter(
-    controlId => !reportModelRegistry.has((controlId || '').trim())
-  );
+export const listENSControlsWithoutReportModel = (controlIds: string[]): string[] =>
+  controlIds.filter(controlId => !definitions.has((controlId || '').trim()));

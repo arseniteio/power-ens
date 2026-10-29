@@ -910,5 +910,101 @@
       "evidence_ids": [],
       "if_not_configured": "El control se evalúa normalmente: sin servicios de acceso externo, sus requisitos quedan sin demostrar y cuentan en contra."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "mecanismo",
+      "title": "Mecanismo de autenticación implementado",
+      "description": "Verificación de que las autenticaciones con éxito usan efectivamente el mecanismo del refuerzo declarado en P-01: contraseña en R1, contraseña más OTP en R2, certificado con PIN o biometría en R3, certificado en soporte físico con PIN en R4. Detecta sesiones completadas sin el factor adicional.",
+      "evidences": [
+        "EV-07",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "campo2",
+      "title": "Volumen de accesos externos en el período",
+      "description": "Total de autenticaciones registradas por servicio de P-02, desglosadas en exitosas y fallidas. Evolución respe",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo3",
+      "title": "Cobertura temporal del registro de accesos",
+      "description": "Verificación de que el registro cubre íntegramente el período declarado en P-08, con identificación de cualqui",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo4",
+      "title": "Intentos fallidos y bloqueos aplicados",
+      "description": "Cuentas que han superado el umbral P-03 en el período, con indicación de si el bloqueo se aplicó efectivamente",
+      "evidences": [
+        "EV-02",
+        "EV-03"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo5",
+      "title": "Antigüedad de credenciales frente a la política",
+      "description": "Distribución de la antigüedad de las credenciales activas de usuarios externos. Número y relación de credencia",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo6",
+      "title": "Reacción ante compromiso y fin de relación",
+      "description": "Incidencias de compromiso de credencial y bajas de usuarios externos registradas en el período, con el tiempo",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo7",
+      "title": "Segundo factor — verificación de aplicación",
+      "description": "Porcentaje de autenticaciones en las que consta la validación del segundo factor exigido por el refuerzo imple",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo8",
+      "title": "Certificados — emisores y validación de revocación",
+      "description": "Solo si P-01 = R3 o R4. Autoridades de certificación observadas en las autenticaciones del período, contraste",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "campo9",
+      "title": "Información revelada en el proceso de autenticación",
+      "description": "Resultado del análisis de mensajes de rechazo y respuestas del servicio. Hallazgos de mensajes diferenciados o",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "documental",
+      "title": "Requisitos procedimentales — acreditación documental",
+      "description": "",
+      "evidences": [],
+      "parameters": [
+        "P-04"
+      ]
+    }
+  ]
 }

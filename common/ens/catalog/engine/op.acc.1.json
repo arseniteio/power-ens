@@ -738,5 +738,93 @@
       "evidence_ids": [],
       "if_not_configured": "Los requisitos sin evidencia técnica siguen como no conformes: la carga de la prueba es del auditado."
     }
-  }
+  },
+  "report": [
+    {
+      "id": "inventario",
+      "title": "Inventario de cuentas activas",
+      "description": "Existe un inventario de las cuentas de usuario activas en los sistemas monitorizados que permite verificar la unicidad del identificador.",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "genericas",
+      "title": "Cuentas genéricas o compartidas detectadas",
+      "description": "No se detecta autenticación exitosa con cuentas genéricas o compartidas que rompan la unicidad del identificador.",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "multirol",
+      "title": "Cuentas con acceso multi-rol sin identificador diferenciado",
+      "description": "Identificadores que ejercen distintos roles sin separación",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "servicio",
+      "title": "Cuentas de servicio con acceso interactivo",
+      "description": "No se detectan logins interactivos realizados con cuentas de proceso o servicio declaradas.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "bajas",
+      "title": "Cuentas activas de usuarios con baja registrada",
+      "description": "No existen cuentas que permanezcan habilitadas más tiempo del permitido tras la baja o cese del usuario.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": [
+        "P-05",
+        "P-08"
+      ]
+    },
+    {
+      "id": "modificaciones",
+      "title": "Modificaciones de cuentas en el período",
+      "description": "Altas, modificaciones, habilitaciones y bajas de cuentas",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "eliminaciones",
+      "title": "Eliminaciones prematuras (retención incumplida)",
+      "description": "No se eliminan cuentas deshabilitadas antes de cumplir el periodo de retención definido.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "autorizados",
+      "title": "Lista de usuarios autorizados — estado (Refuerzo R1)",
+      "description": "Existe y se mantiene actualizada una lista de usuarios autorizados contra la que se contrastan las cuentas activas (Refuerzo R1).",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    }
+  ]
 }
