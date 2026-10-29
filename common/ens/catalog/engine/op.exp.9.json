@@ -235,9 +235,9 @@
         "op.exp.9.1"
       ],
       "type": "select",
-      "example": "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+      "example": "Configuración de Power ENS (op.exp.7 P-13)",
       "options": [
-        "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+        "Configuración de Power ENS (op.exp.7 P-13)",
         "Jira Service Management",
         "TheHive",
         "GLPI",

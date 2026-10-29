@@ -297,7 +297,7 @@
       "class": "organisation",
       "name": "sistema_gestion_cambios",
       "label": "Sistema de gestión de cambios",
-      "description": "Sistema de gestión de cambios: herramienta, dónde está y prefijo de numeración de las peticiones (RFC-).",
+      "description": "Sistema de gestión de cambios: herramienta (power_ens si el registro es P-10), dónde está y prefijo de numeración de las peticiones (RFC-).",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -309,14 +309,14 @@
         "op.exp.5.r1.3"
       ],
       "type": "table",
-      "example": "Configuración de Power ENS | registro P-10 | RFC-",
+      "example": "power_ens | Configuración, P-10 | RFC-",
       "columns": [
         {
           "name": "herramienta",
           "label": "Herramienta",
           "type": "select",
           "options": [
-            "registro_tsv",
+            "power_ens",
             "jira",
             "glpi",
             "servicenow",

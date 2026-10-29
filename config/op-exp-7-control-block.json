@@ -156,7 +156,7 @@
         "op.exp.7.1"
       ],
       "type": "table",
-      "example": "Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv | Responsable de Seguridad",
+      "example": "Configuración de Power ENS | P-13 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
       "powerEnsUsage": "Documental: el registro que se juzga es P-13. Sale en el informe.",
@@ -338,7 +338,7 @@
         "EV-07"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "EV-07 no se aplica a ningún sistema.",
+      "ifNotConfigured": "Ningún sistema trata datos personales: EV-07 se cumple sin incidentes que valorar.",
       "columns": [
         {
           "name": "sistema",
@@ -611,8 +611,13 @@
         {
           "name": "fase",
           "label": "Fase",
-          "type": "string",
-          "required": true
+          "type": "select",
+          "required": true,
+          "options": [
+            "inicial",
+            "intermedio",
+            "final"
+          ]
         },
         {
           "name": "fecha",
@@ -623,8 +628,14 @@
         {
           "name": "severidad",
           "label": "Severidad",
-          "type": "string",
-          "required": true
+          "type": "select",
+          "required": true,
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja"
+          ]
         },
         {
           "name": "sistemas",
@@ -653,8 +664,12 @@
         {
           "name": "datos_personales",
           "label": "Datos personales",
-          "type": "string",
-          "required": false
+          "type": "select",
+          "required": false,
+          "options": [
+            "si",
+            "no"
+          ]
         },
         {
           "name": "notificacion_ccn_cert",
@@ -665,8 +680,12 @@
         {
           "name": "relevancia_juridica",
           "label": "Relevancia jurídica",
-          "type": "string",
-          "required": false
+          "type": "select",
+          "required": false,
+          "options": [
+            "si",
+            "no"
+          ]
         },
         {
           "name": "medidas_mejora",
