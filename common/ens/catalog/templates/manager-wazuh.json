@@ -207,6 +207,18 @@
         "/etc/audit",
         "/var/ossec/etc"
       ]
+    },
+    "op.exp.4": {
+      "P-05": [
+        "Ubuntu | 20.04 | 2025-05-31",
+        "Ubuntu | 22.04 | 2027-04-30",
+        "Ubuntu | 24.04 | 2029-05-31",
+        "Debian | 11 | 2026-08-31",
+        "Debian | 12 | 2028-06-30",
+        "Amazon Linux | 2023 | 2029-06-30",
+        "Red Hat Enterprise Linux | 9 | 2032-05-31",
+        "Rocky Linux | 9 | 2032-05-31"
+      ]
     }
   }
 }

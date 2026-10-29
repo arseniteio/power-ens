@@ -1,0 +1,807 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.4",
+  "title": "Mantenimiento y actualizaciones de seguridad",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.4",
+  "description": "op.exp.4 es la gestión de vulnerabilidades y parcheado: la detección de vulnerabilidades de Wazuh frente a los plazos de cada criticidad, el seguimiento del fabricante y quién, cuándo y cómo se parchea.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.4",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.4.1",
+      "title": "Vigilancia de los anuncios del fabricante",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se atenderá a las especificaciones de los fabricantes en lo relativo a instalación y mantenimiento de los sistemas, lo que incluirá un seguimiento continuo de los anuncios de defectos.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-03",
+        "EV-05",
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-05",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.4.2",
+      "title": "Plazos de actualización según el riesgo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de un procedimiento para analizar, priorizar y determinar cuándo aplicar las actualizaciones de seguridad, parches, mejoras y nuevas versiones. La priorización tendrá en cuenta la variación del riesgo en función de la implantación o no de la actualización.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-04",
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.exp.4.3",
+      "title": "Mantenimiento por personal autorizado",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El mantenimiento solo podrá realizarse por personal debidamente autorizado.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.exp.4.r1.1",
+      "title": "Prueba previa en preproducción (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "R1 es exigible en MEDIO y ALTO. En BAJO se muestra como NO_APLICA.",
+      "description": "Antes de poner en producción una nueva versión o una versión parcheada, se comprobará en un entorno de prueba controlado y consistente en configuración al entorno de producción, que la nueva instalación funciona correctamente y no disminuye la eficacia de las funciones necesarias para el trabajo diario.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.exp.4.r2.1",
+      "title": "Mecanismo de reversión previsto (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "R2 es exigible solo en ALTO. En BAJO y MEDIO se muestra como NO_APLICA.",
+      "description": "Antes de la aplicación de las configuraciones, parches y actualizaciones de seguridad se preverá un mecanismo para revertirlos en caso de aparición de efectos adversos.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.exp.4.r3.1",
+      "title": "Integridad periódica del firmware (R3)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
+      "description": "Refuerzo R3 – Actualizaciones y pruebas periódicas: Se deberá comprobar de forma periódica la integridad del firmware utilizado en los dispositivos hardware del sistema (infraestructura de red, BIOS, etc.). La periodicidad de estas comprobaciones seguirá las recomendaciones de la Guía CCN-STIC que sea de aplicación.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT"
+      ]
+    },
+    {
+      "id": "op.exp.4.r4.1",
+      "title": "Monitorización continua de amenazas (R4)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
+      "description": "Refuerzo R4 – Monitorización continua: Se desplegará a nivel de sistema una estrategia de monitorización continua de amenazas y vulnerabilidades. Esta estrategia detallará: 1. Los indicadores críticos de seguridad a emplear. 2. La política de aplicación de parches de seguridad de los componentes software relacionados en las listas de [op.exp.1.r4], [op.ext.3.r3] y [mp.sw.1.r5]. 3. Los criterios de revisión regular y excepcional de las amenazas sobre el sistema.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Inventario continuo de vulnerabilidades por activo",
+      "description": "Vulnerabilidades abiertas de cada máquina que detecta Wazuh cruzando su inventario de paquetes con los boletines de los fabricantes. Se da por al día si el inventario de paquetes lo está (op.exp.1). Cubre de hecho R4.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1",
+        "op.exp.4.2",
+        "op.exp.4.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Wazuh mantiene al día las vulnerabilidades de esta máquina?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Tiempo de remediación frente a los plazos del procedimiento",
+      "description": "Antigüedad de cada vulnerabilidad abierta desde que se detectó, frente al plazo de su criticidad en P-01.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Alguna vulnerabilidad de esta máquina sigue abierta pasado el plazo de su criticidad?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Estado de parcheado del parque",
+      "description": "Actualizaciones pendientes, de ellas las de seguridad, y antigüedad de las listas de paquetes: una máquina que no las renueva no conoce las actualizaciones del fabricante.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina renueva sus listas de paquetes dentro de P-10 y cuántas actualizaciones tiene pendientes?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Instalaciones y actualizaciones por personal no autorizado",
+      "description": "Transacciones de apt del periodo con la cuenta que las pidió, frente al personal autorizado de P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo el personal de P-02 ha instalado, actualizado o desinstalado software en esta máquina?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Software fuera de soporte del fabricante",
+      "description": "Sistema operativo de la máquina frente a su fin de soporte en P-05. Sin soporte no hay actualizaciones de seguridad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿El sistema operativo de esta máquina sigue con soporte del fabricante?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Cobertura del seguimiento de anuncios de defectos",
+      "description": "Fabricantes del software instalado frente a las fuentes de anuncios declaradas en P-03: un fabricante sin fuente es un punto ciego.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo fabricante del software de esta máquina tiene una fuente de anuncios en P-03?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Actualizaciones aplicadas fuera de ventana de mantenimiento",
+      "description": "Transacciones de apt del periodo frente a las ventanas de mantenimiento de P-04, en la hora local de la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo cambio de software de esta máquina se hizo dentro de su ventana de P-04?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Trazabilidad del paso por preproducción (R1)",
+      "description": "Cada versión instalada en una máquina de producción tiene que haberse instalado antes en su preproducción de P-06, o estar allí ahora.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo lo instalado en producción pasó antes por su preproducción?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Existencia de punto de reversión previo (R2)",
+      "description": "Cada transacción de apt del periodo necesita un snapshot de LVM, ZFS o Btrfs tomado dentro de las horas de P-07 antes de ella.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.r2.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada cambio de software tuvo un punto de reversión previo?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "plazos_aplicacion_parches",
+      "label": "Plazos de aplicación de parches",
+      "description": "Plazo máximo en días para resolver una vulnerabilidad según su criticidad, una fila por criticidad: Crítica, Alta, Media, Baja y Sin puntuación. Sin días, sin plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1",
+        "op.exp.4.2"
+      ],
+      "type": "table",
+      "example": "Crítica | 7",
+      "columns": [
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "select",
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja",
+            "Sin puntuación"
+          ],
+          "required": true
+        },
+        {
+          "name": "dias",
+          "label": "Días",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 compara la antigüedad de cada vulnerabilidad abierta con el plazo de su criticidad.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "system",
+      "name": "personal_autorizado_mantenimiento",
+      "label": "Personal autorizado para mantenimiento",
+      "description": "Cuentas autorizadas a instalar, actualizar o desinstalar software, una por fila: la cuenta que pidió la transacción (Requested-By de apt), unattended-upgrades para el parcheado automático o root.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.3"
+      ],
+      "type": "table",
+      "example": "unattended-upgrades | servidores Linux | parcheado automático",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente informa de las transacciones de apt y quién las pidió.",
+      "engine_usage": "EV-04 falla con una transacción de otra cuenta.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "platform",
+      "name": "fuentes_anuncios_defectos",
+      "label": "Fuentes de anuncios de defectos",
+      "description": "Fabricantes del software desplegado y la fuente de sus anuncios, uno por fila. El fabricante se busca dentro del vendedor del paquete (ubuntu casa con Ubuntu Developers).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "type": "table",
+      "example": "ubuntu | Ubuntu Security Notices | RSS",
+      "columns": [
+        {
+          "name": "fabricante",
+          "label": "Fabricante",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 falla con un fabricante del inventario que no case con ninguna fila.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "system",
+      "name": "ventanas_mantenimiento",
+      "label": "Ventanas de mantenimiento",
+      "description": "Ventanas de mantenimiento por máquina (nombre del agente, o * para las demás): tramos separados por ; con día (lun…dom, o *) y horas en hora local; un tramo que acaba antes de empezar cruza la medianoche.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.2"
+      ],
+      "type": "table",
+      "example": "* | sab 22:00-02:00; * 06:00-07:30",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "ventana",
+          "label": "Ventana",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 falla con una transacción que empieza fuera de las ventanas de la máquina.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "platform",
+      "name": "software_fin_de_soporte",
+      "label": "Software y fin de soporte",
+      "description": "Fin de soporte del fabricante por producto y versión: el producto se busca en el sistema operativo y la versión casa por prefijo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "type": "table",
+      "example": "Ubuntu | 24.04 | 2029-05-31",
+      "columns": [
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "label": "Versión",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "eol",
+          "label": "Fin de soporte",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 falla si el sistema operativo de la máquina ha pasado su fin de soporte.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "entorno_preproduccion",
+      "label": "Entorno de preproducción",
+      "description": "Parejas de máquina de producción y su preproducción (nombres de agente), con la referencia que acredita que su configuración es consistente.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.r1.1"
+      ],
+      "type": "table",
+      "example": "srv-app01 | pre-app01 | informe de consistencia 2026-05",
+      "columns": [
+        {
+          "name": "sistema_prod",
+          "label": "Sistema de producción",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "sistema_preprod",
+          "label": "Sistema de preproducción",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "consistencia",
+          "label": "Evidencia de consistencia",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige que cada versión instalada en producción se instalara antes en su preproducción o esté allí.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "mecanismo_reversion",
+      "label": "Mecanismo de reversión",
+      "description": "Mecanismo de reversión por máquina (nombre del agente, o *): mecanismo, evidencia y horas antes del cambio en que debe existir el punto de reversión.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.r2.1"
+      ],
+      "type": "table",
+      "example": "* | lvm | snapshot previo al parcheo | 24",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "select",
+          "options": [
+            "lvm",
+            "zfs",
+            "btrfs",
+            "hipervisor",
+            "backup"
+          ],
+          "required": true
+        },
+        {
+          "name": "evidencia",
+          "label": "Evidencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ventana_horas",
+          "label": "Ventana previa (horas)",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "required": false,
+      "min_value": 0,
+      "agent_usage": "El agente informa de los snapshots de LVM, ZFS y Btrfs.",
+      "engine_usage": "EV-09 exige un snapshot dentro de esas horas antes de cada transacción.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "criticidad_cvss_umbral",
+      "label": "Criticidad por puntuación CVSS",
+      "description": "Puntuación CVSS mínima de cada criticidad. Wazuh asigna la criticidad con la escala de CVSS v3.1.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.2"
+      ],
+      "type": "table",
+      "example": "Crítica | 9.0",
+      "columns": [
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "select",
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja"
+          ],
+          "required": true
+        },
+        {
+          "name": "cvss_minimo",
+          "label": "CVSS mínimo",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "required": false,
+      "min_value": 0,
+      "max_value": 10,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: el motor usa la criticidad que da Wazuh. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_listas_dias",
+      "label": "Antigüedad máxima de las listas de paquetes (días)",
+      "description": "Días que pueden pasar sin renovar las listas de paquetes; por encima, la máquina no conoce las actualizaciones del fabricante.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.4.1"
+      ],
+      "type": "duration_days",
+      "example": "7",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente informa de la fecha de la lista de paquetes más reciente.",
+      "engine_usage": "EV-03 compara su antigüedad con este plazo.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la integridad del firmware (R3, no exigible).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.4.r4.1 | Estrategia de monitorización de vulnerabilidades | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "if_not_configured": "Sin efecto: R3 no es exigible."
+    }
+  },
+  "report": [
+    {
+      "id": "vulnerabilidades",
+      "title": "Vulnerabilidades por activo",
+      "description": "Vulnerabilidades abiertas por criticidad y las que han pasado su plazo.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "parcheado",
+      "title": "Estado de parcheado",
+      "description": "Actualizaciones pendientes y antigüedad de las listas de paquetes.",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": [
+        "P-10"
+      ]
+    },
+    {
+      "id": "soporte",
+      "title": "Soporte del fabricante",
+      "description": "Fin de soporte del sistema operativo y fuentes de anuncios de cada fabricante.",
+      "evidences": [
+        "EV-05",
+        "EV-06"
+      ],
+      "parameters": [
+        "P-03",
+        "P-05"
+      ]
+    },
+    {
+      "id": "mantenimiento",
+      "title": "Quién y cuándo mantiene",
+      "description": "Transacciones de software por cuenta y frente a las ventanas de mantenimiento.",
+      "evidences": [
+        "EV-04",
+        "EV-07"
+      ],
+      "parameters": [
+        "P-02",
+        "P-04"
+      ]
+    },
+    {
+      "id": "preproduccion",
+      "title": "Paso por preproducción",
+      "description": "Versiones instaladas en producción y su paso previo por preproducción.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "reversion",
+      "title": "Punto de reversión",
+      "description": "Snapshot previo a cada cambio de software.",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "atestaciones",
+      "title": "Atestaciones documentales",
+      "description": "Integridad del firmware y escala CVSS declarada.",
+      "evidences": [],
+      "parameters": [
+        "P-ATT",
+        "P-08"
+      ]
+    }
+  ]
+}
