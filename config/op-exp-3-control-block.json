@@ -109,6 +109,7 @@
       "powerEnsUsage": "EV-02 y EV-08 cuentan las escrituras bajo estas rutas.",
       "evidenceIds": [
         "EV-02",
+        "EV-05",
         "EV-08"
       ],
       "ruleIds": [],
@@ -157,7 +158,7 @@
       "example": "PR-15 Gestión de cambios en GLPI",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental hasta que op.exp.5 dé el registro de cambios. Sale en el informe.",
+      "powerEnsUsage": "Documental: EV-05 juzga contra el registro de op.exp.5 P-10. Sale en el informe.",
       "evidenceIds": [],
       "ruleIds": [],
       "ifNotConfigured": "Sin efecto en el veredicto."
@@ -355,7 +356,7 @@
       "controlId": "op.exp.3",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.4, op.exp.5 y op.exp.7 los midan, op.exp.3.3, 3.4 y 3.5.",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.7 lo mida, op.exp.3.5.",
       "levels": [
         "MEDIO",
         "ALTO"

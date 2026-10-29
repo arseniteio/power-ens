@@ -1,0 +1,421 @@
+{
+  "controlId": "op.exp.5",
+  "controlName": "Gestión de cambios",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.5",
+      "name": "sistema_gestion_cambios",
+      "label": "Sistema de gestión de cambios",
+      "description": "Sistema de gestión de cambios: herramienta, dónde está y prefijo de numeración de las peticiones (RFC-).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.1",
+        "op.exp.5.2",
+        "op.exp.5.4",
+        "op.exp.5.r1.3"
+      ],
+      "type": "table",
+      "example": "Configuración de Power ENS | registro P-10 | RFC-",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige que el número de cada petición empiece por el prefijo.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 no comprueba la numeración.",
+      "columns": [
+        {
+          "name": "herramienta",
+          "label": "Herramienta",
+          "type": "select",
+          "options": [
+            "registro_tsv",
+            "jira",
+            "glpi",
+            "servicenow",
+            "otro"
+          ],
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación y acceso",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "prefijo_referencia",
+          "label": "Prefijo del número de referencia",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.5",
+      "name": "campos_minimos_peticion_cambio",
+      "label": "Campos mínimos de una petición de cambio",
+      "description": "Columnas del registro P-10 que una petición autorizada debe traer rellenas, una por línea: peticion, fecha_registro, sistema, descripcion, riesgo, aprobado_por, fecha_aprobacion, ventana_inicio, ventana_fin, documentacion, impacto_seguridad.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.2",
+        "op.exp.5.r1.3"
+      ],
+      "type": "list",
+      "example": "descripcion",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige estas columnas en cada petición autorizada.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.5",
+      "name": "criterios_cambio_riesgo_alto",
+      "label": "Criterios de cambio de riesgo alto",
+      "description": "Criterios del análisis de riesgos que hacen un cambio de riesgo alto; quien gestiona la petición escribe alto, medio o bajo en su columna riesgo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.4"
+      ],
+      "type": "list",
+      "example": "cambio en el perímetro o en el cortafuegos",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-04 lee la columna riesgo. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.5",
+      "name": "responsable_seguridad",
+      "label": "Responsable de la Seguridad",
+      "description": "Responsable de la Seguridad y la cuenta con la que aprueba las peticiones (columna aprobado_por del registro).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.4"
+      ],
+      "type": "table",
+      "example": "A. Martínez | amartinez",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige esa cuenta en las peticiones de riesgo alto.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "nombre",
+          "label": "Nombre",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cuenta",
+          "label": "Cuenta con la que aprueba",
+          "type": "identifier",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.5",
+      "name": "documentacion_configuracion",
+      "label": "Documentación de configuración",
+      "description": "Documentos de configuración que se actualizan tras un cambio (diagramas, manuales, inventario), dónde viven y en cuántos días desde el fin de la ventana.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.5"
+      ],
+      "type": "table",
+      "example": "inventario | gestor documental | 7",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 exige, pasado el plazo, que la petición nombre los documentos actualizados.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "documento",
+          "label": "Documento",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "plazo_dias",
+          "label": "Plazo (días)",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.5",
+      "name": "canal_comunicacion_fallos",
+      "label": "Canal de comunicación de fallos",
+      "description": "Vía por la que se comunican al Responsable de la Seguridad los fallos de software y hardware, y a quién.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.r1.2"
+      ],
+      "type": "table",
+      "example": "buzon | rsi@organizacion.es",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: la comunicación no deja huella en la máquina. r1.2 se acredita con P-ATT.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "select",
+          "options": [
+            "cola_itsm",
+            "buzon",
+            "integracion_wazuh"
+          ],
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.5",
+      "name": "ventana_estabilidad_horas",
+      "label": "Ventana de estabilidad tras un cambio (horas)",
+      "description": "Horas siguientes a un cambio en las que la caída de un servicio se atribuye a ese cambio.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.5",
+        "op.exp.5.r1.1"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "El agente informa de los servicios caídos.",
+      "powerEnsUsage": "EV-07 busca cambios no revertidos en estas horas antes de un servicio caído.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar."
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.5",
+      "name": "registro_peticiones_cambio",
+      "label": "Registro de peticiones de cambio",
+      "description": "Peticiones de cambio, una por fila: número, fecha de registro, sistema (nombre del agente o *), descripción, riesgo (alto, medio, bajo), aprobado por, fecha de aprobación, inicio y fin de la ventana (sin fin, cambio estándar), estado (registrada, aprobada, implantada, revertida, rechazada), documentación actualizada e impacto en la seguridad. Fechas como 2026-10-20 06:00, hora de Madrid.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.5.1",
+        "op.exp.5.2",
+        "op.exp.5.4",
+        "op.exp.5.5",
+        "op.exp.5.r1.3"
+      ],
+      "type": "table",
+      "example": "RFC-101 | 2026-10-27 09:00 | srv-web01 | Nueva configuración de sshd | alto | amartinez | 2026-10-27 10:00 | 2026-10-28 22:00 | 2026-10-28 23:00 | implantada | manual de sshd | bajo",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee: el registro es de la organización.",
+      "powerEnsUsage": "EV-02 busca la petición que cubre cada cambio real; EV-03, EV-04, EV-06 y EV-07 juzgan sus peticiones. op.exp.3 EV-05 juzga contra él las ediciones de la configuración de seguridad.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-06",
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ningún cambio está autorizado.",
+      "columns": [
+        {
+          "name": "peticion",
+          "label": "Petición",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha_registro",
+          "label": "Fecha de registro",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "descripcion",
+          "label": "Descripción",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "riesgo",
+          "label": "Riesgo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aprobado_por",
+          "label": "Aprobado por",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha_aprobacion",
+          "label": "Fecha de aprobación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ventana_inicio",
+          "label": "Inicio de la ventana",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ventana_fin",
+          "label": "Fin de la ventana",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "documentacion",
+          "label": "Documentación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "impacto_seguridad",
+          "label": "Impacto en la seguridad",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.5",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la comunicación de fallos al Responsable de la Seguridad (r1.2).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.5.3 | Procedimiento de pruebas en preproducción | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "r1.2 no cumple.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

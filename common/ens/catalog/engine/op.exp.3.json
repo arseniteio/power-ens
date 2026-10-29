@@ -79,12 +79,14 @@
         "ALTO"
       ],
       "description": "El sistema se adapte a las nuevas necesidades, previamente autorizadas. (Ver [op.acc.4]).",
-      "evidence_ids": [],
+      "evidence_ids": [
+        "EV-05"
+      ],
       "parameter_ids": [
-        "P-ATT",
+        "P-04",
         "P-06"
       ],
-      "interpretation": "Se acredita con P-ATT hasta que op.exp.5 dé el registro de cambios contra el que juzgar cada edición."
+      "interpretation": "Las ediciones de la configuración de seguridad se contrastan con el registro de peticiones de cambio de op.exp.5 P-10."
     },
     {
       "id": "op.exp.3.4",
@@ -96,11 +98,11 @@
         "ALTO"
       ],
       "description": "El sistema reaccione a vulnerabilidades notificadas. (Ver [op.exp.4]).",
-      "evidence_ids": [],
-      "parameter_ids": [
-        "P-ATT"
+      "evidence_ids": [
+        "EV-06"
       ],
-      "interpretation": "Se acredita con P-ATT hasta que op.exp.4 mida la remediación de las vulnerabilidades."
+      "parameter_ids": [],
+      "interpretation": "La reacción a las vulnerabilidades notificadas se mide con los plazos de op.exp.4 P-01."
     },
     {
       "id": "op.exp.3.5",
@@ -311,6 +313,38 @@
       "audit_question": "¿Todo lo que se ejecuta como servicio en esta máquina está autorizado en P-02?"
     },
     {
+      "id": "EV-05",
+      "title": "Cambios de configuración frente a su autorización previa",
+      "description": "Cada edición de las rutas de P-04 que ve el FIM de Wazuh tiene que estar cubierta por una petición aprobada del registro de cambios de op.exp.5 P-10.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.3"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada edición de la configuración de seguridad de esta máquina tiene una petición de cambio aprobada?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Reacción de la configuración ante vulnerabilidades notificadas",
+      "description": "Vulnerabilidades abiertas de la máquina que han pasado el plazo de su criticidad en op.exp.4 P-01: la misma medida que op.exp.4 EV-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina corrige las vulnerabilidades notificadas dentro de su plazo?"
+    },
+    {
       "id": "EV-08",
       "title": "Concentración de la administración de la configuración (R2)",
       "description": "Número de cuentas distintas que han editado de verdad la configuración de seguridad en el periodo, contado sobre EV-02, frente al máximo de P-09.",
@@ -465,6 +499,7 @@
       "engine_usage": "EV-02 y EV-08 cuentan las escrituras bajo estas rutas.",
       "evidence_ids": [
         "EV-02",
+        "EV-05",
         "EV-08"
       ],
       "if_not_configured": "EV-02 y EV-08 quedan sin demostrar."
@@ -509,7 +544,7 @@
       "example": "PR-15 Gestión de cambios en GLPI",
       "required": false,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental hasta que op.exp.5 dé el registro de cambios. Sale en el informe.",
+      "engine_usage": "Documental: EV-05 juzga contra el registro de op.exp.5 P-10. Sale en el informe.",
       "if_not_configured": "Sin efecto en el veredicto."
     },
     "P-07": {
@@ -691,7 +726,7 @@
       "class": "organisation",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.4, op.exp.5 y op.exp.7 los midan, op.exp.3.3, 3.4 y 3.5.",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.7 lo mida, op.exp.3.5.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -814,9 +849,12 @@
     },
     {
       "id": "cambios",
-      "title": "Autorización de cambios",
-      "description": "Procedimiento de autorización previa (documental).",
-      "evidences": [],
+      "title": "Cambios y vulnerabilidades",
+      "description": "Ediciones de la configuración de seguridad frente a las peticiones aprobadas, y vulnerabilidades fuera de plazo.",
+      "evidences": [
+        "EV-05",
+        "EV-06"
+      ],
       "parameters": [
         "P-06"
       ]
