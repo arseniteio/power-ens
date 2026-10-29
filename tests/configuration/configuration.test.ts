@@ -96,7 +96,7 @@ describe('the built-in templates', () => {
 describe('a saved configuration', () => {
   test('keeps only the catalog controls', () => {
     const configuration = freshConfiguration();
-    const leftover = { ...configuration.controls[0], controlId: 'op.exp.9' };
+    const leftover = { ...configuration.controls[0], controlId: 'mp.v1.9' };
     const saved = withCatalogControls({ ...configuration, controls: [...configuration.controls, leftover] });
     assert.deepEqual(saved.controls.map(c => c.controlId), configuration.controls.map(c => c.controlId));
   });
