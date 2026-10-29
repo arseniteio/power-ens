@@ -160,6 +160,42 @@
         "/etc/crontab | 600 | root",
         "/boot/grub/grub.cfg | 600 | root"
       ]
+    },
+    "op.exp.3": {
+      "P-02": [
+        "cron.service",
+        "dbus.service",
+        "getty@.service",
+        "serial-getty@.service",
+        "ssh.service",
+        "sshd",
+        "rsyslog.service",
+        "systemd-journald.service",
+        "systemd-logind.service",
+        "systemd-networkd.service",
+        "systemd-resolved.service",
+        "systemd-timesyncd.service",
+        "systemd-udevd.service",
+        "polkit.service",
+        "unattended-upgrades.service",
+        "wazuh-agent.service",
+        "auditd.service",
+        "chrony.service",
+        "chronyd"
+      ],
+      "P-04": [
+        "/etc/ssh",
+        "/etc/sudoers",
+        "/etc/sudoers.d",
+        "/etc/pam.d",
+        "/etc/security",
+        "/etc/login.defs",
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/shadow",
+        "/etc/audit",
+        "/var/ossec/etc"
+      ]
     }
   }
 }

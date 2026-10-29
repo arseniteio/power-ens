@@ -1,0 +1,835 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.3",
+  "title": "Gestión de la configuración de seguridad",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.3",
+  "description": "op.exp.3 añade a op.exp.2 la dimensión temporal: la configuración segura se mantiene en todo momento, solo la edita personal autorizado, se copia y se verifica periódicamente.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.3.1",
+      "title": "Funcionalidad mínima mantenida en el tiempo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se mantenga en todo momento la regla de «funcionalidad mínima» ([op.exp.2]).",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-12"
+      ]
+    },
+    {
+      "id": "op.exp.3.2",
+      "title": "Mínimo privilegio mantenido en el tiempo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se mantenga en todo momento la regla de «mínimo privilegio» ([op.exp.2]).",
+      "evidence_ids": [
+        "EV-01",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-12"
+      ]
+    },
+    {
+      "id": "op.exp.3.3",
+      "title": "Cambios previamente autorizados",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema se adapte a las nuevas necesidades, previamente autorizadas. (Ver [op.acc.4]).",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT",
+        "P-06"
+      ],
+      "interpretation": "Se acredita con P-ATT hasta que op.exp.5 dé el registro de cambios contra el que juzgar cada edición."
+    },
+    {
+      "id": "op.exp.3.4",
+      "title": "Reacción a vulnerabilidades notificadas",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema reaccione a vulnerabilidades notificadas. (Ver [op.exp.4]).",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT"
+      ],
+      "interpretation": "Se acredita con P-ATT hasta que op.exp.4 mida la remediación de las vulnerabilidades."
+    },
+    {
+      "id": "op.exp.3.5",
+      "title": "Reacción a incidentes",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema reaccione a incidentes. (Ver [op.exp.7]).",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT"
+      ],
+      "interpretation": "Se acredita con P-ATT hasta que op.exp.7 dé el registro de incidentes."
+    },
+    {
+      "id": "op.exp.3.6",
+      "title": "Solo personal autorizado edita la configuración",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "La configuración de seguridad solamente podrá editarse por personal debidamente autorizado.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.exp.3.r1.1",
+      "title": "Línea base de configuración autorizada (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "R1 es exigible desde la categoría MEDIA. En BAJO debe mostrarse como NO_APLICA.",
+      "description": "Existirán configuraciones hardware/software, autorizadas y mantenidas regularmente, para los servidores, elementos de red y estaciones de trabajo.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-ATT"
+      ]
+    },
+    {
+      "id": "op.exp.3.r1.2",
+      "title": "Verificación periódica frente a la línea base (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "R1 es exigible desde la categoría MEDIA. En BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se verificará periódicamente la configuración hardware/software del sistema para asegurar que no se han introducido ni instalado elementos no autorizados.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-05",
+        "P-08",
+        "P-11"
+      ]
+    },
+    {
+      "id": "op.exp.3.r1.3",
+      "title": "Lista de servicios autorizados (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "R1 es exigible desde la categoría MEDIA. En BAJO debe mostrarse como NO_APLICA.",
+      "description": "Se mantendrá una lista de servicios autorizados para servidores y estaciones de trabajo.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.exp.3.r2.1",
+      "title": "Número muy limitado de administradores (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "R2 solo es exigible en la categoría ALTA. En BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "La configuración de seguridad del sistema operativo y aplicaciones, tanto de estaciones y servidores como de la electrónica de red del sistema, será responsabilidad de un número muy limitado de administradores del sistema.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.exp.3.r3.1",
+      "title": "Copias de configuración para reconstruir (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "R3 solo es exigible en la categoría ALTA. En BAJO y MEDIO debe mostrarse como NO_APLICA.",
+      "description": "Se realizarán copias de seguridad de la configuración del sistema de forma que sea posible reconstruirlo en parte o en su totalidad tras un incidente.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.3.r4.1",
+      "title": "Configuración por procedimiento de actualización (R4)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "R4 está definido en el texto del ENS pero no es exigible en ninguna categoría: NO_APLICA en BAJO, MEDIO y ALTO.",
+      "description": "Refuerzo R4 – Aplicación de la configuración: La configuración de seguridad del sistema operativo y de las aplicaciones se mantendrá actualizada a través de una aplicación o procedimiento manual que permita la instalación de las correspondientes modificaciones de versión y actualizaciones de seguridad oportunas.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.exp.3.r5.1",
+      "title": "Herramientas de estado de dispositivos de red (R5)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "R5 está definido en el texto del ENS pero no es exigible en ninguna categoría: NO_APLICA en BAJO, MEDIO y ALTO.",
+      "description": "Refuerzo R5 – Control del estado de seguridad de la configuración: Se dispondrá de herramientas que permitan conocer de forma periódica el estado de seguridad de la configuración de los dispositivos de red y, en el caso de que resulte deficiente, permitir su corrección.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Mantenimiento en el tiempo de la línea base",
+      "description": "Puntuación SCA de las políticas de op.exp.2 P-01 en los últimos P-12 días: ninguna puede bajar del mínimo de op.exp.2 P-05. Demuestra que la funcionalidad mínima y el mínimo privilegio se mantienen en todo momento.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La puntuación SCA de esta máquina se ha mantenido sobre el mínimo en los últimos P-12 días?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Ediciones de la configuración de seguridad y su autor",
+      "description": "Escrituras sobre las rutas de P-04 registradas por auditd, con la cuenta de la sesión que las hizo. Toda edición tiene que ser de una cuenta de P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.6"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo las cuentas de P-03 han editado la configuración de seguridad de esta máquina?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Elementos no autorizados introducidos en el sistema",
+      "description": "Paquetes instalados de nuevo en el periodo y pedidos expresamente (no como dependencia), frente al software autorizado sobre la línea base (P-01).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo software instalado a petición en esta máquina está autorizado en P-01?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Servicios en ejecución frente a la lista autorizada",
+      "description": "Servicios de systemd en ejecución y procesos en escucha fuera de ellos, frente a la lista de servicios autorizados de P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.r1.3"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Todo lo que se ejecuta como servicio en esta máquina está autorizado en P-02?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Concentración de la administración de la configuración (R2)",
+      "description": "Número de cuentas distintas que han editado de verdad la configuración de seguridad en el periodo, contado sobre EV-02, frente al máximo de P-09.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r2.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Editan la configuración de seguridad como mucho P-09 cuentas?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Existencia y frescura de las copias de configuración (R3)",
+      "description": "Copia más reciente de cada fuente de P-07 (último commit de un directorio git, como etckeeper, o fichero más reciente de un patrón), frente a la antigüedad máxima de P-10.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r3.1"
+      ],
+      "category": "RECOVERY",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay una copia de la configuración de esta máquina dentro del plazo de P-10?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Regresiones del estado de seguridad de la configuración",
+      "description": "Comprobaciones SCA que han pasado de superadas a fallidas en los últimos P-12 días. Es el indicador más directo de que la gestión de la configuración falla.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Alguna comprobación SCA de esta máquina ha empeorado en los últimos P-12 días?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Verificación periódica de la configuración frente a la línea base",
+      "description": "Última verificación formal de la configuración frente a la línea base anotada en P-11, frente al plazo de P-05.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Consta una verificación de la configuración dentro del plazo de P-05?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "system",
+      "name": "baseline_configuracion_autorizada",
+      "label": "Software autorizado sobre la línea base",
+      "description": "Software autorizado sobre la línea base, un paquete por línea con su nombre en el gestor de paquetes (nmap, postgresql-16). Las dependencias no se declaran.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.1",
+        "op.exp.3.r1.2"
+      ],
+      "type": "list",
+      "example": "nmap",
+      "required": false,
+      "agent_usage": "El agente informa de los paquetes instalados a petición.",
+      "engine_usage": "EV-03 falla con un paquete instalado a petición en el periodo que no esté en esta lista.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "Ningún software sobre la línea base está autorizado."
+    },
+    "P-02": {
+      "class": "system",
+      "name": "lista_servicios_autorizados",
+      "label": "Servicios autorizados por perfil",
+      "description": "Servicios autorizados en la máquina: unidades de systemd (ssh.service; getty@.service cubre cada getty@tty1.service) y procesos que escuchan fuera de una unidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.r1.3"
+      ],
+      "type": "list",
+      "example": "ssh.service, cron.service",
+      "required": true,
+      "agent_usage": "El agente informa de los servicios en ejecución y de los sockets en escucha.",
+      "engine_usage": "EV-04 falla con un servicio o un proceso en escucha que no esté en esta lista.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "administradores_configuracion",
+      "label": "Cuentas autorizadas a editar la configuración de seguridad",
+      "description": "Cuentas autorizadas a editar la configuración de seguridad, una por línea: la cuenta de la sesión, aunque pasara por sudo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.6",
+        "op.exp.3.r2.1"
+      ],
+      "type": "list",
+      "example": "jgomez",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 falla con una edición de otra cuenta.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "platform",
+      "name": "rutas_configuracion_seguridad",
+      "label": "Rutas de la configuración de seguridad",
+      "description": "Ficheros y directorios de la configuración de seguridad, una ruta absoluta por línea. auditd vigila sus escrituras.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.6",
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "type": "list",
+      "example": "/etc/ssh",
+      "required": true,
+      "agent_usage": "El motor pasa las rutas a la configuración del grupo para que auditd las vigile.",
+      "engine_usage": "EV-02 y EV-08 cuentan las escrituras bajo estas rutas.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-02 y EV-08 quedan sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "periodicidad_verificacion_config_dias",
+      "label": "Periodicidad de la verificación de la configuración (días)",
+      "description": "Días máximos entre dos verificaciones formales de la configuración frente a la línea base.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "duration_days",
+      "example": "90",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-11 mide la antigüedad de la última verificación de P-11 contra este plazo.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar.",
+      "min_value": 1
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "procedimiento_autorizacion_cambios",
+      "label": "Procedimiento de autorización de cambios",
+      "description": "Procedimiento de autorización previa de cambios y sistema donde se aprueban (Jira, GLPI, ServiceNow).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.3"
+      ],
+      "type": "string",
+      "example": "PR-15 Gestión de cambios en GLPI",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental hasta que op.exp.5 dé el registro de cambios. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "system",
+      "name": "config_backup_destino",
+      "label": "Alcance y destino de las copias de la configuración",
+      "description": "Copias de la configuración, una fila por alcance: alcance, fuente en la máquina (git:/etc para un directorio git como etckeeper, o un patrón de ficheros como /var/backups/etc-*.tgz) y destino.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r3.1"
+      ],
+      "type": "table",
+      "example": "sistema | git:/etc | repositorio git interno",
+      "columns": [
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El motor pasa las fuentes a la configuración del grupo; el agente data la copia más reciente de cada una.",
+      "engine_usage": "EV-09 exige una copia de cada fuente dentro de P-10.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "umbral_desviacion_baseline",
+      "label": "Umbral de desviación admitido (%)",
+      "description": "Desviación respecto a la línea base considerada aceptable.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "number",
+      "example": "5",
+      "required": false,
+      "min_value": 0,
+      "max_value": 100,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-03 juzga con tolerancia cero. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "max_administradores_configuracion",
+      "label": "Máximo de administradores efectivos de la configuración",
+      "description": "Número máximo de cuentas distintas que pueden editar de verdad la configuración de seguridad en el periodo (R2).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r2.1"
+      ],
+      "type": "number",
+      "example": "3",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 cuenta las cuentas que editaron bajo P-04 y las compara con este máximo.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_copia_configuracion_horas",
+      "label": "Antigüedad máxima de la copia de la configuración (horas)",
+      "description": "Horas máximas de antigüedad de la copia más reciente de cada fuente de P-07 (R3).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r3.1"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 compara con este plazo la copia más reciente.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar.",
+      "min_value": 1
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "registro_verificaciones_configuracion",
+      "label": "Registro de verificaciones de la configuración",
+      "description": "Verificaciones formales de la configuración frente a la línea base, una por fila: fecha, alcance y responsable.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "table",
+      "example": "2026-09-15 | servidores de producción | Responsable de Sistemas",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee: la verificación es un acto de la organización.",
+      "engine_usage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-05.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "dias_serie_sca",
+      "label": "Días de la serie SCA",
+      "description": "Días hacia atrás en los que la puntuación SCA tiene que mantenerse y en los que se buscan regresiones. Como mucho 90.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "type": "duration_days",
+      "example": "30",
+      "required": true,
+      "min_value": 1,
+      "max_value": 90,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 y EV-10 miran los resúmenes y las comprobaciones SCA de estos días.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-10"
+      ],
+      "if_not_configured": "EV-01 y EV-10 quedan sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.4, op.exp.5 y op.exp.7 los midan, op.exp.3.3, 3.4 y 3.5.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.1"
+      ],
+      "type": "table",
+      "example": "op.exp.3.r1.1 | Línea base de configuración aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "if_not_configured": "Esos requisitos no cumplen."
+    }
+  },
+  "report": [
+    {
+      "id": "linea_base_tiempo",
+      "title": "Línea base mantenida en el tiempo",
+      "description": "Puntuación SCA en la serie y comprobaciones que han empeorado.",
+      "evidences": [
+        "EV-01",
+        "EV-10"
+      ],
+      "parameters": [
+        "P-12"
+      ]
+    },
+    {
+      "id": "ediciones",
+      "title": "Ediciones de la configuración de seguridad",
+      "description": "Quién ha editado la configuración de seguridad y cuántos lo hacen.",
+      "evidences": [
+        "EV-02",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-03",
+        "P-04",
+        "P-09"
+      ]
+    },
+    {
+      "id": "software",
+      "title": "Software introducido",
+      "description": "Paquetes instalados a petición frente al software autorizado.",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "servicios",
+      "title": "Servicios en ejecución",
+      "description": "Servicios y procesos en escucha frente a la lista autorizada.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "copias",
+      "title": "Copias de la configuración",
+      "description": "Copia más reciente de cada fuente frente al plazo.",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": [
+        "P-07",
+        "P-10"
+      ]
+    },
+    {
+      "id": "verificacion",
+      "title": "Verificación periódica",
+      "description": "Última verificación de la configuración frente a la línea base.",
+      "evidences": [
+        "EV-11"
+      ],
+      "parameters": [
+        "P-05",
+        "P-11"
+      ]
+    },
+    {
+      "id": "cambios",
+      "title": "Autorización de cambios",
+      "description": "Procedimiento de autorización previa (documental).",
+      "evidences": [],
+      "parameters": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "atestaciones",
+      "title": "Atestaciones documentales",
+      "description": "Línea base aprobada y requisitos acreditados por documento.",
+      "evidences": [],
+      "parameters": [
+        "P-ATT",
+        "P-08"
+      ]
+    }
+  ]
+}

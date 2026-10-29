@@ -1,0 +1,408 @@
+{
+  "controlId": "op.exp.3",
+  "controlName": "Gestión de la configuración de seguridad",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.3",
+      "name": "baseline_configuracion_autorizada",
+      "label": "Software autorizado sobre la línea base",
+      "description": "Software autorizado sobre la línea base, un paquete por línea con su nombre en el gestor de paquetes (nmap, postgresql-16). Las dependencias no se declaran.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.1",
+        "op.exp.3.r1.2"
+      ],
+      "type": "list",
+      "example": "nmap",
+      "required": false,
+      "wazuhUsage": "El agente informa de los paquetes instalados a petición.",
+      "powerEnsUsage": "EV-03 falla con un paquete instalado a petición en el periodo que no esté en esta lista.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ningún software sobre la línea base está autorizado."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.3",
+      "name": "lista_servicios_autorizados",
+      "label": "Servicios autorizados por perfil",
+      "description": "Servicios autorizados en la máquina: unidades de systemd (ssh.service; getty@.service cubre cada getty@tty1.service) y procesos que escuchan fuera de una unidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.r1.3"
+      ],
+      "type": "list",
+      "example": "ssh.service, cron.service",
+      "required": true,
+      "wazuhUsage": "El agente informa de los servicios en ejecución y de los sockets en escucha.",
+      "powerEnsUsage": "EV-04 falla con un servicio o un proceso en escucha que no esté en esta lista.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.3",
+      "name": "administradores_configuracion",
+      "label": "Cuentas autorizadas a editar la configuración de seguridad",
+      "description": "Cuentas autorizadas a editar la configuración de seguridad, una por línea: la cuenta de la sesión, aunque pasara por sudo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.6",
+        "op.exp.3.r2.1"
+      ],
+      "type": "list",
+      "example": "jgomez",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 falla con una edición de otra cuenta.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.3",
+      "name": "rutas_configuracion_seguridad",
+      "label": "Rutas de la configuración de seguridad",
+      "description": "Ficheros y directorios de la configuración de seguridad, una ruta absoluta por línea. auditd vigila sus escrituras.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.6",
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "type": "list",
+      "example": "/etc/ssh",
+      "required": true,
+      "wazuhUsage": "El motor pasa las rutas a la configuración del grupo para que auditd las vigile.",
+      "powerEnsUsage": "EV-02 y EV-08 cuentan las escrituras bajo estas rutas.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-08 quedan sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.3",
+      "name": "periodicidad_verificacion_config_dias",
+      "label": "Periodicidad de la verificación de la configuración (días)",
+      "description": "Días máximos entre dos verificaciones formales de la configuración frente a la línea base.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "duration_days",
+      "example": "90",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-11 mide la antigüedad de la última verificación de P-11 contra este plazo.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.3",
+      "name": "procedimiento_autorizacion_cambios",
+      "label": "Procedimiento de autorización de cambios",
+      "description": "Procedimiento de autorización previa de cambios y sistema donde se aprueban (Jira, GLPI, ServiceNow).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.3"
+      ],
+      "type": "string",
+      "example": "PR-15 Gestión de cambios en GLPI",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental hasta que op.exp.5 dé el registro de cambios. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.3",
+      "name": "config_backup_destino",
+      "label": "Alcance y destino de las copias de la configuración",
+      "description": "Copias de la configuración, una fila por alcance: alcance, fuente en la máquina (git:/etc para un directorio git como etckeeper, o un patrón de ficheros como /var/backups/etc-*.tgz) y destino.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r3.1"
+      ],
+      "type": "table",
+      "example": "sistema | git:/etc | repositorio git interno",
+      "required": true,
+      "wazuhUsage": "El motor pasa las fuentes a la configuración del grupo; el agente data la copia más reciente de cada una.",
+      "powerEnsUsage": "EV-09 exige una copia de cada fuente dentro de P-10.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-09 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.3",
+      "name": "umbral_desviacion_baseline",
+      "label": "Umbral de desviación admitido (%)",
+      "description": "Desviación respecto a la línea base considerada aceptable.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "number",
+      "example": "5",
+      "required": false,
+      "minValue": 0,
+      "maxValue": 100,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-03 juzga con tolerancia cero. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.3",
+      "name": "max_administradores_configuracion",
+      "label": "Máximo de administradores efectivos de la configuración",
+      "description": "Número máximo de cuentas distintas que pueden editar de verdad la configuración de seguridad en el periodo (R2).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r2.1"
+      ],
+      "type": "number",
+      "example": "3",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 cuenta las cuentas que editaron bajo P-04 y las compara con este máximo.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 queda sin demostrar."
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.3",
+      "name": "antiguedad_maxima_copia_configuracion_horas",
+      "label": "Antigüedad máxima de la copia de la configuración (horas)",
+      "description": "Horas máximas de antigüedad de la copia más reciente de cada fuente de P-07 (R3).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r3.1"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-09 compara con este plazo la copia más reciente.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-09 queda sin demostrar."
+    },
+    {
+      "id": "P-11",
+      "controlId": "op.exp.3",
+      "name": "registro_verificaciones_configuracion",
+      "label": "Registro de verificaciones de la configuración",
+      "description": "Verificaciones formales de la configuración frente a la línea base, una por fila: fecha, alcance y responsable.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.2"
+      ],
+      "type": "table",
+      "example": "2026-09-15 | servidores de producción | Responsable de Sistemas",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee: la verificación es un acto de la organización.",
+      "powerEnsUsage": "El motor toma la fecha más reciente que no esté en el futuro y comprueba que no supere el plazo de P-05.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-12",
+      "controlId": "op.exp.3",
+      "name": "dias_serie_sca",
+      "label": "Días de la serie SCA",
+      "description": "Días hacia atrás en los que la puntuación SCA tiene que mantenerse y en los que se buscan regresiones. Como mucho 90.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.1",
+        "op.exp.3.2"
+      ],
+      "type": "duration_days",
+      "example": "30",
+      "required": true,
+      "minValue": 1,
+      "maxValue": 90,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 y EV-10 miran los resúmenes y las comprobaciones SCA de estos días.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 y EV-10 quedan sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.3",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.4, op.exp.5 y op.exp.7 los midan, op.exp.3.3, 3.4 y 3.5.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.r1.1"
+      ],
+      "type": "table",
+      "example": "op.exp.3.r1.1 | Línea base de configuración aprobada | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Esos requisitos no cumplen.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
