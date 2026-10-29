@@ -138,6 +138,28 @@
       "P-11": [
         "sshd:version_software"
       ]
+    },
+    "op.exp.2": {
+      "P-01": [
+        "cis_ubuntu24-04",
+        "cis_ubuntu22-04"
+      ],
+      "P-02": [
+        "sshd | 22",
+        "systemd-resolve | 53",
+        "systemd-network | 68",
+        "chronyd | 123,323"
+      ],
+      "P-08": [
+        "/etc/passwd | 644 | root",
+        "/etc/group | 644 | root",
+        "/etc/shadow | 640 | root",
+        "/etc/gshadow | 640 | root",
+        "/etc/ssh/sshd_config | 600 | root",
+        "/etc/sudoers | 440 | root",
+        "/etc/crontab | 600 | root",
+        "/boot/grub/grub.cfg | 600 | root"
+      ]
     }
   }
 }

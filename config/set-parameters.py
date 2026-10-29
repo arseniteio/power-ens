@@ -215,6 +215,7 @@ BUILTIN_TEMPLATES = {
     "op.acc.4": ["linux-ubuntu", "windows-server", "manager-wazuh"],
     "op.acc.5": ["linux-ubuntu", "manager-wazuh"],
     "op.acc.6": ["linux-ubuntu", "manager-wazuh"],
+    "op.exp.2": ["linux-ubuntu", "manager-wazuh"],
 }
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"

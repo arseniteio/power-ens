@@ -1,0 +1,400 @@
+{
+  "controlId": "op.exp.2",
+  "controlName": "Configuración de seguridad",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.2",
+      "name": "politicas_sca_por_perfil",
+      "label": "Políticas SCA por perfil",
+      "description": "Políticas SCA de Wazuh que valen como línea base de esta máquina, por su identificador (cis_ubuntu24-04). Basta con que se evalúe una.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.1",
+        "op.exp.2.2",
+        "op.exp.2.3"
+      ],
+      "type": "list",
+      "example": "cis_ubuntu24-04, cis_ubuntu22-04",
+      "required": true,
+      "wazuhUsage": "El agente de Wazuh las evalúa; el motor lee sus resúmenes.",
+      "powerEnsUsage": "EV-01 exige un resumen SCA de alguna de estas políticas; EV-06 mide su puntuación.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 y EV-06 quedan sin demostrar."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.2",
+      "name": "servicios_justificados_por_perfil",
+      "label": "Servicios justificados por perfil",
+      "description": "Servicios justificados en la máquina, uno por fila: proceso como lo muestra el sistema (sshd) y sus puertos separados por comas; sin puertos, cualquiera.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.2"
+      ],
+      "type": "table",
+      "example": "sshd | 22",
+      "required": true,
+      "wazuhUsage": "El agente informa de los sockets en escucha y su proceso.",
+      "powerEnsUsage": "EV-03 busca una fila por proceso y, si tiene puertos, por puerto. Un socket sin proceso conocido solo casa por puerto.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "puertos",
+          "label": "Puertos",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.2",
+      "name": "cuentas_contrasenas_estandar",
+      "label": "Cuentas y contraseñas estándar",
+      "description": "Cuentas por defecto de los productos instalados que deben estar retiradas (admin, sa, tomcat, cuentas de demostración), una por fila con su producto. No distingue mayúsculas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.1"
+      ],
+      "type": "table",
+      "example": "admin | Zimbra",
+      "required": true,
+      "wazuhUsage": "El agente informa de las cuentas y su estado (op.acc.1).",
+      "powerEnsUsage": "EV-02 falla si una de estas cuentas sigue activa o ha entrado en el periodo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.2",
+      "name": "excepciones_autorizadas",
+      "label": "Excepciones autorizadas",
+      "description": "Desviaciones de la seguridad por defecto autorizadas, una por fila: máquina (nombre del agente), comprobación como la nombra el motor (ssh_x11forwarding, permisos:/etc/crontab), motivo, quién la aprobó y fecha de fin.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.3"
+      ],
+      "type": "table",
+      "example": "srv-web-01 | ssh_permitrootlogin | acceso de emergencia por clave | Responsable de Seguridad | 2027-03-31",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 no cuenta una desviación con fila de esta máquina y vigencia no pasada.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ninguna desviación está autorizada.",
+      "columns": [
+        {
+          "name": "activo",
+          "label": "Activo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "comprobacion",
+          "label": "Comprobación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aprobo",
+          "label": "Aprobó",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigencia",
+          "type": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.2",
+      "name": "umbral_cumplimiento_sca",
+      "label": "Umbral de cumplimiento SCA",
+      "description": "Porcentaje mínimo de comprobaciones SCA superadas, según la puntuación de Wazuh por política.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.2",
+        "op.exp.2.3"
+      ],
+      "type": "number",
+      "example": "80",
+      "required": true,
+      "minValue": 0,
+      "maxValue": 100,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 compara con este mínimo la puntuación más reciente de cada política de P-01.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar."
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.2",
+      "name": "inventario_virtualizacion",
+      "label": "Inventario de virtualización",
+      "description": "Máquinas virtuales gestionadas, una por fila: hipervisor, máquina (nombre de su agente) y gestión del anfitrión (nombre de su agente o, en la nube, referencia de su acreditación).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.4"
+      ],
+      "type": "table",
+      "example": "pve01 | srv-web01 | pve01",
+      "required": false,
+      "wazuhUsage": "El agente informa de si la máquina es virtual.",
+      "powerEnsUsage": "EV-05 exige que una máquina virtual tenga fila, y que su anfitrión, si es un agente, esté reportando.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Una máquina virtual queda sin demostrar.",
+      "columns": [
+        {
+          "name": "hipervisor",
+          "label": "Hipervisor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "gestion",
+          "label": "Gestión del anfitrión",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.2",
+      "name": "momento_verificacion_pre_produccion",
+      "label": "Verificación previa a producción",
+      "description": "Si existe un punto de control formal antes de poner un activo en operación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "select",
+      "example": "sí",
+      "options": [
+        "sí",
+        "no"
+      ],
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: ningún hecho muestra el orden entre bastionado y puesta en marcha. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.2",
+      "name": "ficheros_sensibles",
+      "label": "Ficheros sensibles",
+      "description": "Ficheros que deben quedar cerrados, uno por fila: ruta, modo máximo en octal y propietario (usuario o usuario:grupo).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.3"
+      ],
+      "type": "table",
+      "example": "/etc/shadow | 640 | root",
+      "required": true,
+      "wazuhUsage": "El agente lee su modo y propietario: el motor le pasa las rutas en la configuración del grupo.",
+      "powerEnsUsage": "EV-04 cuenta como desviación un fichero más abierto que su modo o de otro propietario. Un fichero que no existe no cuenta.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 no comprueba permisos.",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "modo",
+          "label": "Modo máximo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "propietario",
+          "label": "Propietario",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.2",
+      "name": "antiguedad_maxima_sca_horas",
+      "label": "Antigüedad máxima de la evaluación SCA (horas)",
+      "description": "Horas que puede pasar una máquina sin evaluarse contra su línea base ni contactar con el manager. SCA evalúa cada 12 horas por defecto.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.2.2",
+        "op.exp.2.3"
+      ],
+      "type": "duration_hours",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "El agente informa del intervalo de SCA de su configuración.",
+      "powerEnsUsage": "EV-01 y EV-06 exigen un intervalo de SCA y un último contacto dentro de este plazo.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 y EV-06 quedan sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.2.1 | Procedimiento de bastionado previo a producción | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
