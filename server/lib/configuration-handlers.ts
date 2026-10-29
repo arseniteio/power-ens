@@ -21,6 +21,7 @@ import {
   normalizeOrganizationData,
 } from '../../common/ens/configuration/organization/organization-data-migration';
 import { describeNewLevelOptionIssues } from '../../common/ens/configuration/services/level-options';
+import { withCatalogControls } from '../../common/ens/configuration/services/catalog-controls';
 
 interface Options {
   logger: Logger;
@@ -157,7 +158,9 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           : {};
 
       // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
-      const organization = normalizeOrganizationData({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData });
+      const organization = normalizeOrganizationData(
+        withCatalogControls({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData })
+      );
       // A choice the control's level does not admit (by a new value or a new level) is refused; a leftover is not.
       const levelIssues = describeNewLevelOptionIssues(organization.configuration, previous2);
       if (levelIssues.length) {
