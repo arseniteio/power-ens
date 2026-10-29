@@ -356,7 +356,7 @@
       "controlId": "op.exp.3",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.7 lo mida, op.exp.3.5.",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1).",
       "levels": [
         "MEDIO",
         "ALTO"

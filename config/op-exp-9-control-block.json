@@ -1,0 +1,389 @@
+{
+  "controlId": "op.exp.9",
+  "controlName": "Registro de la gestión de incidentes",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.9",
+      "name": "sistema_registro_incidentes",
+      "label": "Sistema de registro de incidentes",
+      "description": "Herramienta donde se registran los reportes de cada incidente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "select",
+      "example": "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+      "options": [
+        "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+        "Jira Service Management",
+        "TheHive",
+        "GLPI",
+        "Otro"
+      ],
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: el registro que se juzga es op.exp.7 P-13. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.9",
+      "name": "estructura_reportes_incidente",
+      "label": "Estructura de los reportes de incidente",
+      "description": "Fases de reporte exigidas (inicial, intermedio, final), su contenido mínimo y desde cuántas horas de duración del incidente es exigible cada una.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "table",
+      "example": "intermedio | contención y alcance | 12",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 exige en cada incidente cerrado las fases que su duración hace exigibles.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fase",
+          "label": "Fase",
+          "type": "select",
+          "options": [
+            "inicial",
+            "intermedio",
+            "final"
+          ],
+          "required": true
+        },
+        {
+          "name": "contenido_minimo",
+          "label": "Contenido mínimo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "exigible_desde_horas",
+          "label": "Exigible desde (horas)",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.9",
+      "name": "composicion_evidencia_jurisdiccional",
+      "label": "Composición de la evidencia jurisdiccional",
+      "description": "Evidencias que deben recogerse para poder dirimirse en sede jurisdiccional.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "logs sellados del período | repositorio-custodia",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-05 comprueba la referencia y el sellado. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tipo_evidencia",
+          "label": "Tipo de evidencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.9",
+      "name": "criterios_relevancia_juridica",
+      "label": "Criterios de relevancia jurídica",
+      "description": "Criterios que hacen un incidente jurídicamente relevante; el registro lo marca en relevancia_juridica.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "list",
+      "example": "acceso no autorizado por empleado, exfiltración, sabotaje, incumplimiento de proveedor",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.9",
+      "name": "custodia_evidencias",
+      "label": "Custodia de evidencias",
+      "description": "Repositorio de custodia de las evidencias, su sellado y su control de acceso.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "repositorio-custodia | SHA-256 + sellado de tiempo | solo Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: los accesos al repositorio no dejan huella observable. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "mecanismo_sellado",
+          "label": "Mecanismo de sellado",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "control_acceso",
+          "label": "Control de acceso",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.9",
+      "name": "retencion_evidencias_dias",
+      "label": "Retención de evidencias (días)",
+      "description": "Días de conservación de las evidencias según el tipo de responsabilidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "disciplinaria | 1095",
+      "required": false,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tipo_responsabilidad",
+          "label": "Tipo de responsabilidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dias_retencion",
+          "label": "Días de retención",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.9",
+      "name": "procedimiento_revision_eventos_auditables",
+      "label": "Revisión de eventos auditables tras un incidente",
+      "description": "Qué incidentes obligan a revisar los eventos auditables y en cuántos días desde su cierre, por severidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.3",
+        "op.exp.8.r3.1"
+      ],
+      "type": "table",
+      "example": "alta | 15 | revisión de reglas y localfiles",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 exige la fecha de revisión del registro dentro del plazo.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 no se aplica a ningún incidente.",
+      "columns": [
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "select",
+          "options": [
+            "baja",
+            "media",
+            "alta",
+            "critica"
+          ],
+          "required": true
+        },
+        {
+          "name": "plazo_dias",
+          "label": "Plazo (días)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "procedimiento",
+          "label": "Procedimiento",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.9",
+      "name": "nivel_alerta_sin_expediente",
+      "label": "Nivel de alerta que exige expediente",
+      "description": "Nivel mínimo de alerta que exige expediente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": false,
+      "minValue": 7,
+      "maxValue": 15,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: la conciliación es op.exp.7 EV-02 con P-01. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.9",
+      "name": "grupos_alerta_sin_expediente",
+      "label": "Grupos de alerta que no exigen expediente",
+      "description": "Grupos de alerta que no exigen expediente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "list",
+      "example": "vulnerability-detector",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: las exclusiones son op.exp.7 P-12. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.9",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.9.3 | Procedimiento de revisión de eventos auditables | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

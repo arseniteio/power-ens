@@ -1,0 +1,745 @@
+{
+  "controlId": "op.exp.7",
+  "controlName": "Gestión de incidentes",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.7",
+      "name": "criterios_clasificacion_incidentes",
+      "label": "Criterios de clasificación de incidentes",
+      "description": "Criterios de clasificación: categoría, severidad (baja, media, alta, critica), nivel mínimo de regla de Wazuh desde el que una alerta toma esa severidad, si es notificable al CCN-CERT y criterio.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1",
+        "op.exp.7.r1.1"
+      ],
+      "type": "table",
+      "example": "intrusión | alta | 10 | no | acceso no autorizado",
+      "required": true,
+      "minValue": 0,
+      "maxValue": 16,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 y EV-02 clasifican las alertas por nivel; EV-08 busca las categorías notificables.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01, EV-02 y EV-08 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "categoria",
+          "label": "Categoría",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "select",
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja"
+          ],
+          "required": true
+        },
+        {
+          "name": "nivel_minimo",
+          "label": "Nivel mínimo de alerta Wazuh",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "notificable_ccn_cert",
+          "label": "Se notifica al CCN-CERT",
+          "type": "select",
+          "options": [
+            "si",
+            "no"
+          ],
+          "required": false
+        },
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.7",
+      "name": "matriz_escalado",
+      "label": "Matriz de escalado",
+      "description": "A quién se escala cada severidad, en cuántas horas desde la alerta y por qué canal.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1",
+        "op.exp.7.r2.3"
+      ],
+      "type": "table",
+      "example": "alta | RSI | 4 | correo",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 usa el plazo para buscar el incidente de cada alerta; EV-04 exige el destinatario en escalado_a.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-04 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "select",
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja"
+          ],
+          "required": true
+        },
+        {
+          "name": "destinatario",
+          "label": "Destinatario",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "plazo_horas",
+          "label": "Plazo (horas)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.7",
+      "name": "sistema_gestion_incidentes",
+      "label": "Sistema de gestión de incidentes",
+      "description": "Herramienta donde se gestionan los incidentes, dónde se consulta y quién la mantiene.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1"
+      ],
+      "type": "table",
+      "example": "Registro ENSFácil del manager | /etc/ensfacil/incident-register.tsv | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: el registro que se juzga es P-13. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "herramienta",
+          "label": "Herramienta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Dónde se consulta",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.7",
+      "name": "responsables_informacion_servicios",
+      "label": "Responsables de la información y de los servicios",
+      "description": "Responsables de la información y del servicio de cada sistema (nombre del agente), a quienes se informa del incidente.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.3"
+      ],
+      "type": "table",
+      "example": "srv-web01 | Responsable de Información | Responsable del Servicio",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige sus nombres en notificado_a de los incidentes del sistema.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 no comprueba la información a los responsables.",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "responsable_informacion",
+          "label": "Responsable de la información",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable_servicio",
+          "label": "Responsable del servicio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.7",
+      "name": "plazos_respuesta_por_severidad",
+      "label": "Plazos de respuesta por severidad",
+      "description": "Horas máximas de contención y de resolución por severidad.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.2"
+      ],
+      "type": "table",
+      "example": "alta | 4 | 48",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 mide la fase intermedia y la final contra estos plazos.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "select",
+          "options": [
+            "Crítica",
+            "Alta",
+            "Media",
+            "Baja"
+          ],
+          "required": true
+        },
+        {
+          "name": "contencion_horas",
+          "label": "Contención (horas)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "resolucion_horas",
+          "label": "Resolución (horas)",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.7",
+      "name": "ventanilla_unica_ccn_cert",
+      "label": "Ventanilla única de notificación al CCN-CERT",
+      "description": "Solución de notificación al CCN-CERT y organismo superior por el que se federa.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r1.1"
+      ],
+      "type": "table",
+      "example": "LUCIA | Subdirección General de Sistemas de Información",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-08 lee la fecha de notificación del registro. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "plataforma",
+          "label": "Plataforma",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "organismo_superior",
+          "label": "Organismo superior",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.7",
+      "name": "criterios_incidente_datos_personales",
+      "label": "Sistemas con datos personales",
+      "description": "Sistemas que tratan datos personales (nombre del agente o *) y sus tratamientos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.2"
+      ],
+      "type": "table",
+      "example": "srv-web01 | gestión de clientes",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 exige valorar y, si procede, notificar en 72 horas los incidentes de estos sistemas.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 no se aplica a ningún sistema.",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "tratamientos",
+          "label": "Tratamientos",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.7",
+      "name": "evidencias_a_preservar",
+      "label": "Evidencias a preservar",
+      "description": "Evidencias que deben recogerse y protegerse ante un incidente y dónde se custodian.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.1"
+      ],
+      "type": "table",
+      "example": "registros de alertas del SIEM | manager, rotado diario con sello SHA-256",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-05 comprueba el sellado de los logs de alertas del manager. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tipo_evidencia",
+          "label": "Tipo de evidencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino de custodia",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.7",
+      "name": "acciones_respuesta_automatica",
+      "label": "Acciones de respuesta automática",
+      "description": "Acciones de contención automática autorizadas (respuestas activas de Wazuh).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r2.1",
+        "op.exp.7.r3.1"
+      ],
+      "type": "table",
+      "example": "firewall-drop | fuerza bruta SSH (regla 5763) | origen del ataque | automática a los 180 s",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-06, EV-09 y EV-11 leen las respuestas activas desplegadas y ejecutadas. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "accion",
+          "label": "Acción (comando de respuesta activa)",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "condicion",
+          "label": "Condición",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reversion",
+          "label": "Reversión",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.7",
+      "name": "elementos_reconfiguracion_dinamica",
+      "label": "Elementos de reconfiguración dinámica",
+      "description": "Elementos sobre los que cabe reconfiguración dinámica y quién puede modificarlos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r3.1"
+      ],
+      "type": "table",
+      "example": "fw-perimetral | reglas | vía Active Response + RSI",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-09 lee las respuestas automáticas ejecutadas. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "elemento",
+          "label": "Elemento (agente)",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "tipo_cambio",
+          "label": "Tipo de cambio",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autorizado",
+          "label": "Autorizado",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-11",
+      "controlId": "op.exp.7",
+      "name": "canal_avisos_ccn_cert",
+      "label": "Canal de avisos del CCN-CERT",
+      "description": "Canal de los avisos del CCN-CERT, quién los procesa, la lista CDB del manager donde se cargan sus indicadores (ruta bajo etc/lists) y en cuántos días.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.r3.2"
+      ],
+      "type": "table",
+      "example": "portal del CCN-CERT | RSI | ccn-cert-ioc | 7",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "El agente del manager informa de sus listas CDB y su fecha.",
+      "powerEnsUsage": "EV-10 exige la lista actualizada dentro del plazo.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "lista_cdb",
+          "label": "Lista CDB de indicadores",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "plazo_dias",
+          "label": "Plazo de incorporación (días)",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-12",
+      "controlId": "op.exp.7",
+      "name": "alertas_excluidas_conciliacion",
+      "label": "Reglas que no se concilian con incidentes",
+      "description": "Reglas de Wazuh cuyas alertas no se exige convertir en incidente, con el motivo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1"
+      ],
+      "type": "table",
+      "example": "23505 | vulnerabilidad: se gestiona en op.exp.4",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 no las cuenta.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Todas las alertas relevantes se concilian.",
+      "columns": [
+        {
+          "name": "regla",
+          "label": "Regla",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-13",
+      "controlId": "op.exp.7",
+      "name": "registro_incidentes",
+      "label": "Registro de incidentes",
+      "description": "Incidentes, una fila por fase: identificador, fase (inicial, intermedio, final), fecha, severidad, sistemas (nombres de agente separados por comas), clasificación, escalado a, notificado a, datos personales (si/no), fecha de notificación al CCN-CERT, relevancia jurídica (si/no), medidas de mejora, referencia del expediente y fecha de revisión de los eventos auditables. Fechas como 2026-10-20 06:00, hora de Madrid.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.7.1"
+      ],
+      "type": "table",
+      "example": "INC-2026-014 | inicial | 2026-10-27 10:00 | alta | srv-web01 | acceso no autorizado | RSI | | no | | no | | https://intranet/INC-2026-014 | ",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee: el registro es de la organización.",
+      "powerEnsUsage": "EV-02 a EV-09 y EV-12 juzgan sus incidentes; op.exp.9 y op.exp.3 EV-07 también lo leen.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07",
+        "EV-08",
+        "EV-09",
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ningún incidente consta: las alertas relevantes quedan sin conciliar.",
+      "columns": [
+        {
+          "name": "incidente",
+          "label": "Incidente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fase",
+          "label": "Fase",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistemas",
+          "label": "Sistemas",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "clasificacion",
+          "label": "Clasificación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "escalado_a",
+          "label": "Escalado a",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "notificado_a",
+          "label": "Notificado a",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "datos_personales",
+          "label": "Datos personales",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "notificacion_ccn_cert",
+          "label": "Notificación CCN-CERT",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "relevancia_juridica",
+          "label": "Relevancia jurídica",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "medidas_mejora",
+          "label": "Medidas de mejora",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "revision_eventos",
+          "label": "Revisión de eventos",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.7",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.7.1 | Procedimiento de gestión de incidentes | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

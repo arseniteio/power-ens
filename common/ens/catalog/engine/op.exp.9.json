@@ -1,0 +1,624 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.9",
+  "title": "Registro de la gestión de incidentes",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.9",
+  "description": "op.exp.9 exige dejar constancia de cómo se gestionó cada incidente, con evidencias que sirvan en sede jurisdiccional. Se juzga sobre el registro de incidentes de op.exp.7 P-13.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.9",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.9.1",
+      "title": "Reportes, actuaciones y cambios del incidente registrados",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se registrarán los reportes iniciales, intermedios y finales de los incidentes, las actuaciones de emergencia y las modificaciones del sistema derivadas del incidente.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.exp.9.2",
+      "title": "Evidencias con valor jurisdiccional registradas",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se registrará aquella evidencia que pueda dirimirse en un ámbito jurisdiccional, especialmente cuando el incidente pueda comportar acciones disciplinarias sobre el personal interno, sobre proveedores externos o en la persecución de delitos. En la determinación de la composición y detalle de estas evidencias, se recurrirá a asesoramiento legal especializado.",
+      "evidence_ids": [
+        "EV-05",
+        "EV-07",
+        "EV-09"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.exp.9.3",
+      "title": "Eventos auditables revisados tras los incidentes",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Como consecuencia del análisis de los incidentes, se revisará la determinación de los eventos auditables.",
+      "evidence_ids": [
+        "EV-08",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registro de eventos que originan cada incidente",
+      "description": "Las alertas de la máquina en las 24 horas anteriores a la fase inicial de cada incidente siguen en el índice.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se conservan los eventos que originaron cada incidente?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Completitud de los reportes inicial, intermedio y final",
+      "description": "Cada incidente cerrado tiene las fases de P-02 que su duración hace exigibles.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los incidentes cerrados tienen sus reportes?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Registro de las actuaciones de emergencia",
+      "description": "Actuaciones de emergencia de los incidentes graves: respuesta activa en la máquina o fase intermedia (op.exp.7 EV-06).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Consta la actuación de emergencia de cada incidente grave?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Registro de las modificaciones del sistema derivadas del incidente",
+      "description": "Los cambios de la máquina durante cada incidente tienen su petición en el registro de cambios de op.exp.5 P-10.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Los cambios hechos durante los incidentes están registrados?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Exportación sellada de evidencias con valor probatorio",
+      "description": "Cada incidente con relevancia jurídica lleva la referencia de su expediente y tiene todos sus días sellados en el manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Las evidencias de los incidentes jurídicos están referenciadas y selladas?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Protección de los registros del período del incidente",
+      "description": "Cada día de un incidente abierto o con relevancia jurídica conserva alertas de la máquina en el índice.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se conservan los registros del periodo de los incidentes abiertos o jurídicos?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Realimentación de los eventos auditables tras el incidente",
+      "description": "Tras cerrar un incidente cuya severidad tiene fila en P-07, consta la revisión de los eventos auditables dentro de su plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se revisaron los eventos auditables tras cada incidente?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Trazabilidad completa del expediente de incidente",
+      "description": "Cada incidente lleva la referencia de su expediente y su fase inicial.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1",
+        "op.exp.9.2",
+        "op.exp.9.3"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada incidente tiene un expediente completo?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "sistema_registro_incidentes",
+      "label": "Sistema de registro de incidentes",
+      "description": "Herramienta donde se registran los reportes de cada incidente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "select",
+      "example": "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+      "options": [
+        "Registro ENSFácil (/etc/ensfacil/incident-register.tsv)",
+        "Jira Service Management",
+        "TheHive",
+        "GLPI",
+        "Otro"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: el registro que se juzga es op.exp.7 P-13. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "estructura_reportes_incidente",
+      "label": "Estructura de los reportes de incidente",
+      "description": "Fases de reporte exigidas (inicial, intermedio, final), su contenido mínimo y desde cuántas horas de duración del incidente es exigible cada una.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "table",
+      "example": "intermedio | contención y alcance | 12",
+      "columns": [
+        {
+          "name": "fase",
+          "label": "Fase",
+          "type": "select",
+          "options": [
+            "inicial",
+            "intermedio",
+            "final"
+          ],
+          "required": true
+        },
+        {
+          "name": "contenido_minimo",
+          "label": "Contenido mínimo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "exigible_desde_horas",
+          "label": "Exigible desde (horas)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige en cada incidente cerrado las fases que su duración hace exigibles.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "composicion_evidencia_jurisdiccional",
+      "label": "Composición de la evidencia jurisdiccional",
+      "description": "Evidencias que deben recogerse para poder dirimirse en sede jurisdiccional.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "logs sellados del período | repositorio-custodia",
+      "columns": [
+        {
+          "name": "tipo_evidencia",
+          "label": "Tipo de evidencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-05 comprueba la referencia y el sellado. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "criterios_relevancia_juridica",
+      "label": "Criterios de relevancia jurídica",
+      "description": "Criterios que hacen un incidente jurídicamente relevante; el registro lo marca en relevancia_juridica.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "list",
+      "example": "acceso no autorizado por empleado, exfiltración, sabotaje, incumplimiento de proveedor",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "custodia_evidencias",
+      "label": "Custodia de evidencias",
+      "description": "Repositorio de custodia de las evidencias, su sellado y su control de acceso.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "repositorio-custodia | SHA-256 + sellado de tiempo | solo Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "mecanismo_sellado",
+          "label": "Mecanismo de sellado",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "control_acceso",
+          "label": "Control de acceso",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: los accesos al repositorio no dejan huella observable. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "retencion_evidencias_dias",
+      "label": "Retención de evidencias (días)",
+      "description": "Días de conservación de las evidencias según el tipo de responsabilidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.2"
+      ],
+      "type": "table",
+      "example": "disciplinaria | 1095",
+      "columns": [
+        {
+          "name": "tipo_responsabilidad",
+          "label": "Tipo de responsabilidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dias_retencion",
+          "label": "Días de retención",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "min_value": 0,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "procedimiento_revision_eventos_auditables",
+      "label": "Revisión de eventos auditables tras un incidente",
+      "description": "Qué incidentes obligan a revisar los eventos auditables y en cuántos días desde su cierre, por severidad.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.3",
+        "op.exp.8.r3.1"
+      ],
+      "type": "table",
+      "example": "alta | 15 | revisión de reglas y localfiles",
+      "columns": [
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "select",
+          "options": [
+            "baja",
+            "media",
+            "alta",
+            "critica"
+          ],
+          "required": true
+        },
+        {
+          "name": "plazo_dias",
+          "label": "Plazo (días)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "procedimiento",
+          "label": "Procedimiento",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige la fecha de revisión del registro dentro del plazo.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 no se aplica a ningún incidente."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "nivel_alerta_sin_expediente",
+      "label": "Nivel de alerta que exige expediente",
+      "description": "Nivel mínimo de alerta que exige expediente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": false,
+      "min_value": 7,
+      "max_value": 15,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: la conciliación es op.exp.7 EV-02 con P-01. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "grupos_alerta_sin_expediente",
+      "label": "Grupos de alerta que no exigen expediente",
+      "description": "Grupos de alerta que no exigen expediente.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.9.1"
+      ],
+      "type": "list",
+      "example": "vulnerability-detector",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: las exclusiones son op.exp.7 P-12. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.9.3 | Procedimiento de revisión de eventos auditables | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "origen",
+      "title": "Eventos de origen y periodo",
+      "description": "Alertas conservadas antes y durante cada incidente.",
+      "evidences": [
+        "EV-01",
+        "EV-07"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "reportes",
+      "title": "Reportes y actuaciones",
+      "description": "Fases de reporte, actuaciones de emergencia y cambios registrados.",
+      "evidences": [
+        "EV-02",
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "juridico",
+      "title": "Evidencias con valor jurídico",
+      "description": "Referencia del expediente y sellado de los registros.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-03",
+        "P-04",
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "realimentacion",
+      "title": "Realimentación y expediente",
+      "description": "Revisión de los eventos auditables y expediente completo.",
+      "evidences": [
+        "EV-08",
+        "EV-09"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    }
+  ]
+}

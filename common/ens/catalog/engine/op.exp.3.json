@@ -114,11 +114,11 @@
         "ALTO"
       ],
       "description": "El sistema reaccione a incidentes. (Ver [op.exp.7]).",
-      "evidence_ids": [],
-      "parameter_ids": [
-        "P-ATT"
+      "evidence_ids": [
+        "EV-07"
       ],
-      "interpretation": "Se acredita con P-ATT hasta que op.exp.7 dé el registro de incidentes."
+      "parameter_ids": [],
+      "interpretation": "La reacción a los incidentes se mide con las medidas de mejora del registro de op.exp.7 P-13."
     },
     {
       "id": "op.exp.3.6",
@@ -343,6 +343,22 @@
       "category": "MONITORING",
       "criticality": "HIGH",
       "audit_question": "¿Esta máquina corrige las vulnerabilidades notificadas dentro de su plazo?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Reacción de la configuración ante incidentes",
+      "description": "Cada incidente cerrado de la máquina en el registro de op.exp.7 P-13 deja constancia de sus medidas de mejora: la misma medida que op.exp.7 EV-12.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.3.5"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Los incidentes de esta máquina dejaron medidas sobre su configuración?"
     },
     {
       "id": "EV-08",
@@ -726,7 +742,7 @@
       "class": "organisation",
       "name": "atestaciones_documentales",
       "label": "Atestaciones documentales",
-      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1) y, hasta que op.exp.7 lo mida, op.exp.3.5.",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí la línea base aprobada (r1.1).",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -849,11 +865,12 @@
     },
     {
       "id": "cambios",
-      "title": "Cambios y vulnerabilidades",
-      "description": "Ediciones de la configuración de seguridad frente a las peticiones aprobadas, y vulnerabilidades fuera de plazo.",
+      "title": "Cambios, vulnerabilidades e incidentes",
+      "description": "Ediciones frente a las peticiones aprobadas, vulnerabilidades fuera de plazo y medidas tras los incidentes.",
       "evidences": [
         "EV-05",
-        "EV-06"
+        "EV-06",
+        "EV-07"
       ],
       "parameters": [
         "P-06"
