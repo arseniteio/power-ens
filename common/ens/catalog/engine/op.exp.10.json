@@ -1,0 +1,795 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.10",
+  "title": "Protección de claves criptográficas",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.10",
+  "description": "op.exp.10 regula el ciclo de vida de las claves criptográficas. Se mide lo que vive en las máquinas: quién accede a los almacenes de claves, dónde están las claves privadas y cómo se protegen, dónde se generan, si siguen las retiradas, qué algoritmos se aceptan y usan, y la vigencia de los certificados.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.10",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.10.1",
+      "title": "Claves protegidas durante todo su ciclo de vida",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las claves criptográficas se protegerán durante todo su ciclo de vida: (1) generación, (2) transporte al punto de explotación, (3) custodia durante la explotación, (4) archivo posterior a su retirada de explotación activa y (5) destrucción final.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-07",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-08",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.10.2",
+      "title": "Generación aislada de la explotación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los medios de generación estarán aislados de los medios de explotación.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.exp.10.3",
+      "title": "Claves retiradas archivadas fuera de explotación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las claves retiradas de operación que deban ser archivadas, lo serán en medios aislados de los de explotación.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.exp.10.r1.1",
+      "title": "Algoritmos y parámetros autorizados por el CCN (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "R1 es exigible en MEDIO y ALTO (MEDIA y ALTA exigen exactamente lo mismo). En BAJO se muestra como NO_APLICA.",
+      "description": "Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.exp.10.r2.1",
+      "title": "Cifradores conformes a la guía CCN-STIC (R2)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
+      "description": "Refuerzo R2 – Protección avanzada de claves criptográficas: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-09",
+        "P-ATT"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Accesos auditados al material criptográfico",
+      "description": "Accesos auditados con auditd a los almacenes de claves de P-02: todos tienen que ser de cuentas de P-08.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo las cuentas autorizadas acceden a las claves de esta máquina?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Claves privadas fuera de los almacenes declarados",
+      "description": "Claves privadas encontradas en disco (por su cabecera) cuyo directorio no es un almacén de P-02: indicio de copia o exfiltración.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Todas las claves privadas de esta máquina están en almacenes declarados?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Algoritmos y parámetros criptográficos configurados (R1)",
+      "description": "Cifrados, MAC, intercambios de claves y algoritmos de clave de host que acepta sshd según su configuración efectiva, frente a los autorizados en P-03.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿sshd solo acepta algoritmos autorizados por el CCN?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Uso efectivo de protocolos y algoritmos (R1)",
+      "description": "Tipo de clave de cada acceso por SSH con clave pública del periodo, frente a P-03.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los accesos por SSH usan tipos de clave autorizados?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Generación de claves en medios de explotación",
+      "description": "Ejecuciones de ssh-keygen u openssl registradas por auditd en una máquina que P-05 declara medio de explotación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.2"
+      ],
+      "category": "EXECUTION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se generan claves fuera de los medios de explotación?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Claves retiradas presentes en medios de explotación",
+      "description": "Claves que P-01 declara retiradas y que siguen en la máquina, por su huella o su ubicación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.3"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Las claves retiradas ya no están en esta máquina?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Vigencia y algoritmos de los certificados",
+      "description": "Certificados X.509 en disco: caducados, con clave RSA de menos de 2048 bits o firma MD5 o SHA-1; los próximos a caducar según P-10 se avisan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1",
+        "op.exp.10.r1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los certificados de esta máquina están vigentes y con algoritmos robustos?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Protección de los ficheros de clave",
+      "description": "Modo y propietario de cada clave privada frente a la protección que P-02 declara para su almacén; fuera de un almacén, solo su propietario puede leerla.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Las claves privadas de esta máquina están protegidas?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "system",
+      "name": "inventario_claves_criptograficas",
+      "label": "Inventario de claves criptográficas",
+      "description": "Claves del sistema con finalidad, soporte, ubicación, responsable de custodia, estado (activa o retirada) y huella SHA256 de la parte pública, como la escribe OpenSSH.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1",
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "clave de host SSH | SSH | fichero | /etc/ssh/ssh_host_ed25519_key | Responsable de Sistemas | activa | SHA256:…",
+      "columns": [
+        {
+          "name": "clave",
+          "label": "Clave",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "finalidad",
+          "label": "Finalidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "soporte",
+          "label": "Soporte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "select",
+          "options": [
+            "activa",
+            "retirada"
+          ],
+          "required": true
+        },
+        {
+          "name": "huella",
+          "label": "Huella (parte pública)",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "El agente informa de la huella y la ubicación de cada clave privada.",
+      "engine_usage": "EV-06 busca en la máquina las claves retiradas.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 no tiene claves retiradas que buscar."
+    },
+    "P-02": {
+      "class": "platform",
+      "name": "rutas_almacenes_claves",
+      "label": "Almacenes de claves",
+      "description": "Directorios con material criptográfico autorizado y su protección: ruta del directorio, modo máximo de sus claves y propietario.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "table",
+      "example": "/etc/ssh | 600 | root",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Directorio del almacén",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "modo_maximo",
+          "label": "Modo máximo",
+          "type": "octal",
+          "required": false
+        },
+        {
+          "name": "propietario",
+          "label": "Propietario",
+          "type": "identifier",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "El motor pasa los almacenes a la configuración del grupo: el agente los recorre y auditd vigila sus accesos.",
+      "engine_usage": "EV-01, EV-02 y EV-08 juzgan accesos, ubicación y permisos de las claves.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-01, EV-02 y EV-08 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "algoritmos_parametros_autorizados",
+      "label": "Algoritmos y parámetros autorizados",
+      "description": "Algoritmos autorizados por el CCN (CCN-STIC-807) por uso, como los nombra sshd o una parte de su nombre (aes256-gcm, curve25519, ssh-ed25519).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "type": "table",
+      "example": "cifrado | aes256-gcm | 256",
+      "columns": [
+        {
+          "name": "uso",
+          "label": "Uso",
+          "type": "select",
+          "options": [
+            "protocolo",
+            "cifrado",
+            "mac",
+            "intercambio",
+            "firma",
+            "hash",
+            "hash_contrasenas"
+          ],
+          "required": true
+        },
+        {
+          "name": "algoritmo",
+          "label": "Algoritmo (familia)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "longitud_min",
+          "label": "Longitud mínima (bits)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "min_value": 0,
+      "agent_usage": "El agente informa de los algoritmos que acepta sshd.",
+      "engine_usage": "EV-03 y EV-04 exigen que cada algoritmo aceptado o usado contenga uno de esta lista.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-04"
+      ],
+      "if_not_configured": "EV-03 y EV-04 quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "system",
+      "name": "servicios_criptograficos",
+      "label": "Servicios criptográficos",
+      "description": "Servicios que emplean criptografía y cuya configuración se verifica.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "type": "table",
+      "example": "sshd | * | 22",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-03 lee la configuración efectiva de sshd. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "separacion_generacion_explotacion",
+      "label": "Separación entre generación y explotación",
+      "description": "Medios de generación y de explotación de claves: nombre del agente (o del HSM), función (generacion o explotacion) y aislamiento.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.2",
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "srv-web01 | explotacion | sin acceso a la red de generación",
+      "columns": [
+        {
+          "name": "medio",
+          "label": "Medio",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "select",
+          "options": [
+            "generacion",
+            "explotacion"
+          ],
+          "required": true
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 falla si en un medio de explotación se generan claves.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "Ninguna máquina se trata como medio de explotación."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "archivo_claves_retiradas",
+      "label": "Archivo de claves retiradas",
+      "description": "Dónde y en qué soporte se archivan las claves retiradas y cómo se aísla.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "caja fuerte CPD | soporte fuera de línea | sin conexión a red",
+      "columns": [
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "soporte",
+          "label": "Soporte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-06 comprueba que no sigan en la máquina. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "procedimiento_ciclo_vida_claves",
+      "label": "Procedimiento de ciclo de vida de las claves",
+      "description": "Procedimiento de las fases del ciclo de vida de las claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "string",
+      "example": "«PR-20 Gestión de claves criptográficas v2», con las 5 fases documentadas",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-08": {
+      "class": "platform",
+      "name": "personal_autorizado_claves",
+      "label": "Personal autorizado a las claves",
+      "description": "Cuentas autorizadas a acceder al material criptográfico, incluidas las de servicio que leen sus claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "table",
+      "example": "root | claves de host | lectura",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "claves",
+          "label": "Claves",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "operacion",
+          "label": "Operación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 falla con un acceso de otra cuenta.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "cifradores_ccn_stic",
+      "label": "Cifradores conformes a CCN-STIC",
+      "description": "Cifradores empleados y su conformidad con la guía CCN-STIC (R2, no exigible).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r2.1"
+      ],
+      "type": "table",
+      "example": "producto X | CCN-STIC-8xx | certificado",
+      "columns": [
+        {
+          "name": "cifrador",
+          "label": "Cifrador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "guia_aplicable",
+          "label": "Guía aplicable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "conformidad",
+          "label": "Conformidad",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "antelacion_caducidad_certificados",
+      "label": "Antelación de caducidad de certificados",
+      "description": "Días antes de su caducidad desde los que un certificado se avisa como próximo a caducar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "duration_days",
+      "example": "30",
+      "required": true,
+      "min_value": 0,
+      "agent_usage": "El agente informa de la caducidad de cada certificado.",
+      "engine_usage": "EV-07 nombra los certificados que caducan en ese plazo.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí los cifradores conformes (R2).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.10.r2.1 | Certificación CCN-STIC del cifrador | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "ubicacion",
+      "title": "Claves en disco",
+      "description": "Claves privadas fuera de los almacenes y su protección.",
+      "evidences": [
+        "EV-02",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "accesos",
+      "title": "Accesos y generación",
+      "description": "Accesos a los almacenes y claves generadas en explotación.",
+      "evidences": [
+        "EV-01",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-05",
+        "P-08"
+      ]
+    },
+    {
+      "id": "ciclo",
+      "title": "Ciclo de vida",
+      "description": "Claves retiradas presentes y procedimiento.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-01",
+        "P-06",
+        "P-07"
+      ]
+    },
+    {
+      "id": "algoritmos",
+      "title": "Algoritmos y certificados",
+      "description": "Algoritmos aceptados y usados, y vigencia de los certificados.",
+      "evidences": [
+        "EV-03",
+        "EV-04",
+        "EV-07"
+      ],
+      "parameters": [
+        "P-03",
+        "P-04",
+        "P-10"
+      ]
+    },
+    {
+      "id": "cifradores",
+      "title": "Cifradores conformes",
+      "description": "Conformidad con CCN-STIC (documental).",
+      "evidences": [],
+      "parameters": [
+        "P-09",
+        "P-ATT"
+      ]
+    }
+  ]
+}

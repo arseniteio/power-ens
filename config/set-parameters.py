@@ -220,6 +220,7 @@ BUILTIN_TEMPLATES = {
     "op.exp.4": ["linux-ubuntu", "manager-wazuh"],
     "op.exp.6": ["linux-ubuntu", "manager-wazuh"],
     "op.exp.8": ["linux-ubuntu", "manager-wazuh"],
+    "op.exp.10": ["linux-ubuntu", "manager-wazuh"],
 }
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"

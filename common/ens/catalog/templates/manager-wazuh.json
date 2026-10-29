@@ -238,6 +238,17 @@
         "/var/log/audit",
         "/var/ossec/logs"
       ]
+    },
+    "op.exp.10": {
+      "P-02": [
+        "/etc/ssh | 600 | root",
+        "/etc/ssl/private | 640 | root",
+        "/var/ossec/etc | 640 | root:wazuh"
+      ],
+      "P-08": [
+        "root | claves de host, TLS y del agente | lectura",
+        "wazuh | claves del agente de Wazuh | lectura"
+      ]
     }
   }
 }

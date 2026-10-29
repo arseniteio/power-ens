@@ -1,0 +1,514 @@
+{
+  "controlId": "op.exp.10",
+  "controlName": "Protección de claves criptográficas",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.10",
+      "name": "inventario_claves_criptograficas",
+      "label": "Inventario de claves criptográficas",
+      "description": "Claves del sistema con finalidad, soporte, ubicación, responsable de custodia, estado (activa o retirada) y huella SHA256 de la parte pública, como la escribe OpenSSH.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1",
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "clave de host SSH | SSH | fichero | /etc/ssh/ssh_host_ed25519_key | Responsable de Sistemas | activa | SHA256:…",
+      "required": false,
+      "wazuhUsage": "El agente informa de la huella y la ubicación de cada clave privada.",
+      "powerEnsUsage": "EV-06 busca en la máquina las claves retiradas.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 no tiene claves retiradas que buscar.",
+      "columns": [
+        {
+          "name": "clave",
+          "label": "Clave",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "finalidad",
+          "label": "Finalidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "soporte",
+          "label": "Soporte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "select",
+          "options": [
+            "activa",
+            "retirada"
+          ],
+          "required": true
+        },
+        {
+          "name": "huella",
+          "label": "Huella (parte pública)",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.10",
+      "name": "rutas_almacenes_claves",
+      "label": "Almacenes de claves",
+      "description": "Directorios con material criptográfico autorizado y su protección: ruta del directorio, modo máximo de sus claves y propietario.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "table",
+      "example": "/etc/ssh | 600 | root",
+      "required": true,
+      "wazuhUsage": "El motor pasa los almacenes a la configuración del grupo: el agente los recorre y auditd vigila sus accesos.",
+      "powerEnsUsage": "EV-01, EV-02 y EV-08 juzgan accesos, ubicación y permisos de las claves.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01, EV-02 y EV-08 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "ruta",
+          "label": "Directorio del almacén",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "modo_maximo",
+          "label": "Modo máximo",
+          "type": "octal",
+          "required": false
+        },
+        {
+          "name": "propietario",
+          "label": "Propietario",
+          "type": "identifier",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.10",
+      "name": "algoritmos_parametros_autorizados",
+      "label": "Algoritmos y parámetros autorizados",
+      "description": "Algoritmos autorizados por el CCN (CCN-STIC-807) por uso, como los nombra sshd o una parte de su nombre (aes256-gcm, curve25519, ssh-ed25519).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "type": "table",
+      "example": "cifrado | aes256-gcm | 256",
+      "required": false,
+      "minValue": 0,
+      "wazuhUsage": "El agente informa de los algoritmos que acepta sshd.",
+      "powerEnsUsage": "EV-03 y EV-04 exigen que cada algoritmo aceptado o usado contenga uno de esta lista.",
+      "evidenceIds": [
+        "EV-03",
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 y EV-04 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "uso",
+          "label": "Uso",
+          "type": "select",
+          "options": [
+            "protocolo",
+            "cifrado",
+            "mac",
+            "intercambio",
+            "firma",
+            "hash",
+            "hash_contrasenas"
+          ],
+          "required": true
+        },
+        {
+          "name": "algoritmo",
+          "label": "Algoritmo (familia)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "longitud_min",
+          "label": "Longitud mínima (bits)",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.10",
+      "name": "servicios_criptograficos",
+      "label": "Servicios criptográficos",
+      "description": "Servicios que emplean criptografía y cuya configuración se verifica.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r1.1"
+      ],
+      "type": "table",
+      "example": "sshd | * | 22",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-03 lee la configuración efectiva de sshd. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.10",
+      "name": "separacion_generacion_explotacion",
+      "label": "Separación entre generación y explotación",
+      "description": "Medios de generación y de explotación de claves: nombre del agente (o del HSM), función (generacion o explotacion) y aislamiento.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.2",
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "srv-web01 | explotacion | sin acceso a la red de generación",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 falla si en un medio de explotación se generan claves.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ninguna máquina se trata como medio de explotación.",
+      "columns": [
+        {
+          "name": "medio",
+          "label": "Medio",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "select",
+          "options": [
+            "generacion",
+            "explotacion"
+          ],
+          "required": true
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.10",
+      "name": "archivo_claves_retiradas",
+      "label": "Archivo de claves retiradas",
+      "description": "Dónde y en qué soporte se archivan las claves retiradas y cómo se aísla.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.3"
+      ],
+      "type": "table",
+      "example": "caja fuerte CPD | soporte fuera de línea | sin conexión a red",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-06 comprueba que no sigan en la máquina. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "soporte",
+          "label": "Soporte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.10",
+      "name": "procedimiento_ciclo_vida_claves",
+      "label": "Procedimiento de ciclo de vida de las claves",
+      "description": "Procedimiento de las fases del ciclo de vida de las claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "string",
+      "example": "«PR-20 Gestión de claves criptográficas v2», con las 5 fases documentadas",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.10",
+      "name": "personal_autorizado_claves",
+      "label": "Personal autorizado a las claves",
+      "description": "Cuentas autorizadas a acceder al material criptográfico, incluidas las de servicio que leen sus claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "table",
+      "example": "root | claves de host | lectura",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 falla con un acceso de otra cuenta.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "cuenta",
+          "label": "Cuenta",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "claves",
+          "label": "Claves",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "operacion",
+          "label": "Operación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.10",
+      "name": "cifradores_ccn_stic",
+      "label": "Cifradores conformes a CCN-STIC",
+      "description": "Cifradores empleados y su conformidad con la guía CCN-STIC (R2, no exigible).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.r2.1"
+      ],
+      "type": "table",
+      "example": "producto X | CCN-STIC-8xx | certificado",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "cifrador",
+          "label": "Cifrador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "guia_aplicable",
+          "label": "Guía aplicable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "conformidad",
+          "label": "Conformidad",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.10",
+      "name": "antelacion_caducidad_certificados",
+      "label": "Antelación de caducidad de certificados",
+      "description": "Días antes de su caducidad desde los que un certificado se avisa como próximo a caducar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.10.1"
+      ],
+      "type": "duration_days",
+      "example": "30",
+      "required": true,
+      "minValue": 0,
+      "wazuhUsage": "El agente informa de la caducidad de cada certificado.",
+      "powerEnsUsage": "EV-07 nombra los certificados que caducan en ese plazo.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.10",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila. Aquí los cifradores conformes (R2).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.10.r2.1 | Certificación CCN-STIC del cifrador | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Un requisito sin evidencia técnica cumple con su fila de P-ATT.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
