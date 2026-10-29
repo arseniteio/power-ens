@@ -35,9 +35,8 @@ describe('engine catalog', () => {
     for (const file of readdirSync(vendored).filter(name => name.endsWith('.json'))) {
       assert.equal(readFileSync(join(vendored, file), 'utf8'), readFileSync(join(monorepo, 'controls', 'ens', file), 'utf8'), file);
     }
-    assert.equal(
-      readFileSync(join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json'), 'utf8'),
-      readFileSync(join(monorepo, 'messages', 'es.json'), 'utf8')
-    );
+    for (const file of ['messages/es.json', 'system-types.json', ...readdirSync(join(monorepo, 'templates')).map(name => `templates/${name}`)]) {
+      assert.equal(readFileSync(join(plugin, 'common', 'ens', 'catalog', file), 'utf8'), readFileSync(join(monorepo, file), 'utf8'), file);
+    }
   });
 });

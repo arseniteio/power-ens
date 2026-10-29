@@ -24,9 +24,9 @@ export const agentTypeLabel = (
 ): ENSAgentTypeLabel => {
   const manual = knownSystemType(profile?.typeOverride);
   if (manual) return { text: `${ENS_SYSTEM_TYPE_LABELS[manual]} (corregido a mano)`, color: 'accent', stored: true, pending: false };
+  if (detection.type) return { text: ENS_SYSTEM_TYPE_LABELS[detection.type], color: 'hollow', stored: true, pending: false };
   const stored = knownSystemType(profile?.detectedType);
   if (stored) return { text: ENS_SYSTEM_TYPE_LABELS[stored], color: 'hollow', stored: true, pending: false };
-  if (detection.type) return { text: `${ENS_SYSTEM_TYPE_LABELS[detection.type]} (detectado, sin guardar)`, color: 'warning', stored: false, pending: true };
   return { text: loading ? 'Detectando…' : 'Sin detectar', color: 'warning', stored: false, pending: false };
 };
 

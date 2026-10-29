@@ -1,0 +1,23 @@
+{
+  "linux": [
+    "ubuntu",
+    "debian",
+    "centos",
+    "rhel",
+    "redhat",
+    "rocky",
+    "almalinux",
+    "sles",
+    "opensuse",
+    "opensuse-leap",
+    "opensuse-tumbleweed",
+    "fedora",
+    "amzn",
+    "ol",
+    "arch",
+    "linux"
+  ],
+  "windows": [
+    "windows"
+  ]
+}

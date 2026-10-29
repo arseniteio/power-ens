@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inventoryFromMonitoring } from '../../common/agents/agent-inventory';
 import { resolveENSScopeAgents } from '../../common/ens/core/scope/runtime';
-import { detectAgentSystem } from '../../common/ens/configuration/agents/system-detection';
+import { detectAgentSystem, withInventoryTypes } from '../../common/ens/configuration/agents/system-detection';
 
 const NOW = Date.parse('2026-10-17T12:00:00Z');
 
@@ -44,5 +44,16 @@ describe('the system type of a machine', () => {
 
   test('is chosen by hand when the inventory does not know it', () => {
     assert.equal(detectAgentSystem({ id: '003' }).type, undefined);
+    assert.equal(detectAgentSystem({ id: '004', os: { platform: 'darwin' } }).type, undefined);
+  });
+
+  test('replaces the stored type for the engine, never a type corrected by hand', () => {
+    const configuration = withInventoryTypes(
+      { agents: { '001': { detectedType: 'windows' as const }, '002': { typeOverride: 'windows' as const } } },
+      [{ id: '001', os: { platform: 'ubuntu' } }, { id: '002', os: { platform: 'ubuntu' } }, { id: '003', os: { platform: 'debian' } }]
+    );
+    assert.equal(configuration.agents['001'].detectedType, 'linux');
+    assert.equal(configuration.agents['002'].typeOverride, 'windows');
+    assert.equal((configuration.agents as any)['003'].detectedType, 'linux');
   });
 });

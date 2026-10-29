@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { withInventoryTypes } from '../../../../common/ens/configuration/agents/system-detection';
 import { EuiBadge, EuiBasicTable, EuiButton, EuiButtonEmpty, EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
@@ -51,7 +52,8 @@ const MAX_LINES = 3;
 export const ControlsTab = (props: ControlsTabProps) => {
   // Loaded once for the list and the control page.
   const data = useAgentsData();
-  const { configuration, target, getActiveLevel, onNavigate, onConfigurationSaved } = props;
+  const { target, getActiveLevel, onNavigate, onConfigurationSaved } = props;
+  const configuration = useMemo(() => withInventoryTypes(props.configuration, data.inventory), [props.configuration, data.inventory]);
   const selected = target.controlId ? configuration.controls.find(control => control.controlId === target.controlId) : undefined;
 
   if (selected) {

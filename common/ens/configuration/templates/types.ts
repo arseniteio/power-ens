@@ -1,16 +1,14 @@
 import type { ENSAgentParameterValue, ENSSystemType } from '../../../agent-configuration';
 
-// Only grounded values (seed block, runbook example or lab without installation data): the rest stays unset.
+// A built-in template of the engine catalog (`catalog/templates`).
 export interface ENSPlatformSource {
-  // The 1.2.0 template id: stored in 1.2.0 documents and reused as the built-in template id.
   id: string;
   label: string;
   description: string;
-  // `base`: the built-in template of its system type. `addon`: an alternative offered only where it has values.
+  // `base`: the built-in template of its system type.
   kind: 'base' | 'addon';
   systemTypes: ENSSystemType[];
-  // Controls that have a collector on this platform; the rest are not measured there.
-  onlyControls?: string[];
-  sources: string[];
+  // The controls it has a collector for: those it lists, even with no values of its own.
+  onlyControls: string[];
   values: Record<string, Record<string, ENSAgentParameterValue>>;
 }

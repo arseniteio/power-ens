@@ -118,7 +118,6 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
           <EuiText size='s'>
             {template && describeTemplate(template) && <p>{describeTemplate(template)}</p>}
             {template?.systemType && <p>Tipo de sistema: {ENS_SYSTEM_TYPE_LABELS[template.systemType]}</p>}
-            {template?.sources && template.sources.length > 0 && <p>Origen de los valores: {template.sources.join('; ')}.</p>}
           </EuiText>
         ) : (
           <>

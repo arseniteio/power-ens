@@ -1,4 +1,4 @@
-// System type detection per agent.
+// System type of a machine from its inventory platform: the same rule as the engine (`catalog.SystemTypeOf`).
 import {
   ENSAgentProfile,
   ENSSystemType,
@@ -8,6 +8,7 @@ import {
 } from '../../../agent-configuration';
 import type { ENSAgentOS } from '../../core/scope/types';
 import { ENS_MANAGER_AGENT_ID } from '../../core/scope/measurement-planes';
+import systemTypes from '../../catalog/system-types.json';
 
 const ENS_MANAGER_ID = ENS_MANAGER_AGENT_ID;
 
@@ -25,11 +26,10 @@ export interface ENSSystemDetection {
   evidence: string;
 }
 
-const LINUX_PLATFORMS = [
-  'ubuntu', 'debian', 'centos', 'rhel', 'redhat', 'rocky', 'almalinux', 'sles',
-  'opensuse', 'opensuse-leap', 'opensuse-tumbleweed', 'fedora', 'amzn', 'ol',
-  'arch', 'linux',
-];
+// Platforms of the Wazuh inventory behind each system type, from the engine catalog.
+const PLATFORM_TYPES = new Map<string, ENSSystemType>(
+  Object.entries(systemTypes as Record<string, string[]>).flatMap(([type, platforms]) => platforms.map(platform => [platform, type as ENSSystemType]))
+);
 
 export const detectAgentSystem = (agent: ENSDetectableAgent): ENSSystemDetection => {
   if (normalizeAgentId(agent.id) === ENS_MANAGER_ID) {
@@ -37,18 +37,10 @@ export const detectAgentSystem = (agent: ENSDetectableAgent): ENSSystemDetection
   }
 
   const platform = String(agent.os?.platform || '').trim().toLowerCase();
-  const uname = String(agent.os?.uname || '').trim();
+  const type = PLATFORM_TYPES.get(platform);
 
-  if (platform === 'windows') {
-    return { type: 'windows', source: 'inventario', evidence: 'el inventario de agentes (Windows)' };
-  }
-
-  if (LINUX_PLATFORMS.includes(platform)) {
-    return { type: 'linux', source: 'inventario', evidence: `el inventario de agentes (${platform.charAt(0).toUpperCase()}${platform.slice(1)})` };
-  }
-
-  if (/^linux\b/i.test(uname)) {
-    return { type: 'linux', source: 'inventario', evidence: 'el inventario de agentes (Linux)' };
+  if (type) {
+    return { type, source: 'inventario', evidence: `el inventario de agentes (${platform.charAt(0).toUpperCase()}${platform.slice(1)})` };
   }
 
   if (platform) {
@@ -121,4 +113,19 @@ export const agentAliases = (
     .filter(Boolean);
 
   return Array.from(new Set([...names, ...short]));
+};
+
+// The configuration as the engine reads it: each machine with the type its inventory says, unless corrected by
+// hand, so a new machine gets the template of its type without anyone saving it.
+export const withInventoryTypes = <T extends { agents?: Record<string, ENSAgentProfile> }>(configuration: T, inventory: ENSDetectableAgent[]): T => {
+  const agents = { ...(configuration.agents || {}) };
+  let changed = false;
+  for (const agent of inventory) {
+    const type = detectAgentSystem(agent).type;
+    const id = normalizeAgentId(agent.id);
+    if (!type || agents[id]?.detectedType === type) continue;
+    agents[id] = { ...(agents[id] || {}), detectedType: type };
+    changed = true;
+  }
+  return changed ? { ...configuration, agents } : configuration;
 };

@@ -34,7 +34,6 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { ChangePreviewModal } from './change-preview-modal';
 import { errorMessage } from './confirm-modal';
-import { DetectedTypesCallout } from './detected-types-callout';
 import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 
@@ -187,8 +186,6 @@ export const ControlAssignmentPanel = ({
         <p>Plantilla y ajustes propios de cada agente en este control.</p>
       </EuiText>
       <EuiSpacer size='s' />
-
-      <DetectedTypesCallout configuration={configuration} rows={rows} loading={loading} onConfigurationSaved={onConfigurationSaved} />
 
       {notice && (
         <>

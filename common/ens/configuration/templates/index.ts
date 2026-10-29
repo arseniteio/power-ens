@@ -5,20 +5,23 @@ import type {
   ENSSystemType,
 } from '../../../agent-configuration';
 import { ENS_NO_TEMPLATE } from '../../../agent-configuration';
-import { getENSCatalogControl } from '../../catalog';
-import { getControlMeasurementPlanes } from '../../core/scope/measurement-planes';
 import { ENS_PARAMETER_CLASSES, isAgentLevelParameter } from '../agents/parameter-classes';
 import type { ENSPlatformSource } from './types';
-import { linuxUbuntuTemplate } from './linux-ubuntu';
-import { windowsServerTemplate } from './windows-server';
-import { managerWazuhTemplate } from './manager';
+import linuxUbuntu from '../../catalog/templates/linux-ubuntu.json';
+import managerWazuh from '../../catalog/templates/manager-wazuh.json';
+import windowsServer from '../../catalog/templates/windows-server.json';
 
+const fromCatalog = (template: any): ENSPlatformSource => ({
+  id: template.id,
+  label: template.name,
+  description: template.description,
+  kind: template.kind,
+  systemTypes: [template.system_type],
+  onlyControls: Object.keys(template.values),
+  values: template.values,
+});
 
-const ENS_PLATFORM_SOURCES: ENSPlatformSource[] = [
-  linuxUbuntuTemplate,
-  windowsServerTemplate,
-  managerWazuhTemplate,
-];
+const ENS_PLATFORM_SOURCES: ENSPlatformSource[] = [linuxUbuntu, windowsServer, managerWazuh].map(fromCatalog);
 
 export interface ENSControlTemplate {
   id: string;
@@ -32,7 +35,6 @@ export interface ENSControlTemplate {
   builtin: boolean;
   // Built-in applied to agents of `systemType` that have no template assigned in the control.
   typeDefault: boolean;
-  sources?: string[];
 }
 
 export const getPlatformSource = (id: string): ENSPlatformSource | undefined =>
@@ -42,16 +44,7 @@ export const getPlatformSource = (id: string): ENSPlatformSource | undefined =>
 export const hasTemplateParameters = (controlId: string): boolean =>
   Object.keys(ENS_PARAMETER_CLASSES[controlId] || {}).some(parameterId => isAgentLevelParameter(controlId, parameterId));
 
-const appliesToControl = (source: ENSPlatformSource, controlId: string): boolean => {
-  if (source.values[controlId]) {
-    return true;
-  }
-  if (source.kind === 'addon' || (source.onlyControls && !source.onlyControls.includes(controlId))) {
-    return false;
-  }
-  const plane = source.systemTypes.includes('manager') ? 'manager' : 'agent';
-  return getControlMeasurementPlanes(getENSCatalogControl(controlId) || {}).includes(plane);
-};
+const appliesToControl = (source: ENSPlatformSource, controlId: string): boolean => source.onlyControls.includes(controlId);
 
 const builtinsByControl = new Map<string, ENSControlTemplate[]>();
 
@@ -71,7 +64,6 @@ export const getBuiltinTemplates = (controlId: string): ENSControlTemplate[] => 
               values,
               builtin: true,
               typeDefault: source.kind === 'base',
-              sources: source.sources,
             };
           })
         : []
@@ -85,9 +77,6 @@ export const describeTemplate = (template: ENSControlTemplate): string =>
   template.builtin && !Object.keys(template.values).length
     ? `${template.description || ''} Sin valores de serie en este control: se aplican los ajustes comunes.`.trim()
     : template.description || '';
-
-export const getBuiltinTemplate = (controlId: string, templateId: string): ENSControlTemplate | undefined =>
-  getBuiltinTemplates(controlId).find(template => template.id === templateId);
 
 export const getTypeDefaultTemplate = (
   controlId: string,

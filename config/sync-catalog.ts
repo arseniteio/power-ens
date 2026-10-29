@@ -1,10 +1,10 @@
-// Copies the engine catalog of the controls it judges, and the Spanish texts of its reasons, and writes their
-// seed blocks from it.
+// Copies the engine catalog (controls, built-in templates, system types and the Spanish texts of its reasons)
+// and writes the seed blocks from it.
 //
 //   CORE_SRC=../oscompliance-ens npx tsx config/sync-catalog.ts
 //
 // CORE_SRC defaults to the oscompliance-ens folder next to the plugin.
-import { copyFileSync, readdirSync, writeFileSync } from 'fs';
+import { copyFileSync, mkdirSync, readdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 declare const __dirname: string;
@@ -17,7 +17,14 @@ const source = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens
 for (const name of readdirSync(vendored).filter(file => file.endsWith('.json'))) {
   copyFileSync(join(source, name), join(vendored, name));
 }
-copyFileSync(join(source, '..', '..', 'messages', 'es.json'), join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json'));
+const catalog = join(source, '..', '..');
+copyFileSync(join(catalog, 'messages', 'es.json'), join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json'));
+copyFileSync(join(catalog, 'system-types.json'), join(plugin, 'common', 'ens', 'catalog', 'system-types.json'));
+const templates = join(plugin, 'common', 'ens', 'catalog', 'templates');
+mkdirSync(templates, { recursive: true });
+for (const name of readdirSync(join(catalog, 'templates'))) {
+  copyFileSync(join(catalog, 'templates', name), join(templates, name));
+}
 
 // Imported after the copy so the blocks come from the files just copied.
 const { ENGINE_CATALOG, controlBlockOf } = require('../common/ens/catalog/engine-catalog');

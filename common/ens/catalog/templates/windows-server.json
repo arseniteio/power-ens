@@ -1,0 +1,22 @@
+{
+  "id": "windows-server",
+  "name": "Windows",
+  "description": "Servidor Windows: solo lo que se puede fundamentar para la plataforma; lo que depende del dominio o de la organización queda sin valor.",
+  "kind": "base",
+  "system_type": "windows",
+  "type_default": true,
+  "values": {
+    "op.acc.1": {
+      "P-11": [
+        "Administrators"
+      ]
+    },
+    "op.acc.2": {},
+    "op.acc.3": {},
+    "op.acc.4": {
+      "P-06": [
+        "Administrators"
+      ]
+    }
+  }
+}

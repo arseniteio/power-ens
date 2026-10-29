@@ -5,7 +5,7 @@ import { createEvaluationService } from '../../server/lib/evaluation/evaluation-
 import type { ENSEvaluationServiceOptions } from '../../server/lib/evaluation/evaluation-service';
 import { createFakeIndexer, FakeDoc } from './fake-indexer';
 
-export const HOUR = 3600e3;
+const HOUR = 3600e3;
 
 export const createClock = (start = '2026-10-17T12:00:00Z') => {
   let now = new Date(start);
@@ -18,9 +18,9 @@ export const createClock = (start = '2026-10-17T12:00:00Z') => {
   };
 };
 
-export type Clock = ReturnType<typeof createClock>;
+type Clock = ReturnType<typeof createClock>;
 
-export interface Machine {
+interface Machine {
   id: string;
   name: string;
 }
@@ -36,7 +36,7 @@ const verdictDoc = (verdict: ENSEngineVerdict): FakeDoc => ({
   _source: { oscompliance_verdict: '1', ...verdict },
 });
 
-export interface PassSpec {
+interface PassSpec {
   control?: string;
   machine?: Machine;
   at: string;
@@ -56,10 +56,10 @@ export const enginePass = ({ control = 'op.acc.1', machine = AGENT, at, status, 
   ];
 };
 
-export const inventoryDoc = (machine: Machine, clock: Clock, groups = ['ens']): FakeDoc => ({
+export const inventoryDoc = (machine: Machine, clock: Clock, groups = ['ens'], platform?: string): FakeDoc => ({
   _id: `monitoring-${machine.id}`,
   _index: 'wazuh-monitoring-2026.10.17',
-  _source: { id: machine.id, name: machine.name, group: groups, status: 'active', timestamp: clock.hoursAgo(0.1), manager: 'manager' },
+  _source: { id: machine.id, name: machine.name, group: groups, status: 'active', timestamp: clock.hoursAgo(0.1), manager: 'manager', ...(platform ? { os: { platform } } : {}) },
 });
 
 export const activeConfiguration = (change: (configuration: any) => void = () => undefined): FakeDoc => {

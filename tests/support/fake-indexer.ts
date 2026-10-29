@@ -20,7 +20,7 @@ const valuesOf = (obj: any, campo: string): any[] => {
   return output.filter(v => v !== undefined && v !== null && typeof v !== 'object');
 };
 
-export const pickSource = (source: any, fields: string[] | undefined): any => {
+const pickSource = (source: any, fields: string[] | undefined): any => {
   if (!Array.isArray(fields)) return source;
   const out: any = {};
   for (const f of fields) {
@@ -99,7 +99,7 @@ const matches = (doc: FakeDoc, q: any): boolean => {
   throw new Error(`fake-indexer: unsupported query ${JSON.stringify(q).slice(0, 120)}`);
 };
 
-export const matchesQuery = (doc: FakeDoc, query: unknown, now?: number): boolean => {
+const matchesQuery = (doc: FakeDoc, query: unknown, now?: number): boolean => {
   if (now !== undefined) indexNow = () => now;
   return matches(doc, query);
 };

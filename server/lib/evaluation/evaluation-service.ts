@@ -15,6 +15,7 @@ import {
 } from '../../../common/ens/configuration/services/configuration-structure-validator';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { toTemplateModel } from '../../../common/ens/configuration/agents/configuration-resolver';
+import { withInventoryTypes } from '../../../common/ens/configuration/agents/system-detection';
 import { normalizeOrganizationData } from '../../../common/ens/configuration/organization/organization-data-migration';
 import { buildComplianceState } from '../../../common/ens/core/compliance-state';
 import type { ENSComplianceState } from '../../../common/ens/core/compliance-state/types';
@@ -305,8 +306,11 @@ export const createEvaluationService = ({
     // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
     const stamp = await readConfigurationStamp(clients.asInternalUser);
-    const { configuration, updatedAt, key: configurationKey } = await loadConfiguration(clients, stamp || 'default');
+    const stored = await loadConfiguration(clients, stamp || 'default');
     const inventory = await loadInventory(clients, userKey, now);
+    const configuration = withInventoryTypes(stored.configuration, inventory.agents);
+    const configurationKey = sha(stored.key, configuration.agents || null);
+    const updatedAt = stored.updatedAt;
     const scope = resolveENSScopeAgents(inventory.agents, configuration.scope);
     if (query.agentId && !scope.some(agent => agent.id === query.agentId)) {
       throw new ENSBadRequestError(`La máquina ${query.agentId} no está en el alcance ENS.`);

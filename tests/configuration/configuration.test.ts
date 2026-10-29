@@ -8,6 +8,7 @@ import { validateControlConfiguration } from '../../common/ens/configuration/ser
 import { compileParameterPattern } from '../../common/ens/configuration/services/parameter-pattern';
 import { normalizeOrganizationData } from '../../common/ens/configuration/organization/organization-data-migration';
 import { isAgentLevelParameter } from '../../common/ens/configuration/agents/parameter-classes';
+import { getBuiltinTemplates } from '../../common/ens/configuration/templates';
 import type { ENSConfigurationVersion } from '../../common/ens/configuration/types';
 
 const freshConfiguration = (): ENSConfigurationVersion => JSON.parse(JSON.stringify(defaultENSConfigurationTemplate));
@@ -80,5 +81,12 @@ describe('organisation data', () => {
     for (const [controlId, parameterId] of [['op.acc.1', 'P-11'], ['op.acc.2', 'P-12'], ['op.acc.4', 'P-06']]) {
       assert.deepEqual(valueOf(next, controlId, parameterId), ['sudo', 'wheel'], `${controlId} ${parameterId}`);
     }
+  });
+});
+
+describe('the built-in templates', () => {
+  test('come from the engine catalog', () => {
+    assert.deepEqual(getBuiltinTemplates('op.acc.1').map(t => t.id).sort(), ['linux-ubuntu', 'manager-wazuh', 'windows-server']);
+    assert.deepEqual(getBuiltinTemplates('op.acc.5').map(t => t.id).sort(), ['linux-ubuntu', 'manager-wazuh']);
   });
 });

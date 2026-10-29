@@ -47,11 +47,9 @@ import {
   describeAgentValueSave,
   describeTemplateChoice,
   getAgentCompleteness,
-  pendingDetectedTypes,
   previewConfigurationChange,
   previewControlAssignment,
   removeAgentEntry,
-  saveDetectedTypes,
   setAgentAliases,
   setAgentParameterValue,
   setAgentTypeOverride,
@@ -119,7 +117,6 @@ export const AgentConfigurationPage = ({
   const issues = profile ? validateAgentProfile(agentId, profile, configuration) : [];
   const orphans = issues.filter(issue => issue.kind === 'huerfano');
   const otherIssues = issues.filter(issue => issue.kind !== 'huerfano' && issue.severity === 'error');
-  const typePending = !loading && pendingDetectedTypes(configuration, [{ agentId, agent: row.agent, detection: row.detection }]).length > 0;
   const typeLabel = agentTypeLabel(profile, row.detection, loading);
 
   const [choices, setChoices] = useState<Record<string, string>>({});
@@ -176,15 +173,6 @@ export const AgentConfigurationPage = ({
       intro: 'Los controles sin plantilla asignada pasan a la plantilla de serie del tipo nuevo.',
       build: latest => setAgentTypeOverride(latest, agentId, type, row.agent),
       reason: type ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.` : `Tipo de ${label}: vuelve al detectado.`,
-    });
-
-  const saveDetected = () =>
-    saveWithPreview({
-      title: `Guardar el tipo detectado de ${label}`,
-      confirmLabel: 'Guardar el tipo',
-      intro: 'Los controles sin plantilla asignada pasan a la plantilla de serie de su tipo.',
-      build: latest => saveDetectedTypes(latest, [{ agentId, agent: row.agent, detection: row.detection }]),
-      reason: `Tipo detectado de ${label} guardado: ${row.detection.type ? ENS_SYSTEM_TYPE_LABELS[row.detection.type] : ''}.`,
     });
 
   const assign = (controlId: string, choice: string) => {
@@ -356,20 +344,6 @@ export const AgentConfigurationPage = ({
               onChange={event => changeType((event.target.value || undefined) as ENSSystemType | undefined)}
             />
           </EuiFormRow>
-          {typePending && (
-            <>
-              <EuiText size='xs' color='subdued'>
-                <p>
-                  {storedType
-                    ? `Guardado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}; detectado ahora: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type!]}.`
-                    : `${typeLabel.text}: la plantilla de serie de su tipo se aplica al guardar el tipo.`}
-                </p>
-              </EuiText>
-              <EuiButton size='s' isDisabled={saving} onClick={saveDetected}>
-                Guardar el tipo detectado ({ENS_SYSTEM_TYPE_LABELS[row.detection.type!]})…
-              </EuiButton>
-            </>
-          )}
         </EuiFlexItem>
 
         <EuiFlexItem style={{ minWidth: 320 }}>

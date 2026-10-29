@@ -13,7 +13,6 @@ import {
   ENS_CUSTOM_TEMPLATE_KEYS,
   ENS_NO_TEMPLATE,
   ENS_SYSTEM_TYPE_LABELS,
-  knownSystemType,
   normalizeAgentId,
 } from '../../../agent-configuration';
 import { isEmptyParameterValue } from '../services/parameter-value-validator';
@@ -35,7 +34,7 @@ import {
 import { getParameterClass, isAgentLevelParameter } from './parameter-classes';
 import { getAgentControls } from './agent-controls';
 import { describeAgentLevelValueIssue } from './agent-configuration-validator';
-import type { ENSDetectableAgent, ENSSystemDetection } from './system-detection';
+import type { ENSDetectableAgent } from './system-detection';
 import { cloneDocument, mergeAliases, profileIdentity } from './profile-identity';
 
 const clone = cloneDocument;
@@ -430,41 +429,6 @@ export const setAgentTypeOverride = (
     },
     agent
   );
-
-interface ENSDetectedTypeEntry {
-  agentId: string;
-  agent?: ENSDetectableAgent;
-  detection: ENSSystemDetection;
-}
-
-// Detected types that are not stored yet (or changed): the built-in template of a type applies only once stored.
-export const pendingDetectedTypes = (
-  configuration: Pick<ENSConfigurationVersion, 'agents' | 'templates' | 'controls'>,
-  entries: ENSDetectedTypeEntry[]
-): ENSDetectedTypeEntry[] => {
-  const agents = toTemplateModel(configuration).agents || {};
-  return entries.filter(entry => {
-    const profile = agents[normalizeAgentId(entry.agentId)];
-    return entry.detection.type && !knownSystemType(profile?.typeOverride) && profile?.detectedType !== entry.detection.type;
-  });
-};
-
-export const saveDetectedTypes = (
-  configuration: ENSConfigurationVersion,
-  entries: ENSDetectedTypeEntry[]
-): ENSConfigurationVersion =>
-  entries
-    .filter(entry => entry.detection.type)
-    .reduce(
-      (current, entry) =>
-        withProfile(
-          current,
-          entry.agentId,
-          profile => ({ ...profile, detectedType: entry.detection.type, detectedBy: entry.detection.evidence }),
-          entry.agent
-        ),
-      configuration
-    );
 
 export const setAgentAliases = (
   configuration: ENSConfigurationVersion,

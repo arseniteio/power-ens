@@ -77,6 +77,14 @@ describe('the evaluation of a control on a machine', () => {
     assert.equal(fresh.views.get('op.acc.1')?.result?.score, 100);
   });
 
+  test('shows the values of the template of its inventory type, saved or not', async () => {
+    const clock = createClock();
+    const docs = [activeConfiguration(), inventoryDoc(AGENT, clock, ['ens'], 'ubuntu'), ...enginePass({ at: clock.hoursAgo(1), status: 'COMPLIANT', score: 100 })];
+    const { clients, service } = createLab(docs, clock);
+    const run = await service.run(clients, { ...control('op.acc.1'), agentId: AGENT.id });
+    assert.equal(run.views.get('op.acc.1')?.result?.parameters.find(p => p.id === 'P-10')?.value, 1000);
+  });
+
   test('refuses a machine out of the ENS scope', async () => {
     const { clients, service } = labWithOnePass();
     await assert.rejects(service.run(clients, { ...control('op.acc.1'), agentId: '042' }), { statusCode: 400 });

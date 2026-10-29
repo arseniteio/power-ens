@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { withInventoryTypes } from '../../../../common/ens/configuration/agents/system-detection';
 import {
   EuiAccordion,
   EuiBadge,
@@ -37,7 +38,6 @@ import { saveFromLatestConfiguration } from '../../../../common/ens/configuratio
 
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ConfirmModal, errorMessage } from './confirm-modal';
-import { DetectedTypesCallout } from './detected-types-callout';
 import { agentStatusLabel, agentTypeLabel, parameterLabel } from './labels';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { ENSAgentRow, agentRowLabel, buildAgentRows, useAgentsData } from './use-agents-data';
@@ -54,13 +54,14 @@ type Notice = { color: 'success' | 'danger' | 'warning'; text: string } | undefi
 
 // Profiles of machines out of the scope are listed too, so nothing stored is hidden.
 export const AgentsTab = ({
-  configuration,
+  configuration: stored,
   target,
   getActiveLevel,
   onNavigate,
   onConfigurationSaved,
 }: AgentsTabProps) => {
   const data = useAgentsData();
+  const configuration = useMemo(() => withInventoryTypes(stored, data.inventory), [stored, data.inventory]);
   const [confirmMigration, setConfirmMigration] = useState(false);
   // A whole profile or control is removed only after showing what is lost.
   const [removal, setRemoval] = useState<ENSEntryRemoval | undefined>();
@@ -254,12 +255,10 @@ export const AgentsTab = ({
         <h3>Agentes del alcance</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>El tipo de cada agente se detecta solo y se corrige en su página; el alcance se define en la configuración inicial.</p>
+        <p>El tipo de cada agente sale del inventario de Wazuh y se corrige en su página; el alcance se define en la configuración inicial.</p>
       </EuiText>
 
       <EuiSpacer size='m' />
-
-      <DetectedTypesCallout configuration={configuration} rows={rows} loading={data.loading} onConfigurationSaved={onConfigurationSaved} />
 
       {data.errors.map(error => (
         <React.Fragment key={error}>
