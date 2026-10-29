@@ -1,0 +1,883 @@
+{
+  "framework": "ENS",
+  "control": "op.exp.6",
+  "title": "Protección frente a código dañino",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Explotación",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.3.6",
+  "description": "Wazuh no es el antimalware: acredita que existe, funciona y está bien configurado, y aporta la capa EDR que exige R4 en categoría ALTA. En Linux el antimalware que se lee es ClamAV.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.exp.6",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.exp.6.1",
+      "title": "Prevención y reacción frente a código dañino",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de mecanismos de prevención y reacción frente a código dañino, incluyendo el correspondiente mantenimiento de acuerdo a las recomendaciones del fabricante.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04",
+        "EV-10",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.exp.6.2",
+      "title": "Antimalware instalado en todos los equipos",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se instalará software de protección frente a código dañino en todos los equipos: puestos de usuario, servidores y elementos perimetrales.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.exp.6.3",
+      "title": "Ficheros externos analizados antes de usarlos",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Todo fichero procedente de fuentes externas será analizado antes de trabajar con él.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.6.4",
+      "title": "Bases de detección actualizadas",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las bases de datos de detección de código dañino permanecerán permanentemente actualizadas.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.exp.6.5",
+      "title": "Configuración adecuada y protección en tiempo real",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El software de detección de código dañino instalado en los puestos de usuario deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.exp.6.r1.1",
+      "title": "Escaneo periódico de todo el sistema (R1)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo acumulativo: la ficha lo exige en MEDIA «+ R1 + R2» y en ALTA. En BAJO se muestra como NO_APLICA.",
+      "description": "Todo el sistema se escaneará regularmente para detectar código dañino.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.exp.6.r2.1",
+      "title": "Funciones críticas analizadas al arranque (R2)",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo acumulativo: la ficha lo exige en MEDIA «+ R1 + R2» y en ALTA. En BAJO se muestra como NO_APLICA.",
+      "description": "Las funciones críticas se analizarán al arrancar el sistema en prevención de modificaciones no autorizadas.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.exp.6.r3.1",
+      "title": "Lista blanca de aplicaciones (R3)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo exigible solo en ALTA («+ R1 + R2 + R3 + R4»). En BAJO y MEDIO se muestra como NO_APLICA.",
+      "description": "Solamente se podrán ejecutar aquellas aplicaciones previamente autorizadas. Se implementará una lista blanca para impedir la ejecución de aplicaciones no autorizadas.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.exp.6.r4.1",
+      "title": "Detección y respuesta en equipos, EDR (R4)",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Refuerzo exigible solo en ALTA («+ R1 + R2 + R3 + R4»). En BAJO y MEDIO se muestra como NO_APLICA.",
+      "description": "Se emplearán herramientas de seguridad orientadas a detectar, investigar y resolver actividades sospechosas en puestos de usuario y servidores (EDR – Endpoint Detection and Response).",
+      "evidence_ids": [
+        "EV-08",
+        "EV-09",
+        "EV-10",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.exp.6.r5.1",
+      "title": "Configuración avanzada del antimalware (R5)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
+      "description": "Refuerzo R5 – Configuración de la herramienta de detección de código dañino: El software de detección de código dañino permitirá realizar configuraciones avanzadas y revisar el sistema en el arranque y cada vez que se conecte un dispositivo extraíble.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.exp.6.r5.2",
+      "title": "Protección en tiempo real en servidores (R5)",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
+      "description": "El software de detección de código dañino instalado en servidores y elementos perimetrales deberá estar configurado de forma adecuada e implementará protección en tiempo real de acuerdo a las recomendaciones del fabricante.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Presencia y estado del antimalware en todos los equipos",
+      "description": "Antimalware instalado en la máquina y si está en ejecución, frente a los productos esperados de P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1",
+        "op.exp.6.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina ejecuta el antimalware que se espera de ella?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Antigüedad de las bases de datos de detección",
+      "description": "Fecha de publicación de la base diaria de firmas de ClamAV frente a la antigüedad máxima de P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.4"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Las firmas del antimalware de esta máquina están al día?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Configuración adecuada y protección en tiempo real",
+      "description": "Ajustes observados del antimalware (tiempo real, actualización automática, análisis de comprimidos, registro en syslog) frente a los de P-04.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.5",
+        "op.exp.6.r5.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El antimalware de esta máquina está configurado como pide P-04?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Detecciones de código dañino y su resolución",
+      "description": "Detecciones de ClamAV que Wazuh ha registrado en el periodo. Una detección que se repite sobre lo mismo es una infección sin resolver.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Las detecciones de código dañino de esta máquina se han resuelto?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Ejecución del escaneo periódico completo (R1)",
+      "description": "Fin del último escaneo completo con clamscan registrado en los logs de ClamAV, frente a la periodicidad de P-06.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se ha escaneado entera esta máquina dentro del plazo de P-06?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Integridad de funciones críticas al arranque (R2)",
+      "description": "El FIM de Wazuh analiza al arrancar (scan_on_start) y cubre las rutas críticas de P-07, y rootcheck está activo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r2.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se analizan al arrancar las funciones críticas de esta máquina?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Efectividad de la lista blanca de aplicaciones (R3)",
+      "description": "Estado de fapolicyd: solo cumple si aplica la lista blanca (no en modo permisivo ni parado).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r3.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina solo ejecuta aplicaciones autorizadas?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Análisis reputacional de ficheros nuevos y modificados (R4)",
+      "description": "Integración de VirusTotal en el manager sobre los cambios del FIM de la máquina, y ficheros que ha señalado en el periodo.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r4.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Se consulta la reputación de los ficheros que cambian en esta máquina?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Detección por reglas de contenido en ficheros (R4)",
+      "description": "Respuesta activa de YARA desplegada en la máquina: script y binario presentes.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Esta máquina tiene desplegada la detección por reglas YARA?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Detección de actividad sospechosa en puestos y servidores (R4)",
+      "description": "rootcheck de Wazuh activo en la máquina: rootkits, procesos y puertos ocultos, binarios troyanizados.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1",
+        "op.exp.6.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Wazuh busca actividad sospechosa en esta máquina?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Contención automática ante detección (R4)",
+      "description": "Respuestas activas que el manager envía a la máquina y cuyo script está presente en ella.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1",
+        "op.exp.6.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Esta máquina puede contener automáticamente una detección?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Análisis de ficheros de fuentes externas y dispositivos extraíbles",
+      "description": "Dispositivos USB de almacenamiento conectados en el periodo frente a la política de P-10: bloqueados, con análisis (exige protección en tiempo real) o solo lectura.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.3",
+        "op.exp.6.r5.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los dispositivos extraíbles de esta máquina siguen la política de P-10?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "producto_antimalware",
+      "label": "Producto antimalware",
+      "description": "Solución antimalware por tipo de equipo y dónde deja sus logs.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1",
+        "op.exp.6.2"
+      ],
+      "type": "table",
+      "example": "servidor | clamav | /var/log/clamav/clamav.log",
+      "columns": [
+        {
+          "name": "tipo_equipo",
+          "label": "Tipo de equipo",
+          "type": "select",
+          "options": [
+            "puesto",
+            "servidor",
+            "perimetral"
+          ],
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "log",
+          "label": "Log o integración",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "platform",
+      "name": "cobertura_esperada_antimalware",
+      "label": "Cobertura esperada de antimalware",
+      "description": "Antimalware que tiene que estar en ejecución en la máquina, por su nombre: clamav, mdatp, falcon-sensor, sophos-spl, eset, sentinelone, trendmicro-ds.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.2"
+      ],
+      "type": "list",
+      "example": "clamav",
+      "required": true,
+      "agent_usage": "El agente informa de los productos instalados y en ejecución.",
+      "engine_usage": "EV-01 falla si alguno no está en ejecución.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "max_antiguedad_firmas_horas",
+      "label": "Antigüedad máxima de las firmas (horas)",
+      "description": "Horas máximas desde que el fabricante publicó las firmas. ClamAV publica a diario: lo habitual es 24 o 48.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.4"
+      ],
+      "type": "duration_hours",
+      "example": "48",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "El agente lee la fecha de la base diaria de ClamAV.",
+      "engine_usage": "EV-02 compara su antigüedad con este plazo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "platform",
+      "name": "config_proteccion_tiempo_real",
+      "label": "Ajustes esperados del antimalware",
+      "description": "Ajustes exigidos al antimalware, uno por fila con si o no: proteccion_tiempo_real, actualizacion_automatica_firmas, analisis_comprimidos, registro_syslog.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.5",
+        "op.exp.6.r5.2"
+      ],
+      "type": "table",
+      "example": "proteccion_tiempo_real | si",
+      "columns": [
+        {
+          "name": "ajuste",
+          "label": "Ajuste",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "valor",
+          "label": "Valor",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "El agente informa de los ajustes de ClamAV.",
+      "engine_usage": "EV-03 compara cada ajuste con su valor.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "puntos_entrada_ficheros_externos",
+      "label": "Vías de entrada de ficheros externos",
+      "description": "Vías por las que entran ficheros externos y el mecanismo que los analiza.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.3"
+      ],
+      "type": "table",
+      "example": "correo | amavis + clamd de Zimbra",
+      "columns": [
+        {
+          "name": "via",
+          "label": "Vía",
+          "type": "select",
+          "options": [
+            "correo",
+            "dispositivos_extraibles",
+            "descargas_web",
+            "transferencias",
+            "carpetas_compartidas"
+          ],
+          "required": true
+        },
+        {
+          "name": "mecanismo_analisis",
+          "label": "Mecanismo de análisis",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-12 juzga los dispositivos extraíbles. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "periodicidad_escaneo_completo_dias",
+      "label": "Periodicidad del escaneo completo (días)",
+      "description": "Días máximos entre dos escaneos completos del sistema, contados desde el fin del último.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r1.1"
+      ],
+      "type": "duration_days",
+      "example": "7",
+      "required": false,
+      "min_value": 1,
+      "agent_usage": "El agente lee el fin del último escaneo en los logs de ClamAV.",
+      "engine_usage": "EV-05 compara su antigüedad con este plazo.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "platform",
+      "name": "funciones_criticas_arranque",
+      "label": "Funciones críticas analizadas al arranque",
+      "description": "Rutas críticas que el FIM de Wazuh tiene que analizar al arrancar: binarios del sistema, cargador de arranque, módulos del kernel.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r2.1"
+      ],
+      "type": "list",
+      "example": "/boot",
+      "required": false,
+      "agent_usage": "El agente informa de los directorios del FIM y de scan_on_start.",
+      "engine_usage": "EV-06 exige cada ruta bajo un directorio del FIM.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 solo comprueba scan_on_start y rootcheck."
+    },
+    "P-08": {
+      "class": "platform",
+      "name": "lista_blanca_aplicaciones",
+      "label": "Lista blanca de aplicaciones",
+      "description": "Aplicaciones cuya ejecución está autorizada y la versión aprobada.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r3.1"
+      ],
+      "type": "table",
+      "example": "python3 | /usr/bin/python3.12 | - | servidores",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "sha256",
+          "label": "SHA-256",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil de equipo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-07 juzga que fapolicyd aplique la lista. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "integracion_edr",
+      "label": "Capacidades EDR desplegadas",
+      "description": "Capacidades EDR, una por fila con si o no y su alcance: virustotal, yara, rootcheck, active_response.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r4.1"
+      ],
+      "type": "table",
+      "example": "active_response | si | firewall-drop en servidores",
+      "columns": [
+        {
+          "name": "capacidad",
+          "label": "Capacidad",
+          "type": "select",
+          "options": [
+            "virustotal",
+            "yara",
+            "rootcheck",
+            "active_response"
+          ],
+          "required": true
+        },
+        {
+          "name": "activada",
+          "label": "Activada",
+          "type": "select",
+          "options": [
+            "si",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "El agente informa de rootcheck, YARA y los scripts de respuesta activa; el del manager, de sus integraciones.",
+      "engine_usage": "EV-08 a EV-11 exigen cada capacidad activada y desplegada.",
+      "evidence_ids": [
+        "EV-08",
+        "EV-09",
+        "EV-10",
+        "EV-11"
+      ],
+      "if_not_configured": "EV-08 a EV-11 quedan sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "politica_dispositivos_extraibles",
+      "label": "Política de dispositivos extraíbles",
+      "description": "Tratamiento de los dispositivos de almacenamiento extraíbles: bloqueados, analisis (permitidos con análisis al conectarlos) o lectura.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.3",
+        "op.exp.6.r5.1"
+      ],
+      "type": "select",
+      "example": "bloqueados",
+      "options": [
+        "bloqueados",
+        "analisis",
+        "lectura"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-12 contrasta las conexiones USB del periodo con esta política.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "if_not_configured": "EV-12 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.6.3 | Procedimiento de análisis de ficheros externos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "antimalware",
+      "title": "Antimalware en los equipos",
+      "description": "Producto en ejecución, firmas, ajustes y último escaneo completo.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-06"
+      ]
+    },
+    {
+      "id": "detecciones",
+      "title": "Detecciones de código dañino",
+      "description": "Detecciones del periodo y las que se repiten sin resolver.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "arranque",
+      "title": "Análisis al arranque",
+      "description": "FIM al arrancar sobre las rutas críticas y rootcheck.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "lista_blanca",
+      "title": "Lista blanca de aplicaciones",
+      "description": "Estado de fapolicyd.",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "edr",
+      "title": "Detección y respuesta (EDR)",
+      "description": "VirusTotal, YARA, rootcheck y respuestas activas.",
+      "evidences": [
+        "EV-08",
+        "EV-09",
+        "EV-10",
+        "EV-11"
+      ],
+      "parameters": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "externos",
+      "title": "Ficheros externos y extraíbles",
+      "description": "Conexiones USB frente a la política y vías de entrada declaradas.",
+      "evidences": [
+        "EV-12"
+      ],
+      "parameters": [
+        "P-05",
+        "P-10"
+      ]
+    }
+  ]
+}

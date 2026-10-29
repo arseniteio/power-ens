@@ -1,0 +1,433 @@
+{
+  "controlId": "op.exp.6",
+  "controlName": "Protección frente a código dañino",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.exp.6",
+      "name": "producto_antimalware",
+      "label": "Producto antimalware",
+      "description": "Solución antimalware por tipo de equipo y dónde deja sus logs.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.1",
+        "op.exp.6.2"
+      ],
+      "type": "table",
+      "example": "servidor | clamav | /var/log/clamav/clamav.log",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tipo_equipo",
+          "label": "Tipo de equipo",
+          "type": "select",
+          "options": [
+            "puesto",
+            "servidor",
+            "perimetral"
+          ],
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "log",
+          "label": "Log o integración",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.exp.6",
+      "name": "cobertura_esperada_antimalware",
+      "label": "Cobertura esperada de antimalware",
+      "description": "Antimalware que tiene que estar en ejecución en la máquina, por su nombre: clamav, mdatp, falcon-sensor, sophos-spl, eset, sentinelone, trendmicro-ds.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.2"
+      ],
+      "type": "list",
+      "example": "clamav",
+      "required": true,
+      "wazuhUsage": "El agente informa de los productos instalados y en ejecución.",
+      "powerEnsUsage": "EV-01 falla si alguno no está en ejecución.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.exp.6",
+      "name": "max_antiguedad_firmas_horas",
+      "label": "Antigüedad máxima de las firmas (horas)",
+      "description": "Horas máximas desde que el fabricante publicó las firmas. ClamAV publica a diario: lo habitual es 24 o 48.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.4"
+      ],
+      "type": "duration_hours",
+      "example": "48",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "El agente lee la fecha de la base diaria de ClamAV.",
+      "powerEnsUsage": "EV-02 compara su antigüedad con este plazo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.exp.6",
+      "name": "config_proteccion_tiempo_real",
+      "label": "Ajustes esperados del antimalware",
+      "description": "Ajustes exigidos al antimalware, uno por fila con si o no: proteccion_tiempo_real, actualizacion_automatica_firmas, analisis_comprimidos, registro_syslog.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.5",
+        "op.exp.6.r5.2"
+      ],
+      "type": "table",
+      "example": "proteccion_tiempo_real | si",
+      "required": true,
+      "wazuhUsage": "El agente informa de los ajustes de ClamAV.",
+      "powerEnsUsage": "EV-03 compara cada ajuste con su valor.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "ajuste",
+          "label": "Ajuste",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "valor",
+          "label": "Valor",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.exp.6",
+      "name": "puntos_entrada_ficheros_externos",
+      "label": "Vías de entrada de ficheros externos",
+      "description": "Vías por las que entran ficheros externos y el mecanismo que los analiza.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.3"
+      ],
+      "type": "table",
+      "example": "correo | amavis + clamd de Zimbra",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-12 juzga los dispositivos extraíbles. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "via",
+          "label": "Vía",
+          "type": "select",
+          "options": [
+            "correo",
+            "dispositivos_extraibles",
+            "descargas_web",
+            "transferencias",
+            "carpetas_compartidas"
+          ],
+          "required": true
+        },
+        {
+          "name": "mecanismo_analisis",
+          "label": "Mecanismo de análisis",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.exp.6",
+      "name": "periodicidad_escaneo_completo_dias",
+      "label": "Periodicidad del escaneo completo (días)",
+      "description": "Días máximos entre dos escaneos completos del sistema, contados desde el fin del último.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r1.1"
+      ],
+      "type": "duration_days",
+      "example": "7",
+      "required": false,
+      "minValue": 1,
+      "wazuhUsage": "El agente lee el fin del último escaneo en los logs de ClamAV.",
+      "powerEnsUsage": "EV-05 compara su antigüedad con este plazo.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar."
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.exp.6",
+      "name": "funciones_criticas_arranque",
+      "label": "Funciones críticas analizadas al arranque",
+      "description": "Rutas críticas que el FIM de Wazuh tiene que analizar al arrancar: binarios del sistema, cargador de arranque, módulos del kernel.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r2.1"
+      ],
+      "type": "list",
+      "example": "/boot",
+      "required": false,
+      "wazuhUsage": "El agente informa de los directorios del FIM y de scan_on_start.",
+      "powerEnsUsage": "EV-06 exige cada ruta bajo un directorio del FIM.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 solo comprueba scan_on_start y rootcheck."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.exp.6",
+      "name": "lista_blanca_aplicaciones",
+      "label": "Lista blanca de aplicaciones",
+      "description": "Aplicaciones cuya ejecución está autorizada y la versión aprobada.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r3.1"
+      ],
+      "type": "table",
+      "example": "python3 | /usr/bin/python3.12 | - | servidores",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-07 juzga que fapolicyd aplique la lista. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "path",
+          "required": true
+        },
+        {
+          "name": "sha256",
+          "label": "SHA-256",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil de equipo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.exp.6",
+      "name": "integracion_edr",
+      "label": "Capacidades EDR desplegadas",
+      "description": "Capacidades EDR, una por fila con si o no y su alcance: virustotal, yara, rootcheck, active_response.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.r4.1"
+      ],
+      "type": "table",
+      "example": "active_response | si | firewall-drop en servidores",
+      "required": false,
+      "wazuhUsage": "El agente informa de rootcheck, YARA y los scripts de respuesta activa; el del manager, de sus integraciones.",
+      "powerEnsUsage": "EV-08 a EV-11 exigen cada capacidad activada y desplegada.",
+      "evidenceIds": [
+        "EV-08",
+        "EV-09",
+        "EV-10",
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 a EV-11 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "capacidad",
+          "label": "Capacidad",
+          "type": "select",
+          "options": [
+            "virustotal",
+            "yara",
+            "rootcheck",
+            "active_response"
+          ],
+          "required": true
+        },
+        {
+          "name": "activada",
+          "label": "Activada",
+          "type": "select",
+          "options": [
+            "si",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.exp.6",
+      "name": "politica_dispositivos_extraibles",
+      "label": "Política de dispositivos extraíbles",
+      "description": "Tratamiento de los dispositivos de almacenamiento extraíbles: bloqueados, analisis (permitidos con análisis al conectarlos) o lectura.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.exp.6.3",
+        "op.exp.6.r5.1"
+      ],
+      "type": "select",
+      "example": "bloqueados",
+      "options": [
+        "bloqueados",
+        "analisis",
+        "lectura"
+      ],
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-12 contrasta las conexiones USB del periodo con esta política.",
+      "evidenceIds": [
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-12 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.exp.6",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.exp.6.3 | Procedimiento de análisis de ficheros externos | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "identifier",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Documento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace(s)",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Declarado por",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

@@ -208,6 +208,17 @@
         "Red Hat Enterprise Linux | 9 | 2032-05-31",
         "Rocky Linux | 9 | 2032-05-31"
       ]
+    },
+    "op.exp.6": {
+      "P-02": [
+        "clamav"
+      ],
+      "P-07": [
+        "/boot",
+        "/etc",
+        "/usr/bin",
+        "/usr/sbin"
+      ]
     }
   }
 }
