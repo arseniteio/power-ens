@@ -103,7 +103,7 @@ export const describeDimensionsAboveENSLevel = (
     .map(dimension => `${ENS_DIMENSION_NAMES[dimension]} (${dimension}) ${global[ENS_DIMENSION_LEVEL_KEYS[dimension]]}`)
     .join(', ');
 
-  return `El nivel ENS (${global.ensLevel}) es la categoría del sistema y no puede ser inferior al de ninguna dimensión: ${list}. Subir el nivel ENS o bajar el de la dimensión.`;
+  return `El nivel ENS (${global.ensLevel}) es inferior a: ${list}.`;
 };
 
 // How the control is applied, for the detail header and the report: by category or by the level of its dimensions.

@@ -72,6 +72,7 @@ import {
   nextRetained,
 } from './detail-view-state';
 import { statusLabel } from '../../../../common/ens/core/status-label';
+import { dateLabel, dateTimeLabel } from '../../../../common/ens/core/date-label';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -97,9 +98,7 @@ const formatTraceabilityTimestamp = (timestamp?: string) => {
 
   const date = new Date(timestamp);
 
-  return Number.isNaN(date.getTime())
-    ? timestamp
-    : date.toLocaleString('es-ES');
+  return Number.isNaN(date.getTime()) ? timestamp : dateTimeLabel(date);
 };
 
 export const ControlDetailENS = ({
@@ -151,7 +150,7 @@ export const ControlDetailENS = ({
 
   const newestVerdict = data?.meta?.verdicts?.newest;
   const latestEvaluationDate = newestVerdict
-    ? new Date(newestVerdict).toLocaleDateString('es-ES')
+    ? dateLabel(newestVerdict)
     : 'Sin datos';
 
   const totalMachines = (complianceResult?.consolidatedAgents || []).length;
@@ -800,7 +799,7 @@ export const ControlDetailENS = ({
       <EuiPage paddingSize='m'>
         <EuiPanel>
           {header}
-          <EvaluationLoading message={`Evaluando ${control.id} en ${labelOf(agentId)} en el servidor con todos los hechos de la ventana.`} />
+          <EvaluationLoading message={'Calculando…'} />
         </EuiPanel>
       </EuiPage>
     );
@@ -819,7 +818,7 @@ export const ControlDetailENS = ({
             size='s'
             color='warning'
             iconType='clock'
-            title={`Se muestra el último resultado de ${labelOf(view.agentId)}${displayedHour ? `, calculado ${displayedHour}` : ''}`}
+            title={`Resultado de ${labelOf(view.agentId)}${displayedHour ? ` · ${displayedHour}` : ''}`}
           >
             {fromOtherMachine && (
               <p>No es el de {labelOf(agentId)}: el de esa máquina no se ha podido calcular.</p>
@@ -833,8 +832,8 @@ export const ControlDetailENS = ({
           iconType='clock'
           title={
             fromOtherMachine
-              ? `Cargando ${labelOf(agentId)}… Mientras tanto se muestra el resultado de ${labelOf(view.agentId)}${displayedHour ? ` (${displayedHour})` : ''}.`
-              : `Actualizando… Se muestra el resultado${displayedHour ? ` de ${displayedHour}` : ''}.`
+              ? `Cargando ${labelOf(agentId)}…`
+              : 'Actualizando…'
           }
         />
       )}
@@ -903,11 +902,10 @@ export const ControlDetailENS = ({
             <p>
               {motive?.text ||
                 (displayedAgent
-                  ? `El servidor no ha devuelto resultado de ${control.id} para esta máquina: no está entre las que lo miden.`
-                  : `Ninguna máquina del alcance ENS mide ${control.id} y no hay hechos con los que evaluarlo.`)}
+                  ? `${control.id} no se mide en esta máquina.`
+                  : `Ninguna máquina mide ${control.id}.`)}
             </p>
-            <p>No es un incumplimiento ni un cumplimiento: en esta máquina no hay nada que juzgar.</p>
-            <EuiFlexGroup gutterSize='s' responsive={false} wrap>
+                        <EuiFlexGroup gutterSize='s' responsive={false} wrap>
               {displayedAgent && (
                 <EuiFlexItem grow={false}>
                   <EuiButton size='s' iconType='list' onClick={() => updateUrl({ agentId: undefined })}>

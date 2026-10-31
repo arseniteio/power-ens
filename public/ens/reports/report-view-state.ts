@@ -25,14 +25,14 @@ export const reportViewState = (input: ENSReportViewInput): ENSReportViewState =
       return {
         kind: 'not-measured',
         title: `${input.controlId} no tiene resultado en ninguna máquina`,
-        text: 'Ninguna máquina del alcance ENS mide este control (por su plano o por el alcance que declara su configuración).',
+        text: 'Ninguna máquina del alcance mide este control.',
       };
     }
     const reason = input.notMeasured();
     return {
       kind: 'not-measured',
-      title: `Este control no se mide en esta máquina (${input.agentLabel || input.agentId})`,
-      text: reason?.text || `El servidor no da resultado de ${input.controlId} para ${input.agentLabel || input.agentId}.`,
+      title: `No se mide en ${input.agentLabel || input.agentId}`,
+      text: reason?.text || `Sin resultado de ${input.controlId}.`,
       reason,
     };
   }

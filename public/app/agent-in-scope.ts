@@ -10,4 +10,4 @@ export const isAgentInScope = (agentId: string | undefined, scope: { id: string 
   !agentId || scope.some(agent => agent.id === normalizeAgentIdForScope(agentId));
 
 export const describeAgentOutOfScope = (agentId: string): string =>
-  `La máquina ${agentId} de la dirección no está en el alcance ENS (no existe, no está en el grupo del alcance o el enlace es antiguo). Ninguna pantalla puede evaluarla.`;
+  `La máquina ${agentId} no está en el alcance ENS.`;

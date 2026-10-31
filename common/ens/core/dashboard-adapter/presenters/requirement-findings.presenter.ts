@@ -49,6 +49,6 @@ export const buildRequirementFindingsModel = (
     title: 'REQUISITOS CON MAYOR RIESGO O SIN EVIDENCIA',
     rows,
     emptyMessage:
-      'Todos los requisitos ENS evaluados se encuentran conformes o no aplicables.',
+      'Todos los requisitos evaluados cumplen o no aplican.',
   };
 };

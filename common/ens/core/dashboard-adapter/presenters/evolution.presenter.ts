@@ -44,11 +44,11 @@ export const buildEvolutionModel = (
 
   const description =
     rows.length > 1
-      ? 'Un punto por día, recalculado por el motor con los eventos conocidos ese día y los parámetros actuales. El último es el cumplimiento de este momento: el mismo número del panel.'
+      ? 'Cumplimiento diario. El último punto es el actual.'
       : rows.length === 1
-      ? 'Solo hay evidencia de un día dentro del periodo de evaluación. El punto es el cumplimiento de este momento: el mismo número del panel.'
+      ? 'Solo hay datos de un día.'
       : hasEvaluableControls
-      ? 'Todavía no hay eventos con los que construir la serie diaria. Se muestra el cumplimiento consolidado de este momento.'
+      ? 'Aún no hay serie diaria.'
       : 'No hay eventos ni controles evaluables para el nivel activo.';
 
   return {

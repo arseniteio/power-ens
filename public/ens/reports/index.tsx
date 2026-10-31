@@ -65,6 +65,7 @@ import {
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { filterByENSPrefix, listENSFamilies, resolveENSSectionOpenState } from '../control-filter/prefix';
 import { statusLabel } from '../../../common/ens/core/status-label';
+import { dateTimeLabel } from '../../../common/ens/core/date-label';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -72,7 +73,7 @@ const fmt = (iso?: string) => {
   if (!iso || iso === '-') return '-';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return dateTimeLabel(d);
 };
 
 // Maximum length of observations in the table; the full text is in the expanded row and the PDF.
@@ -516,7 +517,7 @@ const ControlReport = ({
     // A signed report is not issued without the result of this selection.
     if (!exportable || !complianceResult) return;
     const now = new Date();
-    const issueDate = now.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const issueDate = dateTimeLabel(now);
 
     const docDefinition = {
       pageSize: 'A4',

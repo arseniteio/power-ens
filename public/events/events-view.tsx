@@ -26,6 +26,7 @@ import {
   navigableEventRows,
   pageIndexFor,
 } from './events-columns';
+import { dateTimeLabel } from '../../common/ens/core/date-label';
 
 const PAGE_SIZES = [25, 50, 100];
 const INITIAL_PAGE_SIZE = 50;
@@ -45,7 +46,7 @@ const number = (n: number): string => n.toLocaleString('es-ES');
 const date = (value: string): string => {
   if (!value) return '';
   const instant = new Date(value);
-  return isNaN(instant.getTime()) ? value : instant.toLocaleString('es-ES');
+  return isNaN(instant.getTime()) ? value : dateTimeLabel(instant);
 };
 
 const count = (total: number, isLoading: boolean, hasResults: boolean): string => {

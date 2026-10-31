@@ -591,7 +591,7 @@ export const EvidencesENS = () => {
         <EuiTitle size='s'>
           <h2>Repositorio de Evidencias ENS</h2>
         </EuiTitle>
-        <EvaluationLoading message='Evaluando las evidencias en el servidor con todos los hechos de la ventana.' />
+        <EvaluationLoading message='Calculando…' />
       </EuiPanel>
     );
   }

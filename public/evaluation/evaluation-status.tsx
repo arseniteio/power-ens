@@ -2,16 +2,14 @@ import React from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiCallOut, EuiText } from '@elastic/eui';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import type { ENSEvaluationMeta } from '../../common/ens/evaluation/types';
+import { dateTimeLabel } from '../../common/ens/core/date-label';
 
 // The first evaluation of the day reads the whole window on the server (20-30 s): saying so avoids a page reload, which would restart it.
 export const EvaluationLoading = ({ message }: { message: string }) => (
   <LoadingSpinner message={`${message} La primera vez puede tardar hasta un minuto.`} />
 );
 
-const hour = (iso?: string) => {
-  const d = iso ? new Date(iso) : undefined;
-  return d && !Number.isNaN(d.getTime()) ? d.toLocaleString('es-ES') : undefined;
-};
+const hour = (iso?: string) => dateTimeLabel(iso) || undefined;
 
 export const EvaluationStatusLine = ({
   meta,

@@ -47,7 +47,7 @@ export class TabErrorBoundary extends React.Component<TabErrorBoundaryProps, Tab
       <EuiCallOut color='danger' iconType='alert' title={`No se pudo mostrar «${this.props.tabName}»`}>
         <EuiText size='s'>
           <p>{describeRenderError(this.state.error)}</p>
-          <p>Las demás pestañas siguen disponibles. «Reintentar» vuelve a pintar esta con los datos de ahora.</p>
+          <p>Las demás pestañas siguen disponibles.</p>
         </EuiText>
         <EuiSpacer size='s' />
         <EuiButton size='s' iconType='refresh' onClick={this.retry}>

@@ -1,3 +1,5 @@
+import { dateTimeLabel } from '../core/date-label';
+
 // Splits a nonconformity motive for reading.
 
 const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
@@ -203,7 +205,7 @@ export const describeAction = (requiredAction: string, guilty?: MotivePart): str
     return requiredAction;
   }
   if (!guilty?.evidenceId) return requiredAction;
-  return `Corregir ${guilty.evidenceId}${guilty.secondary ? ' (y lo que dice «Además»)' : ''} hasta que conforme.`;
+  return `Corregir ${guilty.evidenceId}${guilty.secondary ? ' y lo indicado en «Además»' : ''}.`;
 };
 
 // The text split into text and date chunks (to paint the date in es-ES with the ISO in the `title`). Joined, they are the text.
@@ -220,8 +222,5 @@ export const splitTimestamps = (text: string): { text: string; iso?: string }[] 
 };
 
 export const formatTimestamp = (iso: string): string => {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? iso
-    : date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return dateTimeLabel(iso) || iso;
 };

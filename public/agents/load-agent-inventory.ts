@@ -20,7 +20,7 @@ export const loadENSAgentInventory = async (): Promise<ENSAgentScope[]> => {
 
   if (!inventory.agents.length) {
     throw new Error(
-      'No hay inventario de agentes: la monitorización de agentes de Wazuh (wazuh-monitoring-*) no está activa o este usuario no puede leerla.'
+      'No se puede leer el inventario de agentes (wazuh-monitoring-*).'
     );
   }
 

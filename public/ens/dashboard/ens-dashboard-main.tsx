@@ -8,6 +8,7 @@ import { IncoherentLevelsNotice } from '../configuration/components/incoherent-l
 import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
 import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
+import { dateTimeLabel } from '../../../common/ens/core/date-label';
 
 const findingSeverityColor = (severity: string): string => {
   if (severity === 'OK') {
@@ -66,7 +67,7 @@ export const EnsDashboardMain = () => {
         <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
       </div>
     ) : (
-      <EvaluationLoading message='Evaluando los controles ENS en el servidor con todos los hechos de la ventana.' />
+      <EvaluationLoading message='Calculando…' />
     );
   }
 
@@ -214,7 +215,7 @@ export const EnsDashboardMain = () => {
             <div style={{ fontSize: 16, color: '#69707D', marginTop: 4 }}>
              {dashboardModel.compliance.measured === 0
                ? 'Ningún control se ha podido medir todavía'
-               : `Sobre ${dashboardModel.compliance.measured} de ${dashboardModel.compliance.total} controles medidos`}
+               : `${dashboardModel.compliance.measured} de ${dashboardModel.compliance.total} controles medidos`}
             </div>
 
             <div
@@ -262,7 +263,7 @@ export const EnsDashboardMain = () => {
               </div>
 
               {dashboardModel.compliance.notMeasured > 0 && (
-                <div title='Controles en el catálogo sin recolector todavía: no entran en el índice ni se juzgan.'>
+                <div title='Controles sin datos: no cuentan en el índice.'>
                   <b style={{ color: '#69707D' }}>{dashboardModel.compliance.notMeasured}</b>
                   <br />
                   Sin medición todavía
@@ -360,10 +361,10 @@ export const EnsDashboardMain = () => {
             <div title='Todas sus no conformidades son de medida: hay que corregir el sistema.'>
               Medidos: <b>{dashboardModel.findings.measuredFindings}</b>
             </div>
-            <div title='Todas sus no conformidades son por falta de prueba: hay que habilitar la evidencia.'>
+            <div title='Fallan por falta de evidencia.'>
               No evidenciados: <b>{dashboardModel.findings.unevidencedFindings}</b>
             </div>
-            <div title='Fallan por motivos distintos en distintas máquinas: en unas medido, en otras sin prueba. En la vista de una máquina siempre es 0.'>
+            <div title='Fallan medidos en unas máquinas y sin evidencia en otras.'>
               Mixtos: <b>{dashboardModel.findings.mixedFindings}</b>
             </div>
             <div title='Parciales o no evaluables: por diseño no generan no conformidad.'>
@@ -372,7 +373,7 @@ export const EnsDashboardMain = () => {
           </div>
           <div style={{ marginTop: 12 }}>
             Última evaluación:<br />
-            <b>{dashboardModel.findings.lastEvaluation}</b>
+            <b>{dateTimeLabel(dashboardModel.findings.lastEvaluation) || '—'}</b>
           </div>
         </div>
       </div>
@@ -788,7 +789,7 @@ export const EnsDashboardMain = () => {
             }}
           >
             {pendingSeries
-              ? 'Calculando en el servidor la serie diaria de los últimos 7 días; aparece en cuanto esté. Las cifras de arriba ya son las de ahora.'
+              ? 'Calculando la serie de 7 días…'
               : dashboardModel.evolution.description}
           </div>
         </div>

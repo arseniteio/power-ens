@@ -119,7 +119,7 @@ export const describeOverviewPending = (
         title: `Calculando la evaluación: ${pending.total - pending.rows} de ${pending.total} filas (control × máquina) listas`,
         text:
           `Faltan ${pending.controls.length} control${pending.controls.length === 1 ? '' : 'es'} (${pending.controls.join(', ')}). ` +
-          'Las cifras por máquina y la cola de trabajo se completan cuando estén todos; mientras, la matriz enseña los ya calculados.',
+          'Calculando el resto de controles…',
         controls: pending.controls,
       }
     : undefined;
