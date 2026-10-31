@@ -3,6 +3,7 @@
 import { ENS_MONITORING_INDEX } from '../constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
+import { dateTimeLabel } from '../ens/core/date-label';
 
 const ENS_INVENTORY_MAX_AGE_MS = 60 * 60 * 1000;
 
@@ -122,5 +123,5 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
 
 export const staleInventoryMessage = (newestTimestamp?: string): string =>
   newestTimestamp
-    ? `El último dato de wazuh-monitoring es de ${newestTimestamp}: un alta o una baja reciente puede no verse todavía.`
-    : 'El inventario de wazuh-monitoring no trae ninguna fecha: no se sabe si está al día y un alta o una baja reciente puede no verse.';
+    ? `Inventario de agentes sin actualizar desde ${dateTimeLabel(newestTimestamp)}.`
+    : 'Inventario de agentes sin fecha.';
