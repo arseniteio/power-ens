@@ -10,7 +10,6 @@ import {
   EuiFlexItem,
   EuiFormRow,
   EuiLoadingSpinner,
-  EuiPanel,
   EuiSelect,
   EuiSpacer,
   EuiText,
@@ -26,8 +25,6 @@ import type {
 } from '../../../../common/ens/configuration/types';
 import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPES, ENS_SYSTEM_TYPE_LABELS } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
-import { parseConfigurationBack } from '../../../routing/configuration-link';
-import { useRouterSearch } from '../../../routing/use-router-search';
 import { getControlTemplates, getTypeDefaultTemplate } from '../../../../common/ens/configuration/templates';
 import {
   ENS_MANAGER_AGENT,
@@ -170,7 +167,7 @@ export const AgentConfigurationPage = ({
     saveWithPreview({
       title: `Cambiar el tipo de ${label}`,
       confirmLabel: 'Cambiar el tipo',
-      intro: 'Los controles sin plantilla asignada pasan a la plantilla de serie del tipo nuevo.',
+      intro: 'Los controles sin plantilla asignada pasan a la de serie del tipo nuevo.',
       build: latest => setAgentTypeOverride(latest, agentId, type, row.agent),
       reason: type ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.` : `Tipo de ${label}: vuelve al detectado.`,
     });
@@ -183,7 +180,7 @@ export const AgentConfigurationPage = ({
         {
           title: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}`,
           confirmLabel: 'Asignar',
-          intro: 'Los ajustes propios siguen ganando.',
+          intro: 'Los ajustes propios se mantienen.',
           build: latest => setControlTemplateAssignment(latest, controlId, [agentId], templateId, { [agentId]: row.agent }),
           reason: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}.`,
         },
@@ -236,56 +233,28 @@ export const AgentConfigurationPage = ({
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
   ];
 
-  // From the control detail, its own «Volver al detalle» replaces this one only on the detail's agent.
-  const search = useRouterSearch();
-  const fromDetail = Boolean(parseConfigurationBack(search)) && search.agentId === agentId;
-
   return (
-    <EuiPanel paddingSize='l'>
-      {!fromDetail && (
-        <>
-          <EuiButton size='s' onClick={() => onNavigate({ view: 'agents' })}>
-            Volver a agentes
-          </EuiButton>
-          <EuiSpacer size='m' />
-        </>
-      )}
-
-      <EuiTitle size='m'>
-        <h2>{label}</h2>
-      </EuiTitle>
-
+    <>
       <EuiText size='s' color='subdued'>
         <p>
-          {row.inScope ? 'En el alcance ENS.' : 'Fuera del alcance ENS: sus ajustes se conservan pero no se evalúan.'}
-          {row.agent.os?.name ? ` ${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}.` : ''}
-          {` ${completeness.withValue} de ${completeness.total} parámetros de este agente con valor; ${completeness.ownValues} ajustes propios.`}
+          {[
+            row.inScope ? 'En el alcance' : 'Fuera del alcance',
+            row.agent.os?.name ? `${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}` : '',
+            `${completeness.withValue} de ${completeness.total} parámetros con valor`,
+            completeness.ownValues ? `${completeness.ownValues} propios` : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          {loading && <> · <EuiLoadingSpinner size='s' /></>}
         </p>
       </EuiText>
-
-      {loading && (
-        <EuiText size='s' color='subdued'>
-          <p><EuiLoadingSpinner size='s' /> Detectando el tipo de sistema…</p>
-        </EuiText>
-      )}
 
       {!known && !profile && (
         <>
           <EuiSpacer size='s' />
-          <EuiCallOut color='warning' iconType='alert' size='s' title={`No hay ningún agente ${agentId} en el inventario ni en la configuración`}>
-            <p>Lo que se guarde aquí crea un perfil para un id que no es ningún agente conocido.</p>
-          </EuiCallOut>
+          <EuiCallOut color='warning' iconType='alert' size='s' title={`El agente ${agentId} no existe en el inventario`} />
         </>
       )}
-
-      {detectionErrors.map(text => (
-        <React.Fragment key={text}>
-          <EuiSpacer size='s' />
-          <EuiCallOut color='warning' iconType='alert' size='s' title='Detección incompleta'>
-            <p>{text}</p>
-          </EuiCallOut>
-        </React.Fragment>
-      ))}
 
       <EuiSpacer size='m' />
 
@@ -300,7 +269,7 @@ export const AgentConfigurationPage = ({
 
       {orphans.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Ajustes de este agente que no se aplican'>
+          <EuiCallOut color='danger' iconType='alert' size='s' title='Ajustes sin uso'>
             <ul>
               {orphans.map((issue, index) => (
                 <li key={`${index}-${issue.controlId}-${issue.parameterId}`}>
@@ -327,7 +296,7 @@ export const AgentConfigurationPage = ({
 
       {otherIssues.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Ajustes de este agente que hay que corregir'>
+          <EuiCallOut color='danger' iconType='alert' size='s' title='Ajustes que corregir'>
             <ul>{otherIssues.map((issue, index) => <li key={`${index}-${issue.message}`}>{issue.message}</li>)}</ul>
           </EuiCallOut>
           <EuiSpacer size='m' />
@@ -347,10 +316,7 @@ export const AgentConfigurationPage = ({
         </EuiFlexItem>
 
         <EuiFlexItem style={{ minWidth: 320 }}>
-          <EuiFormRow
-            label='Otros nombres de este agente'
-            helpText='Separados por comas; como el id, el nombre y el nombre del equipo, sirven para reconocer las filas que nombran a este agente.'
-          >
+          <EuiFormRow label='Otros nombres' helpText='Separados por comas.'>
             <EuiFieldText
               value={aliasesValue}
               disabled={saving}
@@ -369,7 +335,7 @@ export const AgentConfigurationPage = ({
               if (!failure) setAliasesText(undefined);
             }}
           >
-            Guardar otros nombres
+            Guardar
           </EuiButton>
         </EuiFlexItem>
       </EuiFlexGroup>
@@ -405,7 +371,7 @@ export const AgentConfigurationPage = ({
           onConfirm={confirmClear}
         >
           <EuiText size='s'>
-            <p>Vuelven a heredar de su plantilla o del valor común:</p>
+            <p>Vuelven a tomar el valor de su plantilla:</p>
             <ul>
               {describeAgentEntryRemoval(configuration, agentId, clearing, undefined, { overridesOnly: true }).map(line => <li key={line}>{line}</li>)}
             </ul>
@@ -419,11 +385,8 @@ export const AgentConfigurationPage = ({
       <EuiTitle size='s'>
         <h3>Controles</h3>
       </EuiTitle>
-      <EuiText size='s' color='subdued'>
-        <p>Por control: su plantilla y sus ajustes propios, con el origen de cada valor.</p>
-      </EuiText>
 
-      <EuiSpacer size='m' />
+      <EuiSpacer size='s' />
 
       {controls.map(control => {
         const resolved = resolveControlConfigurationWithOrigins(configuration, control.controlId, agentId);
@@ -443,7 +406,7 @@ export const AgentConfigurationPage = ({
         const templateLabel = current.template
           ? `${current.template.name}${current.via === 'type' ? ' (de serie)' : ''}`
           : assigned === undefined && !typeLabel.stored
-          ? typeLabel.pending ? 'tipo sin guardar: valores comunes' : 'sin tipo: valores comunes'
+          ? 'valores por defecto'
           : 'sin plantilla';
 
         return (
@@ -472,7 +435,7 @@ export const AgentConfigurationPage = ({
                           value: template.id,
                           text: `${template.name}${template.builtin ? ' (de serie)' : ''}`,
                         })),
-                        { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
+                        { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
                         ...(assigned && assigned !== ENS_NO_TEMPLATE && !templates.some(template => template.id === assigned)
                           ? [{ value: assigned, text: `«${assigned}» (no existe)` }]
                           : []),
@@ -489,13 +452,13 @@ export const AgentConfigurationPage = ({
                     isDisabled={saving || value === (assigned === undefined ? BY_TYPE : assigned)}
                     onClick={() => assign(control.controlId, value)}
                   >
-                    Asignar…
+                    Asignar
                   </EuiButton>
                 </EuiFlexItem>
                 {own > 0 && (
                   <EuiFlexItem grow={false}>
                     <EuiButtonEmpty size='s' color='danger' isDisabled={saving} onClick={() => setClearing(control.controlId)}>
-                      Quitar ajustes propios
+                      Quitar propios
                     </EuiButtonEmpty>
                   </EuiFlexItem>
                 )}
@@ -522,11 +485,7 @@ export const AgentConfigurationPage = ({
                     contributionOnly={contribution}
                     organisationRows={contribution ? valueRows(parameter, commonValue) : undefined}
                     effectiveRows={union && (agentId === ENS_MANAGER_AGENT || control.controlId === 'mp.info.6') ? valueRows(parameter, parameter.value) : undefined}
-                    note={
-                      contribution
-                        ? 'Aquí, solo las filas de este agente; se evalúan junto con las comunes y las de los demás agentes.'
-                        : undefined
-                    }
+                    note={contribution ? 'Solo las filas de este agente; se suman a las comunes.' : undefined}
                     applicable={parameter.levels.includes(control.level)}
                     focused={open && target.parameterId === parameter.id}
                     describeSave={(next, matchMode) => describeAgentValueSave(configuration, agentId, control.controlId, parameter.id, next, matchMode)}
@@ -546,15 +505,12 @@ export const AgentConfigurationPage = ({
       })}
 
       {target.controlId && !controls.some(control => control.controlId === target.controlId) && (
-        <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no tiene parámetros por agente en esta configuración`}>
-          <p>
-            O el control no está añadido, o solo tiene ajustes comunes.{' '}
-            <EuiButtonEmpty size='xs' onClick={() => onNavigate({ view: 'controls', controlId: target.controlId, parameterId: target.parameterId })}>
-              Abrirlo en Controles
-            </EuiButtonEmpty>
-          </p>
+        <EuiCallOut color='warning' iconType='iInCircle' size='s' title={`${target.controlId} no tiene parámetros por agente`}>
+          <EuiButtonEmpty size='xs' onClick={() => onNavigate({ view: 'controls', controlId: target.controlId, parameterId: target.parameterId })}>
+            Abrir en Plantillas
+          </EuiButtonEmpty>
         </EuiCallOut>
       )}
-    </EuiPanel>
+    </>
   );
 };

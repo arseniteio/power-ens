@@ -1,12 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { withInventoryTypes } from '../../../../common/ens/configuration/agents/system-detection';
 import {
-  EuiAccordion,
   EuiBadge,
-  EuiBasicTable,
   EuiButton,
   EuiButtonEmpty,
   EuiCallOut,
+  EuiFieldSearch,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFlyout,
+  EuiFlyoutBody,
+  EuiFlyoutHeader,
+  EuiFormRow,
+  EuiInMemoryTable,
+  EuiLink,
+  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -14,31 +22,26 @@ import {
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
-import { getAgentSystemType } from '../../../../common/ens/configuration/agents/configuration-resolver';
-import { ENS_NO_TEMPLATE, ENS_SYSTEM_TYPE_LABELS, normalizeAgentId } from '../../../../common/agent-configuration';
+import { ENS_NO_TEMPLATE, normalizeAgentId } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
-import type { ENSAgentScope } from '../../../../common/ens/core/scope/types';
+import { detectAgentSystem, effectiveSystemType } from '../../../../common/ens/configuration/agents/system-detection';
 import {
-  ENSSystemDetection,
-  detectAgentSystem,
-  effectiveSystemType,
-} from '../../../../common/ens/configuration/agents/system-detection';
-import {
+  ENSAssignmentPreview,
+  describeTemplateChoice,
   getAgentCompleteness,
+  previewControlAssignment,
   removeAgentEntry,
+  setControlTemplateAssignment,
 } from '../../../../common/ens/configuration/agents/agent-configuration-actions';
 import { getAgentControls } from '../../../../common/ens/configuration/agents/agent-controls';
-import {
-  describeMigrationWarning,
-  planMigrationToSystems,
-  summarizeMigrationPlan,
-} from '../../../../common/ens/configuration/agents/migration';
 import { validateAgentsConfiguration } from '../../../../common/ens/configuration/agents/agent-configuration-validator';
+import { getControlTemplates, hasTemplateParameters } from '../../../../common/ens/configuration/templates';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services/configuration-state-service';
 
 import { AgentConfigurationPage } from './agent-configuration-page';
-import { ConfirmModal, errorMessage } from './confirm-modal';
-import { agentStatusLabel, agentTypeLabel, parameterLabel } from './labels';
+import { ChangePreviewModal } from './change-preview-modal';
+import { errorMessage } from './confirm-modal';
+import { agentStatusLabel, agentTypeLabel, plural } from './labels';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { ENSAgentRow, agentRowLabel, buildAgentRows, useAgentsData } from './use-agents-data';
 
@@ -52,34 +55,30 @@ interface AgentsTabProps {
 
 type Notice = { color: 'success' | 'danger' | 'warning'; text: string } | undefined;
 
+const BY_TYPE = '__type';
+
+interface BulkAssignment {
+  controlId: string;
+  templateId: string | undefined;
+  agentIds: string[];
+  previews: ENSAssignmentPreview[];
+}
+
 // Profiles of machines out of the scope are listed too, so nothing stored is hidden.
-export const AgentsTab = ({
-  configuration: stored,
-  target,
-  getActiveLevel,
-  onNavigate,
-  onConfigurationSaved,
-}: AgentsTabProps) => {
+export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNavigate, onConfigurationSaved }: AgentsTabProps) => {
   const data = useAgentsData();
   const configuration = useMemo(() => withInventoryTypes(stored, data.inventory), [stored, data.inventory]);
-  const [confirmMigration, setConfirmMigration] = useState(false);
-  // A whole profile or control is removed only after showing what is lost.
   const [removal, setRemoval] = useState<ENSEntryRemoval | undefined>();
   const [notice, setNotice] = useState<Notice>();
+  const [query, setQuery] = useState('');
+  const [selection, setSelection] = useState<ENSAgentRow[]>([]);
+  const [bulkControl, setBulkControl] = useState('');
+  const [bulkTemplate, setBulkTemplate] = useState(BY_TYPE);
+  const [bulk, setBulk] = useState<BulkAssignment | undefined>();
 
   const rows = useMemo<ENSAgentRow[]>(() => buildAgentRows(configuration, data), [data, configuration]);
   const agentLabels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
-
-  const scopeIds = useMemo(() => data.scopeAgents.map(agent => normalizeAgentId(agent.id)), [data.scopeAgents]);
-
-  const migration = useMemo(
-    () => planMigrationToSystems(configuration, data.inventory, { scopeAgentIds: scopeIds }),
-    [configuration, data.inventory, scopeIds]
-  );
-
-  const issues = useMemo(() => validateAgentsConfiguration(configuration), [configuration]);
-  const errors = issues.filter(issue => issue.severity === 'error');
-  const warnings = issues.filter(issue => issue.severity === 'warning');
+  const errors = useMemo(() => validateAgentsConfiguration(configuration).filter(issue => issue.severity === 'error'), [configuration]);
 
   // Once per document, not on every click.
   const completeness = useMemo(() => {
@@ -94,39 +93,13 @@ export const AgentsTab = ({
     return byId;
   }, [rows, configuration, getActiveLevel]);
 
-  const rowById = (id: string) => rows.find(row => row.id === id);
+  const templatedControls = configuration.controls.filter(control => hasTemplateParameters(control.controlId));
+  const bulkTemplates = bulkControl ? getControlTemplates(configuration, bulkControl) : [];
 
-  const runMigration = async (): Promise<string | undefined> => {
-    if (!scopeIds.length) return 'El alcance ENS no tiene ningún agente: no se puede repartir.';
+  const save = async (build: (latest: ENSConfigurationVersion) => ENSConfigurationVersion, reason: string): Promise<string | undefined> => {
     try {
-      const done = await saveFromLatestConfiguration(latest => {
-        const plan = planMigrationToSystems(latest, data.inventory, { scopeAgentIds: scopeIds });
-        return plan.changed && !plan.incomplete.length
-          ? { configuration: plan.configuration, reason: summarizeMigrationPlan(plan) }
-          : undefined;
-      });
-      setConfirmMigration(false);
-      setNotice({
-        color: done ? 'success' : 'warning',
-        text: done
-          ? `${summarizeMigrationPlan(migration)} La versión anterior queda en el historial.`
-          : 'No había nada que repartir en la versión más reciente del documento.',
-      });
-      onConfigurationSaved();
-      return undefined;
-    } catch (error) {
-      return errorMessage(error);
-    }
-  };
-
-  const removeOrphan = async (agentKey: string, controlId?: string, parameterId?: string): Promise<string | undefined> => {
-    try {
-      await saveFromLatestConfiguration(latest => ({
-        configuration: removeAgentEntry(latest, agentKey, controlId, parameterId),
-        reason: controlId
-          ? `Quitado de ${agentKey} un valor que no se aplicaba (${controlId}${parameterId ? ` ${parameterId}` : ''}).`
-          : `Quitado el perfil ${agentKey}, que no se aplicaba a ninguna máquina.`,
-      }));
+      await saveFromLatestConfiguration(latest => ({ configuration: build(latest), reason }));
+      setNotice({ color: 'success', text: reason });
       onConfigurationSaved();
       return undefined;
     } catch (error) {
@@ -136,14 +109,35 @@ export const AgentsTab = ({
     }
   };
 
-  // A single value goes directly; a whole profile or control after its preview.
-  const askRemoval = (agentKey: string, controlId?: string, parameterId?: string) => {
-    if (parameterId) {
-      removeOrphan(agentKey, controlId, parameterId);
-      return;
+  const askBulk = () => {
+    const agentIds = selection.map(row => row.id);
+    const templateId = bulkTemplate === BY_TYPE ? undefined : bulkTemplate;
+    try {
+      setBulk({ controlId: bulkControl, templateId, agentIds, previews: previewControlAssignment(configuration, bulkControl, agentIds, templateId).previews });
+    } catch (error) {
+      setNotice({ color: 'danger', text: errorMessage(error) });
     }
-    setRemoval({ agentKey, controlId });
   };
+
+  const confirmBulk = async () => {
+    if (!bulk) return undefined;
+    const agents = Object.fromEntries(selection.map(row => [row.id, row.agent]));
+    const failure = await save(
+      latest => setControlTemplateAssignment(latest, bulk.controlId, bulk.agentIds, bulk.templateId, agents),
+      `${bulk.controlId}: ${describeTemplateChoice(configuration, bulk.controlId, bulk.templateId)} para ${plural(bulk.agentIds.length, 'agente', 'agentes')}.`
+    );
+    if (!failure) {
+      setBulk(undefined);
+      setSelection([]);
+    }
+    return failure;
+  };
+
+  const removeOrphan = (agentKey: string, controlId?: string, parameterId?: string) =>
+    save(
+      latest => removeAgentEntry(latest, agentKey, controlId, parameterId),
+      controlId ? `${agentKey}: quitado un ajuste sin uso (${controlId}${parameterId ? ` ${parameterId}` : ''}).` : `Quitado el perfil sin uso ${agentKey}.`
+    );
 
   const confirmRemoval = async (): Promise<string | undefined> => {
     if (!removal) return undefined;
@@ -152,119 +146,73 @@ export const AgentsTab = ({
     return failure;
   };
 
-  if (target.agentId) {
-    const id = normalizeAgentId(target.agentId);
-    const inventoryAgent = data.inventory.find(agent => normalizeAgentId(agent.id) === id);
-    const row: ENSAgentRow = rowById(id) || {
-      id,
-      agent: inventoryAgent || { id, groups: [] },
-      inScope: false,
-      detection: detectAgentSystem(inventoryAgent || { id }),
-    };
-    return (
-      <AgentConfigurationPage
-        key={row.id}
-        configuration={configuration}
-        row={row}
-        known={!!rowById(id) || !!inventoryAgent}
-        loading={data.loading}
-        detectionErrors={data.errors}
-        target={target}
-        getActiveLevel={getActiveLevel}
-        onNavigate={onNavigate}
-        onConfigurationSaved={onConfigurationSaved}
-      />
-    );
-  }
+  const openId = target.agentId ? normalizeAgentId(target.agentId) : undefined;
+  const openRow: ENSAgentRow | undefined = openId
+    ? rows.find(row => row.id === openId) || {
+        id: openId,
+        agent: data.inventory.find(agent => normalizeAgentId(agent.id) === openId) || { id: openId, groups: [] },
+        inScope: false,
+        detection: detectAgentSystem(data.inventory.find(agent => normalizeAgentId(agent.id) === openId) || { id: openId }),
+      }
+    : undefined;
+
+  const q = query.trim().toLowerCase();
+  const listed = rows.filter(row => !q || agentRowLabel(row).toLowerCase().includes(q));
 
   const columns: EuiBasicTableColumn<ENSAgentRow>[] = [
     {
       field: 'id',
       name: 'Agente',
-      render: (_id: string, row: ENSAgentRow) => (
-        <EuiButtonEmpty size='xs' flush='left' onClick={() => onNavigate({ view: 'agents', agentId: row.id })}>
-          {agentRowLabel(row)}
-        </EuiButtonEmpty>
-      ),
+      sortable: true,
+      render: (_id: string, row: ENSAgentRow) => <EuiLink onClick={() => onNavigate({ view: 'agents', agentId: row.id })}>{agentRowLabel(row)}</EuiLink>,
     },
     {
       field: 'detection',
       name: 'Tipo',
-      render: (_detection: ENSSystemDetection, row: ENSAgentRow) => {
-        const profile = configuration.agents?.[row.id];
-        const type = agentTypeLabel(profile, row.detection, data.loading);
-        return (
-          <div>
-            <EuiBadge color={type.color}>{type.text}</EuiBadge>
-            <EuiText size='xs' color='subdued'>
-              <p>{data.loading && !type.stored ? 'Detectando…' : effectiveSystemType(row.detection, profile).description}</p>
-            </EuiText>
-          </div>
-        );
+      width: '150px',
+      render: (_detection: unknown, row: ENSAgentRow) => {
+        const type = agentTypeLabel(configuration.agents?.[row.id], row.detection, data.loading);
+        return <EuiBadge color={type.color}>{type.text}</EuiBadge>;
       },
     },
     {
       field: 'agent',
-      name: 'Plantillas',
-      render: (_agent: ENSAgentScope, row: ENSAgentRow) => {
+      name: 'Plantillas propias',
+      width: '150px',
+      render: (_agent: unknown, row: ENSAgentRow) => {
         const controls = configuration.agents?.[row.id]?.controls || {};
         const assigned = Object.values(controls).filter(entry => typeof entry?.templateId === 'string' && entry.templateId !== ENS_NO_TEMPLATE).length;
-        const type = getAgentSystemType(configuration.agents?.[row.id]);
-        return (
-          <EuiText size='xs'>
-            <p>
-              {assigned ? `${assigned} control(es) con plantilla asignada` : 'Ninguna asignada'}
-              {type ? `; el resto, la de serie de ${ENS_SYSTEM_TYPE_LABELS[type]}` : row.detection.type ? '; el resto, valores comunes hasta guardar su tipo' : '; el resto, valores comunes (sin tipo)'}
-            </p>
-          </EuiText>
-        );
+        return assigned || '—';
       },
     },
     {
       field: 'inScope',
-      name: 'Completitud',
+      name: 'Configuración',
+      width: '170px',
       render: (_inScope: boolean, row: ENSAgentRow) => {
         const value = completeness.get(row.id);
-        return value ? (
-          <EuiText size='xs'>
-            <p>
-              {value.withValue} de {value.total} con valor · {value.ownValues} propios
-              {value.missingRequired.length ? ` · ${value.missingRequired.length} obligatorios sin valor` : ''}
-            </p>
-          </EuiText>
-        ) : null;
+        if (!value) return null;
+        return value.missingRequired.length ? (
+          <EuiBadge color='danger'>{`Faltan ${value.missingRequired.length}`}</EuiBadge>
+        ) : (
+          <EuiBadge color='success'>Completa</EuiBadge>
+        );
       },
     },
     {
       field: 'agent',
       name: 'Estado',
-      render: (agent: ENSAgentScope, row: ENSAgentRow) =>
-        row.inScope ? (
-          <EuiText size='xs'><p>{agentStatusLabel(agent.status)}</p></EuiText>
-        ) : (
-          <EuiBadge color='default'>fuera del alcance</EuiBadge>
-        ),
+      width: '140px',
+      render: (agent: ENSAgentRow['agent'], row: ENSAgentRow) =>
+        row.inScope ? <EuiText size='xs'><span>{agentStatusLabel(agent.status)}</span></EuiText> : <EuiBadge color='default'>Fuera del alcance</EuiBadge>,
     },
   ];
 
-  const byAgent = Array.from(new Set<string>(migration.moves.map(move => move.agentId))).sort();
-
   return (
     <>
-      <EuiTitle size='s'>
-        <h3>Agentes del alcance</h3>
-      </EuiTitle>
-      <EuiText size='s' color='subdued'>
-        <p>El tipo de cada agente sale del inventario de Wazuh y se corrige en su página; el alcance se define en la configuración inicial.</p>
-      </EuiText>
-
-      <EuiSpacer size='m' />
-
       {data.errors.map(error => (
         <React.Fragment key={error}>
-          <EuiCallOut color='warning' iconType='alert' size='s' title='No se pudo leer todo'>
-            <p>{error}</p>
-          </EuiCallOut>
+          <EuiCallOut color='warning' iconType='alert' size='s' title={error} />
           <EuiSpacer size='s' />
         </React.Fragment>
       ))}
@@ -276,99 +224,19 @@ export const AgentsTab = ({
         </>
       )}
 
-      {migration.emptyScope && !data.loading && (
-        <>
-          <EuiCallOut color='warning' iconType='alert' size='s' title='«Repartir por agentes» no está disponible: el alcance ENS no tiene ningún agente'>
-            <p>Sin agentes en el alcance no se puede comprobar que ninguno se quede sin un parámetro obligatorio.</p>
-            <EuiButton fill size='s' isDisabled>
-              Repartir por agentes
-            </EuiButton>
-          </EuiCallOut>
-          <EuiSpacer size='m' />
-        </>
-      )}
-
-      {migration.changed && (
-        <>
-          <EuiCallOut color='primary' iconType='iInCircle' title='Hay filas del valor común que son de un agente concreto'>
-            <p>{summarizeMigrationPlan(migration)}</p>
-            <p>Copia a cada agente las filas que lo nombran; nada se borra.</p>
-            <EuiAccordion id='ens-migration-moves' buttonContent='Ver qué se mueve y qué se copia'>
-              <ul>
-                {migration.moves.map(move => (
-                  <li key={`${move.agentId}-${move.controlId}-${move.parameterId}`}>
-                    {agentLabels[move.agentId] || `${move.agentId}${move.agentName ? ` · ${move.agentName}` : ''}`}: {parameterLabel(configuration, `${move.controlId} ${move.parameterId}`)}, {move.rows.length} fila(s) {move.mode === 'movida' ? 'salen del valor común' : 'se copian (se quedan también en el valor común)'}
-                  </li>
-                ))}
-              </ul>
-            </EuiAccordion>
-            <EuiSpacer size='s' />
-            <EuiButton fill size='s' isDisabled={data.loading || migration.incomplete.length > 0 || !scopeIds.length} onClick={() => setConfirmMigration(true)}>
-              Repartir por agentes
-            </EuiButton>
-          </EuiCallOut>
-          <EuiSpacer size='m' />
-        </>
-      )}
-
-      {confirmMigration && (
-        <ConfirmModal
-          title='Repartir por agentes'
-          confirmLabel='Repartir'
-          typedWord='repartir'
-          danger
-          onCancel={() => setConfirmMigration(false)}
-          onConfirm={runMigration}
-        >
-          <EuiText size='s'>
-            <p>{summarizeMigrationPlan(migration)}</p>
-            {byAgent.map(agentId => (
-              <React.Fragment key={agentId}>
-                <h4>Agente {agentLabels[agentId] || agentId}</h4>
-                <ul>
-                  {migration.moves.filter(move => move.agentId === agentId).map(move => (
-                    <li key={`${move.controlId}-${move.parameterId}`}>
-                      {parameterLabel(configuration, `${move.controlId} ${move.parameterId}`)}: {move.rows.length} fila(s) {move.mode === 'movida' ? 'movidas' : 'copiadas'}
-                    </li>
-                  ))}
-                </ul>
-              </React.Fragment>
-            ))}
-            <p>
-              Parámetros que se quedarían sin valor en algún agente del alcance:{' '}
-              {migration.incomplete.length ? migration.incomplete.map(item => `${agentLabels[item.agentId] || item.agentId}: ${parameterLabel(configuration, `${item.controlId} ${item.parameterId}`)}`).join(', ') : 'ninguno'}.
-            </p>
-            <p>
-              <strong>Los veredictos de estos agentes pueden cambiar</strong>: cada uno pasa a evaluarse con sus filas.
-            </p>
-            <p>La versión anterior queda en el historial.</p>
-          </EuiText>
-        </ConfirmModal>
-      )}
-
-      {migration.warnings.length > 0 && (
-        <>
-          <EuiCallOut color='warning' iconType='iInCircle' title={`${migration.warnings.length} fila(s) sin agente se quedan en el valor común`}>
-            <p>Si una nombra a un agente con otro nombre, se añade en su página, en «Otros nombres de este agente».</p>
-            <ul>
-              {migration.warnings.map((warning, index) => (
-                <li key={`${index}-${warning.controlId}-${warning.parameterId}`}>{describeMigrationWarning(warning, configuration)}</li>
-              ))}
-            </ul>
-          </EuiCallOut>
-          <EuiSpacer size='m' />
-        </>
-      )}
-
       {errors.length > 0 && (
         <>
-          <EuiCallOut color='danger' iconType='alert' title='Ajustes de agentes que hay que corregir'>
+          <EuiCallOut color='danger' iconType='alert' size='s' title={`${plural(errors.length, 'ajuste que corregir', 'ajustes que corregir')}`}>
             <ul>
               {errors.map((issue, index) => (
                 <li key={`${index}-${issue.agentId}`}>
                   {agentLabels[issue.agentId] || issue.agentId}: {issue.message}
                   {issue.kind === 'huerfano' && (
-                    <EuiButtonEmpty size='xs' color='danger' onClick={() => askRemoval(issue.agentId, issue.controlId, issue.parameterId)}>
+                    <EuiButtonEmpty
+                      size='xs'
+                      color='danger'
+                      onClick={() => (issue.parameterId ? removeOrphan(issue.agentId, issue.controlId, issue.parameterId) : setRemoval({ agentKey: issue.agentId, controlId: issue.controlId }))}
+                    >
                       Quitar
                     </EuiButtonEmpty>
                   )}
@@ -380,33 +248,104 @@ export const AgentsTab = ({
         </>
       )}
 
-      {removal && (
-        <RemoveEntryModal
-          configuration={configuration}
-          removal={removal}
-          onCancel={() => setRemoval(undefined)}
-          onConfirm={confirmRemoval}
-        />
-      )}
+      <EuiFlexGroup gutterSize='s' alignItems='flexEnd' responsive={false} wrap>
+        <EuiFlexItem style={{ maxWidth: 360 }}>
+          <EuiFieldSearch compressed placeholder='Buscar agente' value={query} onChange={e => setQuery(e.target.value)} isClearable />
+        </EuiFlexItem>
+        <EuiFlexItem />
+        {selection.length > 0 && (
+          <>
+            <EuiFlexItem grow={false}>
+              <EuiFormRow label={`Asignar a ${plural(selection.length, 'agente', 'agentes')}`} display='rowCompressed'>
+                <EuiSelect
+                  compressed
+                  options={[{ value: '', text: 'Control…' }, ...templatedControls.map(control => ({ value: control.controlId, text: `${control.controlId} · ${control.controlName}` }))]}
+                  value={bulkControl}
+                  onChange={e => {
+                    setBulkControl(e.target.value);
+                    setBulkTemplate(BY_TYPE);
+                  }}
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiFormRow label='Plantilla' display='rowCompressed'>
+                <EuiSelect
+                  compressed
+                  disabled={!bulkControl}
+                  options={[
+                    { value: BY_TYPE, text: 'La de serie de su tipo' },
+                    ...bulkTemplates.map(template => ({ value: template.id, text: `${template.name}${template.builtin ? ' (de serie)' : ''}` })),
+                    { value: ENS_NO_TEMPLATE, text: 'Sin plantilla' },
+                  ]}
+                  value={bulkTemplate}
+                  onChange={e => setBulkTemplate(e.target.value)}
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiButton size='s' fill isDisabled={!bulkControl} onClick={askBulk}>
+                Asignar
+              </EuiButton>
+            </EuiFlexItem>
+          </>
+        )}
+      </EuiFlexGroup>
 
-      {warnings.length > 0 && (
-        <>
-          <EuiCallOut color='primary' iconType='iInCircle' size='s' title='Datos de otra versión del plugin (se ignoran)'>
-            <ul>
-              {warnings.map((issue, index) => <li key={`${index}-${issue.agentId}`}>{issue.message}</li>)}
-            </ul>
-          </EuiCallOut>
-          <EuiSpacer size='m' />
-        </>
-      )}
+      <EuiSpacer size='m' />
 
-      <EuiBasicTable
-        items={rows}
+      <EuiInMemoryTable
+        items={listed}
         itemId='id'
         columns={columns}
         loading={data.loading}
-        noItemsMessage='No hay agentes en el alcance.'
+        isSelectable
+        selection={{ onSelectionChange: setSelection }}
+        pagination={{ initialPageSize: 25, pageSizeOptions: [25, 50, 100] }}
+        sorting={{ sort: { field: 'id', direction: 'asc' } }}
+        message='No hay agentes en el alcance.'
       />
+
+      {bulk && (
+        <ChangePreviewModal
+          title={`${bulk.controlId}: ${describeTemplateChoice(configuration, bulk.controlId, bulk.templateId)}`}
+          confirmLabel='Asignar'
+          intro='Los ajustes propios de cada agente se mantienen.'
+          configuration={configuration}
+          agentLabels={agentLabels}
+          previews={bulk.previews}
+          onCancel={() => setBulk(undefined)}
+          onConfirm={confirmBulk}
+        />
+      )}
+
+      {removal && (
+        <RemoveEntryModal configuration={configuration} removal={removal} onCancel={() => setRemoval(undefined)} onConfirm={confirmRemoval} />
+      )}
+
+      {openRow && (
+        <EuiFlyout size='l' ownFocus onClose={() => onNavigate({ view: 'agents' })} aria-labelledby='ens-agent-flyout-title'>
+          <EuiFlyoutHeader hasBorder>
+            <EuiTitle size='s'>
+              <h2 id='ens-agent-flyout-title'>{agentRowLabel(openRow)}</h2>
+            </EuiTitle>
+          </EuiFlyoutHeader>
+          <EuiFlyoutBody>
+            <AgentConfigurationPage
+              key={openRow.id}
+              configuration={configuration}
+              row={openRow}
+              known={rows.some(row => row.id === openRow.id) || data.inventory.some(agent => normalizeAgentId(agent.id) === openRow.id)}
+              loading={data.loading}
+              detectionErrors={data.errors}
+              target={target}
+              getActiveLevel={getActiveLevel}
+              onNavigate={onNavigate}
+              onConfigurationSaved={onConfigurationSaved}
+            />
+          </EuiFlyoutBody>
+        </EuiFlyout>
+      )}
     </>
   );
 };

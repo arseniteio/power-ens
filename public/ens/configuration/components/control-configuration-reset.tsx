@@ -100,7 +100,7 @@ export const ControlConfigurationReset = ({
           parámetro(s) con valor declarado:{' '}
           {summary.parameterIds.join(', ')}.
         </p>
-        <p>Los Datos de la organización que lee este control no se borran: se editan en General.</p>
+        <p>Los datos de la organización no se borran.</p>
         <p>
           No se puede deshacer.
         </p>
@@ -111,10 +111,7 @@ export const ControlConfigurationReset = ({
 
       <EuiSpacer size='m' />
 
-      <EuiFormRow
-        label={`Escribe «${control.controlId}» para confirmar`}
-        helpText='Tener que teclearlo es deliberado: obliga a mirar qué se está borrando.'
-      >
+      <EuiFormRow label={`Escribe «${control.controlId}» para confirmar`}>
         <EuiFieldText
           value={confirmation}
           onChange={(

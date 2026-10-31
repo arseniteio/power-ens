@@ -53,10 +53,10 @@ const BY_TYPE = '__type';
 const describeEffectiveTemplate = (configuration: ENSConfigurationVersion, row: ENSAgentRow, controlId: string): string => {
   const effective = getEffectiveTemplate(configuration, row.id, controlId);
   if (effective.template) return `${effective.template.name}${effective.via === 'type' ? ' (de serie, por su tipo)' : ''}`;
-  if (effective.assignedId === ENS_NO_TEMPLATE) return 'Sin plantilla (valores comunes)';
+  if (effective.assignedId === ENS_NO_TEMPLATE) return 'Sin plantilla (valores por defecto)';
   const type = agentTypeLabel(configuration.agents?.[row.id], row.detection);
-  if (type.stored) return 'Ninguna: valores comunes';
-  return type.pending ? 'Ninguna hasta guardar su tipo: valores comunes' : 'Ninguna: sin tipo, valores comunes';
+  if (type.stored) return 'Ninguna: valores por defecto';
+  return type.pending ? 'Ninguna hasta guardar su tipo: valores por defecto' : 'Ninguna: sin tipo, valores por defecto';
 };
 
 export const ControlAssignmentPanel = ({
@@ -203,7 +203,7 @@ export const ControlAssignmentPanel = ({
               { value: '', text: 'Elegir plantilla…' },
               { value: BY_TYPE, text: 'La de serie de su tipo' },
               ...templates.map(template => ({ value: template.id, text: `${template.name}${template.builtin ? ' (de serie)' : ''}` })),
-              { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
+              { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
             ]}
             value={choice}
             onChange={event => setChoice(event.target.value)}

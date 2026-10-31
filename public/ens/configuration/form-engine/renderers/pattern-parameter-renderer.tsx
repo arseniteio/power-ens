@@ -61,7 +61,7 @@ export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchMo
           <EuiFormRow
             label={`${parameter.id} · ${parameter.label}`}
             fullWidth
-            helpText='Coincide con el valor completo y distingue mayúsculas. Escribe el patrón sin barras /…/. Ejemplo: ^svc_.*$.'
+            helpText='Valor completo, distingue mayúsculas, sin barras. Ej.: ^svc_.*$'
             isInvalid={!verdict.valid}
             error={verdict.reason}
           >

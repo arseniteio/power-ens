@@ -957,7 +957,7 @@ const ControlWithoutReportModel = ({
   >
     <EuiText size='xs'>
       <p>
-        Se evalúa en Controles. Alta en{' '}
+        Sin modelo de informe en{' '}
         <code>public/ens/reports/registry.ts</code>.
       </p>
     </EuiText>

@@ -62,8 +62,8 @@ const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contr
     return origin.via === 'type' ? `heredado de la plantilla de serie «${name}» de su tipo` : `heredado de la plantilla asignada «${name}»`;
   }
   if (contributionOnly) return 'este agente no aporta filas propias';
-  if (origin.source === 'union') return `unión del valor común y de los agentes ${(origin.contributors || []).join(', ')}`;
-  return hasValue ? 'heredado del valor común del control' : 'sin valor: ni ajuste propio, ni plantilla, ni valor común';
+  if (origin.source === 'union') return `unión del valor por defecto y de los agentes ${(origin.contributors || []).join(', ')}`;
+  return hasValue ? 'heredado del valor por defecto' : 'sin valor: ni ajuste propio, ni plantilla, ni valor por defecto';
 };
 
 export const valueRows = (
@@ -89,8 +89,8 @@ const Rows = ({ rows }: { rows: string[] }) =>
   );
 
 const HINTS: Record<'quitar' | 'igual', string> = {
-  quitar: 'Vacío: al guardar, este agente se queda sin ajuste propio y vuelve a heredar.',
-  igual: 'Igual al que ya hereda: no se guarda como propio y seguirá a su origen cuando cambie.',
+  quitar: 'Vacío: vuelve a heredar.',
+  igual: 'Igual al heredado: no se guarda como propio.',
 };
 
 export const AgentParameterRow = ({
@@ -209,7 +209,7 @@ export const AgentParameterRow = ({
         {link && (
           <EuiText size='xs' color='subdued'>
             <p>
-              {`El valor común es «${link.item.label}», de Datos de la organización. `}
+              {`Valor de «${link.item.label}» (Organización). `}
               <EuiLink onClick={() => setSearch(configurationSearchChanges({ view: 'general', itemId: link.item.id }))}>
                 {`Ir a «${link.item.label}»`}
               </EuiLink>
@@ -227,7 +227,7 @@ export const AgentParameterRow = ({
 
         {contributionOnly && organisationRows && organisationRows.length > 0 && (
           <EuiText size='xs' color='subdued'>
-            <p><strong>Del valor común</strong> (solo lectura; se edita en {link ? '«Datos de la organización»' : '«Controles»'}):</p>
+            <p><strong>Del valor por defecto</strong> (solo lectura; se edita en {link ? 'Organización' : '«Plantillas»'}):</p>
             <Rows rows={organisationRows} />
           </EuiText>
         )}

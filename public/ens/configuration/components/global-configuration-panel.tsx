@@ -291,7 +291,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Nivel ENS'
-        helpText='Categoría del sistema: el nivel más alto de sus dimensiones. La usan los controles que se aplican por categoría.'
+        helpText='Categoría del sistema: el nivel más alto de sus dimensiones.'
         fullWidth
       >
         <EuiSelect

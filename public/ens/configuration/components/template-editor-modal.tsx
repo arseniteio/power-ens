@@ -154,7 +154,7 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
                   </EuiFlexItem>
                   {empty && (
                     <EuiFlexItem grow={false}>
-                      <EuiBadge color='default'>sin valor: toma el valor común</EuiBadge>
+                      <EuiBadge color='default'>sin valor: toma el valor por defecto</EuiBadge>
                     </EuiFlexItem>
                   )}
                 </EuiFlexGroup>
@@ -177,7 +177,7 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
                           setModes(current => ({ ...current, [parameter.id]: 'exact' }));
                         }}
                       >
-                        Vaciar (valor común)
+                        Vaciar (valor por defecto)
                       </EuiButtonEmpty>
                     )}
                   </>

@@ -66,7 +66,7 @@ const getConfigurationStateDescription = (
 ): string => {
   if (state.status === 'CONFIGURED') {
     return (
-      `Todos los parámetros obligatorios aplicables al nivel ${activeLevel} están configurados.`
+      `Completo para el nivel ${activeLevel}.`
     );
   }
 
@@ -91,7 +91,7 @@ const getConfigurationStateDescription = (
   }
 
   return (
-    `Todavía no existen valores explícitos para los parámetros aplicables al nivel ${activeLevel}.`
+    `Sin valores para el nivel ${activeLevel}.`
   );
 };
 

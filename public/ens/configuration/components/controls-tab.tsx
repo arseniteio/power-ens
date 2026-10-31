@@ -1,6 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { withInventoryTypes } from '../../../../common/ens/configuration/agents/system-detection';
-import { EuiBadge, EuiBasicTable, EuiButton, EuiButtonEmpty, EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
+import {
+  EuiBadge,
+  EuiButton,
+  EuiCallOut,
+  EuiFieldSearch,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFlyout,
+  EuiFlyoutBody,
+  EuiFlyoutHeader,
+  EuiInMemoryTable,
+  EuiLink,
+  EuiSpacer,
+  EuiText,
+  EuiTitle,
+} from '@elastic/eui';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type {
@@ -56,25 +71,37 @@ export const ControlsTab = (props: ControlsTabProps) => {
   const configuration = useMemo(() => withInventoryTypes(props.configuration, data.inventory), [props.configuration, data.inventory]);
   const selected = target.controlId ? configuration.controls.find(control => control.controlId === target.controlId) : undefined;
 
-  if (selected) {
-    return (
-      <ControlPage
-        key={selected.controlId}
-        configuration={configuration}
-        control={selected}
-        activeLevel={getActiveLevel(selected.controlId)}
-        focusParameterId={target.parameterId}
-        data={data}
-        onNavigate={onNavigate}
-        onConfigurationSaved={onConfigurationSaved}
-      />
-    );
-  }
-
-  return <ControlsList {...props} data={data} />;
+  return (
+    <>
+      <ControlsList {...props} configuration={configuration} data={data} />
+      {selected && (
+        <EuiFlyout size='l' ownFocus onClose={() => onNavigate({ view: 'controls' })} aria-labelledby='ens-control-flyout-title'>
+          <EuiFlyoutHeader hasBorder>
+            <EuiBadge color='hollow'>{selected.controlId}</EuiBadge>
+            <EuiTitle size='s'>
+              <h2 id='ens-control-flyout-title'>{selected.controlName}</h2>
+            </EuiTitle>
+          </EuiFlyoutHeader>
+          <EuiFlyoutBody>
+            <ControlPage
+              key={selected.controlId}
+              configuration={configuration}
+              control={selected}
+              activeLevel={getActiveLevel(selected.controlId)}
+              focusParameterId={target.parameterId}
+              data={data}
+              onNavigate={onNavigate}
+              onConfigurationSaved={onConfigurationSaved}
+            />
+          </EuiFlyoutBody>
+        </EuiFlyout>
+      )}
+    </>
+  );
 };
 
 const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onConfigurationSaved, data }: ControlsTabProps & { data: ENSAgentsData }) => {
+  const [query, setQuery] = useState('');
   const [adding, setAdding] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const rows = useMemo(() => buildAgentRows(configuration, data).filter(row => row.inScope), [configuration, data]);
@@ -98,7 +125,7 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
       const done = await saveFromLatestConfiguration(latest => {
         const result = addMissingControls(latest, controlIds);
         return result.added.length
-          ? { configuration: result.configuration, reason: `Alta de ${result.added.join(', ')} con valores por defecto.` }
+          ? { configuration: result.configuration, reason: `Añadido ${result.added.join(', ')}.` }
           : undefined;
       });
       if (done) onConfigurationSaved();
@@ -109,17 +136,18 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
     }
   };
 
+  const q = query.trim().toLowerCase();
   const items: ControlRow[] = ENSConfigurationRegistry.map(catalog => ({
     id: catalog.controlId,
     catalog,
     control: configuration.controls.find(control => control.controlId === catalog.controlId),
-  }));
+  })).filter(row => !q || row.id.includes(q) || row.catalog.controlName.toLowerCase().includes(q));
 
   const nameOf = (control: ENSControlConfiguration, parameterId: string) =>
     control.parameters.find(parameter => parameter.id === parameterId)?.label || parameterId;
 
   const stateOf = (row: ControlRow): { key: string; lines: string[] } => {
-    if (!row.control) return { key: 'MISSING', lines: ['No se evalúa hasta añadirlo.'] };
+    if (!row.control) return { key: 'MISSING', lines: [] };
     const control = row.control;
     const state = resolveControlConfigurationState(commonView(control), getActiveLevel(row.id));
     const lines =
@@ -130,7 +158,7 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
         : [];
     const perAgent = Object.entries(gaps[row.id] || {}).map(([parameterId, count]) => `Falta «${nameOf(control, parameterId)}» en ${plural(count, 'agente', 'agentes')}.`);
     const key = perAgent.length && (state.status === 'CONFIGURED' || state.status === 'NOT_CONFIGURED') ? 'INCOMPLETE' : state.status;
-    const all = [...lines, ...perAgent, ...(data.loading ? ['Comprobando los agentes…'] : [])];
+    const all = [...lines, ...perAgent];
     return { key, lines: all.length > MAX_LINES ? [...all.slice(0, MAX_LINES), `Y ${all.length - MAX_LINES} más.`] : all };
   };
 
@@ -138,13 +166,15 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
     {
       field: 'id',
       name: 'Control',
+      width: '40%',
+      sortable: true,
       render: (id: string, row: ControlRow) =>
         row.control ? (
-          <EuiButtonEmpty size='xs' flush='left' onClick={() => onNavigate({ view: 'controls', controlId: id })}>
+          <EuiLink onClick={() => onNavigate({ view: 'controls', controlId: id })}>
             {id} · {row.catalog.controlName}
-          </EuiButtonEmpty>
+          </EuiLink>
         ) : (
-          <EuiText size='s'><p>{id} · {row.catalog.controlName}</p></EuiText>
+          <EuiText size='s'><span>{id} · {row.catalog.controlName}</span></EuiText>
         ),
     },
     {
@@ -165,9 +195,10 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
     {
       field: 'control',
       name: 'Plantillas',
+      width: '200px',
       render: (_control: unknown, row: ControlRow) => {
         const builtins = getBuiltinTemplates(row.id).length;
-        if (!builtins) return <EuiText size='xs' color='subdued'><p>Solo ajustes comunes</p></EuiText>;
+        if (!builtins) return <EuiText size='xs' color='subdued'><span>—</span></EuiText>;
         const own = getCustomTemplates(configuration, row.id).length;
         const assigned = rows.filter(agent => {
           const templateId = configuration.agents?.[agent.id]?.controls?.[row.id]?.templateId;
@@ -175,7 +206,7 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
         }).length;
         return (
           <EuiText size='xs'>
-            <p>{builtins} de serie · {own} propia(s) · {plural(assigned, 'agente', 'agentes')} con plantilla asignada</p>
+            <span title={`${builtins} de serie · ${own} propias`}>{`${builtins + own}${assigned ? ` · ${plural(assigned, 'agente asignado', 'agentes asignados')}` : ''}`}</span>
           </EuiText>
         );
       },
@@ -183,12 +214,12 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
     {
       field: 'id',
       name: '',
+      width: '120px',
+      align: 'right',
       render: (id: string, row: ControlRow) =>
-        row.control ? (
-          <EuiButton size='s' onClick={() => onNavigate({ view: 'controls', controlId: id })}>Abrir</EuiButton>
-        ) : (
+        row.control ? null : (
           <EuiButton size='s' fill={id === target.controlId} isLoading={adding === id} isDisabled={!!adding} onClick={() => add([id], id)}>
-            Añadir con valores por defecto
+            Añadir
           </EuiButton>
         ),
     },
@@ -200,18 +231,26 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
         <>
           <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no está en la configuración`}>
             <p>
-              {getENSControlConfiguration(target.controlId)
-                ? 'Se añade en la lista con «Añadir con valores por defecto».'
-                : `${target.controlId} no es ningún control del catálogo de esta versión.`}
+              {getENSControlConfiguration(target.controlId) ? 'Añádelo desde la lista.' : `${target.controlId} no está en el catálogo.`}
             </p>
           </EuiCallOut>
           <EuiSpacer size='m' />
         </>
       )}
 
-      <EuiText size='s' color='subdued'>
-        <p>Ajustes comunes, plantillas y asignación de cada control.</p>
-      </EuiText>
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+        <EuiFlexItem style={{ maxWidth: 360 }}>
+          <EuiFieldSearch compressed placeholder='Buscar control' value={query} onChange={e => setQuery(e.target.value)} isClearable />
+        </EuiFlexItem>
+        <EuiFlexItem />
+        {missing.length > 1 && (
+          <EuiFlexItem grow={false}>
+            <EuiButton size='s' isLoading={adding === '*'} isDisabled={!!adding} onClick={() => add(missing.map(control => control.controlId), '*')}>
+              {`Añadir los ${missing.length} que faltan`}
+            </EuiButton>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
 
       <EuiSpacer size='m' />
 
@@ -224,16 +263,14 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
         </>
       )}
 
-      <EuiBasicTable items={items} itemId='id' columns={columns} />
-
-      {missing.length > 1 && (
-        <>
-          <EuiSpacer size='m' />
-          <EuiButton size='s' isLoading={adding === '*'} isDisabled={!!adding} onClick={() => add(missing.map(control => control.controlId), '*')}>
-            Añadir los {missing.length} que faltan con valores por defecto
-          </EuiButton>
-        </>
-      )}
+      <EuiInMemoryTable
+        items={items}
+        itemId='id'
+        columns={columns}
+        loading={data.loading}
+        pagination={{ initialPageSize: 25, pageSizeOptions: [25, 50] }}
+        message='Ningún control coincide.'
+      />
     </>
   );
 };

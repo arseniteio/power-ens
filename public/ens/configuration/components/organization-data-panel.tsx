@@ -11,6 +11,7 @@ import {
   EuiSpacer,
   EuiText,
   EuiTitle,
+  EuiToolTip,
 } from '@elastic/eui';
 
 import type {
@@ -78,11 +79,19 @@ const ValueLines = ({ value }: { value?: ENSControlParameter['value'] }) => {
   );
 };
 
-const usedBy = (state: ENSOrganizationItemState): string =>
-  state.views
-    .filter(view => view.parameter)
-    .map(view => describeOrganizationDataView(view.view))
-    .join(', ') || 'ningún control en la configuración';
+const usersOf = (state: ENSOrganizationItemState): string[] =>
+  state.views.filter(view => view.parameter).map(view => describeOrganizationDataView(view.view));
+
+const UsedBy = ({ state }: { state: ENSOrganizationItemState }) => {
+  const users = usersOf(state);
+  return users.length ? (
+    <EuiToolTip content={users.join(', ')}>
+      <span>{`Usado por ${users.length} ${users.length === 1 ? 'control' : 'controles'}`}</span>
+    </EuiToolTip>
+  ) : (
+    <span>Sin uso</span>
+  );
+};
 
 const statusBadge = (state: ENSOrganizationItemState) =>
   state.status === 'conflict' ? (
@@ -207,7 +216,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
             {choice.some(change => !change.removed.length) && (
               <p>{`Toman el valor: ${choice.filter(change => !change.removed.length).map(change => change.parameter).join(', ')}.`}</p>
             )}
-            <p>La versión anterior queda en el historial. Para conservar filas de varios controles, escribir el valor en «Editar».</p>
+            <p>La versión anterior queda en el historial.</p>
           </EuiText>
         </ConfirmModal>
       )}
@@ -215,7 +224,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
         <h3>Datos de la organización</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>Datos que piden varios controles. Se escriben aquí una vez y cada control lee su parte.</p>
+        <p>Datos compartidos por varios controles.</p>
       </EuiText>
       <EuiSpacer size='m' />
 
@@ -258,7 +267,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                 <li key={state.item.id}>{state.notice}</li>
               ))}
             </ul>
-            <p>Cada control sigue con su valor. Escribir en «Editar» un valor que valga para todos los controles que leen el dato.</p>
+            <p>Los controles tienen valores distintos. Unifícalos en «Editar».</p>
           </EuiCallOut>
           <EuiSpacer size='m' />
         </>
@@ -337,7 +346,9 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
             </EuiFlexGroup>
             <EuiText size='s' color='subdued'>
               <p>{state.item.description}</p>
-              <p>{`Lo usan: ${usedBy(state)}.`}</p>
+              <p>
+                <UsedBy state={state} />
+              </p>
             </EuiText>
             {[
               ...(state.notice ? [state.notice] : []),

@@ -76,7 +76,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
     const name = duplicateControlTemplate(configuration, controlId, template.id).template.name;
     const failure = await save(
       latest => duplicateControlTemplate(latest, controlId, template.id, name).configuration,
-      `${controlId}: plantilla «${name}» creada a partir de «${template.name}».`
+      `${controlId}: «${name}» creada desde «${template.name}».`
     );
     if (failure) setNotice({ color: 'danger', text: failure });
   };
@@ -190,7 +190,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
         <h3>Plantillas</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>Valores con nombre por tipo de sistema. Las de serie se duplican para cambiarlas.</p>
+        <p>Las de serie se duplican para editarlas.</p>
       </EuiText>
       <EuiSpacer size='s' />
 
@@ -222,7 +222,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
         <ChangePreviewModal
           title={`Guardar «${pendingEdit.input.name}»: cambia ${plural(pendingEdit.previews.filter(preview => preview.changes.length).length, 'agente', 'agentes')}`}
           confirmLabel='Guardar plantilla'
-          intro='La plantilla está asignada a estos agentes; sus ajustes propios siguen ganando.'
+          intro='Los ajustes propios de cada agente se mantienen.'
           configuration={configuration}
           agentLabels={labels}
           previews={pendingEdit.previews}
@@ -257,7 +257,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
                 options={[
                   { value: TYPE_DEFAULT, text: 'La de serie de su tipo' },
                   ...templates.filter(item => item.id !== removal.id).map(item => ({ value: item.id, text: item.name })),
-                  { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores comunes)' },
+                  { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
                 ]}
                 value={reassignTo}
                 onChange={event => setReassignTo(event.target.value)}

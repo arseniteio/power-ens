@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   EuiBadge,
-  EuiButton,
   EuiButtonEmpty,
-  EuiCallOut,
+  EuiFlexGroup,
+  EuiFlexItem,
   EuiHorizontalRule,
   EuiPage,
   EuiPanel,
@@ -13,12 +13,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
-import {
-  getActiveENSConfiguration,
-  getPendingTemplateMigration,
-  saveFromLatestConfiguration,
-} from '../../../../common/ens/configuration/services';
-import { summarizeTemplateMigration } from '../../../../common/ens/configuration/agents/template-migration';
+import { getActiveENSConfiguration } from '../../../../common/ens/configuration/services';
 import { ENSLevel } from '../../../../common/ens/configuration/types';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../../common/ens/core/control-level';
@@ -31,7 +26,6 @@ import {
   parseConfigurationTarget,
 } from '../../../routing/configuration-link';
 
-import { errorMessage } from './confirm-modal';
 import { lifecycleLabel } from './labels';
 import { ControlsTab } from './controls-tab';
 import { AgentsTab } from './agents-tab';
@@ -79,19 +73,6 @@ export const ConfigurationShell = () => {
       [activeConfiguration]
     );
 
-  const pendingMigration = getPendingTemplateMigration();
-  const [migrationError, setMigrationError] = useState<string | undefined>();
-
-  const saveMigration = async () => {
-    setMigrationError(undefined);
-    try {
-      await saveFromLatestConfiguration(latest => ({ configuration: latest, reason: summarizeTemplateMigration(pendingMigration!) }));
-      handleConfigurationSaved();
-    } catch (failure) {
-      setMigrationError(errorMessage(failure));
-    }
-  };
-
   const navigate = useCallback(
     (next: Partial<ENSConfigurationTarget>) => setSearch(configurationSearchChanges(next)),
     [setSearch]
@@ -108,32 +89,18 @@ export const ConfigurationShell = () => {
             <EuiSpacer size='s' />
           </>
         )}
-        <EuiTitle size='m'>
-          <h2>Configuración ENS</h2>
-        </EuiTitle>
-
-        <EuiSpacer size='s' />
-
-        <EuiBadge color='hollow'>
-          Estado de la configuración:{' '}
-          {lifecycleLabel(activeConfiguration.status)}
-        </EuiBadge>
+        <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false}>
+          <EuiFlexItem grow={false}>
+            <EuiTitle size='m'>
+              <h2>Configuración ENS</h2>
+            </EuiTitle>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiBadge color='hollow'>{lifecycleLabel(activeConfiguration.status)}</EuiBadge>
+          </EuiFlexItem>
+        </EuiFlexGroup>
 
         <EuiSpacer size='m' />
-
-        {pendingMigration && (
-          <>
-            <EuiCallOut color='primary' iconType='iInCircle' title='Configuración de la 1.2.0 convertida a plantillas por control'>
-              <p>{summarizeTemplateMigration(pendingMigration)}</p>
-              <p>Los valores de cada agente no cambian. Se guarda con el próximo cambio.</p>
-              {migrationError && <p>{migrationError}</p>}
-              <EuiButton size='s' onClick={saveMigration}>
-                Guardar la conversión
-              </EuiButton>
-            </EuiCallOut>
-            <EuiSpacer size='m' />
-          </>
-        )}
 
         <SaveWarningNotice />
 
@@ -142,14 +109,14 @@ export const ConfigurationShell = () => {
         )}
 
         <EuiTabs>
+          <EuiTab isSelected={target.view === 'general'} onClick={() => navigate({ view: 'general' })}>
+            Organización
+          </EuiTab>
           <EuiTab isSelected={target.view === 'controls'} onClick={() => navigate({ view: 'controls' })}>
-            Controles
+            Plantillas
           </EuiTab>
           <EuiTab isSelected={target.view === 'agents'} onClick={() => navigate({ view: 'agents' })}>
             Agentes
-          </EuiTab>
-          <EuiTab isSelected={target.view === 'general'} onClick={() => navigate({ view: 'general' })}>
-            General
           </EuiTab>
         </EuiTabs>
 

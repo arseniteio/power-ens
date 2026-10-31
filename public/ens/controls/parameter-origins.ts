@@ -38,9 +38,9 @@ const describeValueOrigin = (origin: ENSResolvedValueOrigin | undefined, empty: 
     const name = origin.templateName || origin.templateId;
     return origin.via === 'type' ? `de la plantilla de serie «${name}» de su tipo` : `de la plantilla «${name}» asignada en el control`;
   }
-  if (origin.source === 'union') return `unión del valor común y de los agentes ${(origin.contributors || []).join(', ')}`;
-  if (empty) return 'sin valor: ni ajuste propio, ni plantilla, ni valor común';
-  return 'valor común del control';
+  if (origin.source === 'union') return `unión del valor por defecto y de los agentes ${(origin.contributors || []).join(', ')}`;
+  if (empty) return 'sin valor: ni ajuste propio, ni plantilla, ni valor por defecto';
+  return 'valor por defecto';
 };
 
 export const describeParameterForMachine = (
@@ -68,7 +68,7 @@ export const describeParameterForMachine = (
     value: parameter.matchMode === 'regex' && !empty ? `Expresión regular: ${text}` : text,
     empty,
     origin: withOwnValue.length
-      ? `varía por máquina: ${withOwnValue.join(', ')} con ajuste propio o plantilla; aquí, el valor común`
+      ? `varía por máquina: ${withOwnValue.join(', ')} con ajuste propio o plantilla; aquí, el valor por defecto`
       : describeValueOrigin(origin, empty),
     source: origin?.source,
     ...(parameter.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}),

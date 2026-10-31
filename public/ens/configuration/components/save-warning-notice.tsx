@@ -10,7 +10,7 @@ export const SaveWarningNotice = () => {
   return (
     <>
       <EuiCallOut color='warning' iconType='alert' title={warning}>
-        <p>La configuración se ha guardado. El detalle está en el log del dashboard.</p>
+        <p>Configuración guardada con avisos (ver el log del dashboard).</p>
       </EuiCallOut>
       <EuiSpacer size='m' />
     </>
