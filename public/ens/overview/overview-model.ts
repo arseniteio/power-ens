@@ -8,12 +8,13 @@ import type {
 } from '../../../common/ens/evaluation/types';
 import { ENSMachineTally, tallyMachines } from '../controls/controls-list-model';
 import { classifyNonConformity, NonConformityClass } from '../controls/control-detail/nonconformity-class';
+import { statusLabel as statusLabelOf } from '../../../common/ens/core/status-label';
 
 const HOUR = 60 * 60 * 1000;
 // The engine judges every hour: a machine without a verdict for a day has stopped reporting.
 const STALE_AFTER_MS = 26 * HOUR;
 
-interface OverviewMachine {
+export interface OverviewMachine {
   agentId: string;
   agentName?: string;
   status?: string;
@@ -44,7 +45,7 @@ export type MatrixCell =
   | { kind: 'not-measured'; reason?: string }
   | { kind: 'pending' };
 
-interface MatrixRow {
+export interface MatrixRow {
   controlId: string;
   title: string;
   overall?: ENSControlSummaryEntry;
@@ -144,7 +145,7 @@ export const freshnessCell = (
 
 const SEVERITY_RANK: Record<string, number> = { NO_CUMPLE: 0, PARCIAL: 1, NO_EVALUABLE: 2, CUMPLE: 3, NO_APLICA: 4 };
 
-interface MachineSummary {
+export interface MachineSummary {
   agentId: string;
   agentName?: string;
   status?: string;
@@ -272,4 +273,55 @@ export const buildTrend = (timeline: ENSEvaluationTimelinePoint[] = [], controlI
     delta: withValue.length > 1 ? withValue[withValue.length - 1].score - withValue[0].score : undefined,
     hasControls: timeline.some(p => p.controls && Object.keys(p.controls).length > 0),
   };
+};
+
+export type FleetFilter = 'all' | 'ok' | 'failing' | 'stale';
+
+const failing = (m: MachineSummary) => m.counts.NO_CUMPLE + m.counts.PARCIAL > 0;
+
+export const fleetFigures = (machines: MachineSummary[]) => ({
+  all: machines.length,
+  ok: machines.filter(m => m.measured > 0 && !failing(m) && m.counts.NO_EVALUABLE === 0).length,
+  failing: machines.filter(failing).length,
+  stale: machines.filter(m => m.stale).length,
+});
+
+export const inFleetFilter = (m: MachineSummary, filter: FleetFilter) =>
+  filter === 'ok'
+    ? m.measured > 0 && !failing(m) && m.counts.NO_EVALUABLE === 0
+    : filter === 'failing'
+    ? failing(m)
+    : filter === 'stale'
+    ? m.stale
+    : true;
+
+export const CONTROL_BAR_STATUSES = ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'] as const;
+
+// Machines of each status for one control: the bar of «Estado por control» and the filter it sets.
+export const controlBar = (row: Pick<MatrixRow, 'cells'>): Record<string, string[]> => {
+  const out: Record<string, string[]> = Object.fromEntries(CONTROL_BAR_STATUSES.map(s => [s, [] as string[]]));
+  Object.entries(row.cells).forEach(([agentId, cell]) => {
+    if (cell.kind !== 'result') return;
+    (out[cell.status] || out.NO_EVALUABLE).push(agentId);
+  });
+  return out;
+};
+
+const csvField = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+// Every control on every machine, for the reader who needs the whole matrix: one row per machine.
+export const matrixCsv = (rows: Pick<MatrixRow, 'controlId' | 'cells'>[], machines: OverviewMachine[]): string => {
+  const header = ['agente', 'nombre', ...rows.map(r => r.controlId)];
+  const lines = machines.map(m => [
+    m.agentId,
+    m.agentName || '',
+    ...rows.map(r => {
+      const cell = r.cells[m.agentId];
+      if (!cell || cell.kind === 'pending') return '';
+      if (cell.kind === 'manager') return 'manager';
+      if (cell.kind === 'not-measured') return 'no se mide';
+      return typeof cell.score === 'number' ? `${statusLabelOf(cell.status)} ${cell.score}%` : statusLabelOf(cell.status);
+    }),
+  ]);
+  return [header, ...lines].map(l => l.map(csvField).join(',')).join('\n');
 };

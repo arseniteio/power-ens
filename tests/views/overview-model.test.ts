@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMachineSummaries, describeAge, freshnessCell, overviewMachines } from '../../public/ens/overview/overview-model';
+import { buildMachineSummaries, controlBar, describeAge, fleetFigures, freshnessCell, inFleetFilter, matrixCsv, overviewMachines } from '../../public/ens/overview/overview-model';
+import type { MachineSummary } from '../../public/ens/overview/overview-model';
 
 const NOW = Date.parse('2026-10-17T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW - hours * 3600e3).toISOString();
@@ -38,4 +39,37 @@ describe('the overview', () => {
     assert.equal(summary.stale, false);
     assert.deepEqual(summary.worst.map(entry => entry.controlId), ['op.acc.1']);
   });
+});
+
+test('fleet figures and filters split machines by state', () => {
+  const base = { isManager: false, notMet: 0, notEvidenced: 0, worst: [], newest: '2026-10-31T10:00:00Z' };
+  const counts = (o: Partial<Record<string, number>>) => ({ CUMPLE: 0, PARCIAL: 0, NO_CUMPLE: 0, NO_EVALUABLE: 0, NO_APLICA: 0, ...o });
+  const machines: MachineSummary[] = [
+    { ...base, agentId: '001', measured: 2, counts: counts({ CUMPLE: 2 }), stale: false },
+    { ...base, agentId: '002', measured: 2, counts: counts({ CUMPLE: 1, NO_CUMPLE: 1 }), stale: false },
+    { ...base, agentId: '003', measured: 0, counts: counts({}), stale: true },
+  ];
+  assert.deepEqual(fleetFigures(machines), { all: 3, ok: 1, failing: 1, stale: 1 });
+  assert.deepEqual(machines.filter(m => inFleetFilter(m, 'failing')).map(m => m.agentId), ['002']);
+});
+
+test('the control bar lists the machines of each status', () => {
+  const bar = controlBar({
+    cells: {
+      '001': { kind: 'result', status: 'CUMPLE', notMet: 0, notEvidenced: 0 },
+      '002': { kind: 'result', status: 'NO_CUMPLE', notMet: 2, notEvidenced: 0 },
+      '003': { kind: 'not-measured' },
+    },
+  });
+  assert.deepEqual(bar.CUMPLE, ['001']);
+  assert.deepEqual(bar.NO_CUMPLE, ['002']);
+  assert.equal(Object.values(bar).flat().length, 2);
+});
+
+test('the matrix exports one row per machine', () => {
+  const csv = matrixCsv(
+    [{ controlId: 'op.acc.1', cells: { '001': { kind: 'result', status: 'PARCIAL', score: 50, notMet: 1, notEvidenced: 0 }, '002': { kind: 'not-measured' } } }],
+    [{ agentId: '001', agentName: 'web, 1', isManager: false }, { agentId: '002', isManager: false }]
+  );
+  assert.equal(csv, 'agente,nombre,op.acc.1\n001,"web, 1",Parcial 50%\n002,,no se mide');
 });

@@ -1,24 +1,25 @@
-// Overview: one request to the evaluation route (`include=overview`) answers which machine is worst, where a control fails, which collector stopped sending and who has pending work.
+// Overview: one request to the evaluation route (`include=overview`). Built for hundreds of machines: fleet figures,
+// one bar per control and a paged machine list; a machine's detail opens in a flyout.
 import React, { useMemo, useState } from 'react';
 import {
   EuiAccordion,
   EuiBadge,
   EuiBasicTable,
-  EuiButtonGroup,
+  EuiButtonEmpty,
   EuiCallOut,
+  EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiFlyout,
+  EuiFlyoutBody,
+  EuiFlyoutHeader,
   EuiHealth,
+  EuiInMemoryTable,
   EuiLink,
   EuiPage,
   EuiPanel,
   EuiSpacer,
-  EuiTable,
-  EuiTableBody,
-  EuiTableHeader,
-  EuiTableHeaderCell,
-  EuiTableRow,
-  EuiTableRowCell,
+  EuiStat,
   EuiText,
   EuiTitle,
   EuiToolTip,
@@ -26,7 +27,7 @@ import {
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
-import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
+import { useSetRouterSearch } from '../../routing/use-router-search';
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../../app/tabs';
 import type { ENSOverviewEvaluationResponse, ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
@@ -38,7 +39,6 @@ import {
   isPendingMeasurement,
 } from '../../../common/ens/catalog/support/measurement-plan';
 import { getActiveControlConfiguration } from '../../../common/ens/configuration/services';
-import { describeTally } from '../controls/controls-list-model';
 import { ENS_STATUS_COLORS, ENS_STATUS_ORDER, statusBadgeColor } from '../status-colors';
 import { ENS_NO_RESULT_PATTERN, ENS_THEME } from '../theme-colors';
 import {
@@ -46,70 +46,234 @@ import {
   buildMatrix,
   buildTrend,
   buildWorkQueue,
+  CONTROL_BAR_STATUSES,
+  controlBar,
   describeAge,
   describeOverviewPending,
-  freshnessCell,
+  FleetFilter,
+  fleetFigures,
+  inFleetFilter,
+  MachineSummary,
   machineLabel,
-  MatrixCell,
+  MatrixRow,
+  matrixCsv,
   overviewMachines,
 } from './overview-model';
 import { statusLabel } from '../../../common/ens/core/status-label';
+import { dateTimeLabel } from '../../../common/ens/core/date-label';
 
-// A control not measured on a machine is a striped gap, not the NO_APLICA grey.
-const STRIPED = ENS_NO_RESULT_PATTERN;
+const PAGE_SIZE = 25;
 
-const MATRIX_MACHINE_MIN_WIDTH = 64;
-const STICKY_CELL: React.CSSProperties = { position: 'sticky', left: 0, background: ENS_THEME.surface, zIndex: 1 };
+interface ControlFilter {
+  controlId: string;
+  status: string;
+  agents: string[];
+}
 
-// Still computing (partial first load): neither a result nor 'not measured'.
-const Calculating = () => (
-  <EuiBadge color='default' iconType='clock' title='Calculando: el servidor aún no tiene todas las filas de este control.'>
-    …
-  </EuiBadge>
+const downloadCsv = (name: string, content: string) => {
+  const url = URL.createObjectURL(new Blob([`﻿${content}`], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const Figure = ({ title, value, active, color, onClick }: { title: string; value: number; active: boolean; color?: string; onClick: () => void }) => (
+  <EuiPanel hasBorder paddingSize='s' onClick={onClick} style={active ? { borderColor: ENS_THEME.primary } : undefined}>
+    <EuiStat title={value} description={title} titleSize='s' titleColor={color} reverse />
+  </EuiPanel>
 );
 
-const MatrixCellView = ({ cell }: { cell: MatrixCell }) => {
-  if (cell.kind === 'pending') return <Calculating />;
-  if (cell.kind === 'manager') {
-    return (
-      <EuiText size='xs' color='subdued'>
-        <span title='Control de la organización: se mide en el manager (columna 000).'>en el manager</span>
-      </EuiText>
-    );
-  }
-  if (cell.kind === 'not-measured') {
-    return <div title={cell.reason || 'No se mide en esta máquina.'} style={{ background: STRIPED, height: 22, borderRadius: 3 }} />;
-  }
+const ControlBar = ({ row, total, onPick }: { row: MatrixRow; total: number; onPick: (status: string, agents: string[]) => void }) => {
+  const bar = controlBar(row);
+  const measured = CONTROL_BAR_STATUSES.reduce((n, s) => n + bar[s].length, 0);
+  if (row.pendingMeasurement) return <EuiText size='xs' color='subdued'><span title={row.pendingMeasurement}>{ENS_PENDING_MEASUREMENT_LABEL}</span></EuiText>;
+  if (row.pending) return <EuiText size='xs' color='subdued'>Calculando…</EuiText>;
+  if (!measured) return <EuiText size='xs' color='subdued'>Sin datos</EuiText>;
   return (
-    <span title={`${statusLabel(cell.status)}${cell.notMet ? ` · ${cell.notMet} requisitos no cumplen` : ''}${cell.notEvidenced ? ` (${cell.notEvidenced} no evidenciados)` : ''}`}>
-      <EuiBadge color={statusBadgeColor(cell.status)}>
-        {typeof cell.score === 'number' ? `${cell.score}%` : cell.status === 'NO_APLICA' ? 'n/a' : '—'}
-      </EuiBadge>
-      {cell.notMet > 0 && <span style={{ fontSize: 11, color: ENS_THEME.dangerText, marginLeft: 4 }}>{cell.notMet}</span>}
-    </span>
+    <div style={{ display: 'flex', height: 18, borderRadius: 3, overflow: 'hidden', background: ENS_NO_RESULT_PATTERN }}>
+      {CONTROL_BAR_STATUSES.filter(s => bar[s].length).map(s => (
+        <EuiToolTip key={s} content={`${statusLabel(s)}: ${bar[s].length}`}>
+          <div
+            role='button'
+            onClick={() => onPick(s, bar[s])}
+            style={{ width: `${(bar[s].length / Math.max(total, measured)) * 100}%`, height: 18, background: ENS_STATUS_COLORS[s], cursor: 'pointer' }}
+          />
+        </EuiToolTip>
+      ))}
+    </div>
+  );
+};
+
+const Trend = ({ agentId, onOpen }: { agentId: string; onOpen: (controlId: string) => void }) => {
+  const trend = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, timelineControls: true, agentId });
+  const series = useMemo(() => buildTrend(trend.data?.timeline, ENSControls.map(c => c.id)), [trend.data]);
+  const pending = Boolean(trend.data?.meta?.pending) || (Boolean(trend.data?.meta?.seriesPending) && !(trend.data?.timeline || []).length);
+  if (trend.error) return <FactsReadErrorCallOut error={trend.error} onRetry={trend.retry} />;
+  if (!trend.data || pending) return <EvaluationLoading message='Calculando…' />;
+  if (!series.points.length) return <EuiText size='s' color='subdued'><p>Sin datos en los últimos 30 días.</p></EuiText>;
+  return (
+    <>
+      <EuiText size='xs' color='subdued'>
+        <p>{`Índice medio diario${series.delta !== undefined ? ` · ${series.delta >= 0 ? '+' : ''}${series.delta} puntos` : ''}`}</p>
+      </EuiText>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 48, paddingLeft: 92 }}>
+        {series.points.map(p => (
+          <EuiToolTip key={p.date} content={`${p.label}: ${typeof p.score === 'number' ? `${p.score}%` : 'sin datos'}`}>
+            <div style={{ width: 10, height: `${Math.max(2, ((p.score as number) || 0) * 0.45)}px`, background: ENS_THEME.primary, opacity: p.isCurrent ? 1 : 0.55 }} />
+          </EuiToolTip>
+        ))}
+      </div>
+      <EuiSpacer size='s' />
+      {series.rows.map(row => (
+        <div key={row.controlId} style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
+          <EuiLink onClick={() => onOpen(row.controlId)} style={{ width: 90, fontSize: 12, fontWeight: row.changed ? 700 : 400 }}>
+            {row.controlId}
+          </EuiLink>
+          {row.cells.map(c => (
+            <span
+              key={c.date}
+              title={`${c.label}: ${statusLabel(c.status) || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
+              style={{ width: 10, height: 12, display: 'inline-block', background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : ENS_NO_RESULT_PATTERN }}
+            />
+          ))}
+        </div>
+      ))}
+    </>
+  );
+};
+
+const MachineFlyout = ({
+  machine,
+  matrix,
+  data,
+  nameOf,
+  now,
+  onOpen,
+  onClose,
+}: {
+  machine: MachineSummary;
+  matrix: MatrixRow[];
+  data: ENSOverviewEvaluationResponse;
+  nameOf: (id: string) => string | undefined;
+  now: number;
+  onOpen: (controlId: string) => void;
+  onClose: () => void;
+}) => {
+  const controls = matrix
+    .map(row => ({ row, cell: row.cells[machine.agentId] }))
+    .filter(({ cell }) => cell?.kind === 'result')
+    .map(({ row, cell }) => ({ id: row.controlId, title: row.title, ...(cell as Extract<typeof cell, { kind: 'result' }>) }))
+    .sort((a, b) => ENS_STATUS_ORDER.indexOf(b.status) - ENS_STATUS_ORDER.indexOf(a.status) || a.id.localeCompare(b.id));
+  const queue = buildWorkQueue(data.nonConformities, machine.agentId, id => Boolean(getActiveControlConfiguration(id)), nameOf);
+
+  return (
+    <EuiFlyout onClose={onClose} size='m' ownFocus aria-labelledby='machine-flyout-title'>
+      <EuiFlyoutHeader hasBorder>
+        <EuiTitle size='s'>
+          <h2 id='machine-flyout-title'>{machineLabel(machine)}</h2>
+        </EuiTitle>
+        <EuiText size='xs' color={machine.stale ? 'danger' : 'subdued'}>
+          <p>{`Último dato: ${describeAge(machine.newest, now)}`}</p>
+        </EuiText>
+      </EuiFlyoutHeader>
+      <EuiFlyoutBody>
+        <EuiTitle size='xs'>
+          <h3>Controles</h3>
+        </EuiTitle>
+        <EuiSpacer size='s' />
+        <EuiBasicTable
+          compressed
+          items={controls}
+          noItemsMessage='Ningún control medido.'
+          columns={[
+            { field: 'id', name: 'Control', width: '110px', render: (id: string, c: any) => <EuiLink onClick={() => onOpen(id)} title={c.title}>{id}</EuiLink> },
+            { field: 'title', name: 'Título', truncateText: true },
+            {
+              field: 'status',
+              name: 'Estado',
+              width: '130px',
+              render: (s: string, c: any) => <EuiBadge color={statusBadgeColor(s)}>{`${statusLabel(s)}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}</EuiBadge>,
+            },
+            { field: 'notMet', name: 'Requisitos que fallan', width: '150px', render: (n: number) => n || '—' },
+          ]}
+        />
+        <EuiSpacer size='l' />
+        <EuiTitle size='xs'>
+          <h3>Cola de trabajo</h3>
+        </EuiTitle>
+        <EuiSpacer size='s' />
+        {!queue.length && (
+          <EuiText size='s' color='subdued'>
+            <p>Sin no conformidades abiertas.</p>
+          </EuiText>
+        )}
+        {queue.map(group => (
+          <EuiAccordion
+            key={group.owner}
+            id={`queue-${machine.agentId}-${group.owner}`}
+            initialIsOpen={group.clase.orden <= 1}
+            paddingSize='s'
+            buttonContent={
+              <span>
+                <EuiBadge color={group.clase.badgeColor} iconType={group.clase.icono}>
+                  {group.clase.accion}
+                </EuiBadge>{' '}
+                {`${group.owner} · ${group.items.length}`}
+              </span>
+            }
+          >
+            <EuiInMemoryTable
+              compressed
+              items={group.items.map((it, i) => ({ ...it, id: `${it.nc.controlId}-${it.nc.id}-${i}` }))}
+              pagination={group.items.length > 10 ? { initialPageSize: 10, hidePerPageOptions: true } : false}
+              columns={[
+                { field: 'controlId', name: 'Control', width: '110px', render: (id: string) => <EuiLink onClick={() => onOpen(id)}>{id}</EuiLink> },
+                { field: 'nc', name: 'Requisito', width: '120px', render: (nc: any) => nc.requirementId },
+                {
+                  field: 'title',
+                  name: 'Qué falla',
+                  render: (title: string, it: any) => (
+                    <EuiText size='xs'>
+                      <span>
+                        {it.evidenceId && <EuiBadge color='hollow'>{it.evidenceId}</EuiBadge>} {title}
+                      </span>
+                    </EuiText>
+                  ),
+                },
+              ]}
+            />
+          </EuiAccordion>
+        ))}
+        <EuiSpacer size='l' />
+        <EuiTitle size='xs'>
+          <h3>Últimos 30 días</h3>
+        </EuiTitle>
+        <EuiSpacer size='s' />
+        <Trend agentId={machine.agentId} onOpen={onOpen} />
+      </EuiFlyoutBody>
+    </EuiFlyout>
   );
 };
 
 export const OverviewENS = () => {
-  const { agentId } = useRouterSearch();
   const updateUrl = useSetRouterSearch();
-  const [mode, setMode] = useState<'estado' | 'frescura'>('estado');
+  const [fleetFilter, setFleetFilter] = useState<FleetFilter>('all');
+  const [controlFilter, setControlFilter] = useState<ControlFilter | undefined>();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<string | undefined>();
 
-  // One request, always for the whole set: the chosen machine is highlighted and filters the work queue, but the matrix covers all.
   const general = useEnsEvaluation<ENSOverviewEvaluationResponse>({ include: 'overview' });
-  // The trend is apart: its past days are computed once a day and take longer the first time; the rest does not wait for it.
-  const trend = useEnsEvaluation<ENSSummaryEvaluationResponse>({ include: 'summary', timelineDays: 30, timelineControls: true, agentId });
-
   const data = general.data;
   const now = data ? Date.parse(data.meta.evaluatedAt) || Date.now() : Date.now();
   const machines = useMemo(() => overviewMachines(data?.meta.scope || []), [data]);
   const nameOf = (id: string) => machines.find(m => m.agentId === id)?.agentName;
-  const controls = ENSControls.map(c => ({ id: c.id, title: c.title }));
 
   const matrix = useMemo(
     () =>
       data
-        ? buildMatrix(controls, machines, data.controls, data.agents || [], {
+        ? buildMatrix(ENSControls.map(c => ({ id: c.id, title: c.title })), machines, data.controls, data.agents || [], {
             isManagerOnly: id => {
               const catalog = getENSCatalogControl(id);
               return Boolean(catalog && isManagerOnlyControl(catalog));
@@ -120,422 +284,189 @@ export const OverviewENS = () => {
             },
             notMeasuredReason: (id, agent) => {
               const catalog = getENSCatalogControl(id);
-              return catalog
-                ? describeNotMeasuredOnAgent(catalog, agent, nameOf(agent), getActiveControlConfiguration(id, agent))?.text
-                : undefined;
+              return catalog ? describeNotMeasuredOnAgent(catalog, agent, nameOf(agent), getActiveControlConfiguration(id, agent))?.text : undefined;
             },
           })
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, machines]
   );
-  const byMachine = useMemo(
+  const summaries = useMemo(
     () => (data ? buildMachineSummaries(machines, data.agents || [], data.freshness, now) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, machines]
   );
-  const queue = useMemo(
-    () =>
-      data
-        ? buildWorkQueue(data.nonConformities, agentId, id => Boolean(getActiveControlConfiguration(id)), id => nameOf(id))
-        : [],
-    [data, agentId]
-  );
-  const series = useMemo(() => buildTrend(trend.data?.timeline, controls.map(c => c.id)), [trend.data]);
-  // Partial first load (`meta.pending`): the matrix shows computed controls and '…' for the rest; per-machine figures and the queue wait. Polls every 2 s (15 s after 2 minutes).
+  const figures = fleetFigures(summaries);
   const inProgress = describeOverviewPending(data?.meta.pending);
-  // The series is computed after the response (`meta.seriesPending`): the trend says so instead of staying empty.
-  const pendingSeries =
-    Boolean(trend.data?.meta?.pending) ||
-    (Boolean(trend.data?.meta?.seriesPending) && !(trend.data?.timeline || []).length);
 
-  const openDetail = (controlId: string, agent?: string) =>
-    updateUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agent });
+  const q = query.trim().toLowerCase();
+  const listed = summaries.filter(
+    m =>
+      inFleetFilter(m, fleetFilter) &&
+      (!controlFilter || controlFilter.agents.includes(m.agentId)) &&
+      (!q || m.agentId.includes(q) || (m.agentName || '').toLowerCase().includes(q))
+  );
+  const selectedMachine = summaries.find(m => m.agentId === selected);
+
+  const openDetail = (controlId: string, agent?: string) => updateUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId: agent });
+  const pickFleet = (f: FleetFilter) => setFleetFilter(fleetFilter === f ? 'all' : f);
 
   return (
     <EuiPage paddingSize='m'>
       <EuiPanel>
-        <EuiTitle size='m'>
-          <h2>Vista general</h2>
-        </EuiTitle>
-        <EuiText size='s' color='subdued'>
-          <p>
-                        Todos los controles en todas las máquinas del alcance. Pulsa una celda para ver el detalle.
-          </p>
-        </EuiText>
+        <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false}>
+          <EuiFlexItem grow={false}>
+            <EuiTitle size='m'>
+              <h2>Vista general</h2>
+            </EuiTitle>
+          </EuiFlexItem>
+          {data && (
+            <EuiFlexItem grow={false}>
+              <EuiButtonEmpty
+                size='s'
+                iconType='exportAction'
+                onClick={() => downloadCsv(`power-ens-matriz-${dateTimeLabel(now).replace(/[ ,:]+/g, '-')}.csv`, matrixCsv(matrix, machines))}
+              >
+                Exportar matriz
+              </EuiButtonEmpty>
+            </EuiFlexItem>
+          )}
+        </EuiFlexGroup>
         <EuiSpacer size='s' />
         {general.error ? (
           <FactsReadErrorCallOut error={general.error} onRetry={general.retry} />
         ) : !data ? (
-          <EvaluationLoading message='Evaluando todos los controles en todas las máquinas del alcance.' />
+          <EvaluationLoading message='Calculando…' />
         ) : (
           <>
             <EvaluationStatusLine meta={data.meta} refreshing={general.isRefreshing} onRetry={general.retry} />
             {inProgress && (
               <>
                 <EuiSpacer size='s' />
-                <EuiCallOut size='s' color='primary' iconType='clock' title={inProgress.title}>
-                  <p>{inProgress.text}</p>
-                </EuiCallOut>
+                <EuiCallOut size='s' color='primary' iconType='clock' title={inProgress.title} />
               </>
             )}
             <EuiSpacer size='m' />
 
+            <EuiFlexGroup gutterSize='s' responsive={false} wrap>
+              <EuiFlexItem><Figure title='Máquinas' value={figures.all} active={fleetFilter === 'all'} onClick={() => setFleetFilter('all')} /></EuiFlexItem>
+              <EuiFlexItem><Figure title='Cumplen todo' value={figures.ok} color='success' active={fleetFilter === 'ok'} onClick={() => pickFleet('ok')} /></EuiFlexItem>
+              <EuiFlexItem><Figure title='Con incumplimientos' value={figures.failing} color='danger' active={fleetFilter === 'failing'} onClick={() => pickFleet('failing')} /></EuiFlexItem>
+              <EuiFlexItem><Figure title='Sin datos en 24 h' value={figures.stale} color='subdued' active={fleetFilter === 'stale'} onClick={() => pickFleet('stale')} /></EuiFlexItem>
+            </EuiFlexGroup>
+
+            <EuiSpacer size='l' />
             <EuiTitle size='s'>
-              <h3>Máquinas</h3>
+              <h3>Estado por control</h3>
             </EuiTitle>
             <EuiSpacer size='s' />
-            <EuiBasicTable
+            <EuiFlexGroup gutterSize='s' wrap responsive={false}>
+              {ENS_STATUS_ORDER.map(s => (
+                <EuiFlexItem grow={false} key={s}>
+                  <EuiHealth color={ENS_STATUS_COLORS[s]}>{statusLabel(s)}</EuiHealth>
+                </EuiFlexItem>
+              ))}
+            </EuiFlexGroup>
+            <EuiSpacer size='s' />
+            {matrix.map(row => (
+              <EuiFlexGroup key={row.controlId} gutterSize='s' alignItems='center' responsive={false} style={{ marginBottom: 4 }}>
+                <EuiFlexItem grow={false} style={{ width: 90 }}>
+                  <EuiLink onClick={() => openDetail(row.controlId)}>{row.controlId}</EuiLink>
+                </EuiFlexItem>
+                <EuiFlexItem grow={false} style={{ width: 260 }}>
+                  <EuiText size='xs' color='subdued'>
+                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.title}>
+                      {row.title}
+                    </span>
+                  </EuiText>
+                </EuiFlexItem>
+                <EuiFlexItem>
+                  <ControlBar row={row} total={machines.length} onPick={(status, agents) => setControlFilter({ controlId: row.controlId, status, agents })} />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            ))}
+
+            <EuiSpacer size='l' />
+            <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
+              <EuiFlexItem grow={false}>
+                <EuiTitle size='s'>
+                  <h3>Máquinas</h3>
+                </EuiTitle>
+              </EuiFlexItem>
+              {controlFilter && (
+                <EuiFlexItem grow={false}>
+                  <EuiBadge
+                    color={statusBadgeColor(controlFilter.status)}
+                    iconType='cross'
+                    iconSide='right'
+                    iconOnClick={() => setControlFilter(undefined)}
+                    iconOnClickAriaLabel='Quitar filtro'
+                  >
+                    {`${controlFilter.controlId}: ${statusLabel(controlFilter.status)}`}
+                  </EuiBadge>
+                </EuiFlexItem>
+              )}
+              <EuiFlexItem />
+              <EuiFlexItem grow={false} style={{ minWidth: 260 }}>
+                <EuiFieldSearch compressed placeholder='Buscar por nombre o ID' value={query} onChange={e => setQuery(e.target.value)} isClearable />
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiSpacer size='s' />
+            <EuiInMemoryTable
               compressed
-              items={byMachine.map(m => ({ ...m, id: m.agentId }))}
-              rowProps={(m: any) => ({ style: m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined })}
+              items={listed.map(m => ({ ...m, id: m.agentId, failing: m.counts.NO_CUMPLE + m.counts.PARCIAL }))}
+              itemId='agentId'
+              pagination={{ initialPageSize: PAGE_SIZE, pageSizeOptions: [PAGE_SIZE, 50, 100] }}
+              sorting={{ sort: { field: 'notMet', direction: 'desc' } }}
+              message='Ninguna máquina coincide.'
+              rowProps={(m: any) => ({ onClick: () => setSelected(m.agentId), style: { cursor: 'pointer' } })}
               columns={[
                 {
-                  field: 'agentId',
+                  field: 'agentName',
                   name: 'Máquina',
+                  sortable: (m: any) => m.agentName || m.agentId,
                   render: (_: string, m: any) => (
-                    <EuiHealth color={m.stale ? 'danger' : m.status === 'active' ? 'success' : 'subdued'}>
-                      <EuiLink onClick={() => updateUrl({ agentId: m.agentId })}>{machineLabel(m)}</EuiLink>
-                    </EuiHealth>
+                    <EuiHealth color={m.stale ? 'danger' : m.status === 'active' ? 'success' : 'subdued'}>{machineLabel(m)}</EuiHealth>
                   ),
                 },
                 {
                   field: 'counts',
-                  name: 'Controles medidos',
-                  render: (_: any, m: any) => inProgress ? <Calculating /> : (
-                    <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
-                      {(['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE', 'CUMPLE', 'NO_APLICA'] as const)
-                        .filter(e => m.counts[e] > 0)
-                        .map(e => (
-                          <EuiFlexItem grow={false} key={e}>
-                            <EuiBadge color={statusBadgeColor(e)}>{`${m.counts[e]} ${e}`}</EuiBadge>
-                          </EuiFlexItem>
-                        ))}
-                      {m.measured === 0 && <EuiText size='xs' color='subdued'>ninguno</EuiText>}
-                    </EuiFlexGroup>
-                  ),
+                  name: 'Controles que cumplen',
+                  width: '170px',
+                  sortable: (m: any) => m.counts.CUMPLE,
+                  render: (_: any, m: any) => (inProgress ? 'Calculando…' : m.measured ? `${m.counts.CUMPLE} de ${m.measured}` : '—'),
                 },
                 {
-                  field: 'notMet',
-                  name: 'Requisitos que no cumplen',
-                  render: (_: any, m: any) => (inProgress ? <Calculating /> : `${m.notMet}${m.notEvidenced ? ` (${m.notEvidenced} sin demostrar)` : ''}`),
+                  field: 'failing',
+                  name: 'Controles que fallan',
+                  width: '160px',
+                  sortable: true,
+                  render: (n: number) => (inProgress ? '…' : n ? <EuiBadge color='danger'>{n}</EuiBadge> : '—'),
                 },
+                { field: 'notMet', name: 'Requisitos que fallan', width: '170px', sortable: true, render: (n: number) => (inProgress ? '…' : n || '—') },
                 {
-                  field: 'lastSeen',
+                  field: 'newest',
                   name: 'Último dato',
-                  render: (_: any, m: any) => (
+                  width: '130px',
+                  sortable: true,
+                  render: (iso: string, m: any) => (
                     <EuiText size='xs' color={m.stale ? 'danger' : 'default'}>
-                      <span title={`Último veredicto: ${m.newest || 'ninguno'}`}>
-                        {describeAge(m.newest, now)}
-                      </span>
+                      <span title={dateTimeLabel(iso)}>{describeAge(iso, now)}</span>
                     </EuiText>
-                  ),
-                },
-                {
-                  field: 'worst',
-                  name: 'Peores controles',
-                  render: (_: any, m: any) => inProgress ? <Calculating /> : (
-                    <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
-                      {m.worst.map((w: any) => (
-                        <EuiFlexItem grow={false} key={w.controlId}>
-                          <EuiBadge
-                            color={statusBadgeColor(w.status)}
-                            onClick={() => openDetail(w.controlId, m.agentId)}
-                            onClickAriaLabel={`Abrir ${w.controlId} en ${m.agentId}`}
-                          >
-                            {`${w.controlId}${typeof w.score === 'number' ? ` ${w.score}%` : ''}`}
-                          </EuiBadge>
-                        </EuiFlexItem>
-                      ))}
-                    </EuiFlexGroup>
                   ),
                 },
               ]}
             />
-
-            <EuiSpacer size='l' />
-
-            <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' responsive={false}>
-              <EuiFlexItem grow={false}>
-                <EuiTitle size='s'>
-                  <h3>Controles × máquinas</h3>
-                </EuiTitle>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiButtonGroup
-                  legend='Qué enseña la matriz'
-                  buttonSize='compressed'
-                  options={[
-                    { id: 'estado', label: 'Cumplimiento' },
-                    { id: 'frescura', label: 'Frescura de la recogida' },
-                  ]}
-                  idSelected={mode}
-                  onChange={(id: string) => setMode(id as 'estado' | 'frescura')}
-                />
-              </EuiFlexItem>
-            </EuiFlexGroup>
-            <EuiText size='xs' color='subdued'>
-              <p>
-                {mode === 'estado'
-                  ? 'Resultado del control en cada máquina; en rojo, requisitos que no cumplen. Rayado: no se mide allí.'
-                  : 'Último dato del control en cada máquina. En rojo: más de 24 h sin datos.'}
-              </p>
-            </EuiText>
-            <EuiSpacer size='s' />
-            <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-              <EuiTable
-                compressed
-                tableLayout='auto'
-                style={{ minWidth: 120 + 200 + machines.length * MATRIX_MACHINE_MIN_WIDTH }}
-              >
-                <EuiTableHeader>
-                  <EuiTableHeaderCell style={{ ...STICKY_CELL, minWidth: 120 }}>Control</EuiTableHeaderCell>
-                  <EuiTableHeaderCell style={{ minWidth: 200 }}>Máquinas</EuiTableHeaderCell>
-                  {machines.map(m => (
-                    <EuiTableHeaderCell key={m.agentId} align='center' style={{ minWidth: MATRIX_MACHINE_MIN_WIDTH }}>
-                      <EuiToolTip content={machineLabel(m)}>
-                        <span style={{ display: 'block', lineHeight: 1.2 }}>
-                          <span style={{ fontWeight: m.agentId === agentId ? 700 : 400 }}>{m.agentId}</span>
-                          <br />
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              maxWidth: MATRIX_MACHINE_MIN_WIDTH,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              fontSize: 11,
-                              color: ENS_THEME.subduedText,
-                            }}
-                          >
-                            {m.agentName || ''}
-                          </span>
-                        </span>
-                      </EuiToolTip>
-                    </EuiTableHeaderCell>
-                  ))}
-                </EuiTableHeader>
-                <EuiTableBody>
-                  {matrix.map(row => (
-                    <EuiTableRow key={row.controlId}>
-                      <EuiTableRowCell style={STICKY_CELL}>
-                        <EuiLink onClick={() => openDetail(row.controlId)} title={row.title}>
-                          {row.controlId}
-                        </EuiLink>
-                      </EuiTableRowCell>
-                      <EuiTableRowCell>
-                        <EuiText size='xs' color='subdued'>
-                          {row.pendingMeasurement ? (
-                            <span title={row.pendingMeasurement}>{ENS_PENDING_MEASUREMENT_LABEL}</span>
-                          ) : row.pending ? 'Calculando…' : row.tally ? describeTally(row.tally) : 'ninguna lo mide'}
-                        </EuiText>
-                      </EuiTableRowCell>
-                      {machines.map(m => {
-                        const cell = row.cells[m.agentId];
-                        const measure = cell.kind === 'result';
-                        if (mode === 'frescura' && cell.kind === 'pending') {
-                          return (
-                            <EuiTableRowCell key={m.agentId} align='center'>
-                              <Calculating />
-                            </EuiTableRowCell>
-                          );
-                        }
-                        if (mode === 'frescura') {
-                          const f = freshnessCell(data.freshness, row.controlId, m.agentId, measure, now);
-                          return (
-                            <EuiTableRowCell key={m.agentId} align='center'>
-                              {f.kind === 'not-expected' ? (
-                                <div style={{ background: STRIPED, height: 22, borderRadius: 3 }} title='No se espera nada de este control en esta máquina.' />
-                              ) : (
-                                <EuiLink
-                                  color={f.kind === 'fresh' ? 'secondary' : 'danger'}
-                                  onClick={() => openDetail(row.controlId, m.agentId)}
-                                  title={f.kind === 'never' ? 'Ningún dato en la ventana' : `${f.count} hechos · último ${f.newest}`}
-                                >
-                                  <span style={{ fontSize: 12 }}>{f.kind === 'never' ? 'nunca' : describeAge(f.newest, now)}</span>
-                                </EuiLink>
-                              )}
-                            </EuiTableRowCell>
-                          );
-                        }
-                        return (
-                          <EuiTableRowCell
-                            key={m.agentId}
-                            align='center'
-                            style={m.agentId === agentId ? { background: ENS_THEME.highlight } : undefined}
-                          >
-                            {measure ? (
-                              <EuiLink onClick={() => openDetail(row.controlId, m.agentId)}>
-                                <MatrixCellView cell={cell} />
-                              </EuiLink>
-                            ) : (
-                              <MatrixCellView cell={cell} />
-                            )}
-                          </EuiTableRowCell>
-                        );
-                      })}
-                    </EuiTableRow>
-                  ))}
-                </EuiTableBody>
-              </EuiTable>
-            </div>
-
-            <EuiSpacer size='l' />
-
-            <EuiTitle size='s'>
-              <h3>Cola de trabajo{agentId ? ` · ${agentId}${nameOf(agentId) ? ` · ${nameOf(agentId)}` : ''}` : ''}</h3>
-            </EuiTitle>
-            <EuiText size='xs' color='subdued'>
-              <p>
-                                No conformidades de todos los controles, por quién debe actuar.
-              </p>
-            </EuiText>
-            <EuiSpacer size='s' />
-            {inProgress && (
-              <EuiText size='s' color='subdued'>
-                <p>{`Incompleta: faltan ${inProgress.controls.join(', ')}. Se completa cuando estén calculados.`}</p>
-              </EuiText>
-            )}
-            {queue.length === 0 && !inProgress && (
-              <EuiText size='s' color='subdued'>
-                <p>No hay no conformidades abiertas.</p>
-              </EuiText>
-            )}
-            {queue.map(group => (
-              <EuiAccordion
-                key={group.owner}
-                id={`cola-${group.owner}`}
-                initialIsOpen={group.clase.orden <= 1}
-                buttonContent={
-                  <span>
-                    <EuiBadge color={group.clase.badgeColor} iconType={group.clase.icono}>
-                      {group.clase.accion}
-                    </EuiBadge>{' '}
-                    {`${group.owner} · ${group.items.length} no conformidad${group.items.length === 1 ? '' : 'es'} en ${group.controls} control${group.controls === 1 ? '' : 'es'}`}
-                  </span>
-                }
-                paddingSize='s'
-              >
-                <EuiBasicTable
-                  compressed
-                  items={group.items.map((it, i) => ({ ...it, id: `${it.nc.controlId}-${it.nc.id}-${i}` }))}
-                  columns={[
-                    {
-                      field: 'controlId',
-                      name: 'Control',
-                      width: '110px',
-                      render: (_: string, it: any) => <EuiLink onClick={() => openDetail(it.controlId, agentId)}>{it.controlId}</EuiLink>,
-                    },
-                    { field: 'nc', name: 'Requisito', width: '120px', render: (nc: any) => nc.requirementId },
-                    {
-                      field: 'title',
-                      name: 'Qué falla',
-                      render: (title: string, it: any) => (
-                        <EuiText size='xs'>
-                          <span>
-                            {it.evidenceId && <EuiBadge color='hollow'>{it.evidenceId}</EuiBadge>}{' '}
-                            {it.status && <EuiBadge color={statusBadgeColor(it.status)}>{statusLabel(it.status)}</EuiBadge>} {title}
-                          </span>
-                        </EuiText>
-                      ),
-                    },
-                    { field: 'machines', name: 'Dónde', width: '200px' },
-                  ]}
-                />
-              </EuiAccordion>
-            ))}
-          </>
-        )}
-
-        <EuiSpacer size='l' />
-
-        <EuiTitle size='s'>
-          <h3>Tendencia de 30 días{agentId ? ` · ${agentId}` : ''}</h3>
-        </EuiTitle>
-        <EuiSpacer size='s' />
-        {trend.error ? (
-          <FactsReadErrorCallOut error={trend.error} onRetry={trend.retry} />
-        ) : !trend.data ? (
-          <EvaluationLoading message='Calculando el resultado de cada día de la ventana.' />
-        ) : pendingSeries ? (
-          <>
-            <EvaluationStatusLine meta={trend.data.meta} refreshing={trend.isRefreshing} onRetry={trend.retry} label='Tendencia' />
-            <EvaluationLoading message='Calculando la serie de 30 días en el servidor: aparece en cuanto esté.' />
-          </>
-        ) : (
-          <>
-            <EuiText size='xs' color='subdued'>
-              <p>
-                Índice medio de cumplimiento cada día
-                {series.delta !== undefined ? ` (${series.delta >= 0 ? '+' : ''}${series.delta} puntos en la ventana)` : ''}; debajo, el estado de cada control.
-              </p>
-            </EuiText>
-            <EuiSpacer size='s' />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 64, paddingLeft: 92 }}>
-              {series.points.map(p => (
-                <EuiToolTip key={p.date} content={`${p.label}: ${typeof p.score === 'number' ? `${p.score}%` : 'sin datos'}`}>
-                  <div
-                    style={{
-                      width: 14,
-                      height: `${Math.max(2, ((p.score as number) || 0) * 0.6)}px`,
-                      background: ENS_THEME.primary,
-                      opacity: p.isCurrent ? 1 : 0.55,
-                    }}
-                  />
-                </EuiToolTip>
-              ))}
-            </div>
-            {series.points.length > 0 && (
-              <EuiText size='xs' color='subdued'>
-                <p style={{ paddingLeft: 92 }}>
-                  {`${series.points[0].label} — ${series.points[series.points.length - 1].label} (hoy)`}
-                </p>
-              </EuiText>
-            )}
-            <EuiSpacer size='s' />
-            <EuiFlexGroup gutterSize='s' wrap responsive={false}>
-              {ENS_STATUS_ORDER.map(status => (
-                <EuiFlexItem grow={false} key={status}>
-                  <EuiText size='xs'>
-                    <span>
-                      <span style={{ display: 'inline-block', width: 12, height: 10, background: ENS_STATUS_COLORS[status], marginRight: 4 }} />
-                      {statusLabel(status)}
-                    </span>
-                  </EuiText>
-                </EuiFlexItem>
-              ))}
-              <EuiFlexItem grow={false}>
-                <EuiText size='xs'>
-                  <span>
-                    <span style={{ display: 'inline-block', width: 12, height: 10, background: STRIPED, marginRight: 4 }} />
-                    sin resultado ese día
-                  </span>
-                </EuiText>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-            <EuiSpacer size='s' />
-            {series.hasControls && (
-              <div style={{ overflowX: 'auto' }}>
-                {series.rows.map(row => (
-                  <div key={row.controlId} style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
-                    <EuiLink onClick={() => openDetail(row.controlId, agentId)} style={{ width: 90, fontSize: 12, fontWeight: row.changed ? 700 : 400 }}>
-                      {row.controlId}
-                    </EuiLink>
-                    {row.cells.map(c => (
-                      <span
-                        key={c.date}
-                        title={`${row.controlId} · ${c.label}: ${statusLabel(c.status) || 'sin resultado'}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}
-                        style={{ width: 14, height: 12, background: c.status ? ENS_STATUS_COLORS[c.status] || ENS_STATUS_COLORS.NO_EVALUABLE : STRIPED, display: 'inline-block' }}
-                      />
-                    ))}
-                    {row.changed && (
-                      <EuiText size='xs' color='subdued'>
-                        <span style={{ marginLeft: 6 }}>{`${statusLabel(row.first)} → ${statusLabel(row.last)}`}</span>
-                      </EuiText>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {selectedMachine && (
+              <MachineFlyout
+                machine={selectedMachine}
+                matrix={matrix}
+                data={data}
+                nameOf={nameOf}
+                now={now}
+                onOpen={id => openDetail(id, selectedMachine.agentId)}
+                onClose={() => setSelected(undefined)}
+              />
             )}
           </>
         )}
