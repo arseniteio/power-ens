@@ -1,0 +1,378 @@
+{
+  "controlId": "op.mon.2",
+  "controlName": "Sistema de métricas",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.mon.2",
+      "name": "declaracion_aplicabilidad",
+      "label": "Declaración de aplicabilidad",
+      "description": "Medidas aplicables según la categoría del sistema, una por fila: medida, si aplica, nivel y refuerzos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "table",
+      "example": "op.acc.1 | sí | MEDIO | R1",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: el grado de implantación es el de los veredictos del motor. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "medida",
+          "label": "Medida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplica",
+          "label": "Aplica",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "nivel",
+          "label": "Nivel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "refuerzos",
+          "label": "Refuerzos",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.mon.2",
+      "name": "periodicidad_metricas_dias",
+      "label": "Periodicidad de los ciclos de métricas (días)",
+      "description": "Cada cuántos días se consolida y valida un ciclo de métricas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 90,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02, EV-03 y EV-06 la usan como periodo.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02, EV-03 y EV-06 quedan sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.mon.2",
+      "name": "margen_ciclo_dias",
+      "label": "Margen tras el fin del ciclo (días)",
+      "description": "Días tras el fin de un periodo para consolidar su ciclo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "number",
+      "example": "15",
+      "required": false,
+      "minValue": 0,
+      "defaultValue": 15,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 y EV-06 lo suman a la periodicidad.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin margen."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.mon.2",
+      "name": "metricas_gestion_incidentes",
+      "label": "Indicadores de la gestión de incidentes",
+      "description": "Indicadores que se consolidan en cada ciclo con el registro de incidentes de op.exp.7.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r1.1"
+      ],
+      "type": "list",
+      "example": "tiempo_medio_resolucion",
+      "options": [
+        "incidentes_por_tipo",
+        "incidentes_por_severidad",
+        "tiempo_medio_contencion",
+        "tiempo_medio_resolucion",
+        "notificados_ccn_cert",
+        "notificados_aepd"
+      ],
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige a cada incidente del periodo los datos de cada indicador.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.mon.2",
+      "name": "responsables_metricas",
+      "label": "Responsables de validar las métricas",
+      "description": "Quién valida los ciclos: ámbito metricas, recursos o ambos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Responsable de Seguridad | RSEG | metricas",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 y EV-06 solo cuentan ciclos validados por ellos.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-06 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "select",
+          "options": [
+            "metricas",
+            "recursos",
+            "ambos"
+          ],
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.mon.2",
+      "name": "registro_ciclos_metricas",
+      "label": "Registro de ciclos de métricas",
+      "description": "Un ciclo por fila: fecha de consolidación, periodo, grado de implantación global, quién lo validó y, si es de recursos, horas internas, horas externas y presupuesto ejecutado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "2026-10-10 | 2026-T3 | 72 | Responsable de Seguridad | 120 | 40 | 9000",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 y EV-06 toman el ciclo validado más reciente.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-06 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha_consolidacion",
+          "label": "Fecha de consolidación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "periodo",
+          "label": "Periodo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "implantacion_global",
+          "label": "Implantación global (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "validado_por",
+          "label": "Validado por",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "horas_internas",
+          "label": "Horas internas",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "horas_externas",
+          "label": "Horas externas",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "presupuesto",
+          "label": "Presupuesto ejecutado",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.mon.2",
+      "name": "recursos_consumidos_seguridad",
+      "label": "Criterio de los recursos consumidos",
+      "description": "Qué entra en cada columna de recursos del registro de ciclos y cómo se computa.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Personal TIC propio | horas_internas | partes de dedicación",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "partida",
+          "label": "Partida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "columna",
+          "label": "Columna",
+          "type": "select",
+          "options": [
+            "horas_internas",
+            "horas_externas",
+            "presupuesto"
+          ],
+          "required": true
+        },
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.mon.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

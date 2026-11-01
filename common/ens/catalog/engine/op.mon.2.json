@@ -1,0 +1,551 @@
+{
+  "framework": "ENS",
+  "control": "op.mon.2",
+  "title": "Sistema de métricas",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Monitorización del sistema",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.7.2",
+  "description": "op.mon.2 exige recopilar los datos que miden la implantación de la seguridad, la gestión de incidentes y los recursos consumidos. Se juzga sobre el registro de ciclos de métricas, el registro de incidentes de op.exp.7 y la medición de cada máquina.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.mon.2",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.mon.2.1",
+      "title": "Datos del grado de implantación y del informe del artículo 32",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Atendiendo a la categoría de seguridad del sistema, se recopilarán los datos necesarios para conocer el grado de implantación de las medidas de seguridad que resulten aplicables y, en su caso, para proveer el informe anual requerido por el artículo 32.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.mon.2.r1.1",
+      "title": "Datos del comportamiento de la gestión de incidentes",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se recopilarán los datos precisos que posibiliten evaluar el comportamiento del sistema de gestión de incidentes, de acuerdo con la Instrucción Técnica de Seguridad de Notificación de Incidentes de Seguridad y con la correspondiente guía CCN-STIC.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.mon.2.r2.1",
+      "title": "Datos de eficiencia: horas y presupuesto",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se recopilarán los datos precisos para conocer la eficiencia del sistema de seguridad, en relación con los recursos consumidos, en términos de horas y presupuesto.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06",
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-02",
+      "title": "Serie de ciclos de métricas",
+      "description": "El último ciclo de P-06 validado por un responsable de métricas de P-05 está dentro de la periodicidad de P-02 más el margen de P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se consolidan y validan las métricas con la periodicidad fijada?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Datos de la gestión de incidentes",
+      "description": "Cada incidente del periodo en el registro de op.exp.7 tiene los datos que necesita cada indicador de P-04.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿El registro de incidentes da los datos de cada indicador?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Fiabilidad de la medición",
+      "description": "El agente de la máquina está activo y su última pasada de OSCompliance está dentro de la ventana.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La medición de la máquina es fiable?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Recursos consumidos",
+      "description": "El último ciclo de P-06 con horas internas, externas y presupuesto, validado por un responsable de recursos de P-05, está dentro de la periodicidad.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r2.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se registran las horas y el presupuesto consumidos?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "declaracion_aplicabilidad",
+      "label": "Declaración de aplicabilidad",
+      "description": "Medidas aplicables según la categoría del sistema, una por fila: medida, si aplica, nivel y refuerzos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "table",
+      "example": "op.acc.1 | sí | MEDIO | R1",
+      "columns": [
+        {
+          "name": "medida",
+          "label": "Medida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplica",
+          "label": "Aplica",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "nivel",
+          "label": "Nivel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "refuerzos",
+          "label": "Refuerzos",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: el grado de implantación es el de los veredictos del motor. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "periodicidad_metricas_dias",
+      "label": "Periodicidad de los ciclos de métricas (días)",
+      "description": "Cada cuántos días se consolida y valida un ciclo de métricas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "min_value": 1,
+      "default_value": 90,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02, EV-03 y EV-06 la usan como periodo.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-02, EV-03 y EV-06 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "margen_ciclo_dias",
+      "label": "Margen tras el fin del ciclo (días)",
+      "description": "Días tras el fin de un periodo para consolidar su ciclo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "type": "number",
+      "example": "15",
+      "required": false,
+      "min_value": 0,
+      "default_value": 15,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 y EV-06 lo suman a la periodicidad.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-06"
+      ],
+      "if_not_configured": "Sin margen."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "metricas_gestion_incidentes",
+      "label": "Indicadores de la gestión de incidentes",
+      "description": "Indicadores que se consolidan en cada ciclo con el registro de incidentes de op.exp.7.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r1.1"
+      ],
+      "type": "list",
+      "example": "tiempo_medio_resolucion",
+      "options": [
+        "incidentes_por_tipo",
+        "incidentes_por_severidad",
+        "tiempo_medio_contencion",
+        "tiempo_medio_resolucion",
+        "notificados_ccn_cert",
+        "notificados_aepd"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 exige a cada incidente del periodo los datos de cada indicador.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "responsables_metricas",
+      "label": "Responsables de validar las métricas",
+      "description": "Quién valida los ciclos: ámbito metricas, recursos o ambos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Responsable de Seguridad | RSEG | metricas",
+      "columns": [
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rol",
+          "label": "Rol",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "select",
+          "options": [
+            "metricas",
+            "recursos",
+            "ambos"
+          ],
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 y EV-06 solo cuentan ciclos validados por ellos.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-02 y EV-06 quedan sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "registro_ciclos_metricas",
+      "label": "Registro de ciclos de métricas",
+      "description": "Un ciclo por fila: fecha de consolidación, periodo, grado de implantación global, quién lo validó y, si es de recursos, horas internas, horas externas y presupuesto ejecutado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1",
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "2026-10-10 | 2026-T3 | 72 | Responsable de Seguridad | 120 | 40 | 9000",
+      "columns": [
+        {
+          "name": "fecha_consolidacion",
+          "label": "Fecha de consolidación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "periodo",
+          "label": "Periodo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "implantacion_global",
+          "label": "Implantación global (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "validado_por",
+          "label": "Validado por",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "horas_internas",
+          "label": "Horas internas",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "horas_externas",
+          "label": "Horas externas",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "presupuesto",
+          "label": "Presupuesto ejecutado",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 y EV-06 toman el ciclo validado más reciente.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-02 y EV-06 quedan sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "recursos_consumidos_seguridad",
+      "label": "Criterio de los recursos consumidos",
+      "description": "Qué entra en cada columna de recursos del registro de ciclos y cómo se computa.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.r2.1"
+      ],
+      "type": "table",
+      "example": "Personal TIC propio | horas_internas | partes de dedicación",
+      "columns": [
+        {
+          "name": "partida",
+          "label": "Partida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "columna",
+          "label": "Columna",
+          "type": "select",
+          "options": [
+            "horas_internas",
+            "horas_externas",
+            "presupuesto"
+          ],
+          "required": true
+        },
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "ciclos",
+      "title": "Ciclos de métricas",
+      "description": "Ciclos consolidados y validados.",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "medicion",
+      "title": "Fiabilidad de la medición",
+      "description": "Máquinas con medición al día.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": []
+    },
+    {
+      "id": "incidentes",
+      "title": "Gestión de incidentes",
+      "description": "Datos de los indicadores de incidentes.",
+      "evidences": [
+        "EV-03"
+      ],
+      "parameters": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "recursos",
+      "title": "Recursos consumidos",
+      "description": "Horas y presupuesto del último ciclo.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    }
+  ]
+}
