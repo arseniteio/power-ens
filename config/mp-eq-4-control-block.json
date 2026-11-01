@@ -1,0 +1,444 @@
+{
+  "controlId": "mp.eq.4",
+  "controlName": "Otros dispositivos conectados a la red",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.eq.4",
+      "name": "inventario_dispositivos_red",
+      "label": "Inventario de dispositivos de red",
+      "description": "Dispositivos sin agente (multifunción, IoT, electrónica de red, invitados): tipo, dirección, MAC, responsable y si guardan información.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | multifunción | 10.2.0.14 | aa:bb:cc:00:11:22 | Administración | sí",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 busca en él los dispositivos que ve cada máquina; EV-03 sus flujos; EV-08 los que guardan información.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02, EV-03 y EV-08 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "direccion",
+          "label": "Dirección",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mac",
+          "label": "MAC",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "almacenamiento",
+          "label": "Almacenamiento",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.eq.4",
+      "name": "flujos_permitidos_por_tipo",
+      "label": "Flujos permitidos por tipo de dispositivo",
+      "description": "Con quién (CIDR, dirección o *) puede comunicarse cada tipo de dispositivo, con protocolo y puerto.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "table",
+      "example": "multifunción | 10.2.0.5 | tcp | 9100",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige cada flujo de un dispositivo en su tipo.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.eq.4",
+      "name": "fuentes_flujos",
+      "label": "Fuentes de flujos de la red",
+      "description": "Cortafuegos o electrónica de red cuyos registros de conexiones llegan a Wazuh: nombre, tipo y fuente en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "table",
+      "example": "fw-interno01 | cortafuegos | fw-interno01",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 lee sus conexiones aceptadas.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "nombre_wazuh",
+          "label": "Nombre en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.eq.4",
+      "name": "dispositivos_con_registros",
+      "label": "Dispositivos que envían registros",
+      "description": "Dispositivos que envían sus registros a Wazuh por syslog, con su configuración y su fuente en Wazuh (nombre o dirección).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | syslog 514/udp | 10.2.0.14",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 sigue sus registros.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 no se cumple.",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "configuracion",
+          "label": "Configuración",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.eq.4",
+      "name": "politica_borrado_almacenamiento",
+      "label": "Borrado del almacenamiento",
+      "description": "Cómo se borra la información de cada dispositivo con almacenamiento y cuándo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | disco de 320 GB | sobrescritura | tras cada trabajo y en la retirada",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 exige un método para cada dispositivo con almacenamiento.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 no se cumple si algún dispositivo guarda información.",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "almacenamiento",
+          "label": "Almacenamiento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "metodo",
+          "label": "Método",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "cuando",
+          "label": "Cuándo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.eq.4",
+      "name": "horas_maximas_sin_registros_dispositivo",
+      "label": "Horas máximas sin registros de un dispositivo",
+      "description": "Horas que un dispositivo de P-04 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "number",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 24,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 mide con este plazo.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.eq.4",
+      "name": "productos_certificados",
+      "label": "Productos certificados",
+      "description": "Dispositivos conformes con op.pl.5, su certificación, o por qué no fue posible.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.r1.1"
+      ],
+      "type": "table",
+      "example": "MFP-03 | sin certificar | no hay producto equivalente en el CCN-STIC 105",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r1.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "certificacion",
+          "label": "Certificación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.eq.4",
+      "name": "politica_byod",
+      "label": "Dispositivos de invitados y personales",
+      "description": "Tratamiento de los dispositivos de invitados y personales: si se admiten, en qué segmento y con qué acceso.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "string",
+      "example": "invitados solo en una VLAN aislada con salida a internet; BYOD no admitido",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.eq.4",
+      "name": "control_conexion_desconexion",
+      "label": "Control de conexión de dispositivos",
+      "description": "Mecanismo que controla la conexión y desconexión de dispositivos (802.1X, port security, NAC).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.r2.1"
+      ],
+      "type": "string",
+      "example": "802.1X en toda la red cableada",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.eq.4",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.4.r1.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

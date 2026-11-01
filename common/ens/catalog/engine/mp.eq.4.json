@@ -1,0 +1,640 @@
+{
+  "framework": "ENS",
+  "control": "mp.eq.4",
+  "title": "Otros dispositivos conectados a la red",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los equipos",
+  "dimension": "Confidencialidad",
+  "level_dimension": [
+    "C"
+  ],
+  "annex_section": "5.3.4",
+  "description": "mp.eq.4 exige que los dispositivos sin agente (multifunción, IoT, electrónica) tengan una configuración segura y flujos controlados. Se juzga sobre los vecinos que ve cada máquina, el inventario de dispositivos, sus flujos y sus registros en Wazuh.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.eq.4",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.eq.4.1",
+      "title": "Configuración segura y flujos de entrada y salida controlados",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los dispositivos presentes en el sistema deberán contar con una configuración de seguridad adecuada de manera que se garantice el control del flujo definido de entrada y salida de la información.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-06",
+        "P-08"
+      ]
+    },
+    {
+      "id": "mp.eq.4.2",
+      "title": "Borrado del almacenamiento de los dispositivos de red",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los dispositivos presentes en la red que dispongan de algún tipo de almacenamiento temporal o permanente de información proporcionarán la funcionalidad necesaria para eliminar información de soportes de información. (Ver [mp.si.5]).",
+      "evidence_ids": [
+        "EV-04",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "mp.eq.4.r1.1",
+      "title": "Productos o servicios conformes con op.pl.5",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se usarán, cuando sea posible, productos o servicios que cumplan lo establecido en [op.pl.5].",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "mp.eq.4.r2.1",
+      "title": "Control de los dispositivos conectados a la red",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "Se dispondrá de soluciones que permitan visualizar los dispositivos presentes en la red, controlar su conexión/desconexión a la misma y verificar su configuración de seguridad.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "parameter_ids": [
+        "P-09"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Descubrimiento de dispositivos en la red",
+      "description": "La máquina informa de los dispositivos que ve junto a ella (su tabla de vecinos).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.r2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se ven los dispositivos presentes en la red?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Dispositivos no inventariados",
+      "description": "Cada dispositivo que ve la máquina está en P-01 o es una máquina de la flota.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay dispositivos conectados que no constan en el inventario?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Flujos de los dispositivos",
+      "description": "Cada conexión de un dispositivo de P-01 que registran las fuentes de P-03 está permitida para su tipo en P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Los flujos de los dispositivos se ajustan a lo autorizado?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Registros de los propios dispositivos",
+      "description": "Cada dispositivo de P-04 envía registros a Wazuh dentro de P-06 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan los registros de los propios dispositivos?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Borrado del almacenamiento",
+      "description": "Cada dispositivo de P-01 con almacenamiento tiene su método de borrado en P-05.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los dispositivos con almacenamiento permiten borrar la información?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "inventario_dispositivos_red",
+      "label": "Inventario de dispositivos de red",
+      "description": "Dispositivos sin agente (multifunción, IoT, electrónica de red, invitados): tipo, dirección, MAC, responsable y si guardan información.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | multifunción | 10.2.0.14 | aa:bb:cc:00:11:22 | Administración | sí",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "direccion",
+          "label": "Dirección",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mac",
+          "label": "MAC",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "almacenamiento",
+          "label": "Almacenamiento",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 busca en él los dispositivos que ve cada máquina; EV-03 sus flujos; EV-08 los que guardan información.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-02, EV-03 y EV-08 quedan sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "flujos_permitidos_por_tipo",
+      "label": "Flujos permitidos por tipo de dispositivo",
+      "description": "Con quién (CIDR, dirección o *) puede comunicarse cada tipo de dispositivo, con protocolo y puerto.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "table",
+      "example": "multifunción | 10.2.0.5 | tcp | 9100",
+      "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 exige cada flujo de un dispositivo en su tipo.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "fuentes_flujos",
+      "label": "Fuentes de flujos de la red",
+      "description": "Cortafuegos o electrónica de red cuyos registros de conexiones llegan a Wazuh: nombre, tipo y fuente en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "table",
+      "example": "fw-interno01 | cortafuegos | fw-interno01",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "nombre_wazuh",
+          "label": "Nombre en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 lee sus conexiones aceptadas.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "dispositivos_con_registros",
+      "label": "Dispositivos que envían registros",
+      "description": "Dispositivos que envían sus registros a Wazuh por syslog, con su configuración y su fuente en Wazuh (nombre o dirección).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1",
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | syslog 514/udp | 10.2.0.14",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "configuracion",
+          "label": "Configuración",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 sigue sus registros.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 no se cumple."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "politica_borrado_almacenamiento",
+      "label": "Borrado del almacenamiento",
+      "description": "Cómo se borra la información de cada dispositivo con almacenamiento y cuándo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.2"
+      ],
+      "type": "table",
+      "example": "MFP-03 | disco de 320 GB | sobrescritura | tras cada trabajo y en la retirada",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "almacenamiento",
+          "label": "Almacenamiento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "metodo",
+          "label": "Método",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "cuando",
+          "label": "Cuándo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige un método para cada dispositivo con almacenamiento.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 no se cumple si algún dispositivo guarda información."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_dispositivo",
+      "label": "Horas máximas sin registros de un dispositivo",
+      "description": "Horas que un dispositivo de P-04 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "number",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "default_value": 24,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 mide con este plazo.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "productos_certificados",
+      "label": "Productos certificados",
+      "description": "Dispositivos conformes con op.pl.5, su certificación, o por qué no fue posible.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.r1.1"
+      ],
+      "type": "table",
+      "example": "MFP-03 | sin certificar | no hay producto equivalente en el CCN-STIC 105",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "certificacion",
+          "label": "Certificación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r1.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "politica_byod",
+      "label": "Dispositivos de invitados y personales",
+      "description": "Tratamiento de los dispositivos de invitados y personales: si se admiten, en qué segmento y con qué acceso.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.1"
+      ],
+      "type": "string",
+      "example": "invitados solo en una VLAN aislada con salida a internet; BYOD no admitido",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "control_conexion_desconexion",
+      "label": "Control de conexión de dispositivos",
+      "description": "Mecanismo que controla la conexión y desconexión de dispositivos (802.1X, port security, NAC).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.4.r2.1"
+      ],
+      "type": "string",
+      "example": "802.1X en toda la red cableada",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.4.r1.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "inventario",
+      "title": "Inventario",
+      "description": "Dispositivos vistos en la red frente al inventario.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-08",
+        "P-09"
+      ]
+    },
+    {
+      "id": "flujos",
+      "title": "Flujos y registros",
+      "description": "Flujos de los dispositivos y sus registros.",
+      "evidences": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-06"
+      ]
+    },
+    {
+      "id": "borrado",
+      "title": "Borrado",
+      "description": "Borrado del almacenamiento.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-05",
+        "P-07"
+      ]
+    }
+  ]
+}

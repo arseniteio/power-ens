@@ -9,6 +9,7 @@ import mpCom3 from './engine/mp.com.3.json';
 import mpCom4 from './engine/mp.com.4.json';
 import mpEq2 from './engine/mp.eq.2.json';
 import mpEq3 from './engine/mp.eq.3.json';
+import mpEq4 from './engine/mp.eq.4.json';
 import mpInfo6 from './engine/mp.info.6.json';
 import opAcc1 from './engine/op.acc.1.json';
 import opAcc2 from './engine/op.acc.2.json';
@@ -33,7 +34,7 @@ import opMon2 from './engine/op.mon.2.json';
 import opMon3 from './engine/op.mon.3.json';
 import opNub1 from './engine/op.nub.1.json';
 
-export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1, opMon2, opMon3, opCont2, opCont3, opNub1, mpCom1, mpCom3, mpCom4, mpEq2, mpEq3];
+export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1, opMon2, opMon3, opCont2, opCont3, opNub1, mpCom1, mpCom3, mpCom4, mpEq2, mpEq3, mpEq4];
 
 const defined = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
