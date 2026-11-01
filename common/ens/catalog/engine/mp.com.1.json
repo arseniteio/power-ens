@@ -1,0 +1,688 @@
+{
+  "framework": "ENS",
+  "control": "mp.com.1",
+  "title": "Perímetro seguro",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de las comunicaciones",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.4.1",
+  "description": "mp.com.1 exige un perímetro por el que pase todo el tráfico y solo los flujos autorizados. Se juzga sobre los registros de los elementos perimetrales en Wazuh y, en cada máquina, sus interfaces, pasarelas, túneles y accesos desde internet.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.com.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.com.1.1",
+      "title": "Perímetro que separa la red interna y por el que pasa todo el tráfico",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de un sistema de protección perimetral que separe la red interna del exterior. Todo el tráfico deberá atravesar dicho sistema.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-07",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-06",
+        "P-07",
+        "P-08",
+        "P-09",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.com.1.2",
+      "title": "Flujos a través del perímetro autorizados previamente",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Todos los flujos de información a través del perímetro deben estar autorizados previamente.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-06",
+        "EV-07",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-04",
+        "P-05",
+        "P-11"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registros del perímetro",
+      "description": "Cada elemento perimetral de P-01 envía registros a Wazuh dentro de P-10 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan los registros del sistema de protección perimetral?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Flujos autorizados",
+      "description": "Cada conexión aceptada por los elementos de P-01 en la ventana coincide con un flujo autorizado de P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Todos los flujos que atraviesan el perímetro están autorizados?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Interfaces de red previstas",
+      "description": "Cada interfaz activa de la máquina está prevista en P-07.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina tiene solo las interfaces de red previstas?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Salidas a redes externas",
+      "description": "Cada pasarela de la máquina es una salida prevista en P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina sale al exterior solo por el perímetro?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Túneles que eluden el perímetro",
+      "description": "La máquina no tiene interfaces de túnel activas ni herramientas de tunelización o acceso remoto fuera de P-08.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay túneles que eludan el perímetro?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Revisión y permisividad de las reglas",
+      "description": "Ningún flujo de P-02 abre a cualquiera todos los puertos o uno de administración, y la última revisión de reglas de P-11 está dentro de P-04 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se revisan las reglas del perímetro y ninguna es permisiva?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Administración expuesta al exterior",
+      "description": "Ninguna autenticación en la máquina viene de una dirección de internet fuera de P-09.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se administra la máquina desde internet?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Continuidad de los registros del perímetro",
+      "description": "Los registros de cada elemento de P-01 no tienen lagunas de más de P-10 horas en la última semana.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los registros del perímetro llegan sin lagunas?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "elementos_perimetrales",
+      "label": "Elementos del perímetro",
+      "description": "Cortafuegos, pasarelas, proxies inversos y concentradores VPN: tipo, ubicación y su fuente en Wazuh (el nombre del agente, el nombre de máquina de sus registros o su ubicación de registro).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "fw-perim01 | cortafuegos | DMZ norte | fw-perim01",
+      "columns": [
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 y EV-08 siguen sus registros; EV-02 sus conexiones aceptadas.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-01, EV-02 y EV-08 quedan sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "flujos_autorizados",
+      "label": "Flujos autorizados del perímetro",
+      "description": "Flujos autorizados con su origen y destino (CIDR, dirección o *), protocolo, puerto (número, rango o *), quién lo autorizó y cuándo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "* | 192.168.10.0/24 | tcp | 443 | Responsable de Seguridad | 2026-02-01",
+      "columns": [
+        {
+          "name": "origen",
+          "label": "Origen",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autorizado_por",
+          "label": "Autorizado por",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige cada conexión aceptada en un flujo; EV-06 busca flujos permisivos.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-06"
+      ],
+      "if_not_configured": "EV-02 y EV-06 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "salidas_previstas",
+      "label": "Salidas a redes externas previstas",
+      "description": "Salidas al exterior de la topología, con su elemento perimetral y la dirección de su pasarela.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "table",
+      "example": "enlace principal | fw-perim01 | 192.168.1.1",
+      "columns": [
+        {
+          "name": "salida",
+          "label": "Salida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pasarela",
+          "label": "Pasarela",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 exige cada pasarela de la máquina entre ellas.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "periodicidad_revision_reglas_dias",
+      "label": "Periodicidad de revisión de las reglas (días)",
+      "description": "Cada cuántos días se revisan las reglas del perímetro.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "min_value": 1,
+      "default_value": 180,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 compara la última revisión de P-11 con este plazo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "reglas_permisivas_prohibidas",
+      "label": "Reglas permisivas prohibidas",
+      "description": "Patrones de regla inadmisibles en el perímetro.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "list",
+      "example": "RDP o SSH expuestos a internet",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-06 ya marca los flujos abiertos a cualquiera. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "referencia_its_interconexion",
+      "label": "Instrucción técnica de interconexión",
+      "description": "Referencia a la ITS de interconexión aplicable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "string",
+      "example": "ITS de Interconexión de Sistemas de Información",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "system",
+      "name": "interfaces_previstas",
+      "label": "Interfaces de red previstas",
+      "description": "Nombres de interfaz previstos en la máquina, admite comodines (lo, eth*, ens*).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "lo, eth*, ens*, enp*",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 exige cada interfaz activa entre ellos.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "system",
+      "name": "tuneles_autorizados",
+      "label": "Túneles autorizados",
+      "description": "Interfaces de túnel y herramientas de acceso remoto autorizadas en la máquina (wg0, openvpn).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "wg0",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 los excluye.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "Cualquier túnel incumple EV-05."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "origenes_administracion_externa",
+      "label": "Orígenes externos autorizados",
+      "description": "Redes de internet desde las que se autoriza administrar (CIDR o dirección).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "198.51.100.0/24",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 los excluye.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "Cualquier autenticación desde internet incumple EV-07."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_perimetro",
+      "label": "Horas máximas sin registros del perímetro",
+      "description": "Horas que un elemento perimetral puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 y EV-08 miden con este plazo.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-01 y EV-08 quedan sin demostrar."
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "revisiones_reglas_perimetro",
+      "label": "Revisiones de las reglas del perímetro",
+      "description": "Una revisión por fila: fecha, elemento, responsable y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "2026-09-01 | fw-perim01 | Responsable de Seguridad | 2 reglas retiradas",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 toma la revisión más reciente.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.1.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "perimetro",
+      "title": "Perímetro",
+      "description": "Registros, continuidad y flujos del perímetro.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-10"
+      ]
+    },
+    {
+      "id": "reglas",
+      "title": "Reglas",
+      "description": "Revisión y permisividad de las reglas.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-04",
+        "P-05",
+        "P-11"
+      ]
+    },
+    {
+      "id": "elusion",
+      "title": "Vías de elusión",
+      "description": "Interfaces, pasarelas, túneles y administración desde internet.",
+      "evidences": [
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-07"
+      ],
+      "parameters": [
+        "P-03",
+        "P-06",
+        "P-07",
+        "P-08",
+        "P-09"
+      ]
+    }
+  ]
+}

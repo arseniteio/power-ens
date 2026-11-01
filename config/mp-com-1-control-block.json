@@ -1,0 +1,457 @@
+{
+  "controlId": "mp.com.1",
+  "controlName": "Perímetro seguro",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.com.1",
+      "name": "elementos_perimetrales",
+      "label": "Elementos del perímetro",
+      "description": "Cortafuegos, pasarelas, proxies inversos y concentradores VPN: tipo, ubicación y su fuente en Wazuh (el nombre del agente, el nombre de máquina de sus registros o su ubicación de registro).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "fw-perim01 | cortafuegos | DMZ norte | fw-perim01",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 y EV-08 siguen sus registros; EV-02 sus conexiones aceptadas.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01, EV-02 y EV-08 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.com.1",
+      "name": "flujos_autorizados",
+      "label": "Flujos autorizados del perímetro",
+      "description": "Flujos autorizados con su origen y destino (CIDR, dirección o *), protocolo, puerto (número, rango o *), quién lo autorizó y cuándo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "* | 192.168.10.0/24 | tcp | 443 | Responsable de Seguridad | 2026-02-01",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 exige cada conexión aceptada en un flujo; EV-06 busca flujos permisivos.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-06 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "origen",
+          "label": "Origen",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autorizado_por",
+          "label": "Autorizado por",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.com.1",
+      "name": "salidas_previstas",
+      "label": "Salidas a redes externas previstas",
+      "description": "Salidas al exterior de la topología, con su elemento perimetral y la dirección de su pasarela.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "table",
+      "example": "enlace principal | fw-perim01 | 192.168.1.1",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige cada pasarela de la máquina entre ellas.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "salida",
+          "label": "Salida",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pasarela",
+          "label": "Pasarela",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.com.1",
+      "name": "periodicidad_revision_reglas_dias",
+      "label": "Periodicidad de revisión de las reglas (días)",
+      "description": "Cada cuántos días se revisan las reglas del perímetro.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 180,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 compara la última revisión de P-11 con este plazo.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.com.1",
+      "name": "reglas_permisivas_prohibidas",
+      "label": "Reglas permisivas prohibidas",
+      "description": "Patrones de regla inadmisibles en el perímetro.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "list",
+      "example": "RDP o SSH expuestos a internet",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-06 ya marca los flujos abiertos a cualquiera. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.com.1",
+      "name": "referencia_its_interconexion",
+      "label": "Instrucción técnica de interconexión",
+      "description": "Referencia a la ITS de interconexión aplicable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "string",
+      "example": "ITS de Interconexión de Sistemas de Información",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.com.1",
+      "name": "interfaces_previstas",
+      "label": "Interfaces de red previstas",
+      "description": "Nombres de interfaz previstos en la máquina, admite comodines (lo, eth*, ens*).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "lo, eth*, ens*, enp*",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige cada interfaz activa entre ellos.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.com.1",
+      "name": "tuneles_autorizados",
+      "label": "Túneles autorizados",
+      "description": "Interfaces de túnel y herramientas de acceso remoto autorizadas en la máquina (wg0, openvpn).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "wg0",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 los excluye.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cualquier túnel incumple EV-05."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.com.1",
+      "name": "origenes_administracion_externa",
+      "label": "Orígenes externos autorizados",
+      "description": "Redes de internet desde las que se autoriza administrar (CIDR o dirección).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1"
+      ],
+      "type": "list",
+      "example": "198.51.100.0/24",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 los excluye.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cualquier autenticación desde internet incumple EV-07."
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.com.1",
+      "name": "horas_maximas_sin_registros_perimetro",
+      "label": "Horas máximas sin registros del perímetro",
+      "description": "Horas que un elemento perimetral puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.1",
+        "mp.com.1.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 y EV-08 miden con este plazo.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 y EV-08 quedan sin demostrar."
+    },
+    {
+      "id": "P-11",
+      "controlId": "mp.com.1",
+      "name": "revisiones_reglas_perimetro",
+      "label": "Revisiones de las reglas del perímetro",
+      "description": "Una revisión por fila: fecha, elemento, responsable y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.1.2"
+      ],
+      "type": "table",
+      "example": "2026-09-01 | fw-perim01 | Responsable de Seguridad | 2 reglas retiradas",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 toma la revisión más reciente.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.com.1",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.1.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
