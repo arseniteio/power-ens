@@ -1,0 +1,423 @@
+{
+  "controlId": "mp.s.4",
+  "controlName": "Protección frente a la denegación de servicio",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.s.4",
+      "name": "servicios_expuestos",
+      "label": "Servicios expuestos",
+      "description": "Servicios expuestos a redes públicas: máquina con agente que los sirve, criticidad y disponibilidad comprometida.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "table",
+      "example": "sede | srv-web01 | alta | 99,5 %",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "mp.s.4 se juzga en sus máquinas.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "mp.s.4 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disponibilidad",
+          "label": "Disponibilidad",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.s.4",
+      "name": "uso_maximo_porcentaje",
+      "label": "Uso máximo de CPU y memoria (%)",
+      "description": "Porcentaje máximo de CPU y memoria en uso que deja la holgura exigida.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "number",
+      "example": "70",
+      "required": true,
+      "minValue": 1,
+      "maxValue": 100,
+      "defaultValue": 70,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 compara la CPU y la memoria en uso con este porcentaje.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.s.4",
+      "name": "indicadores_dos",
+      "label": "Indicadores de denegación de servicio",
+      "description": "Indicadores de denegación de servicio, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1"
+      ],
+      "type": "table",
+      "example": "denegación de servicio | inundación HTTP | nginx | 31151",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige reglas cargadas; EV-07 una respuesta activa disparada por ellas.",
+      "evidenceIds": [
+        "EV-03",
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 y EV-07 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "denegación de servicio"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.s.4",
+      "name": "tecnologias_prevencion",
+      "label": "Tecnologías de prevención",
+      "description": "Tecnologías desplegadas frente a ataques conocidos (limitación de tasa, mitigación del proveedor, balanceo).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.2"
+      ],
+      "type": "table",
+      "example": "limitación de tasa | proxy inverso | sede",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tecnologia",
+          "label": "Tecnología",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "donde",
+          "label": "Dónde",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.s.4",
+      "name": "procedimiento_reaccion",
+      "label": "Procedimiento de reacción",
+      "description": "Procedimiento de reacción a los ataques, responsables y plazos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.2"
+      ],
+      "type": "string",
+      "example": "PR-25 Reacción ante DoS",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.s.4",
+      "name": "contacto_proveedor_comunicaciones",
+      "label": "Contacto con el proveedor de comunicaciones",
+      "description": "Vía de escalado al proveedor para la mitigación.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.2"
+      ],
+      "type": "string",
+      "example": "NOC del operador, teléfono 24x7",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.s.4",
+      "name": "registro_episodios_dos",
+      "label": "Registro de episodios",
+      "description": "Un episodio por fila: inicio, fin, servicio, vector, impacto (bajo, medio, alto), respuesta y comunicación al proveedor.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1",
+        "mp.s.4.r1.2"
+      ],
+      "type": "table",
+      "example": "2026-10-02T10:00:00+02:00 | 2026-10-02T11:00:00+02:00 | sede | inundación HTTP | alto | bloqueo de rangos | ticket NOC-123",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 y EV-10 juzgan cada episodio.",
+      "evidenceIds": [
+        "EV-06",
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin episodios registrados.",
+      "columns": [
+        {
+          "name": "inicio",
+          "label": "Inicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fin",
+          "label": "Fin",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vector",
+          "label": "Vector",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "impacto",
+          "label": "Impacto",
+          "type": "select",
+          "options": [
+            "bajo",
+            "medio",
+            "alto"
+          ],
+          "required": false
+        },
+        {
+          "name": "respuesta",
+          "label": "Respuesta",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "proveedor",
+          "label": "Comunicación al proveedor",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.s.4",
+      "name": "amplificadores_autorizados",
+      "label": "Servicios UDP autorizados",
+      "description": "Servicios que pueden amplificar ataques y están autorizados (dns, ntp, snmp o el puerto).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r2.1"
+      ],
+      "type": "list",
+      "example": "dns",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-09 los excluye.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cualquier servicio amplificador incumple EV-09."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.s.4",
+      "name": "carga_prevista",
+      "label": "Carga prevista y capacidad",
+      "description": "Carga prevista por servicio, capacidad dotada y holgura.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "table",
+      "example": "sede | 200 peticiones/s | 800 peticiones/s",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "carga_prevista",
+          "label": "Carga prevista",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "capacidad",
+          "label": "Capacidad",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.s.4",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.4.r1.2 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

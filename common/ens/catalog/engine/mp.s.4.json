@@ -1,0 +1,655 @@
+{
+  "framework": "ENS",
+  "control": "mp.s.4",
+  "title": "Protección frente a la denegación de servicio",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los servicios",
+  "dimension": "Disponibilidad",
+  "level_dimension": [
+    "D"
+  ],
+  "annex_section": "5.8.4",
+  "description": "mp.s.4 exige capacidad con holgura, prevención, detección y reacción frente a la denegación de servicio. Se juzga en las máquinas de los servicios expuestos: su carga, SYN cookies, cortafuegos, servicios amplificadores, las reglas y respuestas de Wazuh y el registro de episodios.",
+  "levels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.s.4",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.s.4.1",
+      "title": "Capacidad suficiente y con holgura para la carga prevista",
+      "kind": "BASE",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se planificará y dotará al sistema de capacidad suficiente para atender con holgura a la carga prevista.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.s.4.2",
+      "title": "Tecnologías de prevención de ataques conocidos",
+      "kind": "BASE",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se desplegarán tecnologías para prevenir los ataques conocidos.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "mp.s.4.r1.1",
+      "title": "Detección y tratamiento de la denegación de servicio",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se establecerá un sistema de detección y tratamiento de ataques de denegación de servicio (DoS y DDoS).",
+      "evidence_ids": [
+        "EV-03",
+        "EV-07",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-07"
+      ]
+    },
+    {
+      "id": "mp.s.4.r1.2",
+      "title": "Procedimientos de reacción con el proveedor de comunicaciones",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se establecerán procedimientos de reacción a los ataques, incluyendo la comunicación con el proveedor de comunicaciones.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06",
+        "P-07"
+      ]
+    },
+    {
+      "id": "mp.s.4.r2.1",
+      "title": "Detección y bloqueo de ataques lanzados desde las propias instalaciones",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "Se detectará y se evitará el lanzamiento de ataques desde las propias instalaciones perjudicando a terceros.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-08"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Holgura de capacidad",
+      "description": "La CPU (carga media de 15 minutos frente a sus núcleos) y la memoria en uso de la máquina no superan el porcentaje de P-02.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "category": "AVAILABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina tiene holgura para la carga?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Prevención en la máquina",
+      "description": "La máquina tiene SYN cookies activas y un cortafuegos que descarta por defecto lo que le llega.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay tecnologías desplegadas que prevengan los ataques conocidos?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Detección de la denegación de servicio",
+      "description": "Cada indicador de denegación de servicio de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan los ataques de denegación de servicio?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Comunicación al proveedor",
+      "description": "Cada episodio de impacto alto de P-07 se comunicó al proveedor de comunicaciones.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.2"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se avisa al proveedor ante los ataques de impacto alto?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Contención automática",
+      "description": "Una respuesta activa del manager se dispara con una regla de denegación de servicio de P-03.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se contienen automáticamente los ataques detectados?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Servicios amplificadores",
+      "description": "La máquina no tiene abiertos fuera de loopback servicios UDP que amplifiquen ataques (DNS, NTP, SNMP, SSDP, memcached...) salvo los de P-08.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Puede la máquina usarse para amplificar ataques contra terceros?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Registro de episodios",
+      "description": "Cada episodio de P-07 tiene su vector, su impacto y la respuesta aplicada.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1",
+        "mp.s.4.2",
+        "mp.s.4.r1.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se registran los episodios con su respuesta?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "servicios_expuestos",
+      "label": "Servicios expuestos",
+      "description": "Servicios expuestos a redes públicas: máquina con agente que los sirve, criticidad y disponibilidad comprometida.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "table",
+      "example": "sede | srv-web01 | alta | 99,5 %",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disponibilidad",
+          "label": "Disponibilidad",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "mp.s.4 se juzga en sus máquinas.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-09"
+      ],
+      "if_not_configured": "mp.s.4 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "uso_maximo_porcentaje",
+      "label": "Uso máximo de CPU y memoria (%)",
+      "description": "Porcentaje máximo de CPU y memoria en uso que deja la holgura exigida.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "number",
+      "example": "70",
+      "required": true,
+      "min_value": 1,
+      "max_value": 100,
+      "default_value": 70,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 compara la CPU y la memoria en uso con este porcentaje.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "indicadores_dos",
+      "label": "Indicadores de denegación de servicio",
+      "description": "Indicadores de denegación de servicio, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1"
+      ],
+      "type": "table",
+      "example": "denegación de servicio | inundación HTTP | nginx | 31151",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "denegación de servicio"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 exige reglas cargadas; EV-07 una respuesta activa disparada por ellas.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-07"
+      ],
+      "if_not_configured": "EV-03 y EV-07 quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "tecnologias_prevencion",
+      "label": "Tecnologías de prevención",
+      "description": "Tecnologías desplegadas frente a ataques conocidos (limitación de tasa, mitigación del proveedor, balanceo).",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.2"
+      ],
+      "type": "table",
+      "example": "limitación de tasa | proxy inverso | sede",
+      "columns": [
+        {
+          "name": "tecnologia",
+          "label": "Tecnología",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "donde",
+          "label": "Dónde",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "procedimiento_reaccion",
+      "label": "Procedimiento de reacción",
+      "description": "Procedimiento de reacción a los ataques, responsables y plazos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.2"
+      ],
+      "type": "string",
+      "example": "PR-25 Reacción ante DoS",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "contacto_proveedor_comunicaciones",
+      "label": "Contacto con el proveedor de comunicaciones",
+      "description": "Vía de escalado al proveedor para la mitigación.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.2"
+      ],
+      "type": "string",
+      "example": "NOC del operador, teléfono 24x7",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "registro_episodios_dos",
+      "label": "Registro de episodios",
+      "description": "Un episodio por fila: inicio, fin, servicio, vector, impacto (bajo, medio, alto), respuesta y comunicación al proveedor.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r1.1",
+        "mp.s.4.r1.2"
+      ],
+      "type": "table",
+      "example": "2026-10-02T10:00:00+02:00 | 2026-10-02T11:00:00+02:00 | sede | inundación HTTP | alto | bloqueo de rangos | ticket NOC-123",
+      "columns": [
+        {
+          "name": "inicio",
+          "label": "Inicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fin",
+          "label": "Fin",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vector",
+          "label": "Vector",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "impacto",
+          "label": "Impacto",
+          "type": "select",
+          "options": [
+            "bajo",
+            "medio",
+            "alto"
+          ],
+          "required": false
+        },
+        {
+          "name": "respuesta",
+          "label": "Respuesta",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "proveedor",
+          "label": "Comunicación al proveedor",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 y EV-10 juzgan cada episodio.",
+      "evidence_ids": [
+        "EV-06",
+        "EV-10"
+      ],
+      "if_not_configured": "Sin episodios registrados."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "amplificadores_autorizados",
+      "label": "Servicios UDP autorizados",
+      "description": "Servicios que pueden amplificar ataques y están autorizados (dns, ntp, snmp o el puerto).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.r2.1"
+      ],
+      "type": "list",
+      "example": "dns",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 los excluye.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "Cualquier servicio amplificador incumple EV-09."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "carga_prevista",
+      "label": "Carga prevista y capacidad",
+      "description": "Carga prevista por servicio, capacidad dotada y holgura.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.4.1"
+      ],
+      "type": "table",
+      "example": "sede | 200 peticiones/s | 800 peticiones/s",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "carga_prevista",
+          "label": "Carga prevista",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "capacidad",
+          "label": "Capacidad",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.4.r1.2 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "capacidad",
+      "title": "Capacidad",
+      "description": "Holgura de las máquinas de los servicios expuestos.",
+      "evidences": [
+        "EV-01"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-09"
+      ]
+    },
+    {
+      "id": "prevencion",
+      "title": "Prevención",
+      "description": "Prevención y servicios amplificadores.",
+      "evidences": [
+        "EV-02",
+        "EV-09"
+      ],
+      "parameters": [
+        "P-04",
+        "P-08"
+      ]
+    },
+    {
+      "id": "deteccion",
+      "title": "Detección y reacción",
+      "description": "Detección, contención y episodios.",
+      "evidences": [
+        "EV-03",
+        "EV-06",
+        "EV-07",
+        "EV-10"
+      ],
+      "parameters": [
+        "P-03",
+        "P-05",
+        "P-06",
+        "P-07"
+      ]
+    }
+  ]
+}
