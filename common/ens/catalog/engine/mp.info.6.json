@@ -1,0 +1,664 @@
+{
+  "framework": "ENS",
+  "control": "mp.info.6",
+  "title": "Copias de seguridad",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de la información",
+  "dimension": "Disponibilidad",
+  "level_dimension": [
+    "D"
+  ],
+  "annex_section": "5.7.6",
+  "description": "mp.info.6 exige copias de seguridad que permitan recuperar los datos. Se juzga sobre las copias que cada máquina declara en P-04: su fecha, retención, acceso y ubicación, y las pruebas de restauración registradas.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.info.6",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.info.6.1",
+      "title": "Realización de copias de seguridad",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se realizarán copias de seguridad que permitan recuperar datos perdidos, accidental o intencionadamente. La periodicidad y los plazos de retención de estas copias de seguridad se determinarán en la normativa interna de la organización relativa a copias de seguridad.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-04",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.info.6.2.a",
+      "title": "Frecuencia de las copias",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los procedimientos de respaldo establecidos indicarán: a) Frecuencia de las copias.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "mp.info.6.2.b",
+      "title": "Almacenamiento en el propio lugar",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los procedimientos de respaldo establecidos indicarán: b) Requisitos de almacenamiento en el propio lugar.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.info.6.2.c",
+      "title": "Almacenamiento en otros lugares",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los procedimientos de respaldo establecidos indicarán: c) Requisitos de almacenamiento en otros lugares.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.info.6.2.d",
+      "title": "Acceso autorizado a las copias",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los procedimientos de respaldo establecidos indicarán: d) Controles para el acceso autorizado a las copias de respaldo.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-08"
+      ]
+    },
+    {
+      "id": "mp.info.6.r1.1",
+      "title": "Pruebas de recuperación",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los procedimientos de copia de seguridad y restauración deben probarse regularmente. Su frecuencia dependerá de la criticidad de los datos y del impacto que cause la falta de disponibilidad.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.info.6.r2.1",
+      "title": "Protección de las copias de seguridad",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "applicability_reason": "Este requisito solo aplica con nivel ALTO de Disponibilidad.",
+      "description": "Al menos una de las copias de seguridad se almacenará de forma separada en lugar diferente, de tal manera que un incidente no pueda afectar tanto al repositorio original como a la copia simultáneamente.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-04",
+        "P-09"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Última copia realizada",
+      "description": "Cada copia de P-04 tiene una copia reciente que no está vacía.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1"
+      ],
+      "category": "EXECUTION",
+      "criticality": "HIGH",
+      "audit_question": "¿Existe una copia reciente de cada copia declarada?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Copia dentro del intervalo permitido",
+      "description": "La copia más reciente de cada copia no supera su frecuencia (P-04 o P-01) más el margen de P-02.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.2.a"
+      ],
+      "category": "EXECUTION",
+      "criticality": "HIGH",
+      "audit_question": "¿Las copias se hacen con la frecuencia fijada?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Retención de las copias",
+      "description": "La copia más antigua que se conserva de cada copia alcanza su retención (P-04 o P-03).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.b"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se conservan las copias el tiempo fijado?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Acceso autorizado a las copias",
+      "description": "Las copias y sus claves de cifrado solo las pueden leer cuentas de P-07; nadie más, y cada clave solo su dueño.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.d"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo las cuentas autorizadas pueden leer las copias y sus claves?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Prueba de restauración",
+      "description": "La última restauración correcta de una copia de la máquina en P-06 no supera el plazo de P-05.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r1.1"
+      ],
+      "category": "EXECUTION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se prueba la restauración de las copias con la frecuencia fijada?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Copia fuera de la máquina",
+      "description": "Al menos una copia guarda sus copias en un sistema de ficheros de otra máquina (NFS, SMB, SSHFS, S3...).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r2.1"
+      ],
+      "category": "AVAILABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay una copia guardada fuera de la máquina?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "frecuencia_backup_horas",
+      "label": "Frecuencia máxima entre copias (horas)",
+      "description": "Horas máximas entre dos copias; una copia de P-04 puede fijar la suya.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.2.a"
+      ],
+      "type": "number",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "default_value": 24,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 la usa en las copias de P-04 sin frecuencia propia.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "Las copias sin frecuencia propia quedan sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "margen_tolerancia_horas",
+      "label": "Margen de tolerancia (horas)",
+      "description": "Horas que se suman a la frecuencia antes de dar una copia por atrasada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.2.a"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": false,
+      "min_value": 0,
+      "default_value": 0,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 lo suma a la frecuencia.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "Sin margen."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "retencion_dias",
+      "label": "Retención mínima (días)",
+      "description": "Días que debe alcanzar la copia más antigua que se conserva; una copia de P-04 puede fijar la suya.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.b"
+      ],
+      "type": "number",
+      "example": "30",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 la usa en las copias de P-04 sin retención propia.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "Las copias sin retención propia quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "system",
+      "name": "copias",
+      "label": "Copias de la máquina",
+      "description": "Copias que se hacen o guardan en la máquina, una por fila: nombre, ruta (un directorio, un patrón de ficheros como /var/backups/db-*.dump o git:/etc), y su frecuencia y retención si difieren de P-01 y P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.r2.1"
+      ],
+      "type": "table",
+      "example": "base de datos | /srv/copias/db | 24 | 30",
+      "columns": [
+        {
+          "name": "copia",
+          "label": "Copia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "frecuencia_horas",
+          "label": "Frecuencia (horas)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "retencion_dias",
+          "label": "Retención (días)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "El motor pasa las rutas a la configuración del grupo; el agente data la copia más reciente y la más antigua de cada una, su tamaño, quién puede leerlas y el sistema de ficheros donde están.",
+      "engine_usage": "Define qué copias se juzgan en EV-01 a EV-04 y EV-06. Una máquina sin copias declaradas queda fuera de mp.info.6.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-06"
+      ],
+      "if_not_configured": "La máquina queda fuera de mp.info.6 (NO_APLICA)."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "periodo_max_sin_prueba_dias",
+      "label": "Plazo máximo sin prueba de restauración (días)",
+      "description": "Días máximos desde la última restauración correcta.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r1.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "min_value": 1,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 exige una restauración correcta en P-06 dentro de este plazo.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "registro_pruebas_restauracion",
+      "label": "Registro de pruebas de restauración",
+      "description": "Una fila por prueba: fecha, máquina cuyas copias se restauran, copia, resultado y cómo se verificó el contenido.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r1.1"
+      ],
+      "type": "table",
+      "example": "2026-10-20 | srv-bd01 | base de datos | correcta | suma SHA-256 del testigo",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "copia",
+          "label": "Copia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "select",
+          "options": [
+            "correcta",
+            "fallida"
+          ],
+          "required": true
+        },
+        {
+          "name": "verificacion",
+          "label": "Verificación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 toma la restauración correcta más reciente de la máquina.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "system",
+      "name": "usuarios_autorizados",
+      "label": "Cuentas autorizadas a leer las copias",
+      "description": "Usuarios y grupos que pueden leer las copias y sus claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.d"
+      ],
+      "type": "list",
+      "example": "root, backup",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 exige que el dueño de cada copia, y su grupo si puede leer, estén en la lista.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "system",
+      "name": "claves_cifrado",
+      "label": "Claves de cifrado de las copias",
+      "description": "Ruta de cada fichero de clave que cifra las copias de la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.d"
+      ],
+      "type": "list",
+      "example": "/root/.config/proxmox-backup/encryption-key.json",
+      "required": false,
+      "agent_usage": "El motor pasa las rutas a la configuración del grupo; el agente lee su modo y su dueño.",
+      "engine_usage": "EV-04 exige que solo su dueño, de P-07, pueda leerlas.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 no mira claves."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "ubicacion_alternativa",
+      "label": "Ubicación alternativa de las copias",
+      "description": "Dónde se guarda la copia separada y qué incidente no la alcanza.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.c",
+        "mp.info.6.r2.1"
+      ],
+      "type": "string",
+      "example": "NAS del CPD de respaldo, edificio B",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-06 mira el sistema de ficheros real de las copias. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "herramienta_backup",
+      "label": "Herramienta de copias",
+      "description": "Sistema con el que se hacen las copias.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1"
+      ],
+      "type": "select",
+      "example": "Proxmox Backup Server",
+      "options": [
+        "Proxmox Backup Server",
+        "Bacula",
+        "Bareos",
+        "restic",
+        "BorgBackup",
+        "Veeam",
+        "rsync",
+        "Zimbra NE",
+        "Otro"
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.info.6.2.c | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "copias",
+      "title": "Copias realizadas",
+      "description": "Última copia y frecuencia de cada copia.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-04",
+        "P-10"
+      ]
+    },
+    {
+      "id": "conservacion",
+      "title": "Conservación y acceso",
+      "description": "Retención de las copias y quién puede leerlas.",
+      "evidences": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-03",
+        "P-07",
+        "P-08"
+      ]
+    },
+    {
+      "id": "restauracion",
+      "title": "Pruebas de restauración",
+      "description": "Última restauración correcta.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "separacion",
+      "title": "Copia separada",
+      "description": "Copias guardadas en otra máquina.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-09"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,397 @@
+{
+  "controlId": "mp.info.6",
+  "controlName": "Copias de seguridad",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.info.6",
+      "name": "frecuencia_backup_horas",
+      "label": "Frecuencia máxima entre copias (horas)",
+      "description": "Horas máximas entre dos copias; una copia de P-04 puede fijar la suya.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.2.a"
+      ],
+      "type": "number",
+      "example": "24",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 24,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 la usa en las copias de P-04 sin frecuencia propia.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Las copias sin frecuencia propia quedan sin demostrar."
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.info.6",
+      "name": "margen_tolerancia_horas",
+      "label": "Margen de tolerancia (horas)",
+      "description": "Horas que se suman a la frecuencia antes de dar una copia por atrasada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.2.a"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": false,
+      "minValue": 0,
+      "defaultValue": 0,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 lo suma a la frecuencia.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin margen."
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.info.6",
+      "name": "retencion_dias",
+      "label": "Retención mínima (días)",
+      "description": "Días que debe alcanzar la copia más antigua que se conserva; una copia de P-04 puede fijar la suya.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.b"
+      ],
+      "type": "number",
+      "example": "30",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 la usa en las copias de P-04 sin retención propia.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Las copias sin retención propia quedan sin demostrar."
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.info.6",
+      "name": "copias",
+      "label": "Copias de la máquina",
+      "description": "Copias que se hacen o guardan en la máquina, una por fila: nombre, ruta (un directorio, un patrón de ficheros como /var/backups/db-*.dump o git:/etc), y su frecuencia y retención si difieren de P-01 y P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1",
+        "mp.info.6.r2.1"
+      ],
+      "type": "table",
+      "example": "base de datos | /srv/copias/db | 24 | 30",
+      "required": false,
+      "wazuhUsage": "El motor pasa las rutas a la configuración del grupo; el agente data la copia más reciente y la más antigua de cada una, su tamaño, quién puede leerlas y el sistema de ficheros donde están.",
+      "powerEnsUsage": "Define qué copias se juzgan en EV-01 a EV-04 y EV-06. Una máquina sin copias declaradas queda fuera de mp.info.6.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "La máquina queda fuera de mp.info.6 (NO_APLICA).",
+      "columns": [
+        {
+          "name": "copia",
+          "label": "Copia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "frecuencia_horas",
+          "label": "Frecuencia (horas)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "retencion_dias",
+          "label": "Retención (días)",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.info.6",
+      "name": "periodo_max_sin_prueba_dias",
+      "label": "Plazo máximo sin prueba de restauración (días)",
+      "description": "Días máximos desde la última restauración correcta.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r1.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "minValue": 1,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 exige una restauración correcta en P-06 dentro de este plazo.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar."
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.info.6",
+      "name": "registro_pruebas_restauracion",
+      "label": "Registro de pruebas de restauración",
+      "description": "Una fila por prueba: fecha, máquina cuyas copias se restauran, copia, resultado y cómo se verificó el contenido.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.r1.1"
+      ],
+      "type": "table",
+      "example": "2026-10-20 | srv-bd01 | base de datos | correcta | suma SHA-256 del testigo",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 toma la restauración correcta más reciente de la máquina.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "copia",
+          "label": "Copia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "select",
+          "options": [
+            "correcta",
+            "fallida"
+          ],
+          "required": true
+        },
+        {
+          "name": "verificacion",
+          "label": "Verificación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.info.6",
+      "name": "usuarios_autorizados",
+      "label": "Cuentas autorizadas a leer las copias",
+      "description": "Usuarios y grupos que pueden leer las copias y sus claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.d"
+      ],
+      "type": "list",
+      "example": "root, backup",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige que el dueño de cada copia, y su grupo si puede leer, estén en la lista.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.info.6",
+      "name": "claves_cifrado",
+      "label": "Claves de cifrado de las copias",
+      "description": "Ruta de cada fichero de clave que cifra las copias de la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.d"
+      ],
+      "type": "list",
+      "example": "/root/.config/proxmox-backup/encryption-key.json",
+      "required": false,
+      "wazuhUsage": "El motor pasa las rutas a la configuración del grupo; el agente lee su modo y su dueño.",
+      "powerEnsUsage": "EV-04 exige que solo su dueño, de P-07, pueda leerlas.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 no mira claves."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.info.6",
+      "name": "ubicacion_alternativa",
+      "label": "Ubicación alternativa de las copias",
+      "description": "Dónde se guarda la copia separada y qué incidente no la alcanza.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.2.c",
+        "mp.info.6.r2.1"
+      ],
+      "type": "string",
+      "example": "NAS del CPD de respaldo, edificio B",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-06 mira el sistema de ficheros real de las copias. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.info.6",
+      "name": "herramienta_backup",
+      "label": "Herramienta de copias",
+      "description": "Sistema con el que se hacen las copias.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.info.6.1"
+      ],
+      "type": "select",
+      "example": "Proxmox Backup Server",
+      "options": [
+        "Proxmox Backup Server",
+        "Bacula",
+        "Bareos",
+        "restic",
+        "BorgBackup",
+        "Veeam",
+        "rsync",
+        "Zimbra NE",
+        "Otro"
+      ],
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.info.6",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.info.6.2.c | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

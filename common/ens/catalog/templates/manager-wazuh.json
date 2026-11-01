@@ -249,6 +249,11 @@
         "root | claves de host, TLS y del agente | lectura",
         "wazuh | claves del agente de Wazuh | lectura"
       ]
+    },
+    "mp.info.6": {
+      "P-07": [
+        "root"
+      ]
     }
   }
 }

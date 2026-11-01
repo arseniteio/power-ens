@@ -4,6 +4,7 @@
 import type { ENSControlConfiguration, ENSControlParameter } from '../configuration/types';
 import type { ENSEvidenceDefinition } from '../core/evidence/types';
 import type { ENSControlDefinition } from './types';
+import mpInfo6 from './engine/mp.info.6.json';
 import opAcc1 from './engine/op.acc.1.json';
 import opAcc2 from './engine/op.acc.2.json';
 import opAcc3 from './engine/op.acc.3.json';
@@ -21,7 +22,7 @@ import opExp7 from './engine/op.exp.7.json';
 import opExp8 from './engine/op.exp.8.json';
 import opExp9 from './engine/op.exp.9.json';
 
-export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10];
+export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6];
 
 const defined = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
