@@ -1,0 +1,995 @@
+{
+  "framework": "ENS",
+  "control": "mp.s.2",
+  "title": "Protección de servicios y aplicaciones web",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los servicios",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.8.2",
+  "description": "mp.s.2 exige proteger los servicios web frente al acceso sin autenticación, la manipulación de URL y cookies, la inyección, el escalado y el XSS, y auditarlos. Se juzga en las máquinas que sirven las aplicaciones: sus registros, las reglas que detectan cada ataque, sus vulnerabilidades y las auditorías.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.s.2",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.s.2.1",
+      "title": "Imposible acceder a la información obviando la autenticación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cuando la información requiera control de acceso se garantizará la imposibilidad de acceder a la información obviando la autenticación, en particular, tomando medidas en los siguientes aspectos: a) Se evitará que el servidor ofrezca acceso a los documentos por vías alternativas al protocolo determinado. b) Se prevendrán ataques de manipulación del localizador uniforme de recursos (URL). c) Se prevendrán ataques de manipulación de fragmentos de información que se almacena en el disco duro del visitante de una página web a través de su navegador, a petición del servidor de la página, conocido en terminología inglesa como «cookies». d) Se prevendrán ataques de inyección de código.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-05",
+        "P-11"
+      ]
+    },
+    {
+      "id": "mp.s.2.2",
+      "title": "Prevención del escalado de privilegios",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se prevendrán intentos de escalado de privilegios.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.s.2.3",
+      "title": "Prevención del cross site scripting",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se prevendrán ataques de cross site scripting.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.s.2.r1.1",
+      "title": "Auditorías de caja negra antes de producción",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO"
+      ],
+      "description": "Se realizarán auditorías continuas de seguridad de «caja negra» sobre las aplicaciones web durante la fase de desarrollo y antes de la fase de producción.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-08",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.2.r1.2",
+      "title": "Frecuencia de auditoría definida en el procedimiento",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO"
+      ],
+      "description": "La frecuencia de estas auditorías de seguridad quedará definida en el procedimiento de auditoría.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-06",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.2.r2.1",
+      "title": "Auditorías de caja blanca durante el desarrollo",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se realizarán auditorías de seguridad de «caja blanca» sobre las aplicaciones web durante la fase de desarrollo.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-08",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.2.r2.2",
+      "title": "Metodologías y herramientas automáticas de detección",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se emplearán metodologías definidas y herramientas automáticas de detección de vulnerabilidades en la realización de las auditorías de seguridad sobre las aplicaciones web.",
+      "evidence_ids": [
+        "EV-10",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-08",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.s.2.r2.3",
+      "title": "Resolución de las vulnerabilidades encontradas",
+      "kind": "REFUERZO",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Una vez finalizada una auditoría de seguridad, se analizarán los resultados y se solventarán las vulnerabilidades encontradas mediante los procedimientos definidos [op.exp.5].",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-12"
+      ]
+    },
+    {
+      "id": "mp.s.2.r3.1",
+      "title": "Protección de proxies y cachés",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se prevendrán ataques de manipulación de programas o dispositivos que realizan una acción en representación de otros, conocidos en terminología inglesa como «proxies» y, sistemas especiales de almacenamiento de alta velocidad, conocidos en terminología inglesa como «cachés».",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-13"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registros de los servidores web",
+      "description": "Cada fuente de las aplicaciones de la máquina en P-01 envía registros a Wazuh dentro de P-11 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1",
+        "mp.s.2.2",
+        "mp.s.2.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan los registros de los servidores web?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Acceso obviando la autenticación",
+      "description": "Cada indicador de acceso sin autenticación de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta el acceso a información protegida sin autenticación?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Vías alternativas de acceso",
+      "description": "Cada indicador de vía alternativa de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta el acceso a los documentos por vías alternativas?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Manipulación de URL",
+      "description": "Cada indicador de manipulación de URL de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta la manipulación de URL y el recorrido de rutas?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Manipulación de cookies",
+      "description": "Cada indicador de manipulación de cookies de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta la manipulación de cookies?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Inyección de código",
+      "description": "Cada indicador de inyección de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan los ataques de inyección de código?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Escalado de privilegios",
+      "description": "Cada indicador de escalado de privilegios de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan los intentos de escalado de privilegios?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Cross site scripting",
+      "description": "Cada indicador de XSS de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan los ataques de cross site scripting?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Vulnerabilidades de la plataforma web",
+      "description": "Ninguna vulnerabilidad crítica o alta de la máquina lleva abierta más de P-09 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Se corrigen a tiempo las vulnerabilidades del servidor web?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Auditorías de las aplicaciones",
+      "description": "Cada aplicación de la máquina tiene una auditoría de la modalidad de P-07 en P-08 dentro de P-10 días; las de caja blanca con metodología y herramientas automáticas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r1.2",
+        "mp.s.2.r2.1",
+        "mp.s.2.r2.2"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se auditan las aplicaciones web con la frecuencia fijada?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Resolución de los hallazgos",
+      "description": "Cada hallazgo de P-12 de las aplicaciones de la máquina está resuelto o en plazo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.3"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se solventan las vulnerabilidades que encuentran las auditorías?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "aplicaciones_web",
+      "label": "Aplicaciones web",
+      "description": "Aplicaciones web: máquina con agente que las sirve, fuente de sus registros en Wazuh, URL y exposición.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1",
+        "mp.s.2.2",
+        "mp.s.2.3"
+      ],
+      "type": "table",
+      "example": "sede | srv-web01 | srv-web01 | https://sede.org.es | internet",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "url",
+          "label": "URL",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "exposicion",
+          "label": "Exposición",
+          "type": "select",
+          "options": [
+            "interna",
+            "internet"
+          ],
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "mp.s.2 se juzga en sus máquinas; EV-01 sigue sus fuentes.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-11",
+        "EV-12"
+      ],
+      "if_not_configured": "mp.s.2 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "endpoints_autenticados",
+      "label": "Recursos que exigen autenticación",
+      "description": "Rutas que exigen autenticación en cada aplicación y su mecanismo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "table",
+      "example": "sede | /expedientes | certificado",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "indicadores_ataque_web",
+      "label": "Indicadores de ataque web",
+      "description": "Indicadores de cada ataque que enumera el requisito, su fuente y las reglas de Wazuh que lo detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1",
+        "mp.s.2.2",
+        "mp.s.2.3"
+      ],
+      "type": "table",
+      "example": "inyección | SQL en parámetros | nginx | 31103, 31152",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "acceso sin autenticación",
+            "vía alternativa",
+            "manipulación de URL",
+            "manipulación de cookies",
+            "inyección",
+            "escalado de privilegios",
+            "XSS"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 a EV-08 exigen reglas cargadas para cada ataque.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07",
+        "EV-08"
+      ],
+      "if_not_configured": "EV-02 a EV-08 quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "vias_alternativas_prohibidas",
+      "label": "Vías alternativas prohibidas",
+      "description": "Vías alternativas de acceso que deben estar cerradas (listado de directorios, métodos HTTP no previstos).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "list",
+      "example": "listado de directorios, TRACE",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "config_cookies",
+      "label": "Atributos de las cookies",
+      "description": "Atributos exigidos a las cookies de sesión.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "string",
+      "example": "Secure; HttpOnly; SameSite=Lax",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "procedimiento_auditoria_web",
+      "label": "Procedimiento de auditoría web",
+      "description": "Procedimiento de auditoría de las aplicaciones web y su frecuencia.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.2"
+      ],
+      "type": "string",
+      "example": "PR-22 Auditoría de aplicaciones web",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "modalidad_auditoria",
+      "label": "Modalidad de auditoría",
+      "description": "Caja negra (R1) o caja blanca (R2); en ALTO solo caja blanca.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r2.1"
+      ],
+      "type": "select",
+      "example": "caja blanca",
+      "options": [
+        "caja negra",
+        "caja blanca"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Solo aplican los refuerzos de la modalidad elegida; en ALTO, siempre los de caja blanca.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "registro_auditorias_web",
+      "label": "Registro de auditorías web",
+      "description": "Una auditoría por fila: fecha, aplicación, modalidad, metodología, herramientas y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r2.1",
+        "mp.s.2.r2.2"
+      ],
+      "type": "table",
+      "example": "2026-02-20 | sede | caja blanca | OWASP ASVS | SonarQube, ZAP | 3",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "modalidad",
+          "label": "Modalidad",
+          "type": "select",
+          "options": [
+            "caja negra",
+            "caja blanca"
+          ],
+          "required": true
+        },
+        {
+          "name": "metodologia",
+          "label": "Metodología",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "herramientas",
+          "label": "Herramientas",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-11 toma la auditoría más reciente de cada aplicación.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "dias_maximos_vulnerabilidad_web",
+      "label": "Días máximos de una vulnerabilidad crítica o alta",
+      "description": "Días que puede seguir abierta una vulnerabilidad crítica o alta del servidor web.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.2"
+      ],
+      "type": "number",
+      "example": "30",
+      "required": true,
+      "min_value": 1,
+      "default_value": 30,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 mide las vulnerabilidades de la máquina con este plazo.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "periodicidad_auditorias_web_dias",
+      "label": "Periodicidad de las auditorías (días)",
+      "description": "Días máximos entre dos auditorías de cada aplicación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r1.2",
+        "mp.s.2.r2.1"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "default_value": 365,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-11 mide la última auditoría con este plazo.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_web",
+      "label": "Horas máximas sin registros web",
+      "description": "Horas que una fuente de P-01 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 mide con este plazo.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "seguimiento_hallazgos_auditoria",
+      "label": "Hallazgos de las auditorías",
+      "description": "Un hallazgo por fila: hallazgo, aplicación, severidad, responsable, plazo y estado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.3"
+      ],
+      "type": "table",
+      "example": "XSS en búsqueda | sede | alta | equipo web | 2026-04-30 | resuelto",
+      "columns": [
+        {
+          "name": "hallazgo",
+          "label": "Hallazgo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "plazo",
+          "label": "Plazo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "select",
+          "options": [
+            "abierto",
+            "resuelto",
+            "cerrado"
+          ],
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-12 exige cada hallazgo resuelto o en plazo.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "if_not_configured": "Sin hallazgos."
+    },
+    "P-13": {
+      "class": "organisation",
+      "name": "proxies_caches",
+      "label": "Proxies y cachés",
+      "description": "Proxies y cachés en la ruta de los servicios web y su configuración.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r3.1"
+      ],
+      "type": "table",
+      "example": "CDN | caché de estáticos | sede",
+      "columns": [
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.2.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "ataques",
+      "title": "Ataques",
+      "description": "Registros web y detección de los ataques del requisito.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-05",
+        "P-11"
+      ]
+    },
+    {
+      "id": "auditorias",
+      "title": "Auditorías",
+      "description": "Auditorías, hallazgos y vulnerabilidades.",
+      "evidences": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "parameters": [
+        "P-06",
+        "P-07",
+        "P-08",
+        "P-09",
+        "P-10",
+        "P-12"
+      ]
+    },
+    {
+      "id": "proxies",
+      "title": "Proxies y cachés",
+      "description": "Elementos intermedios.",
+      "evidences": [],
+      "parameters": [
+        "P-13"
+      ]
+    }
+  ]
+}

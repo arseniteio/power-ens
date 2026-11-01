@@ -1,0 +1,602 @@
+{
+  "controlId": "mp.s.2",
+  "controlName": "Protección de servicios y aplicaciones web",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.s.2",
+      "name": "aplicaciones_web",
+      "label": "Aplicaciones web",
+      "description": "Aplicaciones web: máquina con agente que las sirve, fuente de sus registros en Wazuh, URL y exposición.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1",
+        "mp.s.2.2",
+        "mp.s.2.3"
+      ],
+      "type": "table",
+      "example": "sede | srv-web01 | srv-web01 | https://sede.org.es | internet",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "mp.s.2 se juzga en sus máquinas; EV-01 sigue sus fuentes.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-11",
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "mp.s.2 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "url",
+          "label": "URL",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "exposicion",
+          "label": "Exposición",
+          "type": "select",
+          "options": [
+            "interna",
+            "internet"
+          ],
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.s.2",
+      "name": "endpoints_autenticados",
+      "label": "Recursos que exigen autenticación",
+      "description": "Rutas que exigen autenticación en cada aplicación y su mecanismo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "table",
+      "example": "sede | /expedientes | certificado",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ruta",
+          "label": "Ruta",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.s.2",
+      "name": "indicadores_ataque_web",
+      "label": "Indicadores de ataque web",
+      "description": "Indicadores de cada ataque que enumera el requisito, su fuente y las reglas de Wazuh que lo detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1",
+        "mp.s.2.2",
+        "mp.s.2.3"
+      ],
+      "type": "table",
+      "example": "inyección | SQL en parámetros | nginx | 31103, 31152",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 a EV-08 exigen reglas cargadas para cada ataque.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07",
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 a EV-08 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "acceso sin autenticación",
+            "vía alternativa",
+            "manipulación de URL",
+            "manipulación de cookies",
+            "inyección",
+            "escalado de privilegios",
+            "XSS"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.s.2",
+      "name": "vias_alternativas_prohibidas",
+      "label": "Vías alternativas prohibidas",
+      "description": "Vías alternativas de acceso que deben estar cerradas (listado de directorios, métodos HTTP no previstos).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "list",
+      "example": "listado de directorios, TRACE",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.s.2",
+      "name": "config_cookies",
+      "label": "Atributos de las cookies",
+      "description": "Atributos exigidos a las cookies de sesión.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "string",
+      "example": "Secure; HttpOnly; SameSite=Lax",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.s.2",
+      "name": "procedimiento_auditoria_web",
+      "label": "Procedimiento de auditoría web",
+      "description": "Procedimiento de auditoría de las aplicaciones web y su frecuencia.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.2"
+      ],
+      "type": "string",
+      "example": "PR-22 Auditoría de aplicaciones web",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.s.2",
+      "name": "modalidad_auditoria",
+      "label": "Modalidad de auditoría",
+      "description": "Caja negra (R1) o caja blanca (R2); en ALTO solo caja blanca.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r2.1"
+      ],
+      "type": "select",
+      "example": "caja blanca",
+      "options": [
+        "caja negra",
+        "caja blanca"
+      ],
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Solo aplican los refuerzos de la modalidad elegida; en ALTO, siempre los de caja blanca.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.s.2",
+      "name": "registro_auditorias_web",
+      "label": "Registro de auditorías web",
+      "description": "Una auditoría por fila: fecha, aplicación, modalidad, metodología, herramientas y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r2.1",
+        "mp.s.2.r2.2"
+      ],
+      "type": "table",
+      "example": "2026-02-20 | sede | caja blanca | OWASP ASVS | SonarQube, ZAP | 3",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-11 toma la auditoría más reciente de cada aplicación.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "modalidad",
+          "label": "Modalidad",
+          "type": "select",
+          "options": [
+            "caja negra",
+            "caja blanca"
+          ],
+          "required": true
+        },
+        {
+          "name": "metodologia",
+          "label": "Metodología",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "herramientas",
+          "label": "Herramientas",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.s.2",
+      "name": "dias_maximos_vulnerabilidad_web",
+      "label": "Días máximos de una vulnerabilidad crítica o alta",
+      "description": "Días que puede seguir abierta una vulnerabilidad crítica o alta del servidor web.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.2"
+      ],
+      "type": "number",
+      "example": "30",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 30,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 mide las vulnerabilidades de la máquina con este plazo.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar."
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.s.2",
+      "name": "periodicidad_auditorias_web_dias",
+      "label": "Periodicidad de las auditorías (días)",
+      "description": "Días máximos entre dos auditorías de cada aplicación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r1.1",
+        "mp.s.2.r1.2",
+        "mp.s.2.r2.1"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 365,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-11 mide la última auditoría con este plazo.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar."
+    },
+    {
+      "id": "P-11",
+      "controlId": "mp.s.2",
+      "name": "horas_maximas_sin_registros_web",
+      "label": "Horas máximas sin registros web",
+      "description": "Horas que una fuente de P-01 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.1"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 mide con este plazo.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-12",
+      "controlId": "mp.s.2",
+      "name": "seguimiento_hallazgos_auditoria",
+      "label": "Hallazgos de las auditorías",
+      "description": "Un hallazgo por fila: hallazgo, aplicación, severidad, responsable, plazo y estado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r2.3"
+      ],
+      "type": "table",
+      "example": "XSS en búsqueda | sede | alta | equipo web | 2026-04-30 | resuelto",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-12 exige cada hallazgo resuelto o en plazo.",
+      "evidenceIds": [
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin hallazgos.",
+      "columns": [
+        {
+          "name": "hallazgo",
+          "label": "Hallazgo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "severidad",
+          "label": "Severidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "plazo",
+          "label": "Plazo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "select",
+          "options": [
+            "abierto",
+            "resuelto",
+            "cerrado"
+          ],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-13",
+      "controlId": "mp.s.2",
+      "name": "proxies_caches",
+      "label": "Proxies y cachés",
+      "description": "Proxies y cachés en la ruta de los servicios web y su configuración.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.2.r3.1"
+      ],
+      "type": "table",
+      "example": "CDN | caché de estáticos | sede",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "elemento",
+          "label": "Elemento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.s.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.2.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
