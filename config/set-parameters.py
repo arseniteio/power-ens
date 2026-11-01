@@ -225,6 +225,7 @@ BUILTIN_TEMPLATES = {
     "mp.com.1": ["linux-ubuntu", "manager-wazuh"],
     "mp.com.3": ["linux-ubuntu", "manager-wazuh"],
     "mp.eq.2": ["manager-wazuh"],
+    "mp.s.1": ["linux-ubuntu", "manager-wazuh"],
 }
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"

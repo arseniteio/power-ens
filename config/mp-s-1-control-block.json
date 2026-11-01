@@ -1,0 +1,438 @@
+{
+  "controlId": "mp.s.1",
+  "controlName": "Protección del correo electrónico",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.s.1",
+      "name": "plataforma_correo",
+      "label": "Plataforma de correo",
+      "description": "Elementos de la plataforma de correo: máquina con agente que los ejecuta y fuente de sus registros en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "type": "table",
+      "example": "Postfix | mail01 | mail01",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "mp.s.1 se juzga en sus máquinas; EV-01 sigue sus fuentes.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "mp.s.1 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "plataforma",
+          "label": "Plataforma",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.s.1",
+      "name": "dominios_correo_propios",
+      "label": "Dominios de correo propios",
+      "description": "Dominios propios con su selector DKIM y la política DMARC declarada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.2"
+      ],
+      "type": "table",
+      "example": "org.es | s2026 | reject",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 consulta en DNS su SPF, DKIM y DMARC.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "dominio",
+          "label": "Dominio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "selector_dkim",
+          "label": "Selector DKIM",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "politica_dmarc",
+          "label": "Política DMARC",
+          "type": "select",
+          "options": [
+            "none",
+            "quarantine",
+            "reject"
+          ],
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.s.1",
+      "name": "filtros_correo",
+      "label": "Filtros del correo",
+      "description": "Indicadores de los filtros antispam, antimalware y de código móvil, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "type": "table",
+      "example": "antimalware | virus en anexo | amavis | 52502",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02, EV-03 y EV-05 exigen reglas cargadas para cada filtro.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02, EV-03 y EV-05 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "select",
+          "options": [
+            "antispam",
+            "antimalware",
+            "código móvil"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.s.1",
+      "name": "requisitos_tls_correo",
+      "label": "Requisitos de TLS del correo",
+      "description": "Exigencias de cifrado en tránsito del correo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2"
+      ],
+      "type": "string",
+      "example": "TLS 1.2 o superior entrante y saliente; MTA-STS",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.s.1",
+      "name": "criterios_cifrado_contenido",
+      "label": "Cifrado del contenido",
+      "description": "Cuándo el cuerpo o los anexos deben ir cifrados además del tránsito.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1"
+      ],
+      "type": "table",
+      "example": "datos personales a terceros | anexo cifrado con contraseña por otro canal",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "supuesto",
+          "label": "Supuesto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "medida",
+          "label": "Medida",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.s.1",
+      "name": "normas_uso_correo",
+      "label": "Normas de uso del correo",
+      "description": "Normas de uso del correo con las limitaciones a las comunicaciones privadas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.6"
+      ],
+      "type": "string",
+      "example": "NT-02 Uso del correo electrónico v3",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: 1.6 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.s.1",
+      "name": "concienciacion_correo",
+      "label": "Actividades de concienciación",
+      "description": "Una actividad por fila: fecha, actividad, alcance y participación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.7"
+      ],
+      "type": "table",
+      "example": "2026-03-10 | campaña de phishing simulado | toda la plantilla | 87 %",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 toma la actividad más reciente.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "actividad",
+          "label": "Actividad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "participacion",
+          "label": "Participación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.s.1",
+      "name": "periodicidad_concienciacion_dias",
+      "label": "Periodicidad de la concienciación (días)",
+      "description": "Días máximos entre dos actividades de concienciación sobre el correo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.7"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 365,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 compara la última actividad con este plazo.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.s.1",
+      "name": "configuracion_correo",
+      "label": "Configuración del correo",
+      "description": "Ficheros o directorios de configuración del servicio de correo en la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2"
+      ],
+      "type": "list",
+      "example": "/etc/postfix, /etc/dovecot",
+      "required": true,
+      "wazuhUsage": "El motor los pone bajo FIM en la configuración del grupo cuando Wazuh no los vigila por defecto.",
+      "powerEnsUsage": "EV-09 exige petición de op.exp.5 para cada cambio.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-09 queda sin demostrar."
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.s.1",
+      "name": "horas_maximas_sin_registros_correo",
+      "label": "Horas máximas sin registros del correo",
+      "description": "Horas que una fuente de la plataforma de correo puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 mide con este plazo.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.s.1",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.1.6 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

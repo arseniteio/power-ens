@@ -1,0 +1,766 @@
+{
+  "framework": "ENS",
+  "control": "mp.s.1",
+  "title": "Protección del correo electrónico",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los servicios",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.8.1",
+  "description": "mp.s.1 exige proteger el correo frente al spam, el código dañino y el móvil, y su tránsito y encaminamiento. Se juzga en las máquinas de la plataforma de correo: sus registros, filtros, TLS, los registros DNS de los dominios propios, los cambios de su configuración y la concienciación.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.s.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.s.1.1",
+      "title": "Protección del cuerpo de los mensajes y de los anexos",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "La información distribuida por medio de correo electrónico se protegerá, tanto en el cuerpo de los mensajes como en los anexos.",
+      "evidence_ids": [
+        "EV-06",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-04",
+        "P-05",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.s.1.2",
+      "title": "Protección del encaminamiento y del establecimiento de conexiones",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se protegerá la información de encaminamiento de mensajes y establecimiento de conexiones.",
+      "evidence_ids": [
+        "EV-06",
+        "EV-07",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-04",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.s.1.3",
+      "title": "Protección frente al correo no solicitado",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Correo no solicitado, en su expresión inglesa «spam».",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.1.4",
+      "title": "Protección frente al código dañino",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Código dañino, constituidos por virus, gusanos, troyanos, espías, u otros de naturaleza análoga.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-03",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.1.5",
+      "title": "Protección frente al código móvil",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Código móvil de tipo micro-aplicación, en su expresión inglesa «applet».",
+      "evidence_ids": [
+        "EV-01",
+        "EV-05",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.1.6",
+      "title": "Normas de uso: limitaciones a las comunicaciones privadas",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Limitaciones al uso como soporte de comunicaciones privadas.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.s.1.7",
+      "title": "Concienciación y formación sobre el uso del correo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Actividades de concienciación y formación relativas al uso del correo electrónico.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-08"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registros de la plataforma de correo",
+      "description": "Cada fuente de P-01 envía registros a Wazuh dentro de P-10 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan los registros de la plataforma de correo?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Filtrado del correo no solicitado",
+      "description": "Cada indicador antispam de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se filtra y se vigila el correo no solicitado?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Detección de código dañino en el correo",
+      "description": "Cada indicador antimalware de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.4"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta el código dañino en el correo?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Tratamiento del código móvil",
+      "description": "Cada indicador de código móvil de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.5"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se trata el código móvil del correo?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Cifrado en tránsito del correo",
+      "description": "Postfix ofrece y usa TLS y rechaza los protocolos anteriores a TLS 1.2.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El correo viaja cifrado?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Autenticación de los dominios propios",
+      "description": "Cada dominio de P-02 publica SPF que no admite a cualquiera, la clave DKIM de su selector y una política DMARC quarantine o reject.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los dominios propios publican SPF, DKIM y DMARC?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Cambios en la configuración del correo",
+      "description": "Cada cambio que FIM ve en las configuraciones de P-09 tiene su petición en op.exp.5 P-10.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2",
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Los cambios en la configuración del correo están autorizados?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Concienciación sobre el correo",
+      "description": "La última actividad de P-07 está dentro de P-08 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.7"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se hacen actividades de concienciación sobre el correo?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "plataforma_correo",
+      "label": "Plataforma de correo",
+      "description": "Elementos de la plataforma de correo: máquina con agente que los ejecuta y fuente de sus registros en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "type": "table",
+      "example": "Postfix | mail01 | mail01",
+      "columns": [
+        {
+          "name": "plataforma",
+          "label": "Plataforma",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "mp.s.1 se juzga en sus máquinas; EV-01 sigue sus fuentes.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "mp.s.1 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "dominios_correo_propios",
+      "label": "Dominios de correo propios",
+      "description": "Dominios propios con su selector DKIM y la política DMARC declarada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.2"
+      ],
+      "type": "table",
+      "example": "org.es | s2026 | reject",
+      "columns": [
+        {
+          "name": "dominio",
+          "label": "Dominio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "selector_dkim",
+          "label": "Selector DKIM",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "politica_dmarc",
+          "label": "Política DMARC",
+          "type": "select",
+          "options": [
+            "none",
+            "quarantine",
+            "reject"
+          ],
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 consulta en DNS su SPF, DKIM y DMARC.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "filtros_correo",
+      "label": "Filtros del correo",
+      "description": "Indicadores de los filtros antispam, antimalware y de código móvil, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3",
+        "mp.s.1.4",
+        "mp.s.1.5"
+      ],
+      "type": "table",
+      "example": "antimalware | virus en anexo | amavis | 52502",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "select",
+          "options": [
+            "antispam",
+            "antimalware",
+            "código móvil"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02, EV-03 y EV-05 exigen reglas cargadas para cada filtro.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "if_not_configured": "EV-02, EV-03 y EV-05 quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "requisitos_tls_correo",
+      "label": "Requisitos de TLS del correo",
+      "description": "Exigencias de cifrado en tránsito del correo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2"
+      ],
+      "type": "string",
+      "example": "TLS 1.2 o superior entrante y saliente; MTA-STS",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "criterios_cifrado_contenido",
+      "label": "Cifrado del contenido",
+      "description": "Cuándo el cuerpo o los anexos deben ir cifrados además del tránsito.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1"
+      ],
+      "type": "table",
+      "example": "datos personales a terceros | anexo cifrado con contraseña por otro canal",
+      "columns": [
+        {
+          "name": "supuesto",
+          "label": "Supuesto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "medida",
+          "label": "Medida",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "normas_uso_correo",
+      "label": "Normas de uso del correo",
+      "description": "Normas de uso del correo con las limitaciones a las comunicaciones privadas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.6"
+      ],
+      "type": "string",
+      "example": "NT-02 Uso del correo electrónico v3",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: 1.6 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "concienciacion_correo",
+      "label": "Actividades de concienciación",
+      "description": "Una actividad por fila: fecha, actividad, alcance y participación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.7"
+      ],
+      "type": "table",
+      "example": "2026-03-10 | campaña de phishing simulado | toda la plantilla | 87 %",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "actividad",
+          "label": "Actividad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "participacion",
+          "label": "Participación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 toma la actividad más reciente.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "periodicidad_concienciacion_dias",
+      "label": "Periodicidad de la concienciación (días)",
+      "description": "Días máximos entre dos actividades de concienciación sobre el correo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.7"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "default_value": 365,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 compara la última actividad con este plazo.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "system",
+      "name": "configuracion_correo",
+      "label": "Configuración del correo",
+      "description": "Ficheros o directorios de configuración del servicio de correo en la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.1",
+        "mp.s.1.2"
+      ],
+      "type": "list",
+      "example": "/etc/postfix, /etc/dovecot",
+      "required": true,
+      "agent_usage": "El motor los pone bajo FIM en la configuración del grupo cuando Wazuh no los vigila por defecto.",
+      "engine_usage": "EV-09 exige petición de op.exp.5 para cada cambio.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_correo",
+      "label": "Horas máximas sin registros del correo",
+      "description": "Horas que una fuente de la plataforma de correo puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.1.3"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 mide con este plazo.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.1.6 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "plataforma",
+      "title": "Plataforma",
+      "description": "Registros y filtros de la plataforma de correo.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03",
+        "P-10"
+      ]
+    },
+    {
+      "id": "transito",
+      "title": "Tránsito y dominios",
+      "description": "Cifrado en tránsito y autenticación de los dominios propios.",
+      "evidences": [
+        "EV-06",
+        "EV-07"
+      ],
+      "parameters": [
+        "P-02",
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "configuracion",
+      "title": "Configuración",
+      "description": "Cambios en la configuración del correo.",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": [
+        "P-09"
+      ]
+    },
+    {
+      "id": "usuarios",
+      "title": "Usuarios",
+      "description": "Normas de uso y concienciación.",
+      "evidences": [
+        "EV-10"
+      ],
+      "parameters": [
+        "P-06",
+        "P-07",
+        "P-08"
+      ]
+    }
+  ]
+}
