@@ -1,0 +1,910 @@
+{
+  "framework": "ENS",
+  "control": "op.mon.3",
+  "title": "Vigilancia",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Monitorización del sistema",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.7.3",
+  "description": "op.mon.3 exige recoger y correlacionar los eventos de seguridad y vigilar la superficie de exposición. Se juzga sobre el manager de Wazuh, las fuentes que envía cada máquina y el registro de inspecciones.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.mon.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.mon.3.1",
+      "title": "Recolección automática de eventos de seguridad",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de un sistema automático de recolección de eventos de seguridad.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "op.mon.3.r1.1",
+      "title": "Correlación de eventos",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de un sistema automático de recolección de eventos de seguridad que permita la correlación de los mismos.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.mon.3.r2.1",
+      "title": "Superficie de exposición",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de soluciones de vigilancia que permitan determinar la superficie de exposición con relación a vulnerabilidades y deficiencias de configuración.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": []
+    },
+    {
+      "id": "op.mon.3.r3.1",
+      "title": "Amenazas avanzadas y comportamientos anómalos",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se dispondrá de sistemas para detección de amenazas avanzadas y comportamientos anómalos.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.mon.3.r3.2",
+      "title": "APT por anomalías en el tráfico de red",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se dispondrá de sistemas para la detección de amenazas persistentes avanzadas (Advanced Persistent Threat, APT) mediante la detección de anomalías significativas en el tráfico de la red.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.mon.3.r4.1",
+      "title": "Observatorios digitales",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se dispondrá de observatorios digitales con fines de cibervigilancia dedicados a la detección y seguimiento de anomalías que pudieran representar indicadores de amenaza en contenidos digitales.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "op.mon.3.r5.1",
+      "title": "Limitación y vigilancia de consultas",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Limitación de las consultas, monitorizando volumen y frecuencia.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.mon.3.r5.2",
+      "title": "Alerta en tiempo real a los administradores",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Alerta a los administradores de seguridad de comportamientos sospechosos en tiempo real.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "op.mon.3.r6.1",
+      "title": "Inspección: verificación de configuración",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Verificación de configuración.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-09",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.mon.3.r6.2",
+      "title": "Inspección: análisis de vulnerabilidades",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Análisis de vulnerabilidades.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-09",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.mon.3.r6.3",
+      "title": "Inspección: pruebas de penetración",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Pruebas de penetración.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-09",
+        "P-10"
+      ]
+    },
+    {
+      "id": "op.mon.3.r7.1",
+      "title": "Interconexiones: control de flujos por metadatos",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "En las interconexiones que lo requieran se aplicarán controles en los flujos de intercambio de información a través del uso de metadatos.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Recolección automática de eventos",
+      "description": "Los procesos de recepción del manager están en marcha y la máquina le envía eventos dentro de P-03 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay un sistema automático que recoge los eventos de la máquina?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Cobertura y continuidad de la recolección",
+      "description": "Cada fuente de P-01 de la máquina la lee su agente y envía eventos dentro de sus horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se recogen todas las fuentes de eventos previstas?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Correlación de eventos",
+      "description": "El manager carga reglas de correlación, y cada conjunto de P-02 tiene al menos las suyas.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se correlacionan los eventos recogidos?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Superficie de exposición",
+      "description": "El detector de vulnerabilidades está activo sobre el inventario de paquetes de la máquina y SCA da resultados de ella.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se determina la superficie de exposición de la máquina?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Detección de APT en el tráfico de red",
+      "description": "La sonda de red de P-05 envía alertas al manager dentro de sus días.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay una sonda que detecta anomalías en el tráfico de red?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Vigilancia del volumen de consultas",
+      "description": "Cada límite de consultas de P-07 tiene una regla de umbral cargada.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se vigila el volumen y la frecuencia de las consultas?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Alerta en tiempo real a los administradores",
+      "description": "Cada destinatario de P-08 lo alcanza su canal: el correo del manager o una integración, al nivel fijado.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Los administradores reciben las alertas en tiempo real?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Verificación de configuración",
+      "description": "SCA verifica la configuración de la máquina de forma continua, o la última verificación de P-10 está dentro de la periodicidad de P-09.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se verifica la configuración con la periodicidad fijada?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Análisis de vulnerabilidades",
+      "description": "El detector de vulnerabilidades analiza la máquina de forma continua, o el último análisis de P-10 está dentro de la periodicidad de P-09.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se analizan las vulnerabilidades con la periodicidad fijada?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Pruebas de penetración",
+      "description": "La última prueba de penetración de P-10 está dentro de la periodicidad de P-09.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se hacen pruebas de penetración con la periodicidad fijada?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "fuentes_eventos_seguridad",
+      "label": "Fuentes de eventos de seguridad",
+      "description": "Fuentes que deben recogerse, una por fila: nombre, máquina (su nombre en Wazuh o * para todas), fichero que lee el agente y horas máximas sin eventos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "type": "table",
+      "example": "autenticación | * | /var/log/auth.log | 24",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_horas",
+          "label": "Horas máximas sin eventos",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige cada fuente de la máquina leída por su agente y con eventos dentro de sus horas.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "reglas_correlacion",
+      "label": "Reglas de correlación exigidas",
+      "description": "Conjuntos de reglas (wazuh, propias o un fichero) y cuántas reglas de correlación deben tener.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r1.1"
+      ],
+      "type": "table",
+      "example": "wazuh | 100",
+      "columns": [
+        {
+          "name": "conjunto",
+          "label": "Conjunto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "minimo_reglas_correlacion",
+          "label": "Mínimo de reglas de correlación",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 cuenta las reglas de correlación de cada conjunto.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 solo exige alguna regla de correlación."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_eventos",
+      "label": "Horas máximas sin eventos de la máquina",
+      "description": "Horas que una máquina puede pasar sin enviar eventos al manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": true,
+      "min_value": 1,
+      "default_value": 2,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 compara el último keepalive con este plazo.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "linea_base_comportamiento",
+      "label": "Línea base de comportamiento",
+      "description": "Indicadores de comportamiento normal, su normalidad y el umbral de anomalía.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.1"
+      ],
+      "type": "table",
+      "example": "accesos fuera de horario | 7-20 h | cualquier acceso a otra hora",
+      "columns": [
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "normalidad",
+          "label": "Normalidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "umbral_anomalia",
+          "label": "Umbral de anomalía",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "sonda_deteccion_red",
+      "label": "Sonda de detección en red",
+      "description": "Sonda que detecta anomalías en el tráfico de red y envía sus alertas a Wazuh: producto, ubicación y días máximos sin alertas.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.2"
+      ],
+      "type": "table",
+      "example": "Suricata | TAP del perímetro | 2",
+      "columns": [
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dias_maximos_sin_alerta",
+          "label": "Días máximos sin alertas",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 exige alertas de intrusión en red dentro de sus días.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 no se cumple: sin sonda no hay detección en red."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "servicio_observatorio_digital",
+      "label": "Observatorio digital",
+      "description": "Servicio de cibervigilancia, proveedor y qué vigila.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r4.1"
+      ],
+      "type": "table",
+      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares, credenciales filtradas",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "proveedor",
+          "label": "Proveedor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r4.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "umbrales_consultas",
+      "label": "Límites de consultas",
+      "description": "Límites de volumen y frecuencia de consultas por sistema y perfil, y las reglas de umbral que los vigilan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.1"
+      ],
+      "type": "table",
+      "example": "BD expedientes | gestor | 500 registros | 1 h | 100510",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "umbral",
+          "label": "Umbral",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ventana",
+          "label": "Ventana",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige en cada fila una regla de umbral cargada.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "destinatarios_alerta_tiempo_real",
+      "label": "Destinatarios de las alertas en tiempo real",
+      "description": "Administradores que reciben alertas en tiempo real, su canal (correo o el nombre de una integración de Wazuh) y el nivel mínimo de alerta.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.2"
+      ],
+      "type": "table",
+      "example": "Responsable de Seguridad | correo | 12",
+      "columns": [
+        {
+          "name": "destinatario",
+          "label": "Destinatario",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "nivel",
+          "label": "Nivel mínimo",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 comprueba el correo y las integraciones del manager.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "plan_inspecciones",
+      "label": "Plan de inspecciones",
+      "description": "Periodicidad en días y ejecutor de cada inspección: configuración, vulnerabilidades y pentest.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.1",
+        "op.mon.3.r6.2",
+        "op.mon.3.r6.3"
+      ],
+      "type": "table",
+      "example": "pentest | 365 | externo",
+      "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "configuración",
+            "vulnerabilidades",
+            "pentest"
+          ],
+          "required": true
+        },
+        {
+          "name": "periodicidad_dias",
+          "label": "Periodicidad (días)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "ejecutor",
+          "label": "Ejecutor",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 a EV-12 comparan la última inspección de cada tipo con su periodicidad.",
+      "evidence_ids": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "if_not_configured": "Las inspecciones que no hace Wazuh de forma continua quedan sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "registro_inspecciones",
+      "label": "Registro de inspecciones",
+      "description": "Inspecciones hechas, una por fila: fecha, tipo, alcance, ejecutor, hallazgos y estado de su corrección.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.1",
+        "op.mon.3.r6.2",
+        "op.mon.3.r6.3"
+      ],
+      "type": "table",
+      "example": "2026-03-01 | pentest | perímetro | Auditora S.L. | 3 | corregido",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "configuración",
+            "vulnerabilidades",
+            "pentest"
+          ],
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ejecutor",
+          "label": "Ejecutor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 a EV-12 toman la inspección más reciente de cada tipo.",
+      "evidence_ids": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "if_not_configured": "Las inspecciones que no hace Wazuh de forma continua quedan sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.3.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "recoleccion",
+      "title": "Recolección de eventos",
+      "description": "Recepción de eventos y fuentes recogidas.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "analisis",
+      "title": "Correlación y exposición",
+      "description": "Reglas de correlación, superficie de exposición y detección en red.",
+      "evidences": [
+        "EV-03",
+        "EV-04",
+        "EV-06"
+      ],
+      "parameters": [
+        "P-02",
+        "P-04",
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "vigilancia",
+      "title": "Consultas y alertas",
+      "description": "Límites de consultas y alertas en tiempo real.",
+      "evidences": [
+        "EV-08",
+        "EV-09"
+      ],
+      "parameters": [
+        "P-07",
+        "P-08"
+      ]
+    },
+    {
+      "id": "inspecciones",
+      "title": "Inspecciones",
+      "description": "Verificación de configuración, vulnerabilidades y pruebas de penetración.",
+      "evidences": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "parameters": [
+        "P-09",
+        "P-10"
+      ]
+    }
+  ]
+}

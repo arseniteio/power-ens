@@ -1,0 +1,527 @@
+{
+  "controlId": "op.mon.3",
+  "controlName": "Vigilancia",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.mon.3",
+      "name": "fuentes_eventos_seguridad",
+      "label": "Fuentes de eventos de seguridad",
+      "description": "Fuentes que deben recogerse, una por fila: nombre, máquina (su nombre en Wazuh o * para todas), fichero que lee el agente y horas máximas sin eventos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "type": "table",
+      "example": "autenticación | * | /var/log/auth.log | 24",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 exige cada fuente de la máquina leída por su agente y con eventos dentro de sus horas.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "max_horas",
+          "label": "Horas máximas sin eventos",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.mon.3",
+      "name": "reglas_correlacion",
+      "label": "Reglas de correlación exigidas",
+      "description": "Conjuntos de reglas (wazuh, propias o un fichero) y cuántas reglas de correlación deben tener.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r1.1"
+      ],
+      "type": "table",
+      "example": "wazuh | 100",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 cuenta las reglas de correlación de cada conjunto.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 solo exige alguna regla de correlación.",
+      "columns": [
+        {
+          "name": "conjunto",
+          "label": "Conjunto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "minimo_reglas_correlacion",
+          "label": "Mínimo de reglas de correlación",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.mon.3",
+      "name": "horas_maximas_sin_eventos",
+      "label": "Horas máximas sin eventos de la máquina",
+      "description": "Horas que una máquina puede pasar sin enviar eventos al manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.1"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 2,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 compara el último keepalive con este plazo.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.mon.3",
+      "name": "linea_base_comportamiento",
+      "label": "Línea base de comportamiento",
+      "description": "Indicadores de comportamiento normal, su normalidad y el umbral de anomalía.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.1"
+      ],
+      "type": "table",
+      "example": "accesos fuera de horario | 7-20 h | cualquier acceso a otra hora",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "normalidad",
+          "label": "Normalidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "umbral_anomalia",
+          "label": "Umbral de anomalía",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.mon.3",
+      "name": "sonda_deteccion_red",
+      "label": "Sonda de detección en red",
+      "description": "Sonda que detecta anomalías en el tráfico de red y envía sus alertas a Wazuh: producto, ubicación y días máximos sin alertas.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.2"
+      ],
+      "type": "table",
+      "example": "Suricata | TAP del perímetro | 2",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 exige alertas de intrusión en red dentro de sus días.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 no se cumple: sin sonda no hay detección en red.",
+      "columns": [
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "dias_maximos_sin_alerta",
+          "label": "Días máximos sin alertas",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.mon.3",
+      "name": "servicio_observatorio_digital",
+      "label": "Observatorio digital",
+      "description": "Servicio de cibervigilancia, proveedor y qué vigila.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r4.1"
+      ],
+      "type": "table",
+      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares, credenciales filtradas",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r4.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "proveedor",
+          "label": "Proveedor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.mon.3",
+      "name": "umbrales_consultas",
+      "label": "Límites de consultas",
+      "description": "Límites de volumen y frecuencia de consultas por sistema y perfil, y las reglas de umbral que los vigilan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.1"
+      ],
+      "type": "table",
+      "example": "BD expedientes | gestor | 500 registros | 1 h | 100510",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 exige en cada fila una regla de umbral cargada.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "umbral",
+          "label": "Umbral",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ventana",
+          "label": "Ventana",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.mon.3",
+      "name": "destinatarios_alerta_tiempo_real",
+      "label": "Destinatarios de las alertas en tiempo real",
+      "description": "Administradores que reciben alertas en tiempo real, su canal (correo o el nombre de una integración de Wazuh) y el nivel mínimo de alerta.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r5.2"
+      ],
+      "type": "table",
+      "example": "Responsable de Seguridad | correo | 12",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-09 comprueba el correo y las integraciones del manager.",
+      "evidenceIds": [
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-09 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "destinatario",
+          "label": "Destinatario",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "nivel",
+          "label": "Nivel mínimo",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.mon.3",
+      "name": "plan_inspecciones",
+      "label": "Plan de inspecciones",
+      "description": "Periodicidad en días y ejecutor de cada inspección: configuración, vulnerabilidades y pentest.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.1",
+        "op.mon.3.r6.2",
+        "op.mon.3.r6.3"
+      ],
+      "type": "table",
+      "example": "pentest | 365 | externo",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 a EV-12 comparan la última inspección de cada tipo con su periodicidad.",
+      "evidenceIds": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Las inspecciones que no hace Wazuh de forma continua quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "configuración",
+            "vulnerabilidades",
+            "pentest"
+          ],
+          "required": true
+        },
+        {
+          "name": "periodicidad_dias",
+          "label": "Periodicidad (días)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "ejecutor",
+          "label": "Ejecutor",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-10",
+      "controlId": "op.mon.3",
+      "name": "registro_inspecciones",
+      "label": "Registro de inspecciones",
+      "description": "Inspecciones hechas, una por fila: fecha, tipo, alcance, ejecutor, hallazgos y estado de su corrección.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r6.1",
+        "op.mon.3.r6.2",
+        "op.mon.3.r6.3"
+      ],
+      "type": "table",
+      "example": "2026-03-01 | pentest | perímetro | Auditora S.L. | 3 | corregido",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 a EV-12 toman la inspección más reciente de cada tipo.",
+      "evidenceIds": [
+        "EV-10",
+        "EV-11",
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Las inspecciones que no hace Wazuh de forma continua quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "configuración",
+            "vulnerabilidades",
+            "pentest"
+          ],
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ejecutor",
+          "label": "Ejecutor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.mon.3",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.3.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

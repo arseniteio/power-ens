@@ -22,8 +22,9 @@ import opExp7 from './engine/op.exp.7.json';
 import opExp8 from './engine/op.exp.8.json';
 import opExp9 from './engine/op.exp.9.json';
 import opMon1 from './engine/op.mon.1.json';
+import opMon3 from './engine/op.mon.3.json';
 
-export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1];
+export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1, opMon3];
 
 const defined = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
