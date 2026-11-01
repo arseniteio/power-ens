@@ -11,6 +11,8 @@ import opAcc3 from './engine/op.acc.3.json';
 import opAcc4 from './engine/op.acc.4.json';
 import opAcc5 from './engine/op.acc.5.json';
 import opAcc6 from './engine/op.acc.6.json';
+import opCont2 from './engine/op.cont.2.json';
+import opCont3 from './engine/op.cont.3.json';
 import opExp1 from './engine/op.exp.1.json';
 import opExp10 from './engine/op.exp.10.json';
 import opExp2 from './engine/op.exp.2.json';
@@ -25,7 +27,7 @@ import opMon1 from './engine/op.mon.1.json';
 import opMon2 from './engine/op.mon.2.json';
 import opMon3 from './engine/op.mon.3.json';
 
-export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1, opMon2, opMon3];
+export const ENGINE_CATALOG: any[] = [opAcc1, opAcc2, opAcc3, opAcc4, opAcc5, opAcc6, opExp1, opExp2, opExp3, opExp4, opExp5, opExp6, opExp7, opExp8, opExp9, opExp10, mpInfo6, opMon1, opMon2, opMon3, opCont2, opCont3];
 
 const defined = <T extends Record<string, unknown>>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;

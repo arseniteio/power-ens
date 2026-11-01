@@ -1,0 +1,564 @@
+{
+  "framework": "ENS",
+  "control": "op.cont.3",
+  "title": "Pruebas periódicas",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Continuidad del servicio",
+  "dimension": "Disponibilidad",
+  "level_dimension": [
+    "D"
+  ],
+  "annex_section": "4.6.3",
+  "description": "op.cont.3 exige probar periódicamente el plan de continuidad y corregir lo que revelan las pruebas. Se juzga sobre el registro de pruebas y de deficiencias, y la caída que la monitorización de Wazuh midió en cada máquina probada.",
+  "levels": [
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.cont.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.cont.3.1",
+      "title": "Pruebas periódicas del plan y corrección de lo detectado",
+      "kind": "BASE",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se realizarán pruebas periódicas para localizar y, en su caso, corregir los errores o deficiencias que puedan existir en el plan de continuidad.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-05",
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registro de las pruebas",
+      "description": "El registro P-04 tiene una prueba parcial o un simulacro en los últimos P-01 meses, y P-02 los prevé.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se prueban los medios alternativos del plan?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Periodicidad de las pruebas",
+      "description": "La última prueba, la de cada tipo de P-02 y la de cada escenario de P-03 están dentro de su periodicidad.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se prueba el plan con la periodicidad fijada?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Medición de la prueba en la máquina",
+      "description": "Hay registros de monitorización de la máquina en cada prueba parcial o simulacro en que participó.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se midió lo que le ocurrió a la máquina en cada prueba?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Resultado frente al RTO",
+      "description": "En cada prueba parcial o simulacro de la máquina, su caída más larga no supera su RTO de P-07 y la máquina vuelve a estar activa.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "category": "AVAILABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina se restableció dentro de su RTO en las pruebas?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Corrección de las deficiencias",
+      "description": "Cada deficiencia de P-05 está cerrada o en plazo y no sobrevive a la prueba siguiente, y cada prueba tiene en seguimiento las deficiencias que declaró.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se corrigen las deficiencias que revelan las pruebas?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "periodicidad_pruebas_meses",
+      "label": "Periodicidad de las pruebas (meses)",
+      "description": "Cada cuántos meses, como máximo, se prueba el plan y cada escenario.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": true,
+      "min_value": 1,
+      "default_value": 12,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 y EV-02 miden con este plazo.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "if_not_configured": "op.cont.3 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "tipos_prueba",
+      "label": "Tipos de prueba previstos",
+      "description": "Modalidades de prueba: revisión documental, escritorio, parcial o simulacro, con su periodicidad en meses si difiere de P-01.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "simulacro | conmutación real al CPD alternativo | 12",
+      "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "revisión documental",
+            "escritorio",
+            "parcial",
+            "simulacro"
+          ],
+          "required": true
+        },
+        {
+          "name": "descripcion",
+          "label": "Descripción",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "periodicidad_meses",
+          "label": "Periodicidad (meses)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 exige que se prevea una prueba parcial o un simulacro; EV-02 mide cada tipo.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "if_not_configured": "EV-01 y EV-02 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "escenarios_prueba",
+      "label": "Escenarios que se prueban",
+      "description": "Escenarios de interrupción del análisis de impacto que deben probarse y sus sistemas.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "pérdida total de CPD | todos",
+      "columns": [
+        {
+          "name": "escenario",
+          "label": "Escenario",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistemas",
+          "label": "Sistemas",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige una prueba de cada escenario dentro de P-01.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 no mide escenarios."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "registro_pruebas",
+      "label": "Registro de pruebas",
+      "description": "Una prueba por fila: inicio, fin, tipo, escenario, sistemas (nombres en Wazuh separados por comas), resultado, deficiencias detectadas e informe.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "2026-03-14T22:00:00+01:00 | 2026-03-15T02:00:00+01:00 | simulacro | pérdida total de CPD | srv-web, srv-bd | satisfactorio | 2 | INF-2026-03",
+      "columns": [
+        {
+          "name": "inicio",
+          "label": "Inicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fin",
+          "label": "Fin",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "revisión documental",
+            "escritorio",
+            "parcial",
+            "simulacro"
+          ],
+          "required": true
+        },
+        {
+          "name": "escenario",
+          "label": "Escenario",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sistemas",
+          "label": "Sistemas",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "select",
+          "options": [
+            "satisfactorio",
+            "con deficiencias",
+            "fallido"
+          ],
+          "required": false
+        },
+        {
+          "name": "deficiencias",
+          "label": "Deficiencias",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "informe",
+          "label": "Informe",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 a EV-05 se juzgan sobre estas pruebas; EV-03 y EV-04 miden la ventana real de cada una en la monitorización.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "if_not_configured": "op.cont.3 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "registro_deficiencias",
+      "label": "Registro de deficiencias",
+      "description": "Una deficiencia por fila: identificador, fecha de la prueba que la reveló, responsable, plazo, estado, fecha de cierre y versión del plan que la recoge.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "D-2026-01 | 2026-03-14 | Responsable de Sistemas | 2026-04-30 | cerrada | 2026-04-20 | v3.1",
+      "columns": [
+        {
+          "name": "deficiencia",
+          "label": "Deficiencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "prueba",
+          "label": "Fecha de la prueba",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "plazo",
+          "label": "Plazo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estado",
+          "label": "Estado",
+          "type": "select",
+          "options": [
+            "abierta",
+            "cerrada"
+          ],
+          "required": true
+        },
+        {
+          "name": "cierre",
+          "label": "Cierre",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "version_plan",
+          "label": "Versión del plan",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 juzga los plazos y que cada prueba tenga sus deficiencias en seguimiento.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "Una prueba que declare deficiencias incumple EV-05."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "ventanas_prueba",
+      "label": "Ventanas previstas de prueba",
+      "description": "Franjas previstas para las pruebas, para el informe: la medida usa la ventana real de P-04.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "2026-03-14 | 22:00 | 02:00 | srv-web, srv-bd",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "inicio",
+          "label": "Inicio",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fin",
+          "label": "Fin",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sistemas",
+          "label": "Sistemas",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "rto_sistemas_prueba",
+      "label": "RTO de los sistemas probados",
+      "description": "RTO de cada sistema que interviene en las pruebas, en horas (admite decimales), y tolerancia en minutos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.3.1"
+      ],
+      "type": "table",
+      "example": "srv-web | 4 | 15",
+      "columns": [
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rto_horas",
+          "label": "RTO (horas)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "tolerancia_min",
+          "label": "Tolerancia (minutos)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 compara la caída más larga de la máquina en cada prueba con su RTO.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar en las máquinas probadas."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.cont.3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "pruebas",
+      "title": "Pruebas realizadas",
+      "description": "Pruebas del periodo y su periodicidad.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-04",
+        "P-06"
+      ]
+    },
+    {
+      "id": "resultado",
+      "title": "Resultado medido",
+      "description": "Caída de cada máquina frente a su RTO.",
+      "evidences": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "deficiencias",
+      "title": "Deficiencias",
+      "description": "Seguimiento y corrección.",
+      "evidences": [
+        "EV-05"
+      ],
+      "parameters": [
+        "P-05"
+      ]
+    }
+  ]
+}

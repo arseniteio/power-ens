@@ -1,0 +1,392 @@
+{
+  "controlId": "op.cont.2",
+  "controlName": "Plan de continuidad",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.cont.2",
+      "name": "plan_continuidad",
+      "label": "Plan de continuidad aprobado",
+      "description": "Aprobaciones del plan, una por fila: referencia, versión, fecha de aprobación, quién lo aprobó y su responsable.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1",
+        "op.cont.2.2"
+      ],
+      "type": "table",
+      "example": "Plan de Continuidad del Servicio | v3.0 | 2026-01-15 | Comité de Seguridad | Responsable de Seguridad",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 toma la aprobación más reciente.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "label": "Versión",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha_aprobacion",
+          "label": "Fecha de aprobación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aprobado_por",
+          "label": "Aprobado por",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.cont.2",
+      "name": "servicios_esenciales",
+      "label": "Servicios esenciales",
+      "description": "Servicios esenciales que garantizan los medios alternativos, con su RTO, su RPO y los sistemas que los soportan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.2"
+      ],
+      "type": "table",
+      "example": "sede electrónica | 4 h | 1 h | srv-web, srv-bd",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "rto",
+          "label": "RTO",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rpo",
+          "label": "RPO",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "sistemas",
+          "label": "Sistemas",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.cont.2",
+      "name": "funciones_plan",
+      "label": "Funciones del plan",
+      "description": "Funciones del plan con su responsable, su suplente y las actividades a realizar.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1",
+        "op.cont.2.4"
+      ],
+      "type": "table",
+      "example": "coordinador de crisis | A. Martínez | J. Ruiz | activar el plan y convocar al comité",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 exige formación vigente a cada responsable y suplente.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "funcion",
+          "label": "Función",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "suplente",
+          "label": "Suplente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "actividades",
+          "label": "Actividades",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.cont.2",
+      "name": "medios_alternativos",
+      "label": "Medios alternativos contratados",
+      "description": "Medios alternativos del plan: proveedor, contrato, fin de vigencia y tiempo de activación.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.3"
+      ],
+      "type": "table",
+      "example": "CPD alternativo | Proveedor X | CT-2025-014 | 2027-06-30 | 48 h",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige contrato en vigor a cada medio.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "medio",
+          "label": "Medio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "proveedor",
+          "label": "Proveedor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "contrato",
+          "label": "Contrato",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vigencia_hasta",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "activacion",
+          "label": "Tiempo de activación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.cont.2",
+      "name": "formacion_personal_plan",
+      "label": "Formación del personal del plan",
+      "description": "Formación de cada persona con función en el plan: persona, formación, fecha y hasta cuándo es vigente.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.4"
+      ],
+      "type": "table",
+      "example": "A. Martínez | rol de coordinación de crisis | 2026-02-10 | 2027-02-10",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 la cruza con P-03 sin distinguir mayúsculas ni tildes.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "persona",
+          "label": "Persona",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "formacion",
+          "label": "Formación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "vigente_hasta",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.cont.2",
+      "name": "planes_organizacion",
+      "label": "Planes de continuidad de la organización",
+      "description": "Planes ajenos a la seguridad con los que el plan del sistema se integra.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.5"
+      ],
+      "type": "list",
+      "example": "Plan de Emergencia del edificio, Plan de Continuidad de Negocio",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.cont.2",
+      "name": "rutas_integridad_post_caida",
+      "label": "Rutas que se comprueban tras una caída",
+      "description": "Rutas del sistema operativo, firmware y configuración cuya integridad se comprueba al volver de una caída.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.r2.1"
+      ],
+      "type": "list",
+      "example": "/boot, /etc, /usr/sbin",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 exige que FIM las compruebe al arrancar el agente.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.cont.2",
+      "name": "periodicidad_revision_plan_meses",
+      "label": "Periodicidad de revisión del plan (meses)",
+      "description": "Cada cuántos meses se revisa y aprueba de nuevo el plan.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.cont.2.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 12,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 compara la última aprobación con este plazo.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.cont.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.cont.2.5 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
