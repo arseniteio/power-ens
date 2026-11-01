@@ -1,0 +1,772 @@
+{
+  "framework": "ENS",
+  "control": "mp.com.4",
+  "title": "Separación de flujos de información en la red",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de las comunicaciones",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.4.4",
+  "description": "mp.com.4 exige segregar el tráfico en segmentos. Se juzga sobre el mapa de segmentos, el inventario de red de cada máquina, las conexiones de los puntos de interconexión y los incidentes registrados.",
+  "levels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.com.4",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.com.4.1",
+      "title": "Tráfico segregado: cada equipo accede solo a lo que necesita",
+      "kind": "BASE",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El tráfico por la red se segregará para que cada equipo solamente tenga acceso a la información que necesita.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-09",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-05",
+        "P-07",
+        "P-08"
+      ]
+    },
+    {
+      "id": "mp.com.4.2",
+      "title": "Comunicaciones inalámbricas en un segmento separado",
+      "kind": "BASE",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Si se emplean comunicaciones inalámbricas, será en un segmento separado.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-04"
+      ]
+    },
+    {
+      "id": "mp.com.4.r1.1",
+      "title": "Segmentos implementados con VLAN",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO"
+      ],
+      "description": "Los segmentos de red se implementarán por medio de redes de área local virtuales (Virtual Local Area Network, VLAN).",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.com.4.r1.2",
+      "title": "Subredes separadas de usuarios, servicios y administración",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO"
+      ],
+      "description": "La red que conforma el sistema deberá segregarse en distintas subredes contemplando como mínimo: usuarios, servicios y administración.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "mp.com.4.r2.1",
+      "title": "Segmentos implementados con redes privadas virtuales",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los segmentos de red se implementarán por medio de redes privadas virtuales (Virtual Private Network, VPN).",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.com.4.r3.1",
+      "title": "Segmentos implementados con medios físicos separados",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los segmentos de red se implementarán con medios físicos separados.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.com.4.r4.1",
+      "title": "Control de entrada de usuarios y de información en cada segmento",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Control de entrada de los usuarios que llegan a cada segmento y control de entrada y salida de la información disponible en cada segmento.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.com.4.r4.2",
+      "title": "Punto de interconexión asegurado, mantenido y monitorizado",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "El punto de interconexión estará particularmente asegurado, mantenido y monitorizado, (como en [mp.com.1]).",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-05",
+        "P-09"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Máquina en un segmento declarado",
+      "description": "Cada dirección de la máquina está en un segmento de P-01.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina está en un segmento declarado?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Flujos entre segmentos autorizados",
+      "description": "Cada conexión entre dos segmentos que dejan pasar los puntos de interconexión de P-05 está permitida en P-02.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿El tráfico entre segmentos se limita a lo permitido?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Máquinas en más de un segmento",
+      "description": "La máquina está en un solo segmento, salvo que sea un punto de interconexión de P-05.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay máquinas que unen segmentos sin estar declaradas?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Comunicaciones inalámbricas separadas",
+      "description": "Cada interfaz inalámbrica activa de la máquina tiene sus direcciones en un segmento inalámbrico de P-01.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Las comunicaciones inalámbricas están en un segmento separado?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Registros de los puntos de interconexión",
+      "description": "Cada punto de interconexión de P-05 envía registros a Wazuh dentro de P-09 horas.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r4.1",
+        "mp.com.4.r4.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se monitorizan los puntos de interconexión?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Forma de segmentación implantada",
+      "description": "Con VLAN, cada segmento de P-01 tiene su VLAN; con VPN, la máquina tiene un túnel activo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r1.1",
+        "mp.com.4.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La segmentación se implanta como declara P-03?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Segmentos de usuarios, servicios y administración",
+      "description": "P-01 tiene al menos un segmento de usuarios, uno de servicios y uno de administración.",
+      "levels": [
+        "MEDIO"
+      ],
+      "requirements": [
+        "mp.com.4.r1.2"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Existen al menos los segmentos de usuarios, servicios y administración?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Incidentes contenidos en su segmento",
+      "description": "Ningún incidente de op.exp.7 de los últimos 90 días afecta a máquinas de más de un segmento.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La segmentación contiene los incidentes?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Revisión de la matriz de flujos",
+      "description": "La última revisión de P-08 está dentro de P-07 días.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se revisa la matriz de flujos entre segmentos?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "mapa_segmentos",
+      "label": "Segmentos de la red",
+      "description": "Segmentos con su propósito, rango de direcciones (CIDR) y VLAN.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1",
+        "mp.com.4.2",
+        "mp.com.4.r1.1",
+        "mp.com.4.r1.2"
+      ],
+      "type": "table",
+      "example": "servicios | servicios | 10.2.0.0/16 | 20",
+      "columns": [
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "proposito",
+          "label": "Propósito",
+          "type": "select",
+          "options": [
+            "usuarios",
+            "servicios",
+            "administración",
+            "inalámbrico",
+            "otro"
+          ],
+          "required": true
+        },
+        {
+          "name": "rango",
+          "label": "Rango",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vlan",
+          "label": "VLAN",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Ubica cada dirección en su segmento para EV-01 a EV-04, EV-07 a EV-09.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-07",
+        "EV-08",
+        "EV-09"
+      ],
+      "if_not_configured": "mp.com.4 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "matriz_flujos_entre_segmentos",
+      "label": "Matriz de flujos entre segmentos",
+      "description": "Comunicaciones permitidas entre segmentos (por nombre o *), con protocolo y puerto.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "table",
+      "example": "usuarios | servicios | tcp | 443",
+      "columns": [
+        {
+          "name": "origen",
+          "label": "Segmento de origen",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Segmento de destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige cada flujo entre segmentos en la matriz.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "modalidad_segmentacion",
+      "label": "Forma de segmentación",
+      "description": "Cómo se implantan los segmentos: VLAN, VPN o medios físicos separados.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r1.1",
+        "mp.com.4.r2.1",
+        "mp.com.4.r3.1"
+      ],
+      "type": "select",
+      "example": "VPN",
+      "options": [
+        "VLAN",
+        "VPN",
+        "medios físicos separados"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Solo aplica el refuerzo de la forma elegida; EV-07 la comprueba.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "segmento_inalambrico",
+      "label": "Segmentos inalámbricos",
+      "description": "Redes inalámbricas, su segmento de P-01 y a qué pueden acceder.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.2"
+      ],
+      "type": "table",
+      "example": "CORP-WIFI | wifi | solo a servicios",
+      "columns": [
+        {
+          "name": "red",
+          "label": "Red",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "acceso",
+          "label": "Acceso",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-04 usa el propósito inalámbrico de P-01. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "puntos_interconexion",
+      "label": "Puntos de interconexión",
+      "description": "Puntos de interconexión entre segmentos: segmentos que unen, el equipo que los controla (su nombre en Wazuh si es una máquina) y su fuente de registros en Wazuh.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1",
+        "mp.com.4.r4.1",
+        "mp.com.4.r4.2"
+      ],
+      "type": "table",
+      "example": "IC-01 | usuarios ↔ servicios | fw-interno01 | fw-interno01",
+      "columns": [
+        {
+          "name": "punto",
+          "label": "Punto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "segmentos",
+          "label": "Segmentos",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "equipo",
+          "label": "Equipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 lee sus conexiones aceptadas, EV-03 los admite en varios segmentos y EV-05 sigue sus registros.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "if_not_configured": "EV-02 y EV-05 quedan sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "control_entrada_usuarios_segmento",
+      "label": "Control de entrada de los usuarios",
+      "description": "Mecanismo de control de entrada de los usuarios a cada segmento (802.1X, NAC).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r4.1"
+      ],
+      "type": "table",
+      "example": "administración | 802.1X | grupo de administradores",
+      "columns": [
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "periodicidad_revision_segmentacion_dias",
+      "label": "Periodicidad de revisión de la matriz (días)",
+      "description": "Cada cuántos días se revisa la matriz de flujos.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "min_value": 1,
+      "default_value": 180,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 compara la última revisión con este plazo.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "revisiones_matriz_flujos",
+      "label": "Revisiones de la matriz de flujos",
+      "description": "Una revisión por fila: fecha, responsable y cambios.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "table",
+      "example": "2026-09-01 | Responsable de Seguridad | 2 flujos retirados",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cambios",
+          "label": "Cambios",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-10 toma la revisión más reciente.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_interconexion",
+      "label": "Horas máximas sin registros de los puntos de interconexión",
+      "description": "Horas que un punto de interconexión puede pasar sin enviar registros.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r4.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 mide con este plazo.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.4.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "segmentos",
+      "title": "Segmentos",
+      "description": "Segmentos, máquinas en ellos y la forma de segmentar.",
+      "evidences": [
+        "EV-01",
+        "EV-03",
+        "EV-07",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "flujos",
+      "title": "Flujos",
+      "description": "Flujos entre segmentos y revisión de la matriz.",
+      "evidences": [
+        "EV-02",
+        "EV-10"
+      ],
+      "parameters": [
+        "P-02",
+        "P-07",
+        "P-08"
+      ]
+    },
+    {
+      "id": "inalambrico",
+      "title": "Inalámbricas",
+      "description": "Separación de las comunicaciones inalámbricas.",
+      "evidences": [
+        "EV-04"
+      ],
+      "parameters": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "interconexion",
+      "title": "Interconexión",
+      "description": "Registros de los puntos de interconexión e incidentes contenidos.",
+      "evidences": [
+        "EV-05",
+        "EV-09"
+      ],
+      "parameters": [
+        "P-05",
+        "P-06",
+        "P-09"
+      ]
+    }
+  ]
+}

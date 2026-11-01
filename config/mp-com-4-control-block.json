@@ -1,0 +1,444 @@
+{
+  "controlId": "mp.com.4",
+  "controlName": "Separación de flujos de información en la red",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.com.4",
+      "name": "mapa_segmentos",
+      "label": "Segmentos de la red",
+      "description": "Segmentos con su propósito, rango de direcciones (CIDR) y VLAN.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1",
+        "mp.com.4.2",
+        "mp.com.4.r1.1",
+        "mp.com.4.r1.2"
+      ],
+      "type": "table",
+      "example": "servicios | servicios | 10.2.0.0/16 | 20",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Ubica cada dirección en su segmento para EV-01 a EV-04, EV-07 a EV-09.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-07",
+        "EV-08",
+        "EV-09"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "mp.com.4 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "proposito",
+          "label": "Propósito",
+          "type": "select",
+          "options": [
+            "usuarios",
+            "servicios",
+            "administración",
+            "inalámbrico",
+            "otro"
+          ],
+          "required": true
+        },
+        {
+          "name": "rango",
+          "label": "Rango",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vlan",
+          "label": "VLAN",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.com.4",
+      "name": "matriz_flujos_entre_segmentos",
+      "label": "Matriz de flujos entre segmentos",
+      "description": "Comunicaciones permitidas entre segmentos (por nombre o *), con protocolo y puerto.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "table",
+      "example": "usuarios | servicios | tcp | 443",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 exige cada flujo entre segmentos en la matriz.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "origen",
+          "label": "Segmento de origen",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "destino",
+          "label": "Segmento de destino",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.com.4",
+      "name": "modalidad_segmentacion",
+      "label": "Forma de segmentación",
+      "description": "Cómo se implantan los segmentos: VLAN, VPN o medios físicos separados.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r1.1",
+        "mp.com.4.r2.1",
+        "mp.com.4.r3.1"
+      ],
+      "type": "select",
+      "example": "VPN",
+      "options": [
+        "VLAN",
+        "VPN",
+        "medios físicos separados"
+      ],
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Solo aplica el refuerzo de la forma elegida; EV-07 la comprueba.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar."
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.com.4",
+      "name": "segmento_inalambrico",
+      "label": "Segmentos inalámbricos",
+      "description": "Redes inalámbricas, su segmento de P-01 y a qué pueden acceder.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.2"
+      ],
+      "type": "table",
+      "example": "CORP-WIFI | wifi | solo a servicios",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-04 usa el propósito inalámbrico de P-01. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "red",
+          "label": "Red",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "acceso",
+          "label": "Acceso",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.com.4",
+      "name": "puntos_interconexion",
+      "label": "Puntos de interconexión",
+      "description": "Puntos de interconexión entre segmentos: segmentos que unen, el equipo que los controla (su nombre en Wazuh si es una máquina) y su fuente de registros en Wazuh.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1",
+        "mp.com.4.r4.1",
+        "mp.com.4.r4.2"
+      ],
+      "type": "table",
+      "example": "IC-01 | usuarios ↔ servicios | fw-interno01 | fw-interno01",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 lee sus conexiones aceptadas, EV-03 los admite en varios segmentos y EV-05 sigue sus registros.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 y EV-05 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "punto",
+          "label": "Punto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "segmentos",
+          "label": "Segmentos",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "equipo",
+          "label": "Equipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.com.4",
+      "name": "control_entrada_usuarios_segmento",
+      "label": "Control de entrada de los usuarios",
+      "description": "Mecanismo de control de entrada de los usuarios a cada segmento (802.1X, NAC).",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r4.1"
+      ],
+      "type": "table",
+      "example": "administración | 802.1X | grupo de administradores",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "segmento",
+          "label": "Segmento",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "criterio",
+          "label": "Criterio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.com.4",
+      "name": "periodicidad_revision_segmentacion_dias",
+      "label": "Periodicidad de revisión de la matriz (días)",
+      "description": "Cada cuántos días se revisa la matriz de flujos.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 180,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 compara la última revisión con este plazo.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.com.4",
+      "name": "revisiones_matriz_flujos",
+      "label": "Revisiones de la matriz de flujos",
+      "description": "Una revisión por fila: fecha, responsable y cambios.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.1"
+      ],
+      "type": "table",
+      "example": "2026-09-01 | Responsable de Seguridad | 2 flujos retirados",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-10 toma la revisión más reciente.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cambios",
+          "label": "Cambios",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.com.4",
+      "name": "horas_maximas_sin_registros_interconexion",
+      "label": "Horas máximas sin registros de los puntos de interconexión",
+      "description": "Horas que un punto de interconexión puede pasar sin enviar registros.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.4.r4.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 mide con este plazo.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.com.4",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.4.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
