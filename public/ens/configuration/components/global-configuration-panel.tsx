@@ -57,8 +57,8 @@ const describeDimensionUse = (dimension: ENSLevelDimension): string => {
   const users = ENSCatalog.filter(control => listControlDimensions(control).includes(dimension)).map(control => control.id);
 
   return users.length
-    ? `Usado por ${users.length} ${users.length === 1 ? 'control' : 'controles'} · Por defecto: nivel ENS`
-    : 'Sin uso · Por defecto: nivel ENS';
+    ? `Afecta a ${users.length} ${users.length === 1 ? 'control' : 'controles'}. Si no se indica, se usa el nivel ENS.`
+    : 'No afecta a ningún control.';
 };
 
 const evaluationPeriodOptions = [

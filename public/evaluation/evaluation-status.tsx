@@ -55,7 +55,7 @@ export const EvaluationStatusLine = ({
     <EuiText size="xs" color="subdued">
       <p>
         {label ? `${label}: ` : ''}
-        {updating ? 'Resultado calculado el' : 'Resultado al día, comprobado el'} {hour(meta.computedAt) || hour(meta.evaluatedAt) || '—'} con
+        {updating ? 'Actualizando. Calculado el' : 'Resultados actualizados. Comprobado el'} {hour(meta.computedAt) || hour(meta.evaluatedAt) || '—'} con
         todos los hechos de la ventana.{' '}
         {updating ? (
           <EuiBadge color="warning" iconType="clock">

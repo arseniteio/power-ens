@@ -53,7 +53,7 @@ export const ChangePreviewModal = ({ title, confirmLabel, intro, configuration, 
             <ul>
               {preview.from !== undefined && <li>Plantilla: {preview.from} → {preview.to}.</li>}
               <li>Cambia el valor de {preview.changes.length} parámetro(s): {names(preview.changes, 'ninguno')}.</li>
-              {preview.ownWins !== undefined && <li>Siguen ganando sus ajustes propios: {names(preview.ownWins, 'ninguno')}.</li>}
+              {preview.ownWins !== undefined && <li>Se mantienen sus valores personalizados: {names(preview.ownWins, 'ninguno')}.</li>}
             </ul>
           </EuiText>
         </React.Fragment>

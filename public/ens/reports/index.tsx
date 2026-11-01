@@ -44,6 +44,7 @@ import {
   ensReportStatusPdfColor,
   ensRequirementProofLabel,
   ENS_REPORT_EVIDENCE_FIELD,
+  ENS_REPORT_NO_EVIDENCE,
 } from './report-rows';
 import type { ENSReportRow } from './report-rows';
 import { MotiveCell } from '../controls/control-detail/motive-cell';
@@ -498,17 +499,23 @@ const ControlReport = ({
       name: 'Evidencia',
       width: '190px',
       render: (evidence: string, item: ENSReportRow) => (
-        <>
-          <EuiBadge color={ensReportStatusBadgeColor(item.estado)}>
-            {item.estado}
-          </EuiBadge>
-          <EuiText size='xs'>{evidence}</EuiText>
-          {item.datosPendientes ? (
-            <EuiText size='xs' color='subdued'>
-              {item.datosPendientes}
+        <EuiFlexGroup direction='column' gutterSize='xs' responsive={false} alignItems='flexStart'>
+          <EuiFlexItem grow={false}>
+            <EuiBadge color={ensReportStatusBadgeColor(item.estado)}>{statusLabel(item.estado)}</EuiBadge>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiText size='xs' color={evidence === ENS_REPORT_NO_EVIDENCE ? 'subdued' : 'default'}>
+              <span>{evidence}</span>
             </EuiText>
+          </EuiFlexItem>
+          {item.datosPendientes ? (
+            <EuiFlexItem grow={false}>
+              <EuiText size='xs' color='subdued'>
+                <span>{item.datosPendientes}</span>
+              </EuiText>
+            </EuiFlexItem>
           ) : null}
-        </>
+        </EuiFlexGroup>
       ),
     },
   ];

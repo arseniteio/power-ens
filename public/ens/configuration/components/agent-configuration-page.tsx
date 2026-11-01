@@ -180,7 +180,7 @@ export const AgentConfigurationPage = ({
         {
           title: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}`,
           confirmLabel: 'Asignar',
-          intro: 'Los ajustes propios se mantienen.',
+          intro: 'Los valores personalizados se mantienen.',
           build: latest => setControlTemplateAssignment(latest, controlId, [agentId], templateId, { [agentId]: row.agent }),
           reason: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}.`,
         },
@@ -216,7 +216,7 @@ export const AgentConfigurationPage = ({
     const mode = describeAgentValueSave(configuration, agentId, controlId, parameterId, value, matchMode);
     const failure = await save(
       latest => setAgentParameterValue(latest, agentId, controlId, parameterId, value, row.agent, matchMode),
-      mode === 'propio' ? `${controlId} ${parameterId}: ajuste propio de ${label}.` : `${controlId} ${parameterId}: ${label} vuelve a heredar el valor.`
+      mode === 'propio' ? `${controlId} ${parameterId}: valor personalizado en ${label}.` : `${controlId} ${parameterId}: ${label} restablecido.`
     );
     if (failure) throw new Error(failure);
   };
@@ -241,7 +241,7 @@ export const AgentConfigurationPage = ({
             row.inScope ? 'En el alcance' : 'Fuera del alcance',
             row.agent.os?.name ? `${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}` : '',
             `${completeness.withValue} de ${completeness.total} parámetros con valor`,
-            completeness.ownValues ? `${completeness.ownValues} propios` : '',
+            completeness.ownValues ? `${completeness.ownValues} personalizados` : '',
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -364,7 +364,7 @@ export const AgentConfigurationPage = ({
 
       {clearing && (
         <ConfirmModal
-          title={`Quitar los ajustes propios de ${label} en ${clearing}`}
+          title={`Restablecer los valores de ${label} en ${clearing}`}
           confirmLabel='Quitar'
           danger
           onCancel={() => setClearing(undefined)}
@@ -418,7 +418,7 @@ export const AgentConfigurationPage = ({
                 <span>
                   <strong>{control.controlId}</strong> · {control.controlName}{' '}
                   <EuiBadge color='hollow'>{templateLabel}</EuiBadge>
-                  {own > 0 && <EuiBadge color='primary'>{own} propio(s)</EuiBadge>}
+                  {own > 0 && <EuiBadge color='primary'>{own} personalizado(s)</EuiBadge>}
                   {!control.measured && <EuiBadge color='default'>{control.reason}</EuiBadge>}
                 </span>
               }
@@ -458,7 +458,7 @@ export const AgentConfigurationPage = ({
                 {own > 0 && (
                   <EuiFlexItem grow={false}>
                     <EuiButtonEmpty size='s' color='danger' isDisabled={saving} onClick={() => setClearing(control.controlId)}>
-                      Quitar propios
+                      Restablecer todo
                     </EuiButtonEmpty>
                   </EuiFlexItem>
                 )}

@@ -310,7 +310,7 @@ export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNav
         <ChangePreviewModal
           title={`${bulk.controlId}: ${describeTemplateChoice(configuration, bulk.controlId, bulk.templateId)}`}
           confirmLabel='Asignar'
-          intro='Los ajustes propios de cada agente se mantienen.'
+          intro='Los valores personalizados de cada agente se mantienen.'
           configuration={configuration}
           agentLabels={agentLabels}
           previews={bulk.previews}

@@ -3,14 +3,16 @@ import {
   EuiBadge,
   EuiButton,
   EuiButtonEmpty,
+  EuiButtonIcon,
   EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiLink,
+  EuiIconTip,
   EuiPanel,
   EuiSpacer,
   EuiText,
 } from '@elastic/eui';
+import { ENS_THEME } from '../../theme-colors';
 
 import type {
   ENSAgentParameterValue,
@@ -28,8 +30,6 @@ import {
 import type { ENSResolvedValueOrigin } from '../../../../common/ens/configuration/agents/configuration-resolver';
 import { errorMessage } from './confirm-modal';
 import { findOrganizationDataLink } from '../../../../common/ens/configuration/organization/organization-data-items';
-import { useSetRouterSearch } from '../../../routing/use-router-search';
-import { configurationSearchChanges } from '../../../routing/configuration-link';
 
 interface AgentParameterRowProps {
   agentId: string;
@@ -55,15 +55,13 @@ interface AgentParameterRowProps {
   onDone?: () => void;
 }
 
-const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): string => {
-  if (origin.source === 'agent') return 'ajuste propio de este agente';
-  if (origin.source === 'template') {
-    const name = origin.templateName || origin.templateId;
-    return origin.via === 'type' ? `heredado de la plantilla de serie «${name}» de su tipo` : `heredado de la plantilla asignada «${name}»`;
-  }
-  if (contributionOnly) return 'este agente no aporta filas propias';
-  if (origin.source === 'union') return `unión del valor por defecto y de los agentes ${(origin.contributors || []).join(', ')}`;
-  return hasValue ? 'heredado del valor por defecto' : 'sin valor: ni ajuste propio, ni plantilla, ni valor por defecto';
+// Short origin label of the value the agent is evaluated with.
+const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): { text: string; color: 'primary' | 'hollow' | 'default' | 'warning' } => {
+  if (origin.source === 'agent') return { text: 'Personalizado', color: 'primary' };
+  if (origin.source === 'template') return { text: `Plantilla «${origin.templateName || origin.templateId}»`, color: 'hollow' };
+  if (contributionOnly) return { text: 'Sin filas propias', color: 'default' };
+  if (origin.source === 'union') return { text: 'Por defecto + agentes', color: 'hollow' };
+  return hasValue ? { text: 'Por defecto', color: 'default' } : { text: 'Sin valor', color: 'warning' };
 };
 
 export const valueRows = (
@@ -80,17 +78,17 @@ export const valueRows = (
 
 const Rows = ({ rows }: { rows: string[] }) =>
   rows.length ? (
-    <ul>
-      {rows.slice(0, 8).map((row, index) => <li key={`${index}-${row}`}>{row}</li>)}
-      {rows.length > 8 && <li>… y {rows.length - 8} más</li>}
+    <ul style={{ margin: 0 }}>
+      {rows.slice(0, 5).map((row, index) => <li key={`${index}-${row}`}>{row}</li>)}
+      {rows.length > 5 && <li>{`+${rows.length - 5} más`}</li>}
     </ul>
   ) : (
-    <p>—</p>
+    <span>—</span>
   );
 
 const HINTS: Record<'quitar' | 'igual', string> = {
-  quitar: 'Vacío: vuelve a heredar.',
-  igual: 'Igual al heredado: no se guarda como propio.',
+  quitar: 'Vacío: se restablece el valor heredado.',
+  igual: 'Igual al heredado: no se personaliza.',
 };
 
 export const AgentParameterRow = ({
@@ -110,7 +108,6 @@ export const AgentParameterRow = ({
 }: AgentParameterRowProps) => {
   // On mount only: the parameter requested by the URL opens once.
   const [editing, setEditing] = useState(focused);
-  const setSearch = useSetRouterSearch();
   const link = findOrganizationDataLink(parameter.controlId, parameter.id);
   // Identical data read by other controls: an agent's own value is still set in each of them.
   const siblings = link
@@ -173,135 +170,119 @@ export const AgentParameterRow = ({
 
   const mode = editing ? describeSave(draft as ENSAgentParameterValue | undefined, draftMode) : 'propio';
 
+  const originLabel = describeOrigin(origin, rows.length > 0, contributionOnly);
+  const help = [
+    note,
+    link ? `Viene de «${link.item.label}» en Organización.` : '',
+    siblings.length ? `Se personaliza solo para ${parameter.controlId} ${parameter.id}.` : '',
+  ].filter(Boolean);
+
   return (
     <div ref={anchor} id={parameterAnchorId(parameter.controlId, parameter.id, agentId)}>
-      <EuiPanel paddingSize='s' color={focused ? 'primary' : 'plain'}>
-        <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
-          <EuiFlexItem grow={false}>
+      <EuiPanel paddingSize='s' hasBorder={focused} color={focused ? 'primary' : 'transparent'} style={{ borderBottom: `1px solid ${ENS_THEME.border}` }}>
+        <EuiFlexGroup gutterSize='m' alignItems='flexStart' responsive={false}>
+          <EuiFlexItem style={{ flexBasis: '32%', flexGrow: 0 }}>
             <EuiText size='s'>
-              <strong>{parameter.id} · {parameter.label}</strong>
+              <span>
+                <strong>{parameter.label}</strong>{' '}
+                {help.length > 0 && <EuiIconTip type='iInCircle' color='subdued' content={help.join(' ')} />}
+              </span>
+            </EuiText>
+            <EuiText size='xs' color='subdued'>
+              <span>
+                {parameter.id}
+                {parameter.required && applicable ? ' · obligatorio' : ''}
+                {!applicable ? ' · no aplica a este nivel' : ''}
+              </span>
             </EuiText>
           </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiBadge color='hollow'>{parameterClass === 'system' ? 'cambia por agente' : 'de la plataforma'}</EuiBadge>
-          </EuiFlexItem>
-          {parameter.required && applicable && (
-            <EuiFlexItem grow={false}>
-              <EuiBadge color='warning'>obligatorio</EuiBadge>
-            </EuiFlexItem>
-          )}
-          {!applicable && (
-            <EuiFlexItem grow={false}>
-              <EuiBadge color='default'>no aplica a este nivel</EuiBadge>
-            </EuiFlexItem>
-          )}
-          <EuiFlexItem grow={false}>
-            <EuiBadge color={own ? 'primary' : 'default'}>{describeOrigin(origin, rows.length > 0, contributionOnly)}</EuiBadge>
-          </EuiFlexItem>
-        </EuiFlexGroup>
-
-        {note && (
-          <EuiText size='xs' color='subdued'>
-            <p>{note}</p>
-          </EuiText>
-        )}
-
-        {link && (
-          <EuiText size='xs' color='subdued'>
-            <p>
-              {`Valor de «${link.item.label}» (Organización). `}
-              <EuiLink onClick={() => setSearch(configurationSearchChanges({ view: 'general', itemId: link.item.id }))}>
-                {`Ir a «${link.item.label}»`}
-              </EuiLink>
-              {siblings.length ? ` El ajuste propio de este agente vale solo para ${parameter.controlId} ${parameter.id}; ${siblings.join(' y ')} se ajustan aparte.` : ''}
-            </p>
-          </EuiText>
-        )}
-
-        {!editing && (
-          <EuiText size='xs'>
-            {contributionOnly && <p><strong>De este agente:</strong></p>}
-            <Rows rows={rows} />
-          </EuiText>
-        )}
-
-        {contributionOnly && organisationRows && organisationRows.length > 0 && (
-          <EuiText size='xs' color='subdued'>
-            <p><strong>Del valor por defecto</strong> (solo lectura; se edita en {link ? 'Organización' : '«Plantillas»'}):</p>
-            <Rows rows={organisationRows} />
-          </EuiText>
-        )}
-
-        {effectiveRows && (
-          <EuiText size='xs' color='subdued'>
-            <p><strong>Lo que se evalúa en esta fila</strong> (solo lectura):</p>
-            <Rows rows={effectiveRows} />
-          </EuiText>
-        )}
-
-        {editing && (
-          <>
-            <EuiSpacer size='s' />
-            <ParameterRendererFactory
-              parameter={withMatchMode(parameter, draftMode)}
-              value={draft}
-              onChange={(_name, value) => setDraft(value)}
-              onMatchModeChange={(_name, next) => setDraftMode(next)}
-            />
-            {mode !== 'propio' && (
-              <EuiText size='xs' color='subdued'>
-                <p>{HINTS[mode]}</p>
+          <EuiFlexItem>
+            {!editing && (
+              <EuiText size='xs'>
+                <Rows rows={rows} />
+                {contributionOnly && organisationRows && organisationRows.length > 0 && (
+                  <EuiText size='xs' color='subdued'>
+                    <span>{`+ ${organisationRows.length} por defecto`}</span>
+                  </EuiText>
+                )}
+                {effectiveRows && (
+                  <EuiText size='xs' color='subdued'>
+                    <span>{`Se evalúan ${effectiveRows.length} en total`}</span>
+                  </EuiText>
+                )}
               </EuiText>
             )}
-          </>
-        )}
-
-        {saved && !editing && (
-          <EuiText size='xs' color='subdued'>
-            <p>{saved}</p>
-          </EuiText>
-        )}
-
-        {error && (
-          <>
-            <EuiSpacer size='s' />
-            <EuiCallOut color='danger' iconType='alert' size='s' title={error} />
-          </>
-        )}
-
-        <EuiSpacer size='s' />
-
-        <EuiFlexGroup gutterSize='s' responsive={false}>
-          {editing ? (
-            <>
-              <EuiFlexItem grow={false}>
-                <EuiButton size='s' fill isLoading={saving} onClick={() => save(draft as ENSAgentParameterValue | undefined, draftMode)}>
-                  Guardar para este agente
-                </EuiButton>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiButtonEmpty size='s' onClick={() => { resetDraft(); setError(undefined); setEditing(false); onDone?.(); }}>
-                  Cancelar
-                </EuiButtonEmpty>
-              </EuiFlexItem>
-            </>
-          ) : (
-            <EuiFlexItem grow={false}>
-              <EuiButtonEmpty size='s' iconType='pencil' onClick={() => { resetDraft(); setSaved(undefined); setEditing(true); }}>
-                {own ? 'Editar' : contributionOnly ? 'Declarar filas de este agente' : 'Dar ajuste propio'}
-              </EuiButtonEmpty>
-            </EuiFlexItem>
-          )}
-          {own && !editing && (
-            <EuiFlexItem grow={false}>
-              <EuiButtonEmpty size='s' color='danger' isLoading={saving} onClick={() => save(undefined, 'exact')}>
-                Quitar ajuste propio (vuelve a heredar)
-              </EuiButtonEmpty>
-            </EuiFlexItem>
-          )}
+            {editing && (
+              <>
+                <ParameterRendererFactory
+                  parameter={withMatchMode(parameter, draftMode)}
+                  value={draft}
+                  onChange={(_name, value) => setDraft(value)}
+                  onMatchModeChange={(_name, next) => setDraftMode(next)}
+                />
+                {mode !== 'propio' && (
+                  <EuiText size='xs' color='subdued'>
+                    <p>{HINTS[mode]}</p>
+                  </EuiText>
+                )}
+                <EuiSpacer size='s' />
+                <EuiFlexGroup gutterSize='s' responsive={false}>
+                  <EuiFlexItem grow={false}>
+                    <EuiButton size='s' fill isLoading={saving} onClick={() => save(draft as ENSAgentParameterValue | undefined, draftMode)}>
+                      Guardar
+                    </EuiButton>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty size='s' onClick={() => { resetDraft(); setError(undefined); setEditing(false); onDone?.(); }}>
+                      Cancelar
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+              </>
+            )}
+            {saved && !editing && (
+              <EuiText size='xs' color='subdued'>
+                <p>{saved}</p>
+              </EuiText>
+            )}
+            {error && (
+              <>
+                <EuiSpacer size='s' />
+                <EuiCallOut color='danger' iconType='alert' size='s' title={error} />
+              </>
+            )}
+          </EuiFlexItem>
+          <EuiFlexItem grow={false} style={{ width: 170 }}>
+            <EuiBadge color={originLabel.color}>{originLabel.text}</EuiBadge>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false} style={{ width: 72 }}>
+            {!editing && (
+              <EuiFlexGroup gutterSize='xs' responsive={false} justifyContent='flexEnd'>
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
+                    iconType='pencil'
+                    aria-label={own ? 'Editar' : contributionOnly ? 'Añadir filas de este agente' : 'Personalizar'}
+                    title={own ? 'Editar' : contributionOnly ? 'Añadir filas de este agente' : 'Personalizar'}
+                    onClick={() => { resetDraft(); setSaved(undefined); setEditing(true); }}
+                  />
+                </EuiFlexItem>
+                {own && (
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonIcon
+                      iconType='editorUndo'
+                      color='danger'
+                      aria-label='Restablecer'
+                      title='Restablecer'
+                      isDisabled={saving}
+                      onClick={() => save(undefined, 'exact')}
+                    />
+                  </EuiFlexItem>
+                )}
+              </EuiFlexGroup>
+            )}
+          </EuiFlexItem>
         </EuiFlexGroup>
       </EuiPanel>
-      <EuiSpacer size='s' />
     </div>
   );
 };

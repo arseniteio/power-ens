@@ -5,6 +5,7 @@ export const ENS_THEME = {
   surface: euiThemeVars.euiColorEmptyShade,
   highlight: euiThemeVars.euiColorLightestShade,
   track: euiThemeVars.euiColorLightShade,
+  border: euiThemeVars.euiBorderColor,
   subduedText: euiThemeVars.euiColorDarkShade,
   mutedText: euiThemeVars.euiColorMediumShade,
   dangerText: euiThemeVars.euiColorDangerText,

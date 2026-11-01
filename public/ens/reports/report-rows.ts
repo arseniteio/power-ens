@@ -1,5 +1,6 @@
 /** Rows of the 'Campos del informe' table, on screen and in the signed PDF. Keys live in a type, so reading a missing key is a compile error. */
 import type { ENSReportField, ENSReportFieldStatus, ENSReportModel } from './registry';
+import { statusLabel } from '../../../common/ens/core/status-label';
 
 export interface ENSReportRow {
   campo: string;
@@ -26,7 +27,7 @@ interface ENSReportPdfCell {
   text: ENSReportPdfTextRun[];
 }
 
-const ENS_REPORT_NO_EVIDENCE = 'Evidencia no disponible';
+export const ENS_REPORT_NO_EVIDENCE = 'Sin evidencia';
 
 // Key the on-screen 'Evidencia' column reads; defined here so a loose literal cannot drift.
 export const ENS_REPORT_EVIDENCE_FIELD = 'evidencia';
@@ -135,7 +136,7 @@ export const buildENSReportEvidencePdfCell = (
   style: 'td',
   text: [
     {
-      text: row.estado,
+      text: statusLabel(row.estado),
       color: ensReportStatusPdfColor(row.estado),
       bold: true,
     },

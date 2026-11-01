@@ -196,7 +196,7 @@ const MachineFlyout = ({
               width: '130px',
               render: (s: string, c: any) => <EuiBadge color={statusBadgeColor(s)}>{`${statusLabel(s)}${typeof c.score === 'number' ? ` ${c.score}%` : ''}`}</EuiBadge>,
             },
-            { field: 'notMet', name: 'Requisitos que fallan', width: '150px', render: (n: number) => n || '—' },
+            { field: 'notMet', name: 'Requisitos fallando', width: '150px', render: (n: number) => n || '—' },
           ]}
         />
         <EuiSpacer size='l' />
@@ -350,7 +350,7 @@ export const OverviewENS = () => {
 
             <EuiFlexGroup gutterSize='s' responsive={false} wrap>
               <EuiFlexItem><Figure title='Máquinas' value={figures.all} active={fleetFilter === 'all'} onClick={() => setFleetFilter('all')} /></EuiFlexItem>
-              <EuiFlexItem><Figure title='Cumplen todo' value={figures.ok} color='success' active={fleetFilter === 'ok'} onClick={() => pickFleet('ok')} /></EuiFlexItem>
+              <EuiFlexItem><Figure title='Cumplimiento total' value={figures.ok} color='success' active={fleetFilter === 'ok'} onClick={() => pickFleet('ok')} /></EuiFlexItem>
               <EuiFlexItem><Figure title='Con incumplimientos' value={figures.failing} color='danger' active={fleetFilter === 'failing'} onClick={() => pickFleet('failing')} /></EuiFlexItem>
               <EuiFlexItem><Figure title='Sin datos en 24 h' value={figures.stale} color='subdued' active={fleetFilter === 'stale'} onClick={() => pickFleet('stale')} /></EuiFlexItem>
             </EuiFlexGroup>
@@ -431,19 +431,19 @@ export const OverviewENS = () => {
                 },
                 {
                   field: 'counts',
-                  name: 'Controles que cumplen',
+                  name: 'Controles cumpliendo',
                   width: '170px',
                   sortable: (m: any) => m.counts.CUMPLE,
                   render: (_: any, m: any) => (inProgress ? 'Calculando…' : m.measured ? `${m.counts.CUMPLE} de ${m.measured}` : '—'),
                 },
                 {
                   field: 'failing',
-                  name: 'Controles que fallan',
+                  name: 'Controles fallando',
                   width: '160px',
                   sortable: true,
                   render: (n: number) => (inProgress ? '…' : n ? <EuiBadge color='danger'>{n}</EuiBadge> : '—'),
                 },
-                { field: 'notMet', name: 'Requisitos que fallan', width: '170px', sortable: true, render: (n: number) => (inProgress ? '…' : n || '—') },
+                { field: 'notMet', name: 'Requisitos fallando', width: '170px', sortable: true, render: (n: number) => (inProgress ? '…' : n || '—') },
                 {
                   field: 'newest',
                   name: 'Último dato',

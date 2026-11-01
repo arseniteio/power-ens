@@ -160,14 +160,14 @@ export const ControlAssignmentPanel = ({
     },
     {
       field: 'inScope',
-      name: 'Ajustes propios',
+      name: 'Personalizados',
       render: (_inScope: boolean, row: ENSAgentRow) => {
         const own = Object.keys(configuration.agents?.[row.id]?.controls?.[controlId]?.parameters || {}).length;
         const required = missing.get(row.id) || [];
         return (
           <EuiText size='xs'>
             <p>
-              {own ? `${own} propio(s)` : 'Ninguno'}
+              {own ? `${own} personalizado(s)` : 'Ninguno'}
               {required.length ? ` · ${required.length} obligatorio(s) sin valor` : ''}
               {!row.inScope ? ' · fuera del alcance' : ''}
             </p>
@@ -183,7 +183,7 @@ export const ControlAssignmentPanel = ({
         <h3>Asignación</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>Plantilla y ajustes propios de cada agente en este control.</p>
+        <p>Plantilla de cada agente en este control.</p>
       </EuiText>
       <EuiSpacer size='s' />
 
@@ -232,7 +232,7 @@ export const ControlAssignmentPanel = ({
         <ChangePreviewModal
           title={`Asignar ${describeTemplateChoice(configuration, controlId, preview.templateId)} en ${controlId} a ${preview.previews.length} agente(s)`}
           confirmLabel='Asignar'
-          intro='Los ajustes propios siguen ganando.'
+          intro='Los valores personalizados se mantienen.'
           configuration={configuration}
           agentLabels={labels}
           previews={preview.previews}
