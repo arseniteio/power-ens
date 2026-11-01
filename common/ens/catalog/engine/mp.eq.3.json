@@ -1,0 +1,619 @@
+{
+  "framework": "ENS",
+  "control": "mp.eq.3",
+  "title": "Protección de dispositivos portátiles",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los equipos",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.3.3",
+  "description": "mp.eq.3 exige inventariar los dispositivos portátiles, controlar su custodia, reaccionar a su pérdida y protegerlos. Se juzga en los portátiles del inventario y en los que el agente identifica por su chasis.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.eq.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.eq.3.1",
+      "title": "Inventario de portátiles con responsable y control de custodia",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se llevará un inventario de dispositivos portátiles junto con una identificación de la persona responsable de cada uno de ellos y un control regular de que está positivamente bajo su control.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.eq.3.2",
+      "title": "Procedimiento de aviso de pérdidas o sustracciones",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se establecerá un procedimiento operativo de seguridad para informar al servicio de gestión de incidentes de pérdidas o sustracciones.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-08",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.eq.3.3",
+      "title": "Acceso remoto limitado a lo imprescindible y autorizado",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cuando un dispositivo portátil se conecte remotamente a través de redes que no están bajo el estricto control de la organización, el ámbito de operación del servidor limitará la información y los servicios accesibles a los mínimos imprescindibles, requiriendo autorización previa de los responsables de la información y los servicios afectados. Este punto es de aplicación a conexiones a través de internet y otras redes que no sean de confianza.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "mp.eq.3.4",
+      "title": "Sin claves de acceso remoto prescindibles en el portátil",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se evitará, en la medida de lo posible, que el dispositivo portátil contenga claves de acceso remoto a la organización que no sean imprescindibles. Se considerarán claves de acceso remoto aquellas que sean capaces de habilitar un acceso a otros equipos de la organización u otras de naturaleza análoga.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "mp.eq.3.r1.1",
+      "title": "Cifrado del disco con información de nivel MEDIO o superior",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "mp.eq.3.r2.1",
+      "title": "Uso fuera de las instalaciones solo en entornos protegidos",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "El uso de dispositivos portátiles fuera de las instalaciones de la organización se restringirá a entornos protegidos, donde el acceso sea controlado y a salvo de hurtos y miradas indiscretas.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Inventario con responsable",
+      "description": "El dispositivo portátil está en P-01 con su responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada portátil está inventariado con su responsable?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Control de custodia",
+      "description": "El dispositivo informa a Wazuh y su último control de custodia en P-09 está dentro de P-02 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se controla con regularidad que el portátil está bajo control de su responsable?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Claves de acceso remoto en el dispositivo",
+      "description": "No hay claves privadas en los directorios de usuario fuera de las imprescindibles de P-05.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.4"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿El portátil guarda claves de acceso remoto prescindibles?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Cifrado del disco",
+      "description": "Con información de nivel MEDIO o ALTO en P-01, el sistema de ficheros raíz está cifrado.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.r1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El disco del portátil está cifrado?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Reacción ante pérdida o sustracción",
+      "description": "Cada pérdida del dispositivo en P-10 tiene su incidente y sus acciones completadas dentro de P-08 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se reacciona a tiempo ante la pérdida de un portátil?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "inventario_dispositivos_portatiles",
+      "label": "Inventario de dispositivos portátiles",
+      "description": "Dispositivos portátiles por su nombre en Wazuh, tipo, responsable y nivel de confidencialidad de la información que guardan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1",
+        "mp.eq.3.r1.1"
+      ],
+      "type": "table",
+      "example": "PRT-014 | portátil | J. Gómez | MEDIO",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "nivel_confidencialidad",
+          "label": "Nivel de confidencialidad",
+          "type": "select",
+          "options": [
+            "BAJO",
+            "MEDIO",
+            "ALTO"
+          ],
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Las máquinas de P-01 y las de chasis portátil se juzgan; EV-01 exige responsable y EV-04 cifrado desde MEDIO.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04"
+      ],
+      "if_not_configured": "Los portátiles detectados por su chasis incumplen EV-01."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "periodicidad_control_custodia_dias",
+      "label": "Periodicidad del control de custodia (días)",
+      "description": "Cada cuántos días se confirma que el dispositivo está bajo control de su responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "min_value": 1,
+      "default_value": 90,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 compara el último control y el último informe del agente con este plazo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "procedimiento_perdida_robo",
+      "label": "Procedimiento ante pérdida o sustracción",
+      "description": "Procedimiento para informar a la gestión de incidentes de pérdidas o sustracciones.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "string",
+      "example": "PR-09 Pérdida de dispositivos",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "perfil_acceso_remoto_portatiles",
+      "label": "Acceso remoto desde portátiles",
+      "description": "Información y servicios accesibles desde portátiles por redes no controladas, perfil y quién lo autorizó.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.3"
+      ],
+      "type": "table",
+      "example": "correo e intranet | usuario estándar | Responsable de Seguridad | 2026-03-01",
+      "columns": [
+        {
+          "name": "servicios",
+          "label": "Servicios",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autorizado_por",
+          "label": "Autorizado por",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: 3.3 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "claves_imprescindibles",
+      "label": "Claves de acceso remoto imprescindibles",
+      "description": "Rutas de claves privadas imprescindibles en los portátiles; admiten comodines.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.4"
+      ],
+      "type": "list",
+      "example": "/home/*/.ssh/id_ed25519_vpn",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 las excluye.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "Cualquier clave privada en los directorios de usuario incumple EV-03."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "normativa_entornos_protegidos",
+      "label": "Normativa de uso fuera de las instalaciones",
+      "description": "Normativa que restringe el uso de portátiles a entornos protegidos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.r2.1"
+      ],
+      "type": "string",
+      "example": "NT-04 Uso de dispositivos portátiles",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "horas_maximas_reaccion_perdida",
+      "label": "Horas máximas para reaccionar a una pérdida",
+      "description": "Horas desde la pérdida hasta completar las acciones previstas (bloqueo, revocación, borrado).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 mide cada pérdida con este plazo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "EV-06 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "controles_custodia",
+      "label": "Controles de custodia",
+      "description": "Un control por fila: fecha, dispositivo, responsable y resultado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "type": "table",
+      "example": "2026-10-01 | PRT-014 | J. Gómez | en su poder",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 toma el control más reciente del dispositivo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "registro_perdidas",
+      "label": "Registro de pérdidas y sustracciones",
+      "description": "Una pérdida por fila: fecha, dispositivo, incidente de op.exp.7 y cuándo se completaron las acciones.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "table",
+      "example": "2026-10-01T10:00:00+02:00 | PRT-014 | INC-2026-031 | 2026-10-01T11:30:00+02:00",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "incidente",
+          "label": "Incidente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "acciones_completadas",
+          "label": "Acciones completadas",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-06 juzga cada pérdida del dispositivo.",
+      "evidence_ids": [
+        "EV-06"
+      ],
+      "if_not_configured": "Sin pérdidas registradas."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.3.3 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "inventario",
+      "title": "Inventario y custodia",
+      "description": "Inventario, responsable y control de custodia.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-09"
+      ]
+    },
+    {
+      "id": "perdidas",
+      "title": "Pérdidas",
+      "description": "Reacción ante pérdidas y sustracciones.",
+      "evidences": [
+        "EV-06"
+      ],
+      "parameters": [
+        "P-03",
+        "P-08",
+        "P-10"
+      ]
+    },
+    {
+      "id": "proteccion",
+      "title": "Protección del dispositivo",
+      "description": "Claves de acceso remoto y cifrado del disco.",
+      "evidences": [
+        "EV-03",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-04",
+        "P-05",
+        "P-07"
+      ]
+    }
+  ]
+}

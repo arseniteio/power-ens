@@ -1,0 +1,398 @@
+{
+  "controlId": "mp.eq.3",
+  "controlName": "Protección de dispositivos portátiles",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.eq.3",
+      "name": "inventario_dispositivos_portatiles",
+      "label": "Inventario de dispositivos portátiles",
+      "description": "Dispositivos portátiles por su nombre en Wazuh, tipo, responsable y nivel de confidencialidad de la información que guardan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1",
+        "mp.eq.3.r1.1"
+      ],
+      "type": "table",
+      "example": "PRT-014 | portátil | J. Gómez | MEDIO",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Las máquinas de P-01 y las de chasis portátil se juzgan; EV-01 exige responsable y EV-04 cifrado desde MEDIO.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Los portátiles detectados por su chasis incumplen EV-01.",
+      "columns": [
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "nivel_confidencialidad",
+          "label": "Nivel de confidencialidad",
+          "type": "select",
+          "options": [
+            "BAJO",
+            "MEDIO",
+            "ALTO"
+          ],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.eq.3",
+      "name": "periodicidad_control_custodia_dias",
+      "label": "Periodicidad del control de custodia (días)",
+      "description": "Cada cuántos días se confirma que el dispositivo está bajo control de su responsable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "type": "number",
+      "example": "90",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 90,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 compara el último control y el último informe del agente con este plazo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.eq.3",
+      "name": "procedimiento_perdida_robo",
+      "label": "Procedimiento ante pérdida o sustracción",
+      "description": "Procedimiento para informar a la gestión de incidentes de pérdidas o sustracciones.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "string",
+      "example": "PR-09 Pérdida de dispositivos",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.eq.3",
+      "name": "perfil_acceso_remoto_portatiles",
+      "label": "Acceso remoto desde portátiles",
+      "description": "Información y servicios accesibles desde portátiles por redes no controladas, perfil y quién lo autorizó.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.3"
+      ],
+      "type": "table",
+      "example": "correo e intranet | usuario estándar | Responsable de Seguridad | 2026-03-01",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: 3.3 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "servicios",
+          "label": "Servicios",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "perfil",
+          "label": "Perfil",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autorizado_por",
+          "label": "Autorizado por",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.eq.3",
+      "name": "claves_imprescindibles",
+      "label": "Claves de acceso remoto imprescindibles",
+      "description": "Rutas de claves privadas imprescindibles en los portátiles; admiten comodines.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.4"
+      ],
+      "type": "list",
+      "example": "/home/*/.ssh/id_ed25519_vpn",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 las excluye.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cualquier clave privada en los directorios de usuario incumple EV-03."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.eq.3",
+      "name": "normativa_entornos_protegidos",
+      "label": "Normativa de uso fuera de las instalaciones",
+      "description": "Normativa que restringe el uso de portátiles a entornos protegidos.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.r2.1"
+      ],
+      "type": "string",
+      "example": "NT-04 Uso de dispositivos portátiles",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.eq.3",
+      "name": "horas_maximas_reaccion_perdida",
+      "label": "Horas máximas para reaccionar a una pérdida",
+      "description": "Horas desde la pérdida hasta completar las acciones previstas (bloqueo, revocación, borrado).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 mide cada pérdida con este plazo.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-06 queda sin demostrar."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.eq.3",
+      "name": "controles_custodia",
+      "label": "Controles de custodia",
+      "description": "Un control por fila: fecha, dispositivo, responsable y resultado.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.1"
+      ],
+      "type": "table",
+      "example": "2026-10-01 | PRT-014 | J. Gómez | en su poder",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 toma el control más reciente del dispositivo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.eq.3",
+      "name": "registro_perdidas",
+      "label": "Registro de pérdidas y sustracciones",
+      "description": "Una pérdida por fila: fecha, dispositivo, incidente de op.exp.7 y cuándo se completaron las acciones.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.3.2"
+      ],
+      "type": "table",
+      "example": "2026-10-01T10:00:00+02:00 | PRT-014 | INC-2026-031 | 2026-10-01T11:30:00+02:00",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-06 juzga cada pérdida del dispositivo.",
+      "evidenceIds": [
+        "EV-06"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin pérdidas registradas.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "incidente",
+          "label": "Incidente",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "acciones_completadas",
+          "label": "Acciones completadas",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.eq.3",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.3.3 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
