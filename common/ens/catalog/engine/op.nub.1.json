@@ -1,0 +1,875 @@
+{
+  "framework": "ENS",
+  "control": "op.nub.1",
+  "title": "Protección de servicios en la nube",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Servicios en la nube",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.5.1",
+  "description": "op.nub.1 exige que los servicios en la nube cumplan el ENS. Se juzga sobre el inventario y el expediente de cada servicio, sus registros en Wazuh y quién los administra.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.nub.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.nub.1.1",
+      "title": "Medidas del modelo de servicio prestado",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Los sistemas que suministran un servicio en la nube a organismos del sector público deberán cumplir con el conjunto de medidas de seguridad en función del modelo de servicio en la nube que presten: Software como Servicio (SaaS), Plataforma como Servicio (PaaS) e Infraestructura como Servicio (IaaS) definidas en las guías CCN-STIC que sean de aplicación.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    },
+    {
+      "id": "op.nub.1.2",
+      "title": "Conformidad de los servicios en la nube de terceros",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cuando se utilicen servicios en la nube suministrados por terceros, los sistemas de información que los soportan deberán ser conformes con el ENS o cumplir con las medidas desarrolladas en una guía CCN-STIC que incluirá, entre otros, requisitos relativos a: a) Auditoría de pruebas de penetración (pentesting). b) Transparencia. c) Cifrado y gestión de claves. d) Jurisdicción de los datos.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04",
+        "EV-09"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03",
+        "P-06",
+        "P-08",
+        "P-09",
+        "P-10",
+        "P-11",
+        "P-12",
+        "P-13"
+      ]
+    },
+    {
+      "id": "op.nub.1.r1.1",
+      "title": "Servicios de terceros certificados",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Cuando se utilicen servicios en la nube suministrados por terceros, estos deberán estar certificados bajo una metodología de certificación reconocida por el Organismo de Certificación del Esquema Nacional de Evaluación y Certificación de Seguridad de las Tecnologías de la Información.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.nub.1.r1.2",
+      "title": "Servicios en la nube de seguridad conformes con op.pl.5",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Si el servicio en la nube es un servicio de seguridad deberá cumplir con los requisitos establecidos en [op.pl.5].",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "op.nub.1.r2.1",
+      "title": "Configuración según la guía CCN-STIC específica",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registros de los servicios en la nube",
+      "description": "Cada servicio de P-06 con módulo de Wazuh envía registros dentro de P-13 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan a Wazuh los registros de los servicios en la nube?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Operaciones de administración en la nube",
+      "description": "Cada identidad que administra con éxito un servicio integrado figura en P-11 para ese servicio.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Solo las identidades autorizadas administran los servicios en la nube?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Certificación de los proveedores",
+      "description": "Cada servicio utilizado de P-02 tiene certificación vigente en P-04.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r1.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Los servicios en la nube utilizados están certificados?"
+    },
+    {
+      "id": "EV-09",
+      "title": "Expediente del servicio en la nube",
+      "description": "Cada servicio utilizado de P-02 tiene conformidad ENS vigente (P-03), pentest dentro de P-12 meses (P-10), cifrado (P-09) y jurisdicción (P-08).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada servicio en la nube tiene su expediente completo?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "posicion_cliente",
+      "label": "Posición respecto a la nube",
+      "description": "Si la organización presta servicios en la nube al sector público, utiliza servicios de terceros, ambas cosas o ninguna.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.1",
+        "op.nub.1.2"
+      ],
+      "type": "select",
+      "example": "usuario",
+      "options": [
+        "usuario",
+        "prestador",
+        "ambos",
+        "ninguna"
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Decide qué requisitos aplican: usuario los de servicios de terceros, prestador op.nub.1.1, ninguna nada.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04",
+        "EV-08",
+        "EV-09"
+      ],
+      "if_not_configured": "op.nub.1 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "inventario_servicios_nube",
+      "label": "Servicios en la nube",
+      "description": "Servicios utilizados o prestados: modelo, proveedor, información tratada, criticidad y uso.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.1",
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | IaaS | Amazon | expedientes | alta | utilizado",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "modelo",
+          "label": "Modelo",
+          "type": "select",
+          "options": [
+            "SaaS",
+            "PaaS",
+            "IaaS"
+          ],
+          "required": false
+        },
+        {
+          "name": "proveedor",
+          "label": "Proveedor",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "informacion",
+          "label": "Información tratada",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "criticidad",
+          "label": "Criticidad",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uso",
+          "label": "Uso",
+          "type": "select",
+          "options": [
+            "utilizado",
+            "prestado"
+          ],
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 y EV-09 se juzgan sobre los servicios utilizados.",
+      "evidence_ids": [
+        "EV-08",
+        "EV-09"
+      ],
+      "if_not_configured": "EV-08 y EV-09 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "conformidad_ens_proveedores",
+      "label": "Conformidad ENS de los servicios",
+      "description": "Conformidad de cada servicio con el ENS o la guía CCN-STIC, su alcance, vigencia y referencia.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | ENS ALTA | servicios de la región UE | 2027-06-30 | declaración nº 123",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "conformidad",
+          "label": "Conformidad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 exige conformidad vigente.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 no se cumple."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "certificacion_reconocida",
+      "label": "Certificación de los servicios",
+      "description": "Certificación de cada servicio bajo una metodología reconocida por el Organismo de Certificación: metodología, certificado y vigencia.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r1.1"
+      ],
+      "type": "table",
+      "example": "AWS producción | Common Criteria EAL4+ | CCN-2026-001 | 2027-03-31",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "metodologia",
+          "label": "Metodología",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "certificado",
+          "label": "Certificado",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige certificación vigente.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 no se cumple."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "servicios_seguridad_cloud",
+      "label": "Servicios en la nube de seguridad",
+      "description": "Servicios utilizados que son de seguridad, si cumplen op.pl.5, la referencia y su vigencia.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r1.2"
+      ],
+      "type": "table",
+      "example": "SIEM gestionado | SIEM | sí | informe op.pl.5 nº 12 | 2027-05-31",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cumple_op_pl_5",
+          "label": "Cumple op.pl.5",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": false
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r1.2 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "integraciones_cloud_wazuh",
+      "label": "Integraciones en Wazuh",
+      "description": "Por servicio, el módulo de Wazuh que ingiere sus registros (aws-s3, azure-logs, gcp-pubsub, gcp-bucket, office365, ms-graph, github o ninguno) y su ámbito.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | aws-s3 | CloudTrail de la cuenta 123456789012",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "modulo",
+          "label": "Módulo",
+          "type": "select",
+          "options": [
+            "aws-s3",
+            "azure-logs",
+            "gcp-pubsub",
+            "gcp-bucket",
+            "office365",
+            "ms-graph",
+            "github",
+            "ninguno"
+          ],
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 exige registros de cada módulo; EV-04 lee sus operaciones de administración.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-04"
+      ],
+      "if_not_configured": "EV-01 y EV-04 quedan sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "politicas_configuracion_cloud",
+      "label": "Guías de configuración de los servicios",
+      "description": "Guía CCN-STIC de configuración aplicable a cada servicio y estándar de postura del proveedor con que se verifica.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r2.1"
+      ],
+      "type": "table",
+      "example": "AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "guia",
+          "label": "Guía CCN-STIC",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "estandar",
+          "label": "Estándar de postura",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "jurisdiccion_datos",
+      "label": "Jurisdicción de los datos",
+      "description": "Ubicación de los datos y sus copias en cada servicio y jurisdicción aplicable.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | UE (Irlanda) | UE | RGPD",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ubicacion",
+          "label": "Ubicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "copias",
+          "label": "Ubicación de las copias",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "jurisdiccion",
+          "label": "Jurisdicción",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 exige la ubicación de cada servicio utilizado.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 no se cumple."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "cifrado_gestion_claves_cloud",
+      "label": "Cifrado y gestión de claves",
+      "description": "Cifrado de los datos en cada servicio y modelo de gestión de claves.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | AES-256 en S3 y EBS | KMS con CMK propia",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "cifrado",
+          "label": "Cifrado",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "gestion_claves",
+          "label": "Gestión de claves",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 exige el cifrado de cada servicio utilizado.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 no se cumple."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "pentesting_proveedor",
+      "label": "Pruebas de penetración del proveedor",
+      "description": "Informes de pentest de cada proveedor con su fecha y alcance.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | resumen ejecutivo 2026 | 2026-02-15 | plataforma",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "informe",
+          "label": "Informe",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 exige un pentest dentro de P-12 meses.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 no se cumple."
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "administradores_cloud",
+      "label": "Administradores de los servicios en la nube",
+      "description": "Identidades autorizadas a administrar cada servicio, como las registra el proveedor (ARN de IAM, UPN de Entra ID).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "table",
+      "example": "AWS producción | arn:aws:iam::123456789012:role/Admin",
+      "columns": [
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "identidad",
+          "label": "Identidad",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 exige cada actor de una operación de administración en la tabla.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "Cualquier operación de administración incumple EV-04."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_pentest_meses",
+      "label": "Antigüedad máxima del pentest (meses)",
+      "description": "Meses máximos desde el último pentest de cada proveedor.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": true,
+      "min_value": 1,
+      "default_value": 12,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-09 compara la fecha del último pentest con este plazo.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar."
+    },
+    "P-13": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros",
+      "label": "Horas máximas sin registros",
+      "description": "Horas que una integración puede pasar sin registros antes de darla por parada.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.2"
+      ],
+      "type": "number",
+      "example": "24",
+      "required": true,
+      "min_value": 1,
+      "max_value": 168,
+      "default_value": 24,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 compara el último registro de cada módulo con este plazo.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.nub.1.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "servicios",
+      "title": "Servicios en la nube",
+      "description": "Posición, inventario y conformidad.",
+      "evidences": [
+        "EV-09"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-03",
+        "P-08",
+        "P-09",
+        "P-10",
+        "P-12"
+      ]
+    },
+    {
+      "id": "registros",
+      "title": "Registros y administración",
+      "description": "Registros de los servicios y quién los administra.",
+      "evidences": [
+        "EV-01",
+        "EV-04"
+      ],
+      "parameters": [
+        "P-06",
+        "P-11",
+        "P-13"
+      ]
+    },
+    {
+      "id": "certificacion",
+      "title": "Certificación",
+      "description": "Certificación de los proveedores.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "configuracion",
+      "title": "Configuración",
+      "description": "Guías de configuración de cada servicio.",
+      "evidences": [],
+      "parameters": [
+        "P-07"
+      ]
+    }
+  ]
+}
