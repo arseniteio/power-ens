@@ -49,6 +49,14 @@ export interface ENSControlSummaryEntry {
   requirementsNotEvidenced: number;
 }
 
+export interface ENSMachineScore {
+  agentId: string;
+  agentName?: string;
+  score: number;
+  noCumple: number;
+  parcial: number;
+}
+
 export interface ENSControlEvaluationResponse {
   meta: ENSEvaluationMeta;
   result?: ENSComplianceResult;

@@ -34,6 +34,21 @@ const agentRows = (run: RunOutput) =>
     results: agent.results.map(result => ({ controlId: result.control.id, status: result.status, score: result.score })),
   }));
 
+const WORST_MACHINES = 5;
+
+const worstMachines = (run: RunOutput) =>
+  (run.state?.agents || [])
+    .filter(agent => agent.summary.measured > 0)
+    .map(agent => ({
+      agentId: agent.agentId,
+      agentName: agent.agentName || run.meta.scope.find(machine => machine.id === agent.agentId)?.name,
+      score: agent.summary.scoreAverage,
+      noCumple: agent.summary.noCumple,
+      parcial: agent.summary.parcial,
+    }))
+    .sort((a, b) => a.score - b.score || b.noCumple - a.noCumple)
+    .slice(0, WORST_MACHINES);
+
 const stateHeader = (run: RunOutput) => {
   const state = run.state!;
   return {
@@ -106,18 +121,12 @@ export const buildEvaluationResponse = (run: RunOutput) => {
       meta,
       ...stateHeader(run),
       dashboard: model,
-      agents: agentRows(run),
+      machines: worstMachines(run),
       timeline,
-      // With the first load half done, the state of each control (the missing ones, `pending`): the panel shows
-      // those, not aggregate figures.
-      ...(pendings.length
-        ? {
-            controls: withPending(
-              state.results.map(result => controlSummaryOf(result.control.id, result)),
-              controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
-            ),
-          }
-        : {}),
+      controls: withPending(
+        state.results.map(result => controlSummaryOf(result.control.id, result)),
+        controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
+      ),
     };
   }
 

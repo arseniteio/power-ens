@@ -1,870 +1,514 @@
-import React from 'react';
-import { useRouterSearch } from '../../routing/use-router-search';
+import React, { useMemo, useState } from 'react';
+import {
+  EuiBadge,
+  EuiBasicTable,
+  EuiCallOut,
+  EuiFieldSearch,
+  EuiFilterButton,
+  EuiFilterGroup,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiHorizontalRule,
+  EuiIcon,
+  EuiInMemoryTable,
+  EuiLink,
+  EuiPage,
+  EuiPanel,
+  EuiProgress,
+  EuiSpacer,
+  EuiStat,
+  EuiText,
+  EuiTitle,
+} from '@elastic/eui';
+import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import { EvaluationLoading, EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { getActiveENSConfiguration } from '../../../common/ens/configuration/services';
 import { IncoherentLevelsNotice } from '../configuration/components/incoherent-levels-notice';
-import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiSpacer, EuiText } from '@elastic/eui';
-import type { ENSControlSummaryEntry, ENSEvaluationMeta } from '../../../common/ens/evaluation/types';
+import { ENS_CONTROL_DETAIL_TAB_ID } from '../../app/tabs';
+import { ENSCatalog } from '../../../common/ens/catalog';
+import { statusLabel } from '../../../common/ens/core/status-label';
+import type { ENSControlSummaryEntry, ENSEvaluationMeta, ENSEvaluationTimelinePoint, ENSMachineScore } from '../../../common/ens/evaluation/types';
+import type { ENSComplianceSummary } from '../../../common/ens/core/compliance-state/types';
 import type { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
-import { dateTimeLabel } from '../../../common/ens/core/date-label';
+import { statusBadgeColor } from '../status-colors';
+import { ENS_THEME } from '../theme-colors';
+import { ComplianceTrend } from './compliance-trend';
+import { ControlMap } from './control-map';
+import { IndexRing, primaryShade, SectionTitle, Segment, SegmentLegend, StackedBar, statusSegments } from './dashboard-parts';
+import { AttentionRow, buildAttentionRows, buildControlMap, buildFamilyRows, CatalogEntry, countControls, FamilyRow, trendDelta } from './dashboard-model';
 
-const findingSeverityColor = (severity: string): string => {
-  if (severity === 'OK') {
-    return '#00A65A';
-  }
+interface DashboardResponse {
+  dashboard: ReturnType<typeof buildENSDashboardModel>;
+  meta: ENSEvaluationMeta;
+  requirementSummary: ENSComplianceSummary;
+  controls?: ENSControlSummaryEntry[];
+  machines?: ENSMachineScore[];
+  timeline?: ENSEvaluationTimelinePoint[];
+}
 
-  if (severity === 'WARNING') {
-    return '#F5B700';
-  }
+const CATALOG: CatalogEntry[] = ENSCatalog.map(control => ({ id: control.id, title: control.name, family: control.category }));
 
-  return '#BD271E';
+const PAGE_SIZE = 10;
+
+const ATTENTION_FILTERS = ['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE'];
+
+const LEVEL_LABELS: Record<string, string> = { BAJO: 'Bajo', MEDIO: 'Medio', ALTO: 'Alto' };
+
+const percent = (score?: number): string => (typeof score === 'number' ? `${score} %` : '—');
+
+const joinParts = (parts: Array<[number, string]>): string =>
+  parts
+    .filter(([count]) => count > 0)
+    .map(([count, label]) => `${count} ${label}`)
+    .join(' · ');
+
+const ScoreCell = ({ score }: { score?: number }) =>
+  typeof score === 'number' ? (
+    <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} style={{ width: '100%' }}>
+      <EuiFlexItem grow={false} style={{ width: 40, textAlign: 'right' }}>
+        {`${score} %`}
+      </EuiFlexItem>
+      <EuiFlexItem>
+        <EuiProgress value={score} max={100} size='s' color='primary' />
+      </EuiFlexItem>
+    </EuiFlexGroup>
+  ) : (
+    <span>—</span>
+  );
+
+const ControlsTable = ({
+  rows,
+  pending,
+  onOpen,
+}: {
+  rows: Array<AttentionRow & { pending?: boolean }>;
+  pending?: boolean;
+  onOpen: (controlId: string) => void;
+}) => (
+  <EuiInMemoryTable
+    items={rows}
+    itemId='controlId'
+    pagination={rows.length > PAGE_SIZE ? { initialPageSize: PAGE_SIZE, hidePerPageOptions: true } : false}
+    sorting={!pending}
+    message='Ningún control coincide.'
+    columns={[
+      {
+        field: 'controlId',
+        name: 'Control',
+        width: '110px',
+        render: (controlId: string) => <EuiLink onClick={() => onOpen(controlId)}>{controlId}</EuiLink>,
+      },
+      { field: 'title', name: 'Título', truncateText: true },
+      {
+        field: 'status',
+        name: 'Estado',
+        width: '130px',
+        render: (status: string, row: AttentionRow & { pending?: boolean }) =>
+          row.pending ? <EuiBadge iconType='clock'>Calculando…</EuiBadge> : <EuiBadge color={statusBadgeColor(status)}>{statusLabel(status)}</EuiBadge>,
+      },
+      { field: 'score', name: 'Índice', width: '180px', sortable: true, render: (score?: number) => <ScoreCell score={score} /> },
+      { field: 'requirementsNotMet', name: 'Requisitos fallando', width: '150px', align: 'right', sortable: true, render: (count: number) => count || '—' },
+      { field: 'requirementsNotEvidenced', name: 'Sin evidencia', width: '120px', align: 'right', sortable: true, render: (count: number) => count || '—' },
+    ]}
+  />
+);
+
+const InProgress = ({ data, onOpen }: { data: DashboardResponse; onOpen: (controlId: string) => void }) => {
+  const pending = data.meta.pending!;
+  const rows = (data.controls || []).map(control => ({
+    controlId: control.controlId,
+    title: CATALOG.find(entry => entry.id === control.controlId)?.title || control.controlId,
+    status: control.status,
+    score: control.score,
+    requirementsNotMet: control.requirementsNotMet,
+    requirementsNotEvidenced: control.requirementsNotEvidenced,
+    pending: control.pending,
+  }));
+
+  return (
+    <>
+      <EuiCallOut size='s' color='primary' iconType='clock' title='Calculando la evaluación'>
+        <p>{`${pending.total - pending.rows} de ${pending.total} filas listas. Las cifras aparecen cuando terminen todos los controles.`}</p>
+      </EuiCallOut>
+      <EuiSpacer size='m' />
+      <EuiPanel hasBorder>
+        <SectionTitle>Controles</SectionTitle>
+        <EuiSpacer size='s' />
+        <ControlsTable rows={rows} pending onOpen={onOpen} />
+      </EuiPanel>
+    </>
+  );
 };
 
-const requirementStatusPresentation = (
-  status: string
-): { color: string; label: string } => {
-  if (status === 'NO_CUMPLE') {
-    return { color: '#BD271E', label: 'No cumple' };
-  }
+const IndexPanel = ({ data, counts, delta }: { data: DashboardResponse; counts: Record<string, number>; delta?: number }) => {
+  const { compliance } = data.dashboard;
+  const segments = statusSegments(counts);
+  const requirements = data.requirementSummary;
+  const requirementSegments = statusSegments({
+    CUMPLE: requirements.cumple,
+    PARCIAL: requirements.parcial,
+    NO_CUMPLE: requirements.noCumple,
+    NO_EVALUABLE: requirements.noEvaluable,
+    NO_APLICA: requirements.noAplica,
+  });
+  const level = getActiveENSConfiguration()?.global?.ensLevel;
 
-  if (status === 'PARCIAL') {
-    return { color: '#F5B700', label: 'Parcial' };
-  }
+  return (
+    <EuiPanel hasBorder paddingSize='l' style={{ height: '100%' }}>
+      <EuiFlexGroup gutterSize='xl' alignItems='center' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
+          <IndexRing score={compliance.measured ? compliance.score : undefined} />
+        </EuiFlexItem>
+        <EuiFlexItem style={{ minWidth: 280 }}>
+          <EuiTitle size='xs'>
+            <h3>Índice de cumplimiento</h3>
+          </EuiTitle>
+          <EuiSpacer size='xs' />
+          <EuiText size='s' color='subdued'>
+            <p>
+              {compliance.measured ? `${compliance.measured} de ${compliance.total} controles medidos` : 'Ningún control medido todavía'}
+              {level ? ` · Nivel ENS ${LEVEL_LABELS[level] || level}` : ''}
+            </p>
+          </EuiText>
+          {typeof delta === 'number' && (
+            <EuiText size='s'>
+              <p>
+                <EuiIcon type={delta > 0 ? 'sortUp' : delta < 0 ? 'sortDown' : 'minus'} color={ENS_THEME.primary} />{' '}
+                {delta === 0 ? 'Sin cambios en 7 días' : `${delta > 0 ? '+' : ''}${delta} puntos en 7 días`}
+              </p>
+            </EuiText>
+          )}
+          <EuiHorizontalRule margin='m' />
+          <EuiText size='xs' color='subdued'>
+            <p>{`Controles por estado · ${compliance.total} en total`}</p>
+          </EuiText>
+          <EuiSpacer size='s' />
+          <StackedBar segments={segments} total={compliance.total} height={14} />
+          <EuiSpacer size='s' />
+          <SegmentLegend segments={segments} withCounts />
+          <EuiSpacer size='l' />
+          <EuiText size='xs' color='subdued'>
+            <p>{`Requisitos por estado · ${requirements.totalControls} en total`}</p>
+          </EuiText>
+          <EuiSpacer size='s' />
+          <StackedBar segments={requirementSegments} total={requirements.totalControls} height={14} />
+          <EuiSpacer size='s' />
+          <SegmentLegend segments={requirementSegments} withCounts />
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiPanel>
+  );
+};
 
-  if (status === 'NO_EVALUABLE') {
-    return { color: '#98A2B3', label: 'No evaluable' };
-  }
+const FigurePanel = ({ value, title, children }: { value: React.ReactNode; title: string; children: React.ReactNode }) => (
+  <EuiPanel hasBorder paddingSize='m' style={{ height: '100%' }}>
+    <EuiStat title={value} description={title} titleSize='m' reverse />
+    <EuiSpacer size='s' />
+    {children}
+  </EuiPanel>
+);
 
-  if (status === 'CUMPLE') {
-    return { color: '#00A65A', label: 'Cumple' };
-  }
+const AttentionFigure = ({ data }: { data: DashboardResponse }) => {
+  const { findings } = data.dashboard;
+  const segments: Segment[] = [
+    { key: 'measured', label: 'Por medida', count: findings.measuredFindings, color: ENS_THEME.primary },
+    { key: 'unevidenced', label: 'Sin evidencia', count: findings.unevidencedFindings, color: primaryShade(55) },
+    { key: 'mixed', label: 'Mixtos', count: findings.mixedFindings, color: primaryShade(25) },
+    { key: 'unclassified', label: 'Sin clasificar', count: findings.unclassifiedFindings, color: ENS_THEME.track },
+  ].filter(segment => segment.count);
 
-  if (status === 'NO_APLICA') {
-    return { color: '#69707D', label: 'No aplica' };
-  }
+  return (
+    <FigurePanel value={findings.total} title='Requisitos que requieren atención'>
+      <StackedBar segments={segments} total={findings.total} empty={ENS_THEME.track} />
+      <EuiSpacer size='s' />
+      <SegmentLegend segments={segments} withCounts />
+    </FigurePanel>
+  );
+};
 
-  return { color: '#69707D', label: status };
+const EvidenceFigure = ({ data }: { data: DashboardResponse }) => {
+  const { coverage } = data.dashboard;
+  const applicable = Math.max(coverage.totalEvidences - coverage.noApplicableEvidences, 0);
+
+  return (
+    <FigurePanel
+      value={
+        <span>
+          {coverage.verifiedEvidences}
+          <span style={{ fontSize: '0.55em', fontWeight: 400, color: ENS_THEME.subduedText }}>{` de ${applicable}`}</span>
+        </span>
+      }
+      title='Evidencias con resultado'
+    >
+      <EuiProgress value={coverage.verifiedEvidences} max={Math.max(applicable, 1)} size='m' color='primary' />
+      <EuiSpacer size='s' />
+      <EuiText size='xs' color='subdued'>
+        <p>{coverage.noEvaluableEvidences ? `${coverage.noEvaluableEvidences} sin resultado` : 'Todas tienen resultado'}</p>
+      </EuiText>
+    </FigurePanel>
+  );
+};
+
+const FamiliesPanel = ({ families, selected, onSelect }: { families: FamilyRow[]; selected?: string; onSelect: (family?: string) => void }) => (
+  <EuiPanel hasBorder>
+    <SectionTitle aside={<SegmentLegend segments={statusSegments({})} />}>Cumplimiento por familia</SectionTitle>
+    <EuiSpacer size='s' />
+    <EuiBasicTable
+      items={families}
+      itemId='family'
+      rowProps={(row: FamilyRow) => ({
+        onClick: () => onSelect(selected === row.family ? undefined : row.family),
+        style: { cursor: 'pointer', background: selected === row.family ? ENS_THEME.highlight : undefined },
+      })}
+      columns={[
+        {
+          field: 'family',
+          name: 'Familia',
+          render: (code: string, row: FamilyRow) => (
+            <div>
+              <EuiText size='s'>
+                <strong>{code}</strong>
+              </EuiText>
+              <EuiText size='xs' color='subdued'>
+                <span>{row.name}</span>
+              </EuiText>
+            </div>
+          ),
+        },
+        {
+          field: 'counts',
+          name: 'Estado de los controles',
+          width: '38%',
+          render: (_: unknown, row: FamilyRow) => <StackedBar segments={statusSegments(row.counts)} total={row.total} />,
+        },
+        { field: 'total', name: 'Controles', width: '90px', align: 'right' },
+        { field: 'score', name: 'Índice', width: '80px', align: 'right', render: (score?: number) => <strong>{percent(score)}</strong> },
+      ]}
+    />
+    <EuiSpacer size='s' />
+    <EuiText size='xs' color='subdued'>
+      <p>Pulsa una familia para ver solo sus controles en la tabla de abajo.</p>
+    </EuiText>
+  </EuiPanel>
+);
+
+const MachinesPanel = ({ machines, onOpen }: { machines: ENSMachineScore[]; onOpen: (agentId: string) => void }) => (
+  <EuiPanel hasBorder>
+    <SectionTitle>Máquinas con menor índice</SectionTitle>
+    <EuiSpacer size='xs' />
+    {machines.map((machine, index) => (
+      <div key={machine.agentId} style={{ padding: '10px 0', borderTop: index ? `1px solid ${ENS_THEME.border}` : undefined }}>
+        <EuiFlexGroup gutterSize='m' alignItems='center' responsive={false}>
+          <EuiFlexItem style={{ minWidth: 0 }}>
+            <EuiLink onClick={() => onOpen(machine.agentId)}>{machine.agentName ? `${machine.agentName} (${machine.agentId})` : machine.agentId}</EuiLink>
+            <EuiText size='xs' color='subdued'>
+              <span>{joinParts([[machine.noCumple, 'no cumplen'], [machine.parcial, machine.parcial === 1 ? 'parcial' : 'parciales']]) || 'Sin incumplimientos'}</span>
+            </EuiText>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false} style={{ width: 170 }}>
+            <ScoreCell score={machine.score} />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </div>
+    ))}
+  </EuiPanel>
+);
+
+const AttentionPanel = ({
+  rows,
+  total,
+  family,
+  familyName,
+  onClearFamily,
+  onOpen,
+}: {
+  rows: AttentionRow[];
+  total: number;
+  family?: string;
+  familyName?: string;
+  onClearFamily: () => void;
+  onOpen: (controlId: string) => void;
+}) => {
+  const [status, setStatus] = useState<string | undefined>();
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const inFamily = family ? rows.filter(row => row.controlId.startsWith(`${family}.`)) : rows;
+  const listed = inFamily.filter(row => (!status || row.status === status) && (!q || row.controlId.includes(q) || row.title.toLowerCase().includes(q)));
+  const countOf = (value: string) => inFamily.filter(row => row.status === value).length;
+
+  return (
+    <EuiPanel hasBorder>
+      <SectionTitle aside={<EuiText size='xs' color='subdued'><span>{`${rows.length} de ${total} controles`}</span></EuiText>}>
+        Controles que requieren atención
+      </SectionTitle>
+      <EuiSpacer size='m' />
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
+        <EuiFlexItem grow={false}>
+          <EuiFilterGroup>
+            <EuiFilterButton hasActiveFilters={!status} numFilters={inFamily.length} onClick={() => setStatus(undefined)}>
+              Todos
+            </EuiFilterButton>
+            {ATTENTION_FILTERS.map(value => (
+              <EuiFilterButton
+                key={value}
+                hasActiveFilters={status === value}
+                numFilters={countOf(value)}
+                isDisabled={!countOf(value)}
+                onClick={() => setStatus(status === value ? undefined : value)}
+              >
+                {statusLabel(value)}
+              </EuiFilterButton>
+            ))}
+          </EuiFilterGroup>
+        </EuiFlexItem>
+        {family && (
+          <EuiFlexItem grow={false}>
+            <EuiBadge iconType='cross' iconSide='right' iconOnClick={onClearFamily} iconOnClickAriaLabel='Quitar filtro'>
+              {`${family} · ${familyName}`}
+            </EuiBadge>
+          </EuiFlexItem>
+        )}
+        <EuiFlexItem />
+        <EuiFlexItem grow={false} style={{ minWidth: 260 }}>
+          <EuiFieldSearch compressed placeholder='Buscar por control o título' value={query} onChange={e => setQuery(e.target.value)} isClearable />
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiSpacer size='s' />
+      <ControlsTable rows={listed} onOpen={onOpen} />
+    </EuiPanel>
+  );
+};
+
+const Dashboard = ({
+  data,
+  showMachines,
+  onOpen,
+  onOpenMachine,
+}: {
+  data: DashboardResponse;
+  showMachines: boolean;
+  onOpen: (controlId: string) => void;
+  onOpenMachine: (agentId: string) => void;
+}) => {
+  const [family, setFamily] = useState<string | undefined>();
+  const { evolution } = data.dashboard;
+  const controls = data.controls || [];
+
+  const counts = useMemo(() => countControls(controls), [controls]);
+  const families = useMemo(() => buildFamilyRows(CATALOG, controls), [controls]);
+  const attention = useMemo(() => buildAttentionRows(CATALOG, controls), [controls]);
+  const controlMap = useMemo(() => buildControlMap(CATALOG, controls), [controls]);
+
+  const seriesPending = Boolean(data.meta.seriesPending) && !(data.timeline || []).length;
+  const trend = seriesPending ? [] : evolution.rows.map(row => ({ label: row.label, score: row.score, isCurrent: Boolean(row.isCurrent) }));
+  const machines = showMachines ? data.machines || [] : [];
+
+  return (
+    <>
+      <EuiFlexGroup gutterSize='m' wrap>
+        <EuiFlexItem grow={3} style={{ minWidth: 520 }}>
+          <IndexPanel data={data} counts={counts} delta={trendDelta(trend)} />
+        </EuiFlexItem>
+        <EuiFlexItem grow={2} style={{ minWidth: 340 }}>
+          <EuiFlexGroup direction='column' gutterSize='m' style={{ height: '100%' }}>
+            <EuiFlexItem>
+              <AttentionFigure data={data} />
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EvidenceFigure data={data} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiSpacer size='m' />
+
+      <EuiFlexGroup gutterSize='m' wrap>
+        <EuiFlexItem grow={3} style={{ minWidth: 520 }}>
+          <EuiFlexGroup direction='column' gutterSize='m'>
+            <EuiFlexItem grow={false}>
+              <FamiliesPanel families={families} selected={family} onSelect={setFamily} />
+            </EuiFlexItem>
+            {machines.length > 0 && (
+              <EuiFlexItem grow={false}>
+                <MachinesPanel machines={machines} onOpen={onOpenMachine} />
+              </EuiFlexItem>
+            )}
+          </EuiFlexGroup>
+        </EuiFlexItem>
+        <EuiFlexItem grow={2} style={{ minWidth: 340 }}>
+          <EuiFlexGroup direction='column' gutterSize='m'>
+            <EuiFlexItem grow={false}>
+              <EuiPanel hasBorder>
+                <SectionTitle>Evolución del índice</SectionTitle>
+                <EuiText size='xs' color='subdued'>
+                  <p>Últimos 7 días. El último punto es el valor actual.</p>
+                </EuiText>
+                <EuiSpacer size='m' />
+                {trend.length || seriesPending ? (
+                  <ComplianceTrend points={trend} pending={seriesPending} />
+                ) : (
+                  <EuiText size='s' color='subdued'>
+                    <p>{evolution.description}</p>
+                  </EuiText>
+                )}
+              </EuiPanel>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <ControlMap rows={controlMap} onOpen={onOpen} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiSpacer size='m' />
+
+      <AttentionPanel
+        rows={attention}
+        total={controls.length}
+        family={family}
+        familyName={families.find(row => row.family === family)?.name}
+        onClearFamily={() => setFamily(undefined)}
+        onOpen={onOpen}
+      />
+    </>
+  );
 };
 
 export const EnsDashboardMain = () => {
   const { agentId } = useRouterSearch();
-
-  // The server builds the panel from the engine verdicts; the browser receives the finished model.
-  const evaluation = useEnsEvaluation<{ dashboard: ReturnType<typeof buildENSDashboardModel>; meta: ENSEvaluationMeta; controls?: ENSControlSummaryEntry[]; timeline?: unknown[] }>({
-    include: 'dashboard',
-    agentId,
-    timelineDays: 7,
-  });
-  const { error } = evaluation;
-  const dashboardModel = evaluation.data?.dashboard;
-
-  if (!dashboardModel) {
-    // Without the result of THIS view nothing is shown: neither the previous machine's nor zeros that look like a verdict.
-    return error ? (
-      <div style={{ padding: 16 }}>
-        <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
-      </div>
-    ) : (
-      <EvaluationLoading message='Calculando…' />
-    );
-  }
-
-  // Partial first load: the panel figures cover ALL controls, so with some still computing they are not shown; the computed controls and 'Calculando…' are.
-  const inProgress = evaluation.data?.meta?.pending;
-  if (inProgress) {
-    const controls = evaluation.data?.controls || [];
-    return (
-      <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
-        <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
-        <EuiCallOut size='s' color='primary' iconType='clock' title='Calculando la evaluación'>
-          <p>
-            {inProgress.total - inProgress.rows} de {inProgress.total} filas (control × máquina) listas. Las cifras del panel
-            aparecen cuando estén todos los controles; mientras, el estado de los ya calculados.
-          </p>
-        </EuiCallOut>
-        <EuiSpacer size='m' />
-        <EuiFlexGroup wrap gutterSize='s'>
-          {controls.map(control => {
-            const status = requirementStatusPresentation(control.status);
-            return (
-              <EuiFlexItem grow={false} key={control.controlId}>
-                {control.pending ? (
-                  <EuiBadge color='default' iconType='clock'>
-                    {control.controlId} · Calculando…
-                  </EuiBadge>
-                ) : (
-                  <EuiBadge color={status.color}>
-                    {control.controlId} · {status.label}
-                    {control.score !== undefined ? ` · ${control.score}%` : ''}
-                  </EuiBadge>
-                )}
-              </EuiFlexItem>
-            );
-          })}
-        </EuiFlexGroup>
-      </div>
-    );
-  }
-
-  const requirementsModel = dashboardModel.requirementsSummary;
-  // The series is computed after the response (`meta.seriesPending`): the chart says so.
-  const pendingSeries = Boolean(evaluation.data?.meta?.seriesPending) && !(evaluation.data?.timeline || []).length;
-  const evolutionRows: typeof dashboardModel.evolution.rows = pendingSeries ? [] : dashboardModel.evolution.rows;
-
-  const Donut = ({
-    center,
-    colorsList,
-  }: {
-    center: React.ReactNode;
-    colorsList: string;
-  }) => (
-    <div
-      style={{
-        width: 112,
-        height: 112,
-        borderRadius: '50%',
-        background: colorsList,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 20,
-      }}
-    >
-      <div
-        style={{
-          width: 60,
-          height: 60,
-          borderRadius: '50%',
-          background: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          fontWeight: 700,
-          fontSize: 12,
-        }}
-      >
-        {center}
-      </div>
-    </div>
-  );
-
-  const legendDot = (color: string): React.CSSProperties => ({
-    display: 'inline-block',
-    width: 10,
-    height: 10,
-    borderRadius: '50%',
-    background: color,
-    marginRight: 8,
-  });
-
-  const barSegment = (color: string, width: number): React.CSSProperties => ({
-    display: 'inline-block',
-    height: 12,
-    width: `${Math.max(width, 0)}%`,
-    background: color,
-  });
-
-  const card: React.CSSProperties = {
-    background: '#fff',
-    border: '1px solid #D3DAE6',
-    borderRadius: 4,
-    padding: 16,
-    minHeight: 150,
-  };
-  
-  const title: React.CSSProperties = {
-    fontWeight: 700,
-    fontSize: 14,
-    color: '#1A1C21',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  };
+  const updateUrl = useSetRouterSearch();
+  const evaluation = useEnsEvaluation<DashboardResponse>({ include: 'dashboard', agentId, timelineDays: 7 });
+  const data = evaluation.data;
+  const openControl = (controlId: string) => updateUrl({ tabView: ENS_CONTROL_DETAIL_TAB_ID, control: controlId, agentId });
+  const openMachine = (machine: string) => updateUrl({ agentId: machine });
 
   return (
-    <div style={{ padding: 16, background: '#F5F7FA', minHeight: 'calc(100vh - 120px)' }}>
-      <IncoherentLevelsNotice global={getActiveENSConfiguration()?.global} />
-      <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
-        <div style={card}>
-          <div style={title}>ÍNDICE GLOBAL DE CUMPLIMIENTO ENS</div>
-
-            {/* Without a single measured control there is no index to show: a red 0 % would be a false claim. */}
-            <div
-              style={{
-                fontSize: 58,
-                lineHeight: '60px',
-                fontWeight: 700,
-                color:
-                  dashboardModel.compliance.measured === 0
-                    ? '#69707D'
-                    : dashboardModel.compliance.score >= 80
-                    ? '#00A65A'
-                    : dashboardModel.compliance.score >= 50
-                    ? '#F5B700'
-                    : '#BD271E',
-              }}
-            >
-              {dashboardModel.compliance.measured === 0
-                ? '—'
-                : `${dashboardModel.compliance.score}%`}
-            </div>
-
-            <div style={{ fontSize: 16, color: '#69707D', marginTop: 4 }}>
-             {dashboardModel.compliance.measured === 0
-               ? 'Ningún control se ha podido medir todavía'
-               : `${dashboardModel.compliance.measured} de ${dashboardModel.compliance.total} controles medidos`}
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-                gap: 8,
-                marginTop: 22,
-                textAlign: 'center',
-              }}
-             >
-
-              <div>
-                <b style={{ color: '#00A65A' }}>{dashboardModel.compliance.cumple}</b>
-                <br />
-                Cumplen
-              </div>
-
-              <div>
-                <b style={{ color: '#F5B700' }}>{dashboardModel.compliance.parcial}</b>
-                <br />
-                Parcialmente
-              </div>
-
-             <div>
-                <b style={{ color: '#BD271E' }}>{dashboardModel.compliance.noCumple}</b>
-                <br />
-                No cumplen
-              </div>
-         
-              <div>
-                <b style={{ color: '#98A2B3' }}>
-                  {dashboardModel.compliance.noEvaluable}
-                </b>
-                <br />
-                No evaluables
-              </div>
-
-              <div>
-                <b style={{ color: '#69707D' }}>
-                  {dashboardModel.compliance.noAplica}
-                </b>
-                <br />
-                No aplicables
-              </div>
-
-              {dashboardModel.compliance.notMeasured > 0 && (
-                <div title='Controles sin datos: no cuentan en el índice.'>
-                  <b style={{ color: '#69707D' }}>{dashboardModel.compliance.notMeasured}</b>
-                  <br />
-                  Sin medición todavía
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: '#69707D' }}>
-              Total controles evaluados: <b>{dashboardModel.compliance.total - dashboardModel.compliance.notMeasured}</b>
-              {dashboardModel.compliance.notMeasured > 0 && (
-                <> · sin medición todavía: <b>{dashboardModel.compliance.notMeasured}</b></>
-              )}
-            </div>
-          </div>
-
-          <div style={card}>
-            <div style={title}>REQUISITOS EVALUADOS</div>
-
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 10 }}>
-              <Donut
-                center={
-                  <span>
-                    {requirementsModel.total}
-                    <br />
-                    Requisitos
-                  </span>
-                }
-                colorsList={requirementsModel.statusDonut}
-              />
-
-              <div style={{ fontSize: 14, lineHeight: '22px' }}>
-                <div>
-                  <span style={legendDot('#00A65A')} />
-                  {requirementsModel.cumple} Cumplen
-                </div>
-                <div>
-                  <span style={legendDot('#F5B700')} />
-                  {requirementsModel.parcial} Parcialmente
-                </div>
-                <div>
-                  <span style={legendDot('#BD271E')} />
-                  {requirementsModel.noCumple} No cumplen
-                </div>
-                <div>
-                  <span style={legendDot('#98A2B3')} />
-                  {requirementsModel.noEvaluable} No evaluables
-                </div>
-                <div>
-                  <span style={legendDot('#D3DAE6')} />
-                  {requirementsModel.noAplica} No aplicables
-                </div>
-                {requirementsModel.notMeasured > 0 && (
-                  <div>
-                    <span style={legendDot('#EEF1F5')} />
-                    {requirementsModel.notMeasured} Sin medición todavía
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12 }}>
-              Total&nbsp;&nbsp;<b>{requirementsModel.total}</b>
-            </div>
-          </div>
-           
-        <div style={card}>
-          <div style={title}>COBERTURA ENS</div>
-          <div style={{ fontSize: 58, lineHeight: '60px', fontWeight: 700, color: '#006BB4', textAlign: 'center' }}>
-            {dashboardModel.coverage.coveragePercent}%
-          </div>
-          <div style={{ textAlign: 'center', fontSize: 16 }}>
-            Evidencias ENS verificadas
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 20 }}>
-            <div><b>{dashboardModel.coverage.verifiedEvidences}</b><br />Verificadas</div>
-            <div><b>{dashboardModel.coverage.pendingEvidences}</b><br />Pendientes</div>
-          </div>
-        </div>
-
-        <div style={card}>
-          <div style={title}>{dashboardModel.findings.title}</div>
-          <div
-            style={{
-              fontSize: 58,
-              lineHeight: '60px',
-              fontWeight: 700,
-              color: findingSeverityColor(dashboardModel.findings.severity),
-            }}
-          >
-            {dashboardModel.findings.total}
-          </div>
-          <div style={{ fontSize: 12 }}>{dashboardModel.findings.description}</div>
-          {/* The four origins are exclusive: they add up to the total. */}
-          <div style={{ fontSize: 13, lineHeight: '22px', marginTop: 10 }}>
-            <div title='Todas sus no conformidades son de medida: hay que corregir el sistema.'>
-              Medidos: <b>{dashboardModel.findings.measuredFindings}</b>
-            </div>
-            <div title='Fallan por falta de evidencia.'>
-              No evidenciados: <b>{dashboardModel.findings.unevidencedFindings}</b>
-            </div>
-            <div title='Fallan medidos en unas máquinas y sin evidencia en otras.'>
-              Mixtos: <b>{dashboardModel.findings.mixedFindings}</b>
-            </div>
-            <div title='Parciales o no evaluables: por diseño no generan no conformidad.'>
-              Sin clasificar: <b>{dashboardModel.findings.unclassifiedFindings}</b>
-            </div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            Última evaluación:<br />
-            <b>{dateTimeLabel(dashboardModel.findings.lastEvaluation) || '—'}</b>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.9fr 1.3fr', gap: 16, marginTop: 16 }}>
-        <div style={card}>
-          <div style={title}>CUMPLIMIENTO POR FAMILIA DE CONTROLES ENS</div>
-          {dashboardModel.familyCompliance.rows.length ? (
-            dashboardModel.familyCompliance.rows.map(row => (
-              <div
-                key={row.family}
-                style={{
-                  borderBottom: '1px solid #E6E9F0',
-                  paddingBottom: 8,
-                  marginBottom: 8,
-                  fontSize: 13,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '90px 1fr 60px',
-                    alignItems: 'center',
-                    columnGap: 12,
-                    marginBottom: 8,
-                  }}
-                >
-                  <b>{row.family}</b>
-
-                  <span style={{ color: '#343741' }}>
-                   {row.label}
-                  </span>
-
-                  <b style={{ textAlign: 'right', color: '#006BB4' }}>
-                    {row.evaluable > 0 ? `${row.percent}%` : 'SIN DATOS'}
-                  </b>
-                </div>
-
-                <div
-                  style={{
-                    marginBottom: 6,
-                    fontSize: 12,
-                    color: '#69707D',
-                 }}
-                >
-                 {row.evaluable} evaluables. · {row.cumple} cumple · {row.parcial} parcial · {row.noCumple} no cumple · {row.noEvaluable} no evaluable
-                </div>
-
-                <div
-                  style={{
-                    background: '#E5E7EB',
-                    height: 12,
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <span
-                    style={barSegment(
-                      '#00A65A',
-                      row.evaluable ? (row.cumple * 100) / row.evaluable : 0
-                    )}
-                  />
-                  <span
-                    style={barSegment(
-                      '#F5B700',
-                      row.evaluable ? (row.parcial * 100) / row.evaluable : 0
-                    )}
-                  />
-                  <span
-                    style={barSegment(
-                      '#BD271E',
-                      row.evaluable ? (row.noCumple * 100) / row.evaluable : 0
-                    )}
-                  />
-                  <span
-                    style={barSegment(
-                      '#98A2B3',
-                      row.evaluable
-                        ? (row.noEvaluable * 100) / row.evaluable
-                        : 0
-                    )}
-                  />
-                </div>
-              </div>
-            ))
-          ) : (
-            <div>No hay controles ENS evaluados.</div>
-          )}
-
-          <div style={{ marginTop: 12, fontSize: 12 }}>
-            <span style={legendDot('#00A65A')} /> Cumplen
-            &nbsp;&nbsp;
-            <span style={legendDot('#F5B700')} /> Parcialmente
-            &nbsp;&nbsp;
-            <span style={legendDot('#BD271E')} /> No cumplen
-            &nbsp;&nbsp;
-            <span style={legendDot('#98A2B3')} /> No evaluables
-          </div>
-        </div>
-
-        <div style={card}>
-          <div style={title}>DISTRIBUCIÓN DE REQUISITOS POR ESTADO</div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Donut center={<span>{requirementsModel.total}<br />Requisitos</span>} colorsList={requirementsModel.statusDonut} />
-            <div style={{ fontSize: 13, lineHeight: '26px', minWidth: 170 }}>
-              <div>
-                <span style={legendDot('#00A65A')} />
-                Cumplen <b>{requirementsModel.cumple}</b> ({requirementsModel.cumplePercent}%)
-              </div>
-
-              <div>
-                <span style={legendDot('#F5B700')} />
-                Parcial <b>{requirementsModel.parcial}</b> ({requirementsModel.parcialPercent}%)
-              </div>
-
-              <div>
-                <span style={legendDot('#BD271E')} />
-                No cumplen <b>{requirementsModel.noCumple}</b> ({requirementsModel.noCumplePercent}%)
-              </div>
-
-              <div>
-                <span style={legendDot('#98A2B3')} />
-                No evaluables <b>{requirementsModel.noEvaluable}</b> ({requirementsModel.noEvaluablePercent}%)
-              </div>
-
-              <div>
-                <span style={legendDot('#D3DAE6')} />
-                No aplican <b>{requirementsModel.noAplica}</b> ({requirementsModel.noAplicaPercent}%)
-              </div>
-
-              {requirementsModel.notMeasured > 0 && (
-                <div>
-                  <span style={legendDot('#EEF1F5')} />
-                  Sin medición todavía <b>{requirementsModel.notMeasured}</b> ({requirementsModel.notMeasuredPercent}%)
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div style={card}>
-          <div style={title}>{dashboardModel.requirementFindings.title}</div>
-
-          {dashboardModel.requirementFindings.rows.length ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #D3DAE6' }}>
-                  <th>Código</th>
-                  <th>Requisito ENS</th>
-                  <th>Familia</th>
-                  <th>Estado</th>
-                  <th>Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                 {dashboardModel.requirementFindings.rows.map(row => {
-                    const statusPresentation =
-                      requirementStatusPresentation(row.status);
-
-                    return (
-                    <tr
-                      key={row.requirementId}
-                      style={{ borderBottom: '1px solid #E6E9F0' }}
-                    >
-                      <td>
-                        <b>{row.requirementId}</b>
-                      </td>
-                      <td>{row.title}</td>
-                      <td>{row.familyLabel}</td>
-                      <td>
-                        <span
-                          style={{
-                            color: statusPresentation.color,
-                          }}
-                        >
-                          ●
-                        </span>{' '}
-                        {statusPresentation.label}
-                      </td>
-                      <td>
-                        <b>{row.score}%</b>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div
-              style={{
-                border: '1px solid #D3DAE6',
-                borderRadius: 4,
-                padding: 14,
-                color: '#69707D',
-                background: '#FAFBFC',
-                fontSize: 13,
-              }}
-            >
-              Todos los controles ENS evaluados se encuentran conformes o no aplicables.
-            </div>
-          )}
-        </div>
-      </div>
-       
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1.1fr', gap: 16, marginTop: 16 }}>
-        <div style={{ ...card, minHeight: 360 }}>
-          <div style={title}>
-            {dashboardModel.evolution.title}
-          </div>
-
-          <div
-            style={{
-              position: 'relative',
-              height: 255,
-              padding: '8px 14px 50px 78px',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                left: 12,
-                top: 8,
-                bottom: 34,
-                width: 42,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                color: '#1A1C21',
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              <span>100%</span>
-              <span>75%</span>
-              <span>50%</span>
-              <span>25%</span>
-              <span>0%</span>
-            </div>
-
-            <svg
-              width='100%'
-              height='220'
-              viewBox='0 0 600 220'
-              preserveAspectRatio='none'
-              style={{
-                overflow: 'visible',
-                borderLeft: '1px solid #B9C3D0',
-                borderBottom: '1px solid #B9C3D0',
-              }}
-            >
-              {[0, 25, 50, 75, 100].map(value => {
-                const y = 200 - value * 2;
-
-                return (
-                  <line
-                    key={value}
-                    x1='0'
-                    y1={y}
-                    x2='600'
-                    y2={y}
-                    stroke='#D3DAE6'
-                    strokeDasharray={value === 0 ? '0' : '6 6'}
-                    strokeWidth='1'
-                  />
-                );
-              })}
-
-              {evolutionRows.length > 0 && (
-                <polygon
-                  points={[
-                    ...evolutionRows.map((row, index) => {
-                      const x =
-                        evolutionRows.length === 1
-                          ? 300
-                          : (index * 600) / (evolutionRows.length - 1);
-                      const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
-
-                      return `${x},${y}`;
-                    }),
-                    `${
-                      evolutionRows.length === 1
-                        ? 300
-                        : ((evolutionRows.length - 1) * 600) /
-                          (evolutionRows.length - 1)
-                    },200`,
-                    `${evolutionRows.length === 1 ? 300 : 0},200`,
-                  ].join(' ')}
-                  fill='rgba(0, 107, 180, 0.16)'
-                />
-              )}
-
-              <polyline
-                fill='none'
-                stroke='#006BB4'
-                strokeWidth='3'
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                points={evolutionRows
-                  .map((row, index) => {
-                    const x =
-                      evolutionRows.length === 1
-                        ? 300
-                        : (index * 600) / (evolutionRows.length - 1);
-                    const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
-
-                    return `${x},${y}`;
-                  })
-                  .join(' ')}
-              />
-
-              {evolutionRows.map((row, index) => {
-                 const x =
-                   evolutionRows.length === 1
-                     ? 300
-                     : (index * 600) / (evolutionRows.length - 1);
-                 const y = 200 - Math.max(0, Math.min(row.score, 100)) * 2;
-
-                 return (
-                   <g key={`${row.label}-${index}`}>
-                   {/* The present point is marked: it is the only one the auditor can compare with the panel above. */}
-                   <circle
-                      cx={x}
-                      cy={y}
-                      r={row.isCurrent ? '9' : '6'}
-                      fill={row.isCurrent ? '#FFFFFF' : '#006BB4'}
-                      stroke='#006BB4'
-                      strokeWidth={row.isCurrent ? '4' : '2'}
-                    />
-                    <text
-                      x={x}
-                      y={y - 16}
-                      textAnchor='middle'
-                      fontSize='16'
-                      fontWeight='700'
-                      fill='#006BB4'
-                    >
-                      {row.score}%
-                    </text>
-                    <text
-                      x={x}
-                      y='235'
-                      textAnchor='middle'
-                      fontSize='15'
-                      fontWeight='700'
-                      fill='#1A1C21'
-                    >
-                      {row.label}
-                    </text>
-                    {row.isCurrent && (
-                      <text
-                        x={x}
-                        y='252'
-                        textAnchor='middle'
-                        fontSize='12'
-                        fontWeight='700'
-                        fill='#006BB4'
-                      >
-                        ahora
-                      </text>
-                    )}
-                   </g>
-                );
-       
-       })}
-            </svg>
-
-            {pendingSeries && (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 78,
-                  right: 14,
-                  top: 8,
-                  height: 200,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                }}
-              >
-                <EuiLoadingSpinner size='m' />
-                <EuiText size='s' color='subdued'>
-                  <span>Calculando la serie…</span>
-                </EuiText>
-              </div>
+    <EuiPage paddingSize='m'>
+      <EuiPanel paddingSize='l'>
+        <EuiTitle size='m'>
+          <h2>Panel</h2>
+        </EuiTitle>
+        <EuiSpacer size='s' />
+        <IncoherentLevelsNotice global={getActiveENSConfiguration()?.global} />
+        {evaluation.error && !data ? (
+          <FactsReadErrorCallOut error={evaluation.error} onRetry={evaluation.retry} />
+        ) : !data?.dashboard ? (
+          <EvaluationLoading message='Calculando…' />
+        ) : (
+          <>
+            <EvaluationStatusLine meta={data.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
+            <EuiSpacer size='m' />
+            {data.meta.pending ? (
+              <InProgress data={data} onOpen={openControl} />
+            ) : (
+              <Dashboard data={data} showMachines={!agentId} onOpen={openControl} onOpenMachine={openMachine} />
             )}
-
-            <div
-              style={{
-                position: 'absolute',
-                left: 24,
-                top: '50%',
-                transform: 'translateY(-50%) rotate(-90deg)',
-                transformOrigin: 'center',
-                color: '#1A1C21',
-                fontSize: 13,
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Cumplimiento ENS (%)
-            </div>
-          </div>
-
-          <div
-            style={{
-              borderTop: '1px solid #E6E9F0',
-              marginTop: 8,
-              paddingTop: 10,
-              color: '#69707D',
-              fontSize: 12,
-            }}
-          >
-            {pendingSeries
-              ? 'Calculando la serie de 7 días…'
-              : dashboardModel.evolution.description}
-          </div>
-        </div>
-        <div style={card}>
-          <div style={title}>REQUISITOS EVALUADOS POR NIVEL ENS</div>
-
-           <div style={{ marginTop: 12 }}>
-              {dashboardModel.levelSummary.rows.map(item => {
-                const color =
-                  item.level === 'BAJO'
-                  ? '#00A65A'
-                  : item.level === 'MEDIO'
-                  ? '#F5B700'
-                  : '#BD271E';
-
-                return (
-                  <div key={item.level} style={{ marginBottom: 14 }}>
-                   <div
-                     style={{
-                       display: 'grid',
-                       gridTemplateColumns: '70px 1fr 70px',
-                       alignItems: 'center',
-                       columnGap: 10,
-                       fontSize: 13,
-                     }}
-                   >
-                     <b>{item.label}</b>
-                     <span style={{ color: '#69707D' }}>
-                       {item.count} requisitos
-                     </span>
-                     <b style={{ textAlign: 'right', color }}>{item.percent}%</b>
-                   </div>
-
-                   <div
-                     style={{
-                       marginTop: 6,
-                       background: '#D3DAE6',
-                       height: 10,
-                       borderRadius: 5,
-                       overflow: 'hidden',
-                     }}
-                    >
-                     <div
-                       style={{
-                       width: `${item.percent}%`,
-                       height: 10,
-                       background: color,
-                     }}
-                   />
-                 </div>
-                </div>
-              );
-            })}
-         </div>
-          
-
-          <div
-            style={{
-              marginTop: 16,
-              background: '#EEF5FF',
-              padding: 10,
-              color: '#006BB4',
-              fontSize: 12,
-              borderRadius: 4,
-            }}
-          >
-            ⓘ Distribución real de requisitos ENS evaluados por nivel de exigencia: BAJO, MEDIO y ALTO.
-          </div>
-        </div>
-
-      </div>
-
-      <div style={{ marginTop: 16, background: '#EEF5FF', color: '#006BB4', padding: 10, borderRadius: 4 }}>
-        ⓘ El índice de cumplimiento sale de los veredictos del motor OSCompliance. Cada 5 minutos se comprueba si hay veredictos nuevos y, solo entonces, se vuelve a calcular.
-      </div>
-    </div>
+          </>
+        )}
+      </EuiPanel>
+    </EuiPage>
   );
 };
