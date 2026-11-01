@@ -1,0 +1,220 @@
+{
+  "controlId": "mp.eq.2",
+  "controlName": "Bloqueo de puesto de trabajo",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.eq.2",
+      "name": "timeout_bloqueo_minutos",
+      "label": "Minutos de inactividad hasta el bloqueo",
+      "description": "Minutos de inactividad tras los que el puesto se bloquea y exige nueva autenticación.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1",
+        "mp.eq.2.r1.1"
+      ],
+      "type": "number",
+      "example": "15",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 15,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 compara el bloqueo configurado con este tiempo; EV-02 exige cancelar después.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 y EV-02 quedan sin demostrar."
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.eq.2",
+      "name": "timeout_cierre_sesion_minutos",
+      "label": "Minutos de inactividad hasta cancelar la sesión",
+      "description": "Minutos tras los que se cancelan las sesiones abiertas; deben superar los de P-01.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.r1.1"
+      ],
+      "type": "number",
+      "example": "60",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 60,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 compara la cancelación configurada con este tiempo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.eq.2",
+      "name": "puesto_de_trabajo",
+      "label": "Es un puesto de trabajo",
+      "description": "Si la máquina es un puesto de trabajo sujeto al bloqueo. Sin valor, lo es la máquina con sesión gráfica.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "boolean",
+      "example": "sí",
+      "required": false,
+      "wazuhUsage": "El agente informa si hay sesión gráfica.",
+      "powerEnsUsage": "Una máquina que no es puesto de trabajo queda fuera de mp.eq.2.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Puesto de trabajo es la máquina con sesión gráfica."
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.eq.2",
+      "name": "excepciones_autorizadas",
+      "label": "Excepciones autorizadas",
+      "description": "Puestos con excepción autorizada al bloqueo (pantallas de monitorización, quioscos), su justificación, medidas compensatorias y quién la aprobó.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "table",
+      "example": "pantalla-soc01 | visualización continua | sala con control de acceso | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Una máquina con excepción queda fuera de mp.eq.2.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Ninguna excepción.",
+      "columns": [
+        {
+          "name": "equipo",
+          "label": "Equipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "medidas",
+          "label": "Medidas compensatorias",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aprobador",
+          "label": "Aprobador",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.eq.2",
+      "name": "inhibidores_bloqueo",
+      "label": "Herramientas que impiden el bloqueo",
+      "description": "Nombres de proceso de herramientas que simulan actividad para evitar el bloqueo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "list",
+      "example": "caffeine, mousejiggler, keepawake",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 las busca entre los procesos de la máquina.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 busca caffeine, caffeine-ng, caffeinate, jiggler, mousejiggler, keepawake, nosleep, insomnia y stay-awake."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.eq.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

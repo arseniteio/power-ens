@@ -1,0 +1,336 @@
+{
+  "framework": "ENS",
+  "control": "mp.eq.2",
+  "title": "Bloqueo de puesto de trabajo",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los equipos",
+  "dimension": "Autenticidad",
+  "level_dimension": [
+    "A"
+  ],
+  "annex_section": "5.3.2",
+  "description": "mp.eq.2 exige bloquear el puesto de trabajo tras un tiempo de inactividad y, en nivel ALTO, cancelar después las sesiones. Se juzga sobre la configuración de bloqueo y tiempos de inactividad que informa el agente y los procesos de cada puesto.",
+  "levels": [
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.eq.2",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.eq.2.1",
+      "title": "Bloqueo por inactividad con nueva autenticación",
+      "kind": "BASE",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El puesto de trabajo se bloqueará al cabo de un tiempo prudencial de inactividad, requiriendo una nueva autenticación del usuario para reanudar la actividad en curso.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "mp.eq.2.r1.1",
+      "title": "Cancelación de las sesiones abiertas tras un tiempo superior",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Pasado un cierto tiempo, superior al anterior, se cancelarán las sesiones abiertas desde dicho puesto de trabajo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Bloqueo por inactividad configurado",
+      "description": "La sesión gráfica bloquea la pantalla en P-01 minutos como máximo; sin sesión gráfica, un TMOUT de solo lectura cierra la shell en ese tiempo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿El puesto se bloquea por inactividad exigiendo nueva autenticación?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Cancelación de las sesiones inactivas",
+      "description": "logind (StopIdleSessionSec) o, sin sesión gráfica, el TMOUT cancelan las sesiones inactivas después del bloqueo y en P-02 minutos como máximo.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.r1.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se cancelan las sesiones abiertas pasado un tiempo superior al de bloqueo?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Herramientas que impiden el bloqueo",
+      "description": "No hay en marcha ninguna herramienta de P-05 que simule actividad para evitar el bloqueo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Hay herramientas que neutralicen el bloqueo por inactividad?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "timeout_bloqueo_minutos",
+      "label": "Minutos de inactividad hasta el bloqueo",
+      "description": "Minutos de inactividad tras los que el puesto se bloquea y exige nueva autenticación.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1",
+        "mp.eq.2.r1.1"
+      ],
+      "type": "number",
+      "example": "15",
+      "required": true,
+      "min_value": 1,
+      "default_value": 15,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 compara el bloqueo configurado con este tiempo; EV-02 exige cancelar después.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02"
+      ],
+      "if_not_configured": "EV-01 y EV-02 quedan sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "timeout_cierre_sesion_minutos",
+      "label": "Minutos de inactividad hasta cancelar la sesión",
+      "description": "Minutos tras los que se cancelan las sesiones abiertas; deben superar los de P-01.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.r1.1"
+      ],
+      "type": "number",
+      "example": "60",
+      "required": true,
+      "min_value": 1,
+      "default_value": 60,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 compara la cancelación configurada con este tiempo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "system",
+      "name": "puesto_de_trabajo",
+      "label": "Es un puesto de trabajo",
+      "description": "Si la máquina es un puesto de trabajo sujeto al bloqueo. Sin valor, lo es la máquina con sesión gráfica.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "boolean",
+      "example": "sí",
+      "required": false,
+      "agent_usage": "El agente informa si hay sesión gráfica.",
+      "engine_usage": "Una máquina que no es puesto de trabajo queda fuera de mp.eq.2.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "if_not_configured": "Puesto de trabajo es la máquina con sesión gráfica."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "excepciones_autorizadas",
+      "label": "Excepciones autorizadas",
+      "description": "Puestos con excepción autorizada al bloqueo (pantallas de monitorización, quioscos), su justificación, medidas compensatorias y quién la aprobó.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "table",
+      "example": "pantalla-soc01 | visualización continua | sala con control de acceso | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "equipo",
+          "label": "Equipo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "medidas",
+          "label": "Medidas compensatorias",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "aprobador",
+          "label": "Aprobador",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Una máquina con excepción queda fuera de mp.eq.2.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "if_not_configured": "Ninguna excepción."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "inhibidores_bloqueo",
+      "label": "Herramientas que impiden el bloqueo",
+      "description": "Nombres de proceso de herramientas que simulan actividad para evitar el bloqueo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.eq.2.1"
+      ],
+      "type": "list",
+      "example": "caffeine, mousejiggler, keepawake",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 las busca entre los procesos de la máquina.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 busca caffeine, caffeine-ng, caffeinate, jiggler, mousejiggler, keepawake, nosleep, insomnia y stay-awake."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.eq.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "bloqueo",
+      "title": "Bloqueo",
+      "description": "Bloqueo por inactividad y herramientas que lo impiden.",
+      "evidences": [
+        "EV-01",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03",
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "cancelacion",
+      "title": "Cancelación",
+      "description": "Cancelación de las sesiones inactivas.",
+      "evidences": [
+        "EV-02"
+      ],
+      "parameters": [
+        "P-02"
+      ]
+    }
+  ]
+}
