@@ -10,6 +10,7 @@ import {
   EuiBadge,
   EuiBasicTable,
   EuiButtonEmpty,
+  EuiButtonIcon,
   EuiCallOut,
   EuiFieldSearch,
   EuiFilterButton,
@@ -379,7 +380,7 @@ const CountBadge = ({
     </EuiFlexItem>
   ) : null;
 
-const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => {
+const EvidenceBar = ({ group }: { group: ControlEvidenceGroup }) => {
   const spans = [
     { status: 'CUMPLE', n: group.passing },
     { status: 'PARCIAL', n: group.partial },
@@ -388,35 +389,24 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => {
     { status: 'NO_APLICA', n: group.notApplicable },
   ].filter(span => span.n > 0);
   const total = group.rows.length;
-  const tip = spans.map(span => `${span.n} ${statusLabel(span.status).toLowerCase()}`).join(' · ');
+  if (group.pendingMeasurement > 0 || !group.hasResult) {
+    return (
+      <EuiText size='xs' color='subdued'>
+        <span>{group.pendingMeasurement > 0 ? ENS_PENDING_MEASUREMENT_LABEL : 'Sin datos en el periodo'}</span>
+      </EuiText>
+    );
+  }
   return (
-    <EuiFlexGroup alignItems='center' gutterSize='m' responsive={false} style={{ minWidth: 640 }}>
-      <EuiFlexItem grow={false} style={{ minWidth: 72 }}>
-        <EuiText size='s'><strong>{group.controlId}</strong></EuiText>
-      </EuiFlexItem>
-      <EuiFlexItem>
-        <EuiText size='s'><span>{group.title}</span></EuiText>
-      </EuiFlexItem>
-      <EuiFlexItem grow={false} style={{ width: 260 }}>
-        {group.pendingMeasurement > 0 || !group.hasResult ? (
-          <EuiText size='xs' color='subdued'><span>{group.pendingMeasurement > 0 ? ENS_PENDING_MEASUREMENT_LABEL : 'Sin datos en el periodo'}</span></EuiText>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={tip}>
-            <span style={{ display: 'inline-flex', width: 100, height: 6, borderRadius: 3, overflow: 'hidden', background: ENS_THEME.track, flexShrink: 0 }}>
-              {spans.map(span => (
-                <span key={span.status} style={{ width: `${(span.n / Math.max(total, 1)) * 100}%`, background: ENS_STATUS_COLORS[span.status] }} />
-              ))}
-            </span>
-            <EuiText size='xs' color='subdued'><span>{`${group.passing} de ${total} cumplen`}</span></EuiText>
-          </div>
-        )}
-      </EuiFlexItem>
-      <EuiFlexItem grow={false} style={{ width: 90, textAlign: 'right' }}>
-        <EuiText size='s' color={group.failing + group.partial ? 'danger' : 'subdued'} title='No cumplen o parciales'>
-          <strong>{group.failing + group.partial || '—'}</strong>
-        </EuiText>
-      </EuiFlexItem>
-    </EuiFlexGroup>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={spans.map(span => `${span.n} ${statusLabel(span.status).toLowerCase()}`).join(' · ')}>
+      <span style={{ display: 'inline-flex', width: 120, height: 6, borderRadius: 3, overflow: 'hidden', background: ENS_THEME.track, flexShrink: 0 }}>
+        {spans.map(span => (
+          <span key={span.status} style={{ width: `${(span.n / Math.max(total, 1)) * 100}%`, background: ENS_STATUS_COLORS[span.status] }} />
+        ))}
+      </span>
+      <EuiText size='xs' color='subdued'>
+        <span>{`${group.passing} de ${total} cumplen`}</span>
+      </EuiText>
+    </div>
   );
 };
 
@@ -757,30 +747,69 @@ export const EvidencesENS = () => {
           </EuiButtonEmpty>
         </EuiCallOut>
       ) : (
-        filtered.matched.map(group => (
-          <React.Fragment key={group.controlId}>
-            <EuiPanel hasBorder paddingSize='s'>
-            <EuiAccordion
-              id={`ens-evidencias-${group.controlId.replace(/\./g, '-')}`}
-              buttonContent={<ControlGroupHeader group={group} />}
-              forceState={isOpen(group.controlId) ? 'open' : 'closed'}
-              onToggle={(nextIsOpen: boolean) =>
-                toggleControl(group.controlId, nextIsOpen)
-              }
-              paddingSize='s'
-            >
-              {group.rows.length > 0 ? (
-                <EuiBasicTable items={group.rows} columns={columns} />
-              ) : (
-                <EuiBadge color='default' iconType='clock'>
-                  Sin evidencias resueltas en el periodo
-                </EuiBadge>
-              )}
-            </EuiAccordion>
-            </EuiPanel>
-            <EuiSpacer size='s' />
-          </React.Fragment>
-        ))
+        <EuiBasicTable
+          items={filtered.matched}
+          itemId='controlId'
+          isExpandable
+          itemIdToExpandedRowMap={Object.fromEntries(
+            filtered.matched
+              .filter(group => isOpen(group.controlId))
+              .map(group => [
+                group.controlId,
+                group.rows.length > 0 ? (
+                  <EuiBasicTable items={group.rows} columns={columns} compressed />
+                ) : (
+                  <EuiText size='xs' color='subdued'>
+                    <span>Sin evidencias en el periodo</span>
+                  </EuiText>
+                ),
+              ])
+          )}
+          rowProps={(group: ControlEvidenceGroup) => ({
+            onClick: () => toggleControl(group.controlId, !isOpen(group.controlId)),
+            style: { cursor: 'pointer' },
+          })}
+          columns={[
+            {
+              field: 'controlId',
+              name: 'Control',
+              width: '110px',
+              render: (id: string) => <strong>{id}</strong>,
+            },
+            { field: 'title', name: 'Título' },
+            {
+              field: 'rows',
+              name: 'Evidencias',
+              width: '260px',
+              render: (_rows: unknown, group: ControlEvidenceGroup) => <EvidenceBar group={group} />,
+            },
+            {
+              field: 'failing',
+              name: 'No cumplen',
+              width: '110px',
+              align: 'right',
+              render: (_failing: number, group: ControlEvidenceGroup) => (
+                <EuiText size='s' color={group.failing + group.partial ? 'danger' : 'subdued'}>
+                  <strong>{group.failing + group.partial || '—'}</strong>
+                </EuiText>
+              ),
+            },
+            {
+              width: '40px',
+              isExpander: true,
+              render: (group: ControlEvidenceGroup) => (
+                <EuiButtonIcon
+                  onClick={(event: React.MouseEvent) => {
+                    event.stopPropagation();
+                    toggleControl(group.controlId, !isOpen(group.controlId));
+                  }}
+                  aria-label={isOpen(group.controlId) ? 'Contraer' : 'Desplegar'}
+                  iconType={isOpen(group.controlId) ? 'arrowUp' : 'arrowDown'}
+                />
+              ),
+            },
+          ]}
+        />
       )}
     </EuiPanel>
   );
