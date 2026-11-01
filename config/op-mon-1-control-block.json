@@ -1,0 +1,423 @@
+{
+  "controlId": "op.mon.1",
+  "controlName": "Detección de intrusión",
+  "family": "Marco operacional",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "op.mon.1",
+      "name": "necesidad_deteccion_red",
+      "label": "Detección en red",
+      "description": "Si el análisis de riesgos exige detección de intrusiones en red además de en las máquinas, con qué producto y por qué. Una sola fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "table",
+      "example": "sí | Suricata | AR-2026 §4.2: segmento DMZ",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 exige alertas de intrusión en red cuando es necesaria.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "necesaria",
+          "label": "Necesaria",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "op.mon.1",
+      "name": "conjuntos_reglas",
+      "label": "Conjuntos de reglas de detección",
+      "description": "Conjuntos de reglas que deben estar cargados en el manager: wazuh (las de Wazuh), propias (etc/rules) o el nombre de un fichero de reglas, con su número mínimo de reglas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "table",
+      "example": "wazuh | reglas oficiales de Wazuh | 3000",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 cuenta las reglas que pueden alertar de cada conjunto.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 solo exige reglas cargadas.",
+      "columns": [
+        {
+          "name": "conjunto",
+          "label": "Conjunto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "descripcion",
+          "label": "Descripción",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "minimo_reglas",
+          "label": "Mínimo de reglas",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "op.mon.1",
+      "name": "situaciones_compromiso",
+      "label": "Situaciones de compromiso del análisis de riesgos",
+      "description": "Situaciones de compromiso que el análisis de riesgos manda vigilar y las reglas que las detectan, por id o rango (5710, 5712, 80700-80799).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "table",
+      "example": "acceso no autorizado por SSH | servidores Linux | 5710, 5712, 5720",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige una regla cargada que pueda alertar en cada situación.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "situacion",
+          "label": "Situación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "op.mon.1",
+      "name": "procedimientos_respuesta_alertas",
+      "label": "Procedimientos de respuesta a las alertas",
+      "description": "Procedimientos de respuesta por tipo de alerta y su responsable.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r2.1"
+      ],
+      "type": "table",
+      "example": "intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "tipo_alerta",
+          "label": "Tipo de alerta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "procedimiento",
+          "label": "Procedimiento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "op.mon.1",
+      "name": "exclusiones_aprobadas",
+      "label": "Silenciamientos aprobados",
+      "description": "Ficheros de reglas excluidos y reglas de Wazuh rebajadas a nivel 0, con su motivo y quién lo aprobó.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "table",
+      "example": "0215-policy_rules.xml | exclusión de fábrica de Wazuh | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 exige cada silenciamiento del manager en esta tabla.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "Cualquier silenciamiento hace incumplir EV-08.",
+      "columns": [
+        {
+          "name": "regla",
+          "label": "Regla o fichero",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aprobador",
+          "label": "Aprobador",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "op.mon.1",
+      "name": "acciones_respuesta_automatica",
+      "label": "Respuestas automáticas previstas",
+      "description": "Acciones de respuesta automática previstas: el comando de respuesta activa, las reglas que la disparan, su alcance y su duración.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r3.1"
+      ],
+      "type": "table",
+      "example": "firewall-drop | 5763 | agente | 600",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 exige cada acción configurada y activa en el manager.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "accion",
+          "label": "Acción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "timeout",
+          "label": "Duración (s)",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "op.mon.1",
+      "name": "antiguedad_maxima_reglas_dias",
+      "label": "Antigüedad máxima de las reglas (días)",
+      "description": "Días desde la instalación del paquete del manager, que trae las reglas de Wazuh.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 180,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 compara la fecha de instalación del manager con este plazo.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 queda sin demostrar."
+    },
+    {
+      "id": "P-08",
+      "controlId": "op.mon.1",
+      "name": "dias_maximos_sin_deteccion",
+      "label": "Días máximos sin detección",
+      "description": "Días que una máquina puede pasar sin ninguna alerta antes de considerar que la detección no funciona en ella.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "minValue": 1,
+      "maxValue": 90,
+      "defaultValue": 7,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 y EV-05 exigen alertas dentro de este plazo.",
+      "evidenceIds": [
+        "EV-03",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 y EV-05 quedan sin demostrar."
+    },
+    {
+      "id": "P-09",
+      "controlId": "op.mon.1",
+      "name": "horas_maximas_sin_informar",
+      "label": "Horas máximas sin informar al manager",
+      "description": "Horas que una máquina puede pasar sin informar al manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 2,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 compara el último keepalive con este plazo.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "op.mon.1",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.1.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

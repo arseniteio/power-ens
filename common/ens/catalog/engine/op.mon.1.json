@@ -1,0 +1,655 @@
+{
+  "framework": "ENS",
+  "control": "op.mon.1",
+  "title": "Detección de intrusión",
+  "status": "ACTIVE",
+  "family": "Marco operacional",
+  "category": "Monitorización del sistema",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "4.7.1",
+  "description": "op.mon.1 exige herramientas de detección o prevención de intrusiones. Se juzga sobre el manager de Wazuh (procesos, reglas, exclusiones y respuesta activa, leídos por su API) y las alertas de cada máquina.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_op.mon.1",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "op.mon.1.1",
+      "title": "Herramientas de detección o prevención de intrusiones",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se dispondrá de herramientas de detección o prevención de intrusiones.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-03",
+        "P-08",
+        "P-09"
+      ]
+    },
+    {
+      "id": "op.mon.1.r1.1",
+      "title": "Detección basada en reglas",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "El sistema dispondrá de herramientas de detección o prevención de intrusiones basadas en reglas.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-05",
+        "P-07"
+      ]
+    },
+    {
+      "id": "op.mon.1.r2.1",
+      "title": "Procedimientos de respuesta a las alertas",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Existirán procedimientos de respuesta a las alertas generadas por el sistema de detección o prevención de intrusiones.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "op.mon.1.r3.1",
+      "title": "Acciones predeterminadas automáticas",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "El sistema ejecutará automáticamente acciones predeterminadas de respuesta a las alertas generadas. Esto puede incluir la finalización del proceso que está ocasionando la alerta, la inhabilitación de determinados servicios, la desconexión de usuarios y el bloqueo de cuentas.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Detección desplegada y en marcha",
+      "description": "Los procesos de análisis del manager están en marcha y cargan reglas que pueden alertar; cada conjunto de reglas de P-02 tiene al menos sus reglas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1",
+        "op.mon.1.r1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La detección de intrusiones está desplegada y en marcha?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Cobertura de la detección en la máquina",
+      "description": "La máquina informa al manager dentro de P-09 horas y tiene FIM y SCA activos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina está bajo la detección de intrusiones?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Detecciones del período",
+      "description": "La máquina tiene alguna alerta, sin contar los hechos de OSCompliance, en los últimos P-08 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La detección produce resultados en la máquina?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Análisis de riesgos cubierto por reglas",
+      "description": "Cada situación de compromiso de P-03 tiene al menos una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada situación de compromiso del análisis de riesgos tiene una regla que la detecta?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Detección en red",
+      "description": "Si P-01 dice que el análisis de riesgos pide detección en red, llegan alertas de intrusión en red (Suricata, Snort, Zeek) en los últimos P-08 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan las alertas de la detección en red que pide el análisis de riesgos?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Respuestas automáticas configuradas",
+      "description": "Cada acción de P-06 está configurada y activa en la respuesta activa del manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Están configuradas las respuestas automáticas previstas?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Vigencia de las reglas y exclusiones",
+      "description": "Las reglas del manager se instalaron dentro de P-07 días, y cada fichero excluido o regla de Wazuh rebajada a nivel 0 está aprobada en P-05.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Las reglas están al día y cada silenciamiento está aprobado?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "necesidad_deteccion_red",
+      "label": "Detección en red",
+      "description": "Si el análisis de riesgos exige detección de intrusiones en red además de en las máquinas, con qué producto y por qué. Una sola fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "table",
+      "example": "sí | Suricata | AR-2026 §4.2: segmento DMZ",
+      "columns": [
+        {
+          "name": "necesaria",
+          "label": "Necesaria",
+          "type": "select",
+          "options": [
+            "sí",
+            "no"
+          ],
+          "required": true
+        },
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "justificacion",
+          "label": "Justificación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 exige alertas de intrusión en red cuando es necesaria.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "conjuntos_reglas",
+      "label": "Conjuntos de reglas de detección",
+      "description": "Conjuntos de reglas que deben estar cargados en el manager: wazuh (las de Wazuh), propias (etc/rules) o el nombre de un fichero de reglas, con su número mínimo de reglas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "table",
+      "example": "wazuh | reglas oficiales de Wazuh | 3000",
+      "columns": [
+        {
+          "name": "conjunto",
+          "label": "Conjunto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "descripcion",
+          "label": "Descripción",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "minimo_reglas",
+          "label": "Mínimo de reglas",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 cuenta las reglas que pueden alertar de cada conjunto.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 solo exige reglas cargadas."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "situaciones_compromiso",
+      "label": "Situaciones de compromiso del análisis de riesgos",
+      "description": "Situaciones de compromiso que el análisis de riesgos manda vigilar y las reglas que las detectan, por id o rango (5710, 5712, 80700-80799).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "table",
+      "example": "acceso no autorizado por SSH | servidores Linux | 5710, 5712, 5720",
+      "columns": [
+        {
+          "name": "situacion",
+          "label": "Situación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "ambito",
+          "label": "Ámbito",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 exige una regla cargada que pueda alertar en cada situación.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "procedimientos_respuesta_alertas",
+      "label": "Procedimientos de respuesta a las alertas",
+      "description": "Procedimientos de respuesta por tipo de alerta y su responsable.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r2.1"
+      ],
+      "type": "table",
+      "example": "intrusión en servidor | PR-18 Respuesta a intrusión | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "tipo_alerta",
+          "label": "Tipo de alerta",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "procedimiento",
+          "label": "Procedimiento",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "exclusiones_aprobadas",
+      "label": "Silenciamientos aprobados",
+      "description": "Ficheros de reglas excluidos y reglas de Wazuh rebajadas a nivel 0, con su motivo y quién lo aprobó.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "table",
+      "example": "0215-policy_rules.xml | exclusión de fábrica de Wazuh | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "regla",
+          "label": "Regla o fichero",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "motivo",
+          "label": "Motivo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aprobador",
+          "label": "Aprobador",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige cada silenciamiento del manager en esta tabla.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "Cualquier silenciamiento hace incumplir EV-08."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "acciones_respuesta_automatica",
+      "label": "Respuestas automáticas previstas",
+      "description": "Acciones de respuesta automática previstas: el comando de respuesta activa, las reglas que la disparan, su alcance y su duración.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r3.1"
+      ],
+      "type": "table",
+      "example": "firewall-drop | 5763 | agente | 600",
+      "columns": [
+        {
+          "name": "accion",
+          "label": "Acción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "timeout",
+          "label": "Duración (s)",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 exige cada acción configurada y activa en el manager.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "antiguedad_maxima_reglas_dias",
+      "label": "Antigüedad máxima de las reglas (días)",
+      "description": "Días desde la instalación del paquete del manager, que trae las reglas de Wazuh.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.r1.1"
+      ],
+      "type": "number",
+      "example": "180",
+      "required": true,
+      "min_value": 1,
+      "default_value": 180,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 compara la fecha de instalación del manager con este plazo.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "dias_maximos_sin_deteccion",
+      "label": "Días máximos sin detección",
+      "description": "Días que una máquina puede pasar sin ninguna alerta antes de considerar que la detección no funciona en ella.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "min_value": 1,
+      "max_value": 90,
+      "default_value": 7,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 y EV-05 exigen alertas dentro de este plazo.",
+      "evidence_ids": [
+        "EV-03",
+        "EV-05"
+      ],
+      "if_not_configured": "EV-03 y EV-05 quedan sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_informar",
+      "label": "Horas máximas sin informar al manager",
+      "description": "Horas que una máquina puede pasar sin informar al manager.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.1.1"
+      ],
+      "type": "number",
+      "example": "2",
+      "required": true,
+      "min_value": 1,
+      "default_value": 2,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 compara el último keepalive con este plazo.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "op.mon.1.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "despliegue",
+      "title": "Detección desplegada",
+      "description": "Procesos, reglas y cobertura de la máquina.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03"
+      ],
+      "parameters": [
+        "P-02",
+        "P-08",
+        "P-09"
+      ]
+    },
+    {
+      "id": "riesgos",
+      "title": "Análisis de riesgos",
+      "description": "Situaciones de compromiso y detección en red.",
+      "evidences": [
+        "EV-04",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-01",
+        "P-03"
+      ]
+    },
+    {
+      "id": "reglas",
+      "title": "Reglas y respuesta",
+      "description": "Vigencia de las reglas, silenciamientos y respuestas automáticas.",
+      "evidences": [
+        "EV-07",
+        "EV-08"
+      ],
+      "parameters": [
+        "P-04",
+        "P-05",
+        "P-06",
+        "P-07"
+      ]
+    }
+  ]
+}
