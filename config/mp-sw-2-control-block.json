@@ -1,0 +1,378 @@
+{
+  "controlId": "mp.sw.2",
+  "controlName": "Aceptación y puesta en servicio",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.sw.2",
+      "name": "aplicaciones_en_alcance",
+      "label": "Aplicaciones",
+      "description": "Aplicaciones: máquinas donde se despliegan (nombres en Wazuh separados por comas), paquetes que las componen, responsable y origen.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "portal de expedientes | srv-web01, srv-web02 | portal-app | J. Ruiz | desarrollo propio",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "mp.sw.2 se juzga en sus máquinas; las instalaciones de sus paquetes son sus despliegues.",
+      "evidenceIds": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "mp.sw.2 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquinas",
+          "label": "Máquinas",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "paquetes",
+          "label": "Paquetes",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "origen",
+          "label": "Origen",
+          "type": "select",
+          "options": [
+            "desarrollo propio",
+            "terceros"
+          ],
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.sw.2",
+      "name": "criterios_aceptacion_seguridad",
+      "label": "Criterios de aceptación",
+      "description": "Criterios de seguridad que una aplicación cumple antes de pasar a producción.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "list",
+      "example": "sin vulnerabilidades críticas, TLS 1.2 o superior, registro de actividad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.sw.2",
+      "name": "entorno_preproduccion",
+      "label": "Entorno de preproducción",
+      "description": "Emparejamiento de cada máquina de producción con la de preproducción (nombres en Wazuh) y cómo se aísla.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.r1.1"
+      ],
+      "type": "table",
+      "example": "srv-web01 | pre-web01 | VLAN propia sin rutas a producción",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 exige cada versión desplegada instalada antes en la de preproducción.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "produccion",
+          "label": "Producción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "preproduccion",
+          "label": "Preproducción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.sw.2",
+      "name": "ventana_deterioro_dias",
+      "label": "Días tras el despliegue que se vigilan",
+      "description": "Días después de un despliegue en que una regresión de SCA se atribuye a él.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 7,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-03 busca regresiones en estos días.",
+      "evidenceIds": [
+        "EV-03"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-03 queda sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.sw.2",
+      "name": "puertos_servicios_previstos",
+      "label": "Puertos previstos",
+      "description": "Puertos que puede abrir cada aplicación, o * para los de todas las máquinas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "portal de expedientes | 443 | https",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 exige cada puerto abierto fuera de loopback declarado.",
+      "evidenceIds": [
+        "EV-04"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.sw.2",
+      "name": "registro_actas_aceptacion",
+      "label": "Actas de aceptación",
+      "description": "Un acta por fila: fecha, aplicación, versión, resultado y quién aceptó.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "2026-03-10 | portal de expedientes | 2.4 | aceptada | Responsable de Seguridad",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 exige un acta aceptada antes de cada despliegue.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "label": "Versión",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "select",
+          "options": [
+            "aceptada",
+            "rechazada"
+          ],
+          "required": true
+        },
+        {
+          "name": "aceptado_por",
+          "label": "Aceptado por",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.sw.2",
+      "name": "auditoria_codigo_fuente",
+      "label": "Auditorías de código fuente",
+      "description": "Auditorías de código fuente: fecha, aplicación, metodología y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.r2.1"
+      ],
+      "type": "table",
+      "example": "2026-02-01 | portal de expedientes | revisión manual y SAST | 4",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "metodologia",
+          "label": "Metodología",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.sw.2",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.sw.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

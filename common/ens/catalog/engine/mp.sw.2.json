@@ -1,0 +1,574 @@
+{
+  "framework": "ENS",
+  "control": "mp.sw.2",
+  "title": "Aceptación y puesta en servicio",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de las aplicaciones informáticas",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.6.2",
+  "description": "mp.sw.2 exige comprobar los criterios de aceptación y que no se deteriora la seguridad antes de poner una aplicación en servicio. Se juzga en las máquinas de cada aplicación: sus despliegues vistos por Wazuh, las actas de aceptación, las regresiones de SCA, los puertos, las vulnerabilidades y el paso por preproducción.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.sw.2",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.sw.2.1",
+      "title": "Criterios de aceptación cumplidos sin deteriorar otros componentes",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se comprobará que: a) Se cumplen los criterios de aceptación en materia de seguridad. b) No se deteriora la seguridad de otros componentes del servicio.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-02",
+        "P-04",
+        "P-05",
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.sw.2.r1.1",
+      "title": "Pruebas en un entorno aislado de preproducción",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Las pruebas se realizarán en un entorno aislado (pre-producción).",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.sw.2.r2.1",
+      "title": "Auditoría del código fuente",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "Se realizará una auditoría de código fuente.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-07"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Puestas en servicio detectadas",
+      "description": "Cada aplicación de P-01 de la máquina se conoce por sus paquetes, que es como Wazuh ve cada puesta en servicio.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan las puestas en servicio de las aplicaciones?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Aceptación previa a la puesta en servicio",
+      "description": "Cada instalación de un paquete de una aplicación en los últimos 90 días tiene antes un acta aceptada en P-06.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada puesta en servicio fue aceptada antes?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Configuración tras el despliegue",
+      "description": "Ninguna comprobación SCA que pasaba falla en los P-04 días siguientes a un despliegue.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El despliegue deterioró la configuración de seguridad?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Exposición introducida",
+      "description": "Cada puerto que la máquina abre fuera de loopback está declarado en P-05.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El despliegue abrió puertos no previstos?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Vulnerabilidades introducidas",
+      "description": "Ningún paquete de las aplicaciones de la máquina tiene vulnerabilidades críticas o altas abiertas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La aplicación introdujo vulnerabilidades?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Paso por preproducción",
+      "description": "Cada versión desplegada se instaló antes en la máquina de preproducción que P-03 empareja con esta.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.r1.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Cada versión pasó antes por preproducción?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "aplicaciones_en_alcance",
+      "label": "Aplicaciones",
+      "description": "Aplicaciones: máquinas donde se despliegan (nombres en Wazuh separados por comas), paquetes que las componen, responsable y origen.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "portal de expedientes | srv-web01, srv-web02 | portal-app | J. Ruiz | desarrollo propio",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquinas",
+          "label": "Máquinas",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "paquetes",
+          "label": "Paquetes",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "origen",
+          "label": "Origen",
+          "type": "select",
+          "options": [
+            "desarrollo propio",
+            "terceros"
+          ],
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "mp.sw.2 se juzga en sus máquinas; las instalaciones de sus paquetes son sus despliegues.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-05"
+      ],
+      "if_not_configured": "mp.sw.2 queda sin demostrar."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "criterios_aceptacion_seguridad",
+      "label": "Criterios de aceptación",
+      "description": "Criterios de seguridad que una aplicación cumple antes de pasar a producción.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "list",
+      "example": "sin vulnerabilidades críticas, TLS 1.2 o superior, registro de actividad",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "entorno_preproduccion",
+      "label": "Entorno de preproducción",
+      "description": "Emparejamiento de cada máquina de producción con la de preproducción (nombres en Wazuh) y cómo se aísla.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.r1.1"
+      ],
+      "type": "table",
+      "example": "srv-web01 | pre-web01 | VLAN propia sin rutas a producción",
+      "columns": [
+        {
+          "name": "produccion",
+          "label": "Producción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "preproduccion",
+          "label": "Preproducción",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aislamiento",
+          "label": "Aislamiento",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 exige cada versión desplegada instalada antes en la de preproducción.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "ventana_deterioro_dias",
+      "label": "Días tras el despliegue que se vigilan",
+      "description": "Días después de un despliegue en que una regresión de SCA se atribuye a él.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "min_value": 1,
+      "default_value": 7,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-03 busca regresiones en estos días.",
+      "evidence_ids": [
+        "EV-03"
+      ],
+      "if_not_configured": "EV-03 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "puertos_servicios_previstos",
+      "label": "Puertos previstos",
+      "description": "Puertos que puede abrir cada aplicación, o * para los de todas las máquinas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "portal de expedientes | 443 | https",
+      "columns": [
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "puerto",
+          "label": "Puerto",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "servicio",
+          "label": "Servicio",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 exige cada puerto abierto fuera de loopback declarado.",
+      "evidence_ids": [
+        "EV-04"
+      ],
+      "if_not_configured": "EV-04 queda sin demostrar."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "registro_actas_aceptacion",
+      "label": "Actas de aceptación",
+      "description": "Un acta por fila: fecha, aplicación, versión, resultado y quién aceptó.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.1"
+      ],
+      "type": "table",
+      "example": "2026-03-10 | portal de expedientes | 2.4 | aceptada | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "version",
+          "label": "Versión",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "resultado",
+          "label": "Resultado",
+          "type": "select",
+          "options": [
+            "aceptada",
+            "rechazada"
+          ],
+          "required": true
+        },
+        {
+          "name": "aceptado_por",
+          "label": "Aceptado por",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 exige un acta aceptada antes de cada despliegue.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "auditoria_codigo_fuente",
+      "label": "Auditorías de código fuente",
+      "description": "Auditorías de código fuente: fecha, aplicación, metodología y hallazgos.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.sw.2.r2.1"
+      ],
+      "type": "table",
+      "example": "2026-02-01 | portal de expedientes | revisión manual y SAST | 4",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "aplicacion",
+          "label": "Aplicación",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "metodologia",
+          "label": "Metodología",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hallazgos",
+          "label": "Hallazgos",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.sw.2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "aceptacion",
+      "title": "Aceptación",
+      "description": "Despliegues y su aceptación previa.",
+      "evidences": [
+        "EV-01",
+        "EV-02"
+      ],
+      "parameters": [
+        "P-01",
+        "P-02",
+        "P-06"
+      ]
+    },
+    {
+      "id": "deterioro",
+      "title": "Deterioro",
+      "description": "Configuración, exposición y vulnerabilidades tras el despliegue.",
+      "evidences": [
+        "EV-03",
+        "EV-04",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-04",
+        "P-05"
+      ]
+    },
+    {
+      "id": "preproduccion",
+      "title": "Preproducción",
+      "description": "Paso de cada versión por preproducción.",
+      "evidences": [
+        "EV-07"
+      ],
+      "parameters": [
+        "P-03",
+        "P-07"
+      ]
+    }
+  ]
+}
