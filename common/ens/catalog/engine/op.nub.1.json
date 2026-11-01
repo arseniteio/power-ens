@@ -111,9 +111,12 @@
         "ALTO"
       ],
       "description": "La configuración de seguridad de los sistemas que proporcionan estos servicios deberá realizarse según la correspondiente guía CCN-STIC de Configuración de Seguridad Específica, orientadas tanto al usuario como al proveedor.",
-      "evidence_ids": [],
+      "evidence_ids": [
+        "EV-02"
+      ],
       "parameter_ids": [
-        "P-07"
+        "P-07",
+        "P-14"
       ]
     }
   ],
@@ -133,6 +136,20 @@
       "category": "MONITORING",
       "criticality": "HIGH",
       "audit_question": "¿Llegan a Wazuh los registros de los servicios en la nube?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Postura de los servicios en la nube",
+      "description": "Los hallazgos de postura que el proveedor envía a Wazuh (Security Hub, Defender, Security Command Center) llegan de cada servicio de P-07 y ninguno alcanza el nivel de P-14.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La configuración de los servicios en la nube cumple su guía, según el propio proveedor?"
     },
     {
       "id": "EV-04",
@@ -504,7 +521,7 @@
       "class": "organisation",
       "name": "politicas_configuracion_cloud",
       "label": "Guías de configuración de los servicios",
-      "description": "Guía CCN-STIC de configuración aplicable a cada servicio y estándar de postura del proveedor con que se verifica.",
+      "description": "Guía CCN-STIC de cada servicio, estándar de postura del proveedor con que se verifica y grupo de reglas de Wazuh con que llegan sus hallazgos.",
       "levels": [
         "ALTO"
       ],
@@ -512,7 +529,7 @@
         "op.nub.1.r2.1"
       ],
       "type": "table",
-      "example": "AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices",
+      "example": "AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices | aws_securityhub",
       "columns": [
         {
           "name": "servicio",
@@ -531,12 +548,21 @@
           "label": "Estándar de postura",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "grupo_reglas",
+          "label": "Grupo de reglas",
+          "type": "string",
+          "required": true
         }
       ],
-      "required": false,
+      "required": true,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-02 exige hallazgos de cada grupo en la última semana y ninguno grave.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
     },
     "P-08": {
       "class": "organisation",
@@ -767,6 +793,30 @@
       ],
       "if_not_configured": "EV-01 queda sin demostrar."
     },
+    "P-14": {
+      "class": "organisation",
+      "name": "nivel_hallazgo_postura_grave",
+      "label": "Nivel de un hallazgo de postura grave",
+      "description": "Nivel de regla de Wazuh desde el que un hallazgo de postura incumple.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r2.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": true,
+      "min_value": 1,
+      "max_value": 15,
+      "default_value": 12,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 cuenta los hallazgos de este nivel o superior.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar."
+    },
     "P-ATT": {
       "class": "organisation",
       "name": "atestaciones_documentales",
@@ -779,7 +829,7 @@
       ],
       "requirements": [],
       "type": "table",
-      "example": "op.nub.1.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "example": "op.nub.1.r1.2 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "columns": [
         {
           "name": "requisito",
@@ -865,10 +915,13 @@
     {
       "id": "configuracion",
       "title": "Configuración",
-      "description": "Guías de configuración de cada servicio.",
-      "evidences": [],
+      "description": "Postura de cada servicio frente a su guía.",
+      "evidences": [
+        "EV-02"
+      ],
       "parameters": [
-        "P-07"
+        "P-07",
+        "P-14"
       ]
     }
   ]

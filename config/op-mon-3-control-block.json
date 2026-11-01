@@ -128,9 +128,9 @@
     {
       "id": "P-04",
       "controlId": "op.mon.3",
-      "name": "linea_base_comportamiento",
-      "label": "Línea base de comportamiento",
-      "description": "Indicadores de comportamiento normal, su normalidad y el umbral de anomalía.",
+      "name": "comportamientos_anomalos",
+      "label": "Comportamientos anómalos",
+      "description": "Comportamientos que se apartan de la línea base, su fuente y las reglas de Wazuh que los detectan.",
       "levels": [
         "ALTO"
       ],
@@ -138,14 +138,25 @@
         "op.mon.3.r3.1"
       ],
       "type": "table",
-      "example": "accesos fuera de horario | 7-20 h | cualquier acceso a otra hora",
+      "example": "comportamiento anómalo | acceso fuera de horario | sshd | 100700",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-05 exige reglas cargadas para cada comportamiento.",
+      "evidenceIds": [
+        "EV-05"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-05 queda sin demostrar.",
       "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "comportamiento anómalo"
+          ],
+          "required": true
+        },
         {
           "name": "indicador",
           "label": "Indicador",
@@ -153,16 +164,16 @@
           "required": true
         },
         {
-          "name": "normalidad",
-          "label": "Normalidad",
+          "name": "fuente",
+          "label": "Fuente",
           "type": "string",
           "required": false
         },
         {
-          "name": "umbral_anomalia",
-          "label": "Umbral de anomalía",
+          "name": "reglas",
+          "label": "Reglas",
           "type": "string",
-          "required": false
+          "required": true
         }
       ]
     },
@@ -214,7 +225,7 @@
       "controlId": "op.mon.3",
       "name": "servicio_observatorio_digital",
       "label": "Observatorio digital",
-      "description": "Servicio de cibervigilancia, proveedor y qué vigila.",
+      "description": "Servicio de cibervigilancia, proveedor, qué vigila y las listas CDB de Wazuh en que deja sus indicadores.",
       "levels": [
         "ALTO"
       ],
@@ -222,13 +233,15 @@
         "op.mon.3.r4.1"
       ],
       "type": "table",
-      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares, credenciales filtradas",
+      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares | malicious-domains",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: r4.1 se acredita con P-ATT. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-07 exige cada lista actualizada dentro de P-11 días.",
+      "evidenceIds": [
+        "EV-07"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-07 queda sin demostrar.",
       "columns": [
         {
           "name": "servicio",
@@ -247,6 +260,12 @@
           "label": "Alcance",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "listas",
+          "label": "Listas CDB",
+          "type": "string",
+          "required": true
         }
       ]
     },
@@ -471,6 +490,31 @@
       ]
     },
     {
+      "id": "P-11",
+      "controlId": "op.mon.3",
+      "name": "dias_maximos_listas_cdb",
+      "label": "Días máximos sin actualizar las listas",
+      "description": "Días que una lista CDB del observatorio puede pasar sin actualizarse.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r4.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 7,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-07 mide con este plazo.",
+      "evidenceIds": [
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-07 queda sin demostrar."
+    },
+    {
       "id": "P-ATT",
       "controlId": "op.mon.3",
       "name": "atestaciones_documentales",
@@ -483,7 +527,7 @@
       ],
       "requirements": [],
       "type": "table",
-      "example": "op.mon.3.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "example": "op.mon.3.r7.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
       "powerEnsUsage": "Documental. Sale en el informe.",

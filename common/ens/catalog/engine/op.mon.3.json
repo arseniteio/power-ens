@@ -88,7 +88,9 @@
         "ALTO"
       ],
       "description": "Se dispondrá de sistemas para detección de amenazas avanzadas y comportamientos anómalos.",
-      "evidence_ids": [],
+      "evidence_ids": [
+        "EV-05"
+      ],
       "parameter_ids": [
         "P-04"
       ]
@@ -116,9 +118,12 @@
         "ALTO"
       ],
       "description": "Se dispondrá de observatorios digitales con fines de cibervigilancia dedicados a la detección y seguimiento de anomalías que pudieran representar indicadores de amenaza en contenidos digitales.",
-      "evidence_ids": [],
+      "evidence_ids": [
+        "EV-07"
+      ],
       "parameter_ids": [
-        "P-06"
+        "P-06",
+        "P-11"
       ]
     },
     {
@@ -272,6 +277,34 @@
       "category": "MONITORING",
       "criticality": "HIGH",
       "audit_question": "¿Se determina la superficie de exposición de la máquina?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Detección de comportamientos anómalos",
+      "description": "Cada comportamiento anómalo de P-04 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r3.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detectan los comportamientos anómalos de la línea base?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Indicadores de cibervigilancia incorporados",
+      "description": "Cada lista CDB que P-06 alimenta con los indicadores del observatorio se actualizó en el manager dentro de P-11 días.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r4.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se incorporan a Wazuh los indicadores del observatorio digital?"
     },
     {
       "id": "EV-06",
@@ -471,9 +504,9 @@
     },
     "P-04": {
       "class": "organisation",
-      "name": "linea_base_comportamiento",
-      "label": "Línea base de comportamiento",
-      "description": "Indicadores de comportamiento normal, su normalidad y el umbral de anomalía.",
+      "name": "comportamientos_anomalos",
+      "label": "Comportamientos anómalos",
+      "description": "Comportamientos que se apartan de la línea base, su fuente y las reglas de Wazuh que los detectan.",
       "levels": [
         "ALTO"
       ],
@@ -481,8 +514,17 @@
         "op.mon.3.r3.1"
       ],
       "type": "table",
-      "example": "accesos fuera de horario | 7-20 h | cualquier acceso a otra hora",
+      "example": "comportamiento anómalo | acceso fuera de horario | sshd | 100700",
       "columns": [
+        {
+          "name": "tipo",
+          "label": "Tipo",
+          "type": "select",
+          "options": [
+            "comportamiento anómalo"
+          ],
+          "required": true
+        },
         {
           "name": "indicador",
           "label": "Indicador",
@@ -490,22 +532,25 @@
           "required": true
         },
         {
-          "name": "normalidad",
-          "label": "Normalidad",
+          "name": "fuente",
+          "label": "Fuente",
           "type": "string",
           "required": false
         },
         {
-          "name": "umbral_anomalia",
-          "label": "Umbral de anomalía",
+          "name": "reglas",
+          "label": "Reglas",
           "type": "string",
-          "required": false
+          "required": true
         }
       ],
       "required": false,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-05 exige reglas cargadas para cada comportamiento.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
     },
     "P-05": {
       "class": "organisation",
@@ -552,7 +597,7 @@
       "class": "organisation",
       "name": "servicio_observatorio_digital",
       "label": "Observatorio digital",
-      "description": "Servicio de cibervigilancia, proveedor y qué vigila.",
+      "description": "Servicio de cibervigilancia, proveedor, qué vigila y las listas CDB de Wazuh en que deja sus indicadores.",
       "levels": [
         "ALTO"
       ],
@@ -560,7 +605,7 @@
         "op.mon.3.r4.1"
       ],
       "type": "table",
-      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares, credenciales filtradas",
+      "example": "cibervigilancia externa | Proveedor S.L. | dominios similares | malicious-domains",
       "columns": [
         {
           "name": "servicio",
@@ -579,12 +624,21 @@
           "label": "Alcance",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "listas",
+          "label": "Listas CDB",
+          "type": "string",
+          "required": true
         }
       ],
       "required": false,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: r4.1 se acredita con P-ATT. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-07 exige cada lista actualizada dentro de P-11 días.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
     },
     "P-07": {
       "class": "organisation",
@@ -798,6 +852,29 @@
       ],
       "if_not_configured": "Las inspecciones que no hace Wazuh de forma continua quedan sin demostrar."
     },
+    "P-11": {
+      "class": "organisation",
+      "name": "dias_maximos_listas_cdb",
+      "label": "Días máximos sin actualizar las listas",
+      "description": "Días que una lista CDB del observatorio puede pasar sin actualizarse.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.3.r4.1"
+      ],
+      "type": "number",
+      "example": "7",
+      "required": true,
+      "min_value": 1,
+      "default_value": 7,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-07 mide con este plazo.",
+      "evidence_ids": [
+        "EV-07"
+      ],
+      "if_not_configured": "EV-07 queda sin demostrar."
+    },
     "P-ATT": {
       "class": "organisation",
       "name": "atestaciones_documentales",
@@ -810,7 +887,7 @@
       ],
       "requirements": [],
       "type": "table",
-      "example": "op.mon.3.r3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "example": "op.mon.3.r7.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "columns": [
         {
           "name": "requisito",
@@ -865,18 +942,21 @@
     },
     {
       "id": "analisis",
-      "title": "Correlación y exposición",
-      "description": "Reglas de correlación, superficie de exposición y detección en red.",
+      "title": "Correlación y amenazas",
+      "description": "Correlación, exposición, comportamientos anómalos, detección en red y cibervigilancia.",
       "evidences": [
         "EV-03",
         "EV-04",
-        "EV-06"
+        "EV-05",
+        "EV-06",
+        "EV-07"
       ],
       "parameters": [
         "P-02",
         "P-04",
         "P-05",
-        "P-06"
+        "P-06",
+        "P-11"
       ]
     },
     {

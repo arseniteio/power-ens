@@ -344,7 +344,7 @@
       "controlId": "op.nub.1",
       "name": "politicas_configuracion_cloud",
       "label": "Guías de configuración de los servicios",
-      "description": "Guía CCN-STIC de configuración aplicable a cada servicio y estándar de postura del proveedor con que se verifica.",
+      "description": "Guía CCN-STIC de cada servicio, estándar de postura del proveedor con que se verifica y grupo de reglas de Wazuh con que llegan sus hallazgos.",
       "levels": [
         "ALTO"
       ],
@@ -352,13 +352,15 @@
         "op.nub.1.r2.1"
       ],
       "type": "table",
-      "example": "AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices",
-      "required": false,
+      "example": "AWS producción | CCN-STIC-887 | AWS Foundational Security Best Practices | aws_securityhub",
+      "required": true,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: r2.1 se acredita con P-ATT. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-02 exige hallazgos de cada grupo en la última semana y ninguno grave.",
+      "evidenceIds": [
+        "EV-02"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-02 queda sin demostrar.",
       "columns": [
         {
           "name": "servicio",
@@ -377,6 +379,12 @@
           "label": "Estándar de postura",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "grupo_reglas",
+          "label": "Grupo de reglas",
+          "type": "string",
+          "required": true
         }
       ]
     },
@@ -622,6 +630,32 @@
       "ifNotConfigured": "EV-01 queda sin demostrar."
     },
     {
+      "id": "P-14",
+      "controlId": "op.nub.1",
+      "name": "nivel_hallazgo_postura_grave",
+      "label": "Nivel de un hallazgo de postura grave",
+      "description": "Nivel de regla de Wazuh desde el que un hallazgo de postura incumple.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "op.nub.1.r2.1"
+      ],
+      "type": "number",
+      "example": "12",
+      "required": true,
+      "minValue": 1,
+      "maxValue": 15,
+      "defaultValue": 12,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 cuenta los hallazgos de este nivel o superior.",
+      "evidenceIds": [
+        "EV-02"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 queda sin demostrar."
+    },
+    {
       "id": "P-ATT",
       "controlId": "op.nub.1",
       "name": "atestaciones_documentales",
@@ -634,7 +668,7 @@
       ],
       "requirements": [],
       "type": "table",
-      "example": "op.nub.1.r2.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "example": "op.nub.1.r1.2 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
       "powerEnsUsage": "Documental. Sale en el informe.",
