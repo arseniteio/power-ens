@@ -17,6 +17,8 @@ import {
   EuiProgress,
   EuiSpacer,
   EuiStat,
+  EuiTab,
+  EuiTabs,
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
@@ -52,7 +54,6 @@ import {
   describeControlSource,
 } from '../../../../common/ens/catalog/support/provenance';
 import {
-  describeApplicableLevel,
   describeApplicableLevelLabel,
   describeControlAxis,
 } from '../../../../common/ens/core/control-level';
@@ -109,6 +110,7 @@ export const ControlDetailENS = ({
   const [tracePageIndex, setTracePageIndex] = useState(0);
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
+  const [detailTab, setDetailTab] = useState('evidencias');
 
   const scopeAgents = useActiveENSScopeAgents();
 
@@ -674,51 +676,6 @@ export const ControlDetailENS = ({
   const evaluableEvidences =
     evidenceSummary.cumple + evidenceSummary.noCumple + evidenceSummary.noEvaluable;
 
-  const compliantEvidencesText =
-    evaluableEvidences > 0
-      ? `${Math.round((evidenceSummary.cumple / evaluableEvidences) * 100)}%`
-      : 'sin datos';
-
-  const globalStatus = engineStatus;
-
-  // The arc is the number and its colour is the status; without a number the whole ring is grey.
-  const arcColor =
-    engineStatus === 'CUMPLE'
-      ? '#00A69B'
-      : engineStatus === 'PARCIAL'
-      ? '#F5A700'
-      : engineStatus === 'NO_CUMPLE'
-      ? '#BD271E'
-      : '#98A2B3';
-
-  const donutBackground =
-    engineScore === undefined
-      ? 'conic-gradient(#D3DAE6 0 100%)'
-      : `conic-gradient(${arcColor} 0 ${engineScore}%, #EEF2F7 ${engineScore}% 100%)`;
-
-  const evidenceCounts = [
-    {
-      etiqueta: 'conforman',
-      valor: evidenceSummary.cumple,
-      color: 'success' as const,
-    },
-    {
-      etiqueta: 'con hallazgo',
-      valor: evidenceSummary.noCumple,
-      color: 'danger' as const,
-    },
-    {
-      etiqueta: 'sin medir',
-      valor: evidenceSummary.noEvaluable,
-      color: 'default' as const,
-    },
-    {
-      etiqueta: `fuera del nivel ${levelsText}`,
-      valor: evidenceSummary.noAplica,
-      color: 'hollow' as const,
-    },
-  ].filter(item => item.valor > 0);
-
   const configureControl = () =>
     updateUrl(
       detailConfigurationChanges({
@@ -943,6 +900,20 @@ export const ControlDetailENS = ({
   }
 
   // Without a selected agent data of several agents is not mixed: a combined compliance is not valid for audit.
+  const kpis = [
+    { title: engineScoreText, description: `Cumplimiento · ${statusLabel(engineStatus)}`, color: getBadgeColor(engineStatus) },
+    { title: `${compliantRequirements}/${denominatorRequirements}`, description: 'Requisitos cumpliendo' },
+    { title: `${evidenceSummary.cumple}/${evaluableEvidences}`, description: 'Evidencias conformes' },
+    { title: String(openNonConformitiesCount), description: 'No conformidades abiertas', color: openNonConformitiesCount ? 'danger' : 'success' },
+  ];
+  const detailTabs = [
+    { id: 'evidencias', name: `Evidencias · ${evidenceStatusItems.length}` },
+    { id: 'no-conformidades', name: `No conformidades · ${openNonConformitiesCount}` },
+    { id: 'evolucion', name: 'Evolución' },
+    { id: 'trazabilidad', name: 'Trazabilidad' },
+    { id: 'texto', name: 'Texto ENS' },
+  ];
+
   return (
     <EuiPage paddingSize='m'>
       <EuiPanel style={{ position: 'relative' }}>
@@ -954,131 +925,34 @@ export const ControlDetailENS = ({
         {unconfiguredNotice}
         {pendingMeasurementNotice}
 
-        <EuiText>
+        <EuiText size='xs' color='subdued'>
           <p>
-            Control ENS orientado a auditoría, evidencias, scoring y
-            trazabilidad Wazuh.
+            {[agentName, `${describeApplicableLevelLabel(headerCatalog || {})}: ${levelsText}`, `Último hecho: ${latestEvaluationDate}`].join(' · ')}
           </p>
         </EuiText>
+        <EvaluationStatusLine meta={data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
 
-        <EuiSpacer size='s' />
+        <EuiSpacer size='m' />
 
-        <EuiPanel paddingSize='s'>
-          <EuiText size='s'>
-            <p>
-              <strong>Activo:</strong> {agentName} &nbsp; | &nbsp;
-              <strong>Fuente:</strong> Wazuh / OpenSearch &nbsp; | &nbsp;
-              <strong>{describeApplicableLevelLabel(headerCatalog || {})}:</strong> {levelsText} &nbsp; | &nbsp;
-              <strong>Último hecho:</strong> {latestEvaluationDate}
-            </p>
-          </EuiText>
-          <EvaluationStatusLine meta={data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
-        </EuiPanel>
-
-        <EuiSpacer size='l' />
-
-        <EuiPanel>
-          <EuiTitle size='s'>
-            <h3>Panel ejecutivo {control.id.toUpperCase()}</h3>
-          </EuiTitle>
-
-          <EuiSpacer size='m' />
-
-          <EuiFlexGroup>
-            <EuiFlexItem grow={1}>
-              <EuiPanel>
-                <EuiTitle size='xs'>
-                  <h4>Cumplimiento global del control</h4>
-                </EuiTitle>
-                <div style={{ textAlign: 'center', padding: '14px 0' }}>
-                  <div
-                    style={{
-                      width: 176,
-                      height: 176,
-                      borderRadius: '50%',
-                      background: donutBackground,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      margin: '0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 122,
-                        height: 122,
-                        borderRadius: '50%',
-                        background: '#fff',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        textAlign: 'center',
-                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.04)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 34,
-                          fontWeight: 700,
-                          lineHeight: 1.1,
-                          color: arcColor,
-                          letterSpacing: '-0.02em',
-                        }}
-                      >
-                        {engineScoreText}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          letterSpacing: '0.04em',
-                          color: '#69707D',
-                          marginTop: 2,
-                        }}
-                      >
-                        {globalStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <EuiFlexGroup gutterSize='s' justifyContent='center'>
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge color={getBadgeColor(engineStatus)}>
-                      {levelsText} · {engineScoreText} · {engineStatus}
-                    </EuiBadge>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-
-                <EuiSpacer size='s' />
-
-                <EuiFlexGroup
-                  gutterSize='xs'
-                  justifyContent='center'
-                  wrap
-                  responsive={false}
-                >
-                  {evidenceCounts.map(item => (
-                    <EuiFlexItem grow={false} key={item.etiqueta}>
-                      <EuiBadge color={item.color}>
-                        {item.valor} {item.etiqueta}
-                      </EuiBadge>
-                    </EuiFlexItem>
-                  ))}
-                </EuiFlexGroup>
+        <EuiFlexGroup gutterSize='m' responsive={false} wrap>
+          {kpis.map(kpi => (
+            <EuiFlexItem key={kpi.description} style={{ minWidth: 180 }}>
+              <EuiPanel hasBorder paddingSize='m'>
+                <EuiStat title={kpi.title} description={kpi.description} titleSize='m' titleColor={kpi.color as any} reverse />
               </EuiPanel>
             </EuiFlexItem>
+          ))}
+        </EuiFlexGroup>
 
-            <EuiFlexItem grow={1}>
-              <EuiPanel>
-                <EuiTitle size='xs'>
-                  <h4>Requisitos</h4>
-                </EuiTitle>
+        <EuiSpacer size='m' />
 
-                <EuiSpacer size='s' />
-
+        <EuiFlexGroup gutterSize='m' wrap>
+          <EuiFlexItem grow={2} style={{ minWidth: 360 }}>
+            <EuiPanel hasBorder>
+              <EuiTitle size='xs'>
+                <h3>Requisitos</h3>
+              </EuiTitle>
+              <EuiSpacer size='s' />
                 {(complianceResult?.requirements || [])
                   .filter((requirement: any) => requirement.status !== 'NO_APLICA')
                   .map((requirement: any) => {
@@ -1177,55 +1051,14 @@ export const ControlDetailENS = ({
                     ? `${engineScoreText} media de ${totalMachines} máquinas`
                     : engineScoreText}
                 </EuiText>
-              </EuiPanel>
-            </EuiFlexItem>
-
-              <EuiFlexItem grow={1}>
-                <EuiPanel>
-                  <EuiTitle size='xs'>
-                    <h4>Resultado del motor ENS</h4>
-                  </EuiTitle>
-
-                  <EuiSpacer size='s' />
-
-                  <EuiStat
-                    title={engineScoreText}
-                    titleSize='m'
-                    description='Score del control · requisitos'
-                    titleColor={getBadgeColor(engineStatus)}
-                  />
-
-                  <EuiSpacer size='m' />
-
-                  <EuiStat
-                    title={compliantEvidencesText}
-                    titleSize='m'
-                    description={`Evidencias conformes · ${evidenceSummary.cumple}/${evaluableEvidences}`}
-                  />
-
-                  <EuiSpacer size='m' />
-
-                  <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
-                    <EuiFlexItem grow={false}>
-                      <EuiBadge color={getBadgeColor(engineStatus)}>
-                        {engineStatus}
-                      </EuiBadge>
-                    </EuiFlexItem>
-                    <EuiFlexItem grow={false}>
-                      <EuiBadge color='hollow'>{describeApplicableLevel(headerCatalog || {}, levelsText)}</EuiBadge>
-                    </EuiFlexItem>
-                  </EuiFlexGroup>
-                </EuiPanel>
-              </EuiFlexItem>
-
-              <EuiFlexItem grow={1}>
-                <EuiPanel>
-                  <EuiTitle size='xs'>
-                    <h4>Detalle auditor</h4>
-                  </EuiTitle>
-
-                  <EuiSpacer size='s' />
-
+            </EuiPanel>
+          </EuiFlexItem>
+          <EuiFlexItem grow={1} style={{ minWidth: 280 }}>
+            <EuiPanel hasBorder>
+              <EuiTitle size='xs'>
+                <h3>Detalle auditor</h3>
+              </EuiTitle>
+              <EuiSpacer size='s' />
                   {auditorSheet.map(pair => (
                     <EuiFlexGroup
                       key={pair.etiqueta}
@@ -1245,50 +1078,24 @@ export const ControlDetailENS = ({
                       </EuiFlexItem>
                     </EuiFlexGroup>
                   ))}
-                </EuiPanel>
-              </EuiFlexItem>
-          </EuiFlexGroup>
-
-        </EuiPanel>
+            </EuiPanel>
+          </EuiFlexItem>
+        </EuiFlexGroup>
 
         <EuiSpacer size='l' />
 
-        <EuiPanel>
-          <EuiTitle size='s'>
-            <h3>Evolución del cumplimiento · {control.id}</h3>
-          </EuiTitle>
+        <EuiTabs>
+          {detailTabs.map(tab => (
+            <EuiTab key={tab.id} isSelected={detailTab === tab.id} onClick={() => setDetailTab(tab.id)}>
+              {tab.name}
+            </EuiTab>
+          ))}
+        </EuiTabs>
 
-          <EuiSpacer size='xs' />
+        <EuiSpacer size='m' />
 
-          <EuiText size='s' color='subdued'>
-            <p>
-              Cumplimiento diario de este control en los últimos 30 días.
-            </p>
-          </EuiText>
-
-          <EuiSpacer size='s' />
-
-          <ControlEvolutionChart
-            points={controlTimeline}
-            controlId={control.id}
-            pending={Boolean(data?.meta?.seriesPending)}
-          />
-        </EuiPanel>
-
-        <EuiSpacer size='l' />
-
-
-        <EuiPanel>
-          <RequirementTextsPanel controlId={control.id} />
-          <TemplateCorrespondencePanel controlId={control.id} />
-        </EuiPanel>
-
-        <EuiSpacer size='l' />
-
-        <EuiTitle size='s'>
-          <h3>Evidencias ENS del control</h3>
-        </EuiTitle>
-
+        {detailTab === 'evidencias' && (
+          <>
         {!displayedAgent && totalMachines > 1 && (
           <>
             <EuiSpacer size='xs' />
@@ -1299,9 +1106,6 @@ export const ControlDetailENS = ({
             </EuiText>
           </>
         )}
-
-        <EuiSpacer size='s' />
-
         <EuiBasicTable
           items={evidenceStatusItems}
           columns={[
@@ -1406,16 +1210,11 @@ export const ControlDetailENS = ({
             },
           ]}
         />
+          </>
+        )}
 
-        <EuiSpacer size='l' />
-
-          <EuiPanel>
-            <EuiTitle size='s'>
-              <h3>Remediación del control</h3>
-            </EuiTitle>
-
-            <EuiSpacer size='s' />
-
+        {detailTab === 'no-conformidades' && (
+          <>
             {pendingMeasurement ? (
               // Not a green «all clear»: nothing has been measured.
               <EuiCallOut
@@ -1475,89 +1274,6 @@ export const ControlDetailENS = ({
                 )}
               </>
             )}
-          </EuiPanel>
-
-        <EuiSpacer size='l' />
-
-        <EuiPanel>
-          <EuiFlexGroup
-            alignItems='center'
-            justifyContent='spaceBetween'
-            gutterSize='s'
-          >
-            <EuiFlexItem grow={false}>
-              <EuiTitle size='s'>
-                <h3>Trazabilidad ENS ↔ Wazuh</h3>
-              </EuiTitle>
-            </EuiFlexItem>
-
-            <EuiFlexItem grow={false}>
-              <EuiText size='xs' color='subdued'>
-                {traceabilityTotal.toLocaleString('es-ES')} registro
-                {traceabilityTotal === 1 ? '' : 's'}
-                {traceabilityTotal > traceabilityAvailable
-                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} primeros; todos los hechos están en Eventos`
-                  : ''}
-              </EuiText>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-
-          <EuiSpacer size='s' />
-
-          {traceError ? (
-            <>
-              <FactsReadErrorCallOut error={traceError} onRetry={() => setTraceRetry(n => n + 1)} />
-              <EuiSpacer size='s' />
-            </>
-          ) : null}
-
-          {traceabilityTotal === 0 ? (
-            <EuiText size='s' color='subdued'>
-              <p>
-                No hay información de trazabilidad disponible para este control.
-              </p>
-            </EuiText>
-          ) : (
-            <EuiBasicTable
-              items={traceabilityPageItems}
-              loading={traceLoading}
-              noItemsMessage={traceLoading ? 'Cargando la página…' : traceError ? 'No se pudo leer esta página.' : undefined}
-              itemId='key'
-              itemIdToExpandedRowMap={traceExpandedRowMap}
-              isExpandable={true}
-              compressed={true}
-              columns={traceabilityColumns}
-              pagination={{
-                pageIndex: tracePageIndex,
-                pageSize: tracePageSize,
-                totalItemCount: traceabilityAvailable,
-                pageSizeOptions: [5, 10, 25, 50],
-              }}
-              onChange={({ page }: { page?: { index: number; size: number } }) => {
-                if (page) {
-                  setTracePageIndex(page.index);
-                  setTracePageSize(page.size);
-                }
-              }}
-            />
-          )}
-        </EuiPanel>
-
-        <EuiSpacer size='l' />
-
-        <EuiTitle size='s'>
-          <h3>No conformidades ENS</h3>
-        </EuiTitle>
-
-        <EuiSpacer size='xs' />
-
-        <EuiText size='xs' color='subdued'>
-          Una tarjeta por hallazgo, no por máquina. Medido y no evidenciado
-          cuentan igual; la acción es distinta.
-        </EuiText>
-
-        <EuiSpacer size='s' />
-
         {nonConformityItems.length === 0 && (
           <EuiText size='s' color='subdued'>
             <p>
@@ -1672,7 +1388,89 @@ export const ControlDetailENS = ({
               </EuiFlexGroup>
             </div>
           ))}
+          </>
+        )}
 
+        {detailTab === 'evolucion' && (
+          <ControlEvolutionChart
+            points={controlTimeline}
+            controlId={control.id}
+            pending={Boolean(data?.meta?.seriesPending)}
+          />
+        )}
+
+        {detailTab === 'trazabilidad' && (
+          <>
+          <EuiFlexGroup
+            alignItems='center'
+            justifyContent='spaceBetween'
+            gutterSize='s'
+          >
+            <EuiFlexItem grow={false}>
+              <EuiTitle size='s'>
+                <h3>Trazabilidad ENS ↔ Wazuh</h3>
+              </EuiTitle>
+            </EuiFlexItem>
+
+            <EuiFlexItem grow={false}>
+              <EuiText size='xs' color='subdued'>
+                {traceabilityTotal.toLocaleString('es-ES')} registro
+                {traceabilityTotal === 1 ? '' : 's'}
+                {traceabilityTotal > traceabilityAvailable
+                  ? ` · se pueden recorrer los ${traceabilityAvailable.toLocaleString('es-ES')} primeros; todos los hechos están en Eventos`
+                  : ''}
+              </EuiText>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+
+          <EuiSpacer size='s' />
+
+          {traceError ? (
+            <>
+              <FactsReadErrorCallOut error={traceError} onRetry={() => setTraceRetry(n => n + 1)} />
+              <EuiSpacer size='s' />
+            </>
+          ) : null}
+
+          {traceabilityTotal === 0 ? (
+            <EuiText size='s' color='subdued'>
+              <p>
+                No hay información de trazabilidad disponible para este control.
+              </p>
+            </EuiText>
+          ) : (
+            <EuiBasicTable
+              items={traceabilityPageItems}
+              loading={traceLoading}
+              noItemsMessage={traceLoading ? 'Cargando la página…' : traceError ? 'No se pudo leer esta página.' : undefined}
+              itemId='key'
+              itemIdToExpandedRowMap={traceExpandedRowMap}
+              isExpandable={true}
+              compressed={true}
+              columns={traceabilityColumns}
+              pagination={{
+                pageIndex: tracePageIndex,
+                pageSize: tracePageSize,
+                totalItemCount: traceabilityAvailable,
+                pageSizeOptions: [5, 10, 25, 50],
+              }}
+              onChange={({ page }: { page?: { index: number; size: number } }) => {
+                if (page) {
+                  setTracePageIndex(page.index);
+                  setTracePageSize(page.size);
+                }
+              }}
+            />
+          )}
+          </>
+        )}
+
+        {detailTab === 'texto' && (
+          <>
+          <RequirementTextsPanel controlId={control.id} />
+          <TemplateCorrespondencePanel controlId={control.id} />
+          </>
+        )}
       </EuiPanel>
     </EuiPage>
   );
