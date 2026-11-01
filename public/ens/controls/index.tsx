@@ -1,12 +1,12 @@
 import { useActiveENSScopeAgents } from '../scope/use-active-scope-agents';
 import React, { useMemo, useState } from 'react';
-import { ControlRow } from './control-row';
+import { ControlListHeader, ControlRow } from './control-row';
 import { useRouterSearch, useSetRouterSearch } from '../../routing/use-router-search';
 import { useEnsEvaluation } from '../../evaluation/use-evaluation';
 import { EvaluationStatusLine } from '../../evaluation/evaluation-status';
 import { FactsReadErrorCallOut } from '../../platform/facts-read-error-callout';
 import type { ENSSummaryEvaluationResponse } from '../../../common/ens/evaluation/types';
-import { EuiFacetGroup, EuiIcon, EuiLink, EuiPage, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiIcon, EuiLink, EuiPage, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { ENSControl } from '../types';
 import { ControlDetailENS } from './control-detail';
@@ -87,14 +87,9 @@ export const ControlsENS = () => {
     <EuiPage paddingSize='m'>
       <EuiPanel>
         <EuiTitle size='m'>
-          <h2>ENS Controls</h2>
+          <h2>Controles</h2>
         </EuiTitle>
-        <EuiText>
-          <p>
-                        Controles ENS. En rojo, las no conformidades abiertas. Pulsa un control para ver su detalle.
-          </p>
-        </EuiText>
-        <EuiSpacer size='l' />
+        <EuiSpacer size='s' />
         <IncoherentLevelsNotice global={configuration.global} />
         {summary.error ? (
           <>
@@ -130,7 +125,9 @@ export const ControlsENS = () => {
             <EuiSpacer size='s' />
           </>
         )}
-        <EuiFacetGroup>
+        <EuiSpacer size='m' />
+        <ControlListHeader />
+        <div>
           {entries.map(entry => (
             <ControlRow
               key={entry.id}
@@ -146,7 +143,7 @@ export const ControlsENS = () => {
               }}
             />
           ))}
-        </EuiFacetGroup>
+        </div>
       </EuiPanel>
     </EuiPage>
   );

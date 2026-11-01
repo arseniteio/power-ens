@@ -34,6 +34,8 @@ import { MotiveCell } from '../controls/control-detail/motive-cell';
 import type { MotiveLine } from '../controls/control-detail/motive-cell';
 import { machinesLabel, summarizeMotives } from '../controls/control-detail/general-view';
 import { statusLabel } from '../../../common/ens/core/status-label';
+import { ENS_STATUS_COLORS } from '../status-colors';
+import { ENS_THEME } from '../theme-colors';
 
 // A row of the evidences table. No `control` column: the section header says it.
 interface EvidenceRow {
@@ -377,48 +379,46 @@ const CountBadge = ({
     </EuiFlexItem>
   ) : null;
 
-const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
-  <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false} wrap>
-    <EuiFlexItem grow={false}>
-      <EuiText size='s'>
-        <strong>{group.controlId}</strong> — {group.title}
-      </EuiText>
-    </EuiFlexItem>
-
-    <EuiFlexItem grow={false}>
-      <EuiBadge color='hollow'>{`${group.rows.length} evidencias`}</EuiBadge>
-    </EuiFlexItem>
-
-    <CountBadge valor={group.passing} color='success' etiqueta='cumplen' />
-    <CountBadge valor={group.failing} color='danger' etiqueta='no cumplen' />
-    <CountBadge valor={group.partial} color='warning' etiqueta='parciales' />
-    <CountBadge
-      valor={group.unmeasured}
-      color='default'
-      etiqueta='no evaluables'
-      icono='questionInCircle'
-    />
-    <CountBadge
-      valor={group.notApplicable}
-      color='hollow'
-      etiqueta='no aplican'
-    />
-    <CountBadge
-      valor={group.pendingMeasurement}
-      color='hollow'
-      etiqueta={ENS_PENDING_MEASUREMENT_LABEL.toLowerCase()}
-      icono='clock'
-    />
-
-    {!group.hasResult && (
-      <EuiFlexItem grow={false}>
-        <EuiBadge color='default' iconType='clock'>
-          Sin datos en el periodo
-        </EuiBadge>
+const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => {
+  const spans = [
+    { status: 'CUMPLE', n: group.passing },
+    { status: 'PARCIAL', n: group.partial },
+    { status: 'NO_CUMPLE', n: group.failing },
+    { status: 'NO_EVALUABLE', n: group.unmeasured },
+    { status: 'NO_APLICA', n: group.notApplicable },
+  ].filter(span => span.n > 0);
+  const total = group.rows.length;
+  const tip = spans.map(span => `${span.n} ${statusLabel(span.status).toLowerCase()}`).join(' · ');
+  return (
+    <EuiFlexGroup alignItems='center' gutterSize='m' responsive={false} style={{ minWidth: 640 }}>
+      <EuiFlexItem grow={false} style={{ minWidth: 72 }}>
+        <EuiText size='s'><strong>{group.controlId}</strong></EuiText>
       </EuiFlexItem>
-    )}
-  </EuiFlexGroup>
-);
+      <EuiFlexItem>
+        <EuiText size='s'><span>{group.title}</span></EuiText>
+      </EuiFlexItem>
+      <EuiFlexItem grow={false} style={{ width: 260 }}>
+        {group.pendingMeasurement > 0 || !group.hasResult ? (
+          <EuiText size='xs' color='subdued'><span>{group.pendingMeasurement > 0 ? ENS_PENDING_MEASUREMENT_LABEL : 'Sin datos en el periodo'}</span></EuiText>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={tip}>
+            <span style={{ display: 'inline-flex', width: 100, height: 6, borderRadius: 3, overflow: 'hidden', background: ENS_THEME.track, flexShrink: 0 }}>
+              {spans.map(span => (
+                <span key={span.status} style={{ width: `${(span.n / Math.max(total, 1)) * 100}%`, background: ENS_STATUS_COLORS[span.status] }} />
+              ))}
+            </span>
+            <EuiText size='xs' color='subdued'><span>{`${group.passing} de ${total} cumplen`}</span></EuiText>
+          </div>
+        )}
+      </EuiFlexItem>
+      <EuiFlexItem grow={false} style={{ width: 90, textAlign: 'right' }}>
+        <EuiText size='s' color={group.failing + group.partial ? 'danger' : 'subdued'} title='No cumplen o parciales'>
+          <strong>{group.failing + group.partial || '—'}</strong>
+        </EuiText>
+      </EuiFlexItem>
+    </EuiFlexGroup>
+  );
+};
 
 export const EvidencesENS = () => {
   const { agentId, evidenceControl } = useRouterSearch();
