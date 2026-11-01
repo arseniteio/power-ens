@@ -1,0 +1,748 @@
+{
+  "framework": "ENS",
+  "control": "mp.com.3",
+  "title": "Protección de la integridad y de la autenticidad",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de las comunicaciones",
+  "dimension": "Integridad y Autenticidad",
+  "level_dimension": [
+    "I",
+    "A"
+  ],
+  "annex_section": "5.4.3",
+  "description": "mp.com.3 exige asegurar la autenticidad del otro extremo y prevenir los ataques activos en las comunicaciones. Se juzga sobre la configuración SSH, las reglas de Wazuh que detectan ataques activos y sus incidentes, los túneles de cada máquina y los cambios en sus configuraciones.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.com.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.com.3.1",
+      "title": "Autenticidad del otro extremo antes de intercambiar información",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "En comunicaciones con puntos exteriores al dominio propio de seguridad, se asegurará la autenticidad del otro extremo del canal de comunicación antes de intercambiar información. (Ver [op.acc.5]).",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-01",
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.com.3.2",
+      "title": "Prevención de ataques activos con activación del tratamiento del incidente",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se prevendrán ataques activos garantizando que al ser detectados se activarán los procedimientos previstos de tratamiento del incidente. Se considerarán ataques activos: a) La alteración de la información en tránsito. b) La inyección de información espuria. c) El secuestro de la sesión por una tercera parte.",
+      "evidence_ids": [
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.com.3.3",
+      "title": "Mecanismos de identificación y autenticación admitidos",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se aceptará cualquier mecanismo de identificación y autenticación de los previstos en el ordenamiento jurídico y en la normativa de aplicación.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "mp.com.3.r1.1",
+      "title": "Redes privadas virtuales cifradas fuera del dominio propio",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se emplearán redes privadas virtuales cifradas cuando la comunicación discurra por redes fuera del propio dominio de seguridad.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "mp.com.3.r2.1",
+      "title": "Algoritmos y parámetros autorizados por el CCN",
+      "kind": "REFUERZO",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se emplearán algoritmos y parámetros autorizados por el CCN.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-06"
+      ]
+    },
+    {
+      "id": "mp.com.3.r3.1",
+      "title": "Dispositivos hardware para la red privada virtual",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se recomienda emplear dispositivos hardware en el establecimiento y utilización de la red privada virtual.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "mp.com.3.r4.1",
+      "title": "Productos certificados conforme a op.pl.5",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se emplearán productos certificados conforme a lo establecido en [op.pl.5].",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-07"
+      ]
+    },
+    {
+      "id": "mp.com.3.r5.1",
+      "title": "Cifradores conformes con la guía CCN-STIC",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "evidence_ids": [],
+      "parameter_ids": []
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Autenticación del otro extremo",
+      "description": "El cliente SSH de la máquina comprueba la clave del otro extremo: ningún StrictHostKeyChecking no ni UserKnownHostsFile /dev/null.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1"
+      ],
+      "category": "ACCESS_CONTROL",
+      "criticality": "HIGH",
+      "audit_question": "¿Se autentica el otro extremo antes de intercambiar información?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Algoritmos configurados",
+      "description": "Cada cifrado, MAC, intercambio de claves y algoritmo de clave de host que acepta sshd está autorizado en op.exp.10 P-03.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1",
+        "mp.com.3.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los algoritmos configurados están autorizados por el CCN?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Algoritmos usados",
+      "description": "El tipo de clave de cada acceso SSH con clave pública de la ventana está autorizado en op.exp.10 P-03.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r2.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los algoritmos usados están autorizados por el CCN?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Detección de alteración en tránsito",
+      "description": "Cada indicador de alteración de P-02 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta la alteración de la información en tránsito?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Detección de inyección de información espuria",
+      "description": "Cada indicador de inyección de P-02 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta la inyección de información espuria?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Detección de secuestro de sesión",
+      "description": "Cada indicador de secuestro de P-02 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta el secuestro de sesión?"
+    },
+    {
+      "id": "EV-07",
+      "title": "Incidente ante un ataque activo",
+      "description": "Cada hora en que la máquina detectó un ataque activo de P-02 tiene un incidente de op.exp.7 abierto en el día.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿La detección de un ataque activo abre el incidente?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Canales cifrados fuera del dominio",
+      "description": "Cada canal de P-05 de la máquina tiene su túnel activo.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r1.1"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿Los canales fuera del dominio van por una red privada virtual cifrada?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Cambios en la configuración de los canales",
+      "description": "Cada cambio que FIM ve en las configuraciones de P-06 tiene su petición en op.exp.5 P-10.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1",
+        "mp.com.3.r2.1"
+      ],
+      "category": "INTEGRITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Los cambios en la configuración de los canales están autorizados?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Certificación de los productos",
+      "description": "Cada producto de P-07 tiene certificación vigente.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r4.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Los productos están certificados conforme a op.pl.5?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "canales_exteriores",
+      "label": "Canales con el exterior del dominio",
+      "description": "Canales con puntos exteriores al dominio de seguridad: contraparte, mecanismo de autenticación mutua y red por la que discurren.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1"
+      ],
+      "type": "table",
+      "example": "integración con la AEAT | AEAT | certificado mutuo TLS | internet",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contraparte",
+          "label": "Contraparte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo de autenticación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "red",
+          "label": "Red",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "patrones_ataque_activo",
+      "label": "Indicadores de ataque activo",
+      "description": "Indicadores de los tres ataques activos (alteración, inyección, secuestro), su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "type": "table",
+      "example": "secuestro | sesión desde dos IP | proxy inverso | 100300-100310",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "alteración",
+            "inyección",
+            "secuestro"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-04 a EV-06 exigen reglas cargadas para cada ataque; EV-07 sigue sus alertas.",
+      "evidence_ids": [
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07"
+      ],
+      "if_not_configured": "EV-04 a EV-07 quedan sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "procedimiento_incidente_ataque_activo",
+      "label": "Procedimiento ante un ataque activo",
+      "description": "Procedimiento de tratamiento del incidente que activa la detección de un ataque activo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "type": "string",
+      "example": "PR-18 Respuesta a intrusión",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: EV-07 exige el incidente en el registro de op.exp.7. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "mecanismos_identificacion_admitidos",
+      "label": "Mecanismos de identificación admitidos",
+      "description": "Mecanismos de identificación y autenticación previstos en el ordenamiento jurídico que se aceptan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.3"
+      ],
+      "type": "table",
+      "example": "certificado cualificado | Reglamento eIDAS",
+      "columns": [
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "norma",
+          "label": "Norma",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: 3.3 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "vpn_canales_fuera_dominio",
+      "label": "Redes privadas virtuales de los canales",
+      "description": "Canales que discurren fuera del dominio: máquina que los establece, su interfaz o proceso de túnel, protocolo y cifrado.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r1.1"
+      ],
+      "type": "table",
+      "example": "sede remota | gw-sede | wg0 | WireGuard | ChaCha20-Poly1305",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tunel",
+          "label": "Túnel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cifrado",
+          "label": "Cifrado",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 exige el túnel activo en la máquina.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 no exige túneles."
+    },
+    "P-06": {
+      "class": "system",
+      "name": "configuracion_canales",
+      "label": "Configuración de los canales protegidos",
+      "description": "Ficheros o directorios de configuración de los extremos y túneles de la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1",
+        "mp.com.3.r2.1"
+      ],
+      "type": "list",
+      "example": "/etc/ssh, /etc/ipsec.conf, /etc/wireguard",
+      "required": true,
+      "agent_usage": "El motor los pone bajo FIM en la configuración del grupo cuando Wazuh no los vigila por defecto.",
+      "engine_usage": "EV-10 exige petición de op.exp.5 para cada cambio.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "if_not_configured": "EV-10 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "productos_certificados_op_pl_5",
+      "label": "Productos certificados",
+      "description": "Productos de protección de integridad y autenticidad, su certificación conforme a op.pl.5, referencia y vigencia.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r4.1"
+      ],
+      "type": "table",
+      "example": "Cifrador IP de la sede | Common Criteria EAL4+ | CCN-CC-2026-014 | 2028-06-30",
+      "columns": [
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "certificacion",
+          "label": "Certificación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-11 exige certificación vigente.",
+      "evidence_ids": [
+        "EV-11"
+      ],
+      "if_not_configured": "EV-11 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "dispositivos_hardware_vpn",
+      "label": "Dispositivos hardware de la red privada virtual",
+      "description": "Dispositivos hardware que establecen la VPN.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r3.1"
+      ],
+      "type": "table",
+      "example": "sede remota | appliance IPsec | modelo y versión",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modelo",
+          "label": "Modelo",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.3.3 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "autenticidad",
+      "title": "Autenticidad y algoritmos",
+      "description": "Autenticación del otro extremo y algoritmos.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03"
+      ],
+      "parameters": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "ataques",
+      "title": "Ataques activos",
+      "description": "Detección de ataques activos y su incidente.",
+      "evidences": [
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07"
+      ],
+      "parameters": [
+        "P-02",
+        "P-03"
+      ]
+    },
+    {
+      "id": "canales",
+      "title": "Canales",
+      "description": "Túneles cifrados y cambios de configuración.",
+      "evidences": [
+        "EV-08",
+        "EV-10"
+      ],
+      "parameters": [
+        "P-05",
+        "P-06",
+        "P-08"
+      ]
+    },
+    {
+      "id": "productos",
+      "title": "Productos",
+      "description": "Productos certificados y mecanismos admitidos.",
+      "evidences": [
+        "EV-11"
+      ],
+      "parameters": [
+        "P-04",
+        "P-07"
+      ]
+    }
+  ]
+}

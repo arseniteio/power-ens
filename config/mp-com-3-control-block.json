@@ -1,0 +1,406 @@
+{
+  "controlId": "mp.com.3",
+  "controlName": "Protección de la integridad y de la autenticidad",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.com.3",
+      "name": "canales_exteriores",
+      "label": "Canales con el exterior del dominio",
+      "description": "Canales con puntos exteriores al dominio de seguridad: contraparte, mecanismo de autenticación mutua y red por la que discurren.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1"
+      ],
+      "type": "table",
+      "example": "integración con la AEAT | AEAT | certificado mutuo TLS | internet",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contraparte",
+          "label": "Contraparte",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo de autenticación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "red",
+          "label": "Red",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.com.3",
+      "name": "patrones_ataque_activo",
+      "label": "Indicadores de ataque activo",
+      "description": "Indicadores de los tres ataques activos (alteración, inyección, secuestro), su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "type": "table",
+      "example": "secuestro | sesión desde dos IP | proxy inverso | 100300-100310",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-04 a EV-06 exigen reglas cargadas para cada ataque; EV-07 sigue sus alertas.",
+      "evidenceIds": [
+        "EV-04",
+        "EV-05",
+        "EV-06",
+        "EV-07"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-04 a EV-07 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "ataque",
+          "label": "Ataque",
+          "type": "select",
+          "options": [
+            "alteración",
+            "inyección",
+            "secuestro"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.com.3",
+      "name": "procedimiento_incidente_ataque_activo",
+      "label": "Procedimiento ante un ataque activo",
+      "description": "Procedimiento de tratamiento del incidente que activa la detección de un ataque activo.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.2"
+      ],
+      "type": "string",
+      "example": "PR-18 Respuesta a intrusión",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: EV-07 exige el incidente en el registro de op.exp.7. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.com.3",
+      "name": "mecanismos_identificacion_admitidos",
+      "label": "Mecanismos de identificación admitidos",
+      "description": "Mecanismos de identificación y autenticación previstos en el ordenamiento jurídico que se aceptan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.3"
+      ],
+      "type": "table",
+      "example": "certificado cualificado | Reglamento eIDAS",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: 3.3 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "mecanismo",
+          "label": "Mecanismo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "norma",
+          "label": "Norma",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.com.3",
+      "name": "vpn_canales_fuera_dominio",
+      "label": "Redes privadas virtuales de los canales",
+      "description": "Canales que discurren fuera del dominio: máquina que los establece, su interfaz o proceso de túnel, protocolo y cifrado.",
+      "levels": [
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r1.1"
+      ],
+      "type": "table",
+      "example": "sede remota | gw-sede | wg0 | WireGuard | ChaCha20-Poly1305",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 exige el túnel activo en la máquina.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 no exige túneles.",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sistema",
+          "label": "Sistema",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "tunel",
+          "label": "Túnel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "protocolo",
+          "label": "Protocolo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "cifrado",
+          "label": "Cifrado",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.com.3",
+      "name": "configuracion_canales",
+      "label": "Configuración de los canales protegidos",
+      "description": "Ficheros o directorios de configuración de los extremos y túneles de la máquina.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.1",
+        "mp.com.3.r2.1"
+      ],
+      "type": "list",
+      "example": "/etc/ssh, /etc/ipsec.conf, /etc/wireguard",
+      "required": true,
+      "wazuhUsage": "El motor los pone bajo FIM en la configuración del grupo cuando Wazuh no los vigila por defecto.",
+      "powerEnsUsage": "EV-10 exige petición de op.exp.5 para cada cambio.",
+      "evidenceIds": [
+        "EV-10"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-10 queda sin demostrar."
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.com.3",
+      "name": "productos_certificados_op_pl_5",
+      "label": "Productos certificados",
+      "description": "Productos de protección de integridad y autenticidad, su certificación conforme a op.pl.5, referencia y vigencia.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r4.1"
+      ],
+      "type": "table",
+      "example": "Cifrador IP de la sede | Common Criteria EAL4+ | CCN-CC-2026-014 | 2028-06-30",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-11 exige certificación vigente.",
+      "evidenceIds": [
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-11 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "producto",
+          "label": "Producto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "certificacion",
+          "label": "Certificación",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "vigencia",
+          "label": "Vigente hasta",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.com.3",
+      "name": "dispositivos_hardware_vpn",
+      "label": "Dispositivos hardware de la red privada virtual",
+      "description": "Dispositivos hardware que establecen la VPN.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.com.3.r3.1"
+      ],
+      "type": "table",
+      "example": "sede remota | appliance IPsec | modelo y versión",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r3.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "canal",
+          "label": "Canal",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dispositivo",
+          "label": "Dispositivo",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "modelo",
+          "label": "Modelo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.com.3",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.com.3.3 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
