@@ -386,22 +386,22 @@ const ControlGroupHeader = ({ group }: { group: ControlEvidenceGroup }) => (
     </EuiFlexItem>
 
     <EuiFlexItem grow={false}>
-      <EuiBadge color='hollow'>{group.rows.length} ev.</EuiBadge>
+      <EuiBadge color='hollow'>{`${group.rows.length} evidencias`}</EuiBadge>
     </EuiFlexItem>
 
-    <CountBadge valor={group.passing} color='success' etiqueta='CUMPLE' />
-    <CountBadge valor={group.failing} color='danger' etiqueta='NO_CUMPLE' />
-    <CountBadge valor={group.partial} color='warning' etiqueta='PARCIAL' />
+    <CountBadge valor={group.passing} color='success' etiqueta='cumplen' />
+    <CountBadge valor={group.failing} color='danger' etiqueta='no cumplen' />
+    <CountBadge valor={group.partial} color='warning' etiqueta='parciales' />
     <CountBadge
       valor={group.unmeasured}
       color='default'
-      etiqueta='NO_EVALUABLE'
+      etiqueta='no evaluables'
       icono='questionInCircle'
     />
     <CountBadge
       valor={group.notApplicable}
       color='hollow'
-      etiqueta='NO_APLICA'
+      etiqueta='no aplican'
     />
     <CountBadge
       valor={group.pendingMeasurement}
@@ -576,7 +576,7 @@ export const EvidencesENS = () => {
     return (
       <EuiPanel paddingSize='l'>
         <EuiTitle size='s'>
-          <h2>Repositorio de Evidencias ENS</h2>
+          <h2>Evidencias</h2>
         </EuiTitle>
         <EuiSpacer size='m' />
         <FactsReadErrorCallOut error={error} onRetry={evaluation.retry} />
@@ -589,7 +589,7 @@ export const EvidencesENS = () => {
     return (
       <EuiPanel paddingSize='l'>
         <EuiTitle size='s'>
-          <h2>Repositorio de Evidencias ENS</h2>
+          <h2>Evidencias</h2>
         </EuiTitle>
         <EvaluationLoading message='Calculando…' />
       </EuiPanel>
@@ -599,7 +599,7 @@ export const EvidencesENS = () => {
   return (
     <EuiPanel paddingSize='l'>
       <EuiTitle size='s'>
-        <h2>Repositorio de Evidencias ENS</h2>
+        <h2>Evidencias</h2>
       </EuiTitle>
       <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
 
@@ -652,7 +652,7 @@ export const EvidencesENS = () => {
             fullWidth
             incremental
             isClearable
-            placeholder='Filtrar por prefijo: op.acc, op.acc.1, op.acc.1.2…'
+            placeholder='Filtrar: op.acc, op.acc.1…'
             aria-label='Filtrar controles por prefijo del identificador ENS'
             value={prefix}
             onChange={(event: { target: { value: string } }) =>
@@ -720,12 +720,12 @@ export const EvidencesENS = () => {
               <CountBadge
                 valor={hiddenFailing}
                 color='danger'
-                etiqueta='NO_CUMPLE o PARCIAL'
+                etiqueta='no cumplen o parciales'
               />
               <CountBadge
                 valor={hiddenUnmeasured}
                 color='default'
-                etiqueta='NO_EVALUABLE'
+                etiqueta='no evaluables'
                 icono='questionInCircle'
               />
             </EuiFlexGroup>
@@ -759,6 +759,7 @@ export const EvidencesENS = () => {
       ) : (
         filtered.matched.map(group => (
           <React.Fragment key={group.controlId}>
+            <EuiPanel hasBorder paddingSize='s'>
             <EuiAccordion
               id={`ens-evidencias-${group.controlId.replace(/\./g, '-')}`}
               buttonContent={<ControlGroupHeader group={group} />}
@@ -776,6 +777,7 @@ export const EvidencesENS = () => {
                 </EuiBadge>
               )}
             </EuiAccordion>
+            </EuiPanel>
             <EuiSpacer size='s' />
           </React.Fragment>
         ))

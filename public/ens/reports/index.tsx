@@ -800,42 +800,28 @@ const ControlReport = ({
         </EuiFlexItem>
 
         <EuiFlexItem grow={false}>
-          <EuiHealth color={trafficLight.health}>{statusValue}</EuiHealth>
+          <EuiHealth color={trafficLight.health}>{statusLabel(statusValue)}</EuiHealth>
         </EuiFlexItem>
       </EuiFlexGroup>
 
       <EuiHorizontalRule margin='m' />
 
-      <EuiFlexGroup gutterSize='l'>
-        <EuiFlexItem>
-          <EuiStat title={String(engineLevel)} description={levelLabel} />
-        </EuiFlexItem>
-
-        <EuiFlexItem>
-          <EuiStat
-            title={formatPercent(engineScore)}
-            description='Cumplimiento'
-            titleColor={trafficLight.stat}
-          />
-        </EuiFlexItem>
-
-        <EuiFlexItem>
-          <EuiStat
-            title={formatPercent(engineCoverage)}
-            description='Cobertura'
-          />
-        </EuiFlexItem>
-
-        <EuiFlexItem>
-          <EuiStat
-            title={provenText}
-            description='Requisitos demostrados'
-          />
-        </EuiFlexItem>
+      <EuiFlexGroup gutterSize='m' responsive={false} wrap>
+        {[
+          { title: String(engineLevel), description: levelLabel },
+          { title: formatPercent(engineScore), description: 'Cumplimiento', color: trafficLight.stat },
+          { title: formatPercent(engineCoverage), description: 'Cobertura' },
+          { title: provenText, description: 'Requisitos demostrados' },
+        ].map(kpi => (
+          <EuiFlexItem key={kpi.description} style={{ minWidth: 160 }}>
+            <EuiPanel hasBorder paddingSize='m'>
+              <EuiStat title={kpi.title} description={kpi.description} titleSize='m' titleColor={kpi.color as any} reverse />
+            </EuiPanel>
+          </EuiFlexItem>
+        ))}
       </EuiFlexGroup>
 
       <EuiSpacer size='l' />
-
 
       <EuiTitle size='xs'>
         <h3>Campos del informe</h3>
@@ -935,8 +921,7 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
 
     <EuiFlexItem grow={false}>
       <EuiBadge color='default'>
-        {entry.requirementCount} requisito(s) · {entry.evidenceCount}{' '}
-        evidencia(s)
+        {`${entry.requirementCount} ${entry.requirementCount === 1 ? 'requisito' : 'requisitos'} · ${entry.evidenceCount} ${entry.evidenceCount === 1 ? 'evidencia' : 'evidencias'}`}
       </EuiBadge>
     </EuiFlexItem>
 
@@ -1036,7 +1021,7 @@ export const ReportsENS = () => {
     <>
       <EuiPanel paddingSize='m'>
         <EuiTitle size='xs'>
-          <h3>Informes de cumplimiento ENS</h3>
+          <h3>Informes</h3>
         </EuiTitle>
 
         <EuiSpacer size='s' />
