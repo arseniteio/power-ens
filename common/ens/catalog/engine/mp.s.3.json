@@ -1,0 +1,912 @@
+{
+  "framework": "ENS",
+  "control": "mp.s.3",
+  "title": "Protección de la navegación web",
+  "status": "ACTIVE",
+  "family": "Medidas de protección",
+  "category": "Protección de los servicios",
+  "dimension": "Todas",
+  "level_dimension": [
+    "C",
+    "I",
+    "T",
+    "A",
+    "D"
+  ],
+  "annex_section": "5.8.3",
+  "description": "mp.s.3 exige proteger la navegación web: filtrado, resolución de nombres, protección del puesto, registro y concienciación. Se juzga sobre los registros y reglas del filtrado en Wazuh y, en cada máquina, sus servidores DNS y su antimalware.",
+  "levels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "measurement_planes": [
+    "agent",
+    "manager"
+  ],
+  "source": {
+    "template": "PowerENS_Plantilla_mp.s.3",
+    "version": "2.0",
+    "date": "2026-10-15"
+  },
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "mp.s.3.1",
+      "title": "Normativa de utilización de la navegación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se establecerá una normativa de utilización, definiendo el uso que se autoriza y las limitaciones de uso personal. En particular, se concretará el uso permitido de conexiones cifradas.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-01"
+      ]
+    },
+    {
+      "id": "mp.s.3.2",
+      "title": "Concienciación regular sobre higiene en la navegación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se llevarán a cabo regularmente actividades de concienciación sobre higiene en la navegación web, fomentando el uso seguro y alertando de usos incorrectos.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "parameter_ids": [
+        "P-06",
+        "P-09"
+      ]
+    },
+    {
+      "id": "mp.s.3.3",
+      "title": "Formación de los administradores en monitorización y respuesta",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se formará al personal encargado de la administración del sistema en monitorización del servicio y respuesta a incidentes.",
+      "evidence_ids": [
+        "EV-13"
+      ],
+      "parameter_ids": [
+        "P-07",
+        "P-10"
+      ]
+    },
+    {
+      "id": "mp.s.3.4",
+      "title": "Protección de la resolución de nombres y de las conexiones",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se protegerá la información de resolución de direcciones web y de establecimiento de conexiones.",
+      "evidence_ids": [
+        "EV-05",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-03",
+        "P-04"
+      ]
+    },
+    {
+      "id": "mp.s.3.5",
+      "title": "Protección frente a problemas que llegan por la navegación",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se protegerá a la organización en general y al puesto de trabajo en particular frente a problemas que se materializan vía navegación web.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-04",
+        "EV-06",
+        "EV-11"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03",
+        "P-12"
+      ]
+    },
+    {
+      "id": "mp.s.3.6",
+      "title": "Protección frente a código dañino y contenido activo",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se protegerá contra la actuación de programas dañinos tales como páginas activas, descargas de código ejecutable, etc., previniendo la exposición del sistema a vectores de ataque del tipo spyware, ransomware, etc.",
+      "evidence_ids": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-06"
+      ],
+      "parameter_ids": [
+        "P-02",
+        "P-03",
+        "P-12"
+      ]
+    },
+    {
+      "id": "mp.s.3.7",
+      "title": "Política ejecutiva de control de cookies",
+      "kind": "BASE",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "description": "Se establecerá una política ejecutiva de control de cookies, en particular, para evitar la contaminación entre uso personal y uso organizativo.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-05"
+      ]
+    },
+    {
+      "id": "mp.s.3.r1.1",
+      "title": "Registro del uso de la navegación con su retención",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se registrará el uso de la navegación web, estableciendo los elementos que se registran, el periodo de retención de estos registros y el uso que el organismo prevé hacer de ellos.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "parameter_ids": [
+        "P-08"
+      ]
+    },
+    {
+      "id": "mp.s.3.r1.2",
+      "title": "Inspección de canales cifrados con exclusiones declaradas",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se establecerá una función para la ruptura de canales cifrados a fin de inspeccionar su contenido, indicando qué se analiza, qué se registra, durante cuánto tiempo se retienen los registros y qué uso prevé hacer el organismo de estas inspecciones. Todo ello sin perjuicio de que se puedan autorizar accesos cifrados singulares a destinos de confianza.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-11"
+      ]
+    },
+    {
+      "id": "mp.s.3.r1.3",
+      "title": "Lista negra de destinos vetados",
+      "kind": "REFUERZO",
+      "levels": [
+        "ALTO"
+      ],
+      "description": "Se establecerá una lista negra de destinos vetados.",
+      "evidence_ids": [
+        "EV-10"
+      ],
+      "parameter_ids": [
+        "P-03"
+      ]
+    },
+    {
+      "id": "mp.s.3.r2.1",
+      "title": "Lista blanca de destinos accesibles",
+      "kind": "REFUERZO",
+      "levels": [],
+      "applicability_reason": "Refuerzo opcional: no se exige en ninguna categoría.",
+      "description": "Se establecerá una lista blanca de destinos accesibles. Todo acceso fuera de los lugares señalados en la lista blanca estará vetado, salvo autorización singular expresa.",
+      "evidence_ids": [],
+      "parameter_ids": [
+        "P-13"
+      ]
+    }
+  ],
+  "evidences": [
+    {
+      "id": "EV-01",
+      "title": "Registros del filtrado de navegación",
+      "description": "Cada fuente del filtrado de P-02 envía registros a Wazuh dentro de P-12 horas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Llegan los registros del filtrado de la navegación?"
+    },
+    {
+      "id": "EV-02",
+      "title": "Filtrado por categorías",
+      "description": "Cada indicador de categorías de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se filtra la navegación por categorías?"
+    },
+    {
+      "id": "EV-03",
+      "title": "Descargas y contenido activo",
+      "description": "Cada indicador de descargas y contenido activo de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se bloquean las descargas de ejecutables y el contenido activo?"
+    },
+    {
+      "id": "EV-04",
+      "title": "Destinos de mala reputación",
+      "description": "Cada indicador de reputación de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se vigilan los accesos a destinos de mala reputación?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Resolución de nombres protegida",
+      "description": "Cada servidor DNS al que pregunta la máquina está entre los resolutores autorizados de P-04.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿La máquina resuelve nombres solo con resolutores autorizados?"
+    },
+    {
+      "id": "EV-06",
+      "title": "Protección del puesto frente a la navegación",
+      "description": "La máquina tiene antimalware en marcha (como op.exp.6 EV-01).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "category": "CONFIGURATION",
+      "criticality": "HIGH",
+      "audit_question": "¿El puesto está protegido frente a las amenazas de la navegación?"
+    },
+    {
+      "id": "EV-08",
+      "title": "Registro y retención de la navegación",
+      "description": "El índice de alertas, donde quedan los registros de la navegación, se conserva al menos P-08 días.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.1"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se conservan los registros de la navegación el tiempo fijado?"
+    },
+    {
+      "id": "EV-10",
+      "title": "Lista negra de destinos",
+      "description": "Cada indicador de lista negra de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.3"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se vigila el acceso a los destinos de la lista negra?"
+    },
+    {
+      "id": "EV-11",
+      "title": "Evasión del filtrado",
+      "description": "Cada indicador de evasión de P-03 tiene una regla cargada que puede alertar.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4",
+        "mp.s.3.5"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se detecta la evasión del filtrado de navegación?"
+    },
+    {
+      "id": "EV-12",
+      "title": "Concienciación sobre la navegación",
+      "description": "La última actividad de P-06 está dentro de P-09 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.2"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se hacen actividades regulares de concienciación sobre la navegación?"
+    },
+    {
+      "id": "EV-13",
+      "title": "Formación de los administradores",
+      "description": "La última formación de P-07 está dentro de P-10 días.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.3"
+      ],
+      "category": "TRACEABILITY",
+      "criticality": "HIGH",
+      "audit_question": "¿Se forma a los administradores en monitorización y respuesta?"
+    }
+  ],
+  "parameters": {
+    "P-01": {
+      "class": "organisation",
+      "name": "normativa_navegacion",
+      "label": "Normativa de navegación",
+      "description": "Normativa con el uso autorizado, las limitaciones de uso personal y el uso permitido de conexiones cifradas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.1"
+      ],
+      "type": "string",
+      "example": "NT-05 Uso de la navegación web",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: 3.1 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-02": {
+      "class": "organisation",
+      "name": "filtrado_navegacion",
+      "label": "Filtrado de la navegación",
+      "description": "Proxies o pasarelas de filtrado: máquina con agente si la tienen y fuente de sus registros en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "type": "table",
+      "example": "proxy | proxy01 | proxy01",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 sigue sus registros.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-03": {
+      "class": "organisation",
+      "name": "indicadores_navegacion",
+      "label": "Indicadores del filtrado",
+      "description": "Indicadores de cada función del filtrado, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4",
+        "mp.s.3.5",
+        "mp.s.3.6",
+        "mp.s.3.r1.3"
+      ],
+      "type": "table",
+      "example": "descargas y contenido activo | ejecutable bloqueado | squid | 100400",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "select",
+          "options": [
+            "categorías",
+            "descargas y contenido activo",
+            "reputación",
+            "lista negra",
+            "evasión"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-02 a EV-04, EV-10 y EV-11 exigen reglas cargadas para cada función.",
+      "evidence_ids": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-10",
+        "EV-11"
+      ],
+      "if_not_configured": "EV-02 a EV-04, EV-10 y EV-11 quedan sin demostrar."
+    },
+    "P-04": {
+      "class": "organisation",
+      "name": "resolutores_autorizados",
+      "label": "Resolutores DNS autorizados",
+      "description": "Servidores DNS a los que pueden preguntar las máquinas (dirección o CIDR).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4"
+      ],
+      "type": "list",
+      "example": "10.0.0.53, 10.0.0.54",
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-05 exige cada servidor de la máquina entre ellos.",
+      "evidence_ids": [
+        "EV-05"
+      ],
+      "if_not_configured": "EV-05 queda sin demostrar."
+    },
+    "P-05": {
+      "class": "organisation",
+      "name": "politica_cookies",
+      "label": "Política de cookies",
+      "description": "Política ejecutiva de control de cookies.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.7"
+      ],
+      "type": "string",
+      "example": "perfiles separados de uso personal y corporativo",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: 3.7 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-06": {
+      "class": "organisation",
+      "name": "concienciacion_navegacion",
+      "label": "Concienciación sobre la navegación",
+      "description": "Una actividad por fila: fecha, actividad, alcance y participación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.2"
+      ],
+      "type": "table",
+      "example": "2026-04-15 | sesión sobre descargas | toda la plantilla | 80 %",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "actividad",
+          "label": "Actividad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "participacion",
+          "label": "Participación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-12 toma la actividad más reciente.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "if_not_configured": "EV-12 queda sin demostrar."
+    },
+    "P-07": {
+      "class": "organisation",
+      "name": "formacion_administradores",
+      "label": "Formación de los administradores",
+      "description": "Una formación por fila: fecha, persona y formación en monitorización y respuesta.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.3"
+      ],
+      "type": "table",
+      "example": "2026-05-20 | A. Martínez | respuesta a incidentes",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "persona",
+          "label": "Persona",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "formacion",
+          "label": "Formación",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": true,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-13 toma la formación más reciente.",
+      "evidence_ids": [
+        "EV-13"
+      ],
+      "if_not_configured": "EV-13 queda sin demostrar."
+    },
+    "P-08": {
+      "class": "organisation",
+      "name": "retencion_registros_navegacion_dias",
+      "label": "Retención de los registros de navegación (días)",
+      "description": "Días que se conservan los registros de la navegación.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.1"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "default_value": 365,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-08 compara la retención del índice de alertas con este plazo.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar."
+    },
+    "P-09": {
+      "class": "organisation",
+      "name": "periodicidad_concienciacion_dias",
+      "label": "Periodicidad de la concienciación (días)",
+      "description": "Días máximos entre dos actividades de concienciación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.2"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "min_value": 1,
+      "default_value": 365,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-12 mide con este plazo.",
+      "evidence_ids": [
+        "EV-12"
+      ],
+      "if_not_configured": "EV-12 queda sin demostrar."
+    },
+    "P-10": {
+      "class": "organisation",
+      "name": "periodicidad_formacion_dias",
+      "label": "Periodicidad de la formación de administradores (días)",
+      "description": "Días máximos entre dos formaciones de los administradores.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.3"
+      ],
+      "type": "number",
+      "example": "730",
+      "required": true,
+      "min_value": 1,
+      "default_value": 730,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-13 mide con este plazo.",
+      "evidence_ids": [
+        "EV-13"
+      ],
+      "if_not_configured": "EV-13 queda sin demostrar."
+    },
+    "P-11": {
+      "class": "organisation",
+      "name": "inspeccion_canales_cifrados",
+      "label": "Inspección de canales cifrados",
+      "description": "Qué se analiza, qué se registra, cuánto se retiene, qué uso se hace y qué destinos se excluyen.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.2"
+      ],
+      "type": "string",
+      "example": "inspección TLS salvo banca y sanidad; 30 días",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental: r1.2 se acredita con P-ATT. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-12": {
+      "class": "organisation",
+      "name": "horas_maximas_sin_registros_navegacion",
+      "label": "Horas máximas sin registros del filtrado",
+      "description": "Horas que una fuente de P-02 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "min_value": 1,
+      "default_value": 4,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "EV-01 mide con este plazo.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar."
+    },
+    "P-13": {
+      "class": "organisation",
+      "name": "lista_blanca_destinos",
+      "label": "Lista blanca de destinos",
+      "description": "Destinos accesibles si se implanta lista blanca.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r2.1"
+      ],
+      "type": "list",
+      "example": "sede.org.es",
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    },
+    "P-ATT": {
+      "class": "organisation",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "required": false,
+      "agent_usage": "Ningún agente lo lee.",
+      "engine_usage": "Documental. Sale en el informe.",
+      "if_not_configured": "Sin efecto en el veredicto."
+    }
+  },
+  "report": [
+    {
+      "id": "filtrado",
+      "title": "Filtrado",
+      "description": "Registros y funciones del filtrado de la navegación.",
+      "evidences": [
+        "EV-01",
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-10",
+        "EV-11"
+      ],
+      "parameters": [
+        "P-02",
+        "P-03",
+        "P-12",
+        "P-13"
+      ]
+    },
+    {
+      "id": "puesto",
+      "title": "Puesto y resolución",
+      "description": "Resolución de nombres y protección del puesto.",
+      "evidences": [
+        "EV-05",
+        "EV-06"
+      ],
+      "parameters": [
+        "P-04"
+      ]
+    },
+    {
+      "id": "registro",
+      "title": "Registro e inspección",
+      "description": "Retención de los registros e inspección de canales cifrados.",
+      "evidences": [
+        "EV-08"
+      ],
+      "parameters": [
+        "P-08",
+        "P-11"
+      ]
+    },
+    {
+      "id": "personas",
+      "title": "Normas y formación",
+      "description": "Normativa, cookies, concienciación y formación.",
+      "evidences": [
+        "EV-12",
+        "EV-13"
+      ],
+      "parameters": [
+        "P-01",
+        "P-05",
+        "P-06",
+        "P-07",
+        "P-09",
+        "P-10"
+      ]
+    }
+  ]
+}

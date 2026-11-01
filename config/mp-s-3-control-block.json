@@ -1,0 +1,494 @@
+{
+  "controlId": "mp.s.3",
+  "controlName": "Protección de la navegación web",
+  "family": "Medidas de protección",
+  "enabled": true,
+  "applicableLevels": [
+    "BAJO",
+    "MEDIO",
+    "ALTO"
+  ],
+  "parameters": [
+    {
+      "id": "P-01",
+      "controlId": "mp.s.3",
+      "name": "normativa_navegacion",
+      "label": "Normativa de navegación",
+      "description": "Normativa con el uso autorizado, las limitaciones de uso personal y el uso permitido de conexiones cifradas.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.1"
+      ],
+      "type": "string",
+      "example": "NT-05 Uso de la navegación web",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: 3.1 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-02",
+      "controlId": "mp.s.3",
+      "name": "filtrado_navegacion",
+      "label": "Filtrado de la navegación",
+      "description": "Proxies o pasarelas de filtrado: máquina con agente si la tienen y fuente de sus registros en Wazuh.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5",
+        "mp.s.3.6"
+      ],
+      "type": "table",
+      "example": "proxy | proxy01 | proxy01",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 sigue sus registros.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "maquina",
+          "label": "Máquina",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente en Wazuh",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-03",
+      "controlId": "mp.s.3",
+      "name": "indicadores_navegacion",
+      "label": "Indicadores del filtrado",
+      "description": "Indicadores de cada función del filtrado, su fuente y las reglas de Wazuh que los detectan.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4",
+        "mp.s.3.5",
+        "mp.s.3.6",
+        "mp.s.3.r1.3"
+      ],
+      "type": "table",
+      "example": "descargas y contenido activo | ejecutable bloqueado | squid | 100400",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-02 a EV-04, EV-10 y EV-11 exigen reglas cargadas para cada función.",
+      "evidenceIds": [
+        "EV-02",
+        "EV-03",
+        "EV-04",
+        "EV-10",
+        "EV-11"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-02 a EV-04, EV-10 y EV-11 quedan sin demostrar.",
+      "columns": [
+        {
+          "name": "filtro",
+          "label": "Filtro",
+          "type": "select",
+          "options": [
+            "categorías",
+            "descargas y contenido activo",
+            "reputación",
+            "lista negra",
+            "evasión"
+          ],
+          "required": true
+        },
+        {
+          "name": "indicador",
+          "label": "Indicador",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "fuente",
+          "label": "Fuente",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "reglas",
+          "label": "Reglas",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "P-04",
+      "controlId": "mp.s.3",
+      "name": "resolutores_autorizados",
+      "label": "Resolutores DNS autorizados",
+      "description": "Servidores DNS a los que pueden preguntar las máquinas (dirección o CIDR).",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.4"
+      ],
+      "type": "list",
+      "example": "10.0.0.53, 10.0.0.54",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-05 exige cada servidor de la máquina entre ellos.",
+      "evidenceIds": [
+        "EV-05"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-05 queda sin demostrar."
+    },
+    {
+      "id": "P-05",
+      "controlId": "mp.s.3",
+      "name": "politica_cookies",
+      "label": "Política de cookies",
+      "description": "Política ejecutiva de control de cookies.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.7"
+      ],
+      "type": "string",
+      "example": "perfiles separados de uso personal y corporativo",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: 3.7 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-06",
+      "controlId": "mp.s.3",
+      "name": "concienciacion_navegacion",
+      "label": "Concienciación sobre la navegación",
+      "description": "Una actividad por fila: fecha, actividad, alcance y participación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.2"
+      ],
+      "type": "table",
+      "example": "2026-04-15 | sesión sobre descargas | toda la plantilla | 80 %",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-12 toma la actividad más reciente.",
+      "evidenceIds": [
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-12 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "actividad",
+          "label": "Actividad",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "alcance",
+          "label": "Alcance",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "participacion",
+          "label": "Participación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-07",
+      "controlId": "mp.s.3",
+      "name": "formacion_administradores",
+      "label": "Formación de los administradores",
+      "description": "Una formación por fila: fecha, persona y formación en monitorización y respuesta.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.3"
+      ],
+      "type": "table",
+      "example": "2026-05-20 | A. Martínez | respuesta a incidentes",
+      "required": true,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-13 toma la formación más reciente.",
+      "evidenceIds": [
+        "EV-13"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-13 queda sin demostrar.",
+      "columns": [
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "persona",
+          "label": "Persona",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "formacion",
+          "label": "Formación",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "P-08",
+      "controlId": "mp.s.3",
+      "name": "retencion_registros_navegacion_dias",
+      "label": "Retención de los registros de navegación (días)",
+      "description": "Días que se conservan los registros de la navegación.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.1"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 365,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-08 compara la retención del índice de alertas con este plazo.",
+      "evidenceIds": [
+        "EV-08"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-08 queda sin demostrar."
+    },
+    {
+      "id": "P-09",
+      "controlId": "mp.s.3",
+      "name": "periodicidad_concienciacion_dias",
+      "label": "Periodicidad de la concienciación (días)",
+      "description": "Días máximos entre dos actividades de concienciación.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.2"
+      ],
+      "type": "number",
+      "example": "365",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 365,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-12 mide con este plazo.",
+      "evidenceIds": [
+        "EV-12"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-12 queda sin demostrar."
+    },
+    {
+      "id": "P-10",
+      "controlId": "mp.s.3",
+      "name": "periodicidad_formacion_dias",
+      "label": "Periodicidad de la formación de administradores (días)",
+      "description": "Días máximos entre dos formaciones de los administradores.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.3"
+      ],
+      "type": "number",
+      "example": "730",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 730,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-13 mide con este plazo.",
+      "evidenceIds": [
+        "EV-13"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-13 queda sin demostrar."
+    },
+    {
+      "id": "P-11",
+      "controlId": "mp.s.3",
+      "name": "inspeccion_canales_cifrados",
+      "label": "Inspección de canales cifrados",
+      "description": "Qué se analiza, qué se registra, cuánto se retiene, qué uso se hace y qué destinos se excluyen.",
+      "levels": [
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r1.2"
+      ],
+      "type": "string",
+      "example": "inspección TLS salvo banca y sanidad; 30 días",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental: r1.2 se acredita con P-ATT. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-12",
+      "controlId": "mp.s.3",
+      "name": "horas_maximas_sin_registros_navegacion",
+      "label": "Horas máximas sin registros del filtrado",
+      "description": "Horas que una fuente de P-02 puede pasar sin enviar registros.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.5"
+      ],
+      "type": "number",
+      "example": "4",
+      "required": true,
+      "minValue": 1,
+      "defaultValue": 4,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "EV-01 mide con este plazo.",
+      "evidenceIds": [
+        "EV-01"
+      ],
+      "ruleIds": [],
+      "ifNotConfigured": "EV-01 queda sin demostrar."
+    },
+    {
+      "id": "P-13",
+      "controlId": "mp.s.3",
+      "name": "lista_blanca_destinos",
+      "label": "Lista blanca de destinos",
+      "description": "Destinos accesibles si se implanta lista blanca.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "mp.s.3.r2.1"
+      ],
+      "type": "list",
+      "example": "sede.org.es",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto."
+    },
+    {
+      "id": "P-ATT",
+      "controlId": "mp.s.3",
+      "name": "atestaciones_documentales",
+      "label": "Atestaciones documentales",
+      "description": "Documentos que acreditan lo que ninguna medida técnica demuestra, uno por fila.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [],
+      "type": "table",
+      "example": "mp.s.3.1 | Nombre del documento aprobado | https://EJEMPLO.invalido/sustituye-esto.pdf | 2026-05-12 | Responsable de Seguridad",
+      "required": false,
+      "wazuhUsage": "Ningún agente lo lee.",
+      "powerEnsUsage": "Documental. Sale en el informe.",
+      "evidenceIds": [],
+      "ruleIds": [],
+      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "columns": [
+        {
+          "name": "requisito",
+          "label": "Requisito",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "referencia",
+          "label": "Referencia",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "enlace",
+          "label": "Enlace",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fecha",
+          "label": "Fecha",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "responsable",
+          "label": "Responsable",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
