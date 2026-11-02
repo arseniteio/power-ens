@@ -1,4 +1,3 @@
-// Replaces Wazuh's 'Explore agent': picks a machine of the ENS scope, or all. It only touches `agentId` in the URL, which the screens read.
 import { ENS_OUT_OF_GROUP_LABEL } from '../../common/ens/core/scope/evaluable-groups';
 import React from 'react';
 import { EuiButton, EuiCallOut, EuiFormRow, EuiSpacer, EuiSuperSelect, EuiHealth } from '@elastic/eui';

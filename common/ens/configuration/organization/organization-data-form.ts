@@ -1,4 +1,3 @@
-// The item as a form field, whether a value is valid for every parameter that reads it, and its warnings.
 import type { ENSAgentParameterValue, ENSConfigurationVersion, ENSControlParameter } from '../types';
 import {
   isEmptyParameterValue,
@@ -13,7 +12,6 @@ const ORGANIZATION_FIELD_ID = 'Dato común';
 
 type ENSDocument = Pick<ENSConfigurationVersion, 'controls'>;
 
-// Not a control parameter: no control id the refinements or the regex mode would recognise.
 export const organizationDataParameter = (item: ENSOrganizationDataItem): ENSControlParameter => ({
   id: ORGANIZATION_FIELD_ID,
   controlId: 'organizacion',
@@ -34,7 +32,6 @@ export const organizationDataParameter = (item: ENSOrganizationDataItem): ENSCon
 });
 
 interface ENSOrganizationValueIssue {
-  // The item label, or the parameter that would read an invalid value («op.acc.1 P-11»).
   source: string;
   reason: string;
 }
@@ -42,7 +39,6 @@ interface ENSOrganizationValueIssue {
 const parameterOf = (configuration: ENSDocument, controlId: string, parameterId: string): ENSControlParameter | undefined =>
   configuration.controls.find(control => control.controlId === controlId)?.parameters.find(candidate => candidate.id === parameterId);
 
-// A parameter that reads one value and finds several rows of its use: the order of the rows would decide.
 export const organizationSingleValueIssues = (
   configuration: ENSDocument,
   item: ENSOrganizationDataItem,
@@ -89,7 +85,6 @@ const cellsOf = (item: ENSOrganizationDataItem, value: ENSAgentParameterValue | 
     });
 };
 
-// Not blocking: a row with several uses gives the same «Ámbito» or «Detalle» to each, and their meaning differs.
 export const organizationValueWarnings = (item: ENSOrganizationDataItem, value: ENSAgentParameterValue | undefined): string[] => {
   const perUse = item.perUseColumns || [];
   const useColumn = (item.columns || []).find(column => column.type === 'multiselect')?.name;
@@ -104,7 +99,6 @@ export const organizationValueWarnings = (item: ENSOrganizationDataItem, value: 
 
 const POWER_ENS_INCIDENT_REGISTER = /incident-register\.tsv|registro Power ENS/i;
 
-// Data that should agree with an item but stays in its control: said in General when it does not.
 export const organizationCrossChecks = (configuration: ENSDocument, itemId: string): string[] => {
   if (itemId !== 'herramientas_gestion') return [];
   const selector = parameterOf(configuration, 'op.exp.9', 'P-01');
@@ -119,7 +113,6 @@ export const organizationCrossChecks = (configuration: ENSDocument, itemId: stri
 
 interface ENSOrganizationChoiceChange {
   parameter: string;
-  // Rows the parameter loses (ports, origins, entries), rows it gains and what it ends with.
   removed: string[];
   added: string[];
   after: string[];
@@ -131,7 +124,6 @@ const comparable = (line: string): string => {
   return cells.join('|');
 };
 
-// What each parameter that reads the item becomes with this value: shown before choosing it.
 export const describeOrganizationChoice = (
   configuration: ENSDocument,
   item: ENSOrganizationDataItem,
@@ -147,7 +139,6 @@ export const describeOrganizationChoice = (
     return removed.length || added.length ? [{ parameter: `${view.controlId} ${view.parameterId}`, removed, added, after }] : [];
   });
 
-// One line per list item or table row, for reading.
 export const organizationValueLines = (value: ENSControlParameter['value'] | undefined): string[] =>
   Array.isArray(value)
     ? value.map(entry => String(entry).trim()).filter(Boolean)

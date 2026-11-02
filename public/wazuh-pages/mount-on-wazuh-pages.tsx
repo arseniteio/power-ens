@@ -7,7 +7,6 @@ import { wazuhPageOf, type WazuhPage } from './wazuh-page';
 
 const samePage = (a: WazuhPage | undefined, b: WazuhPage | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-// Renders the block inside Wazuh's own pages and follows their navigation; it never touches what Wazuh renders.
 export const mountOnWazuhPages = (core: CoreStart): void => {
   let appId: string | undefined;
   let host: HTMLElement | undefined;

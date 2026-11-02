@@ -1,9 +1,7 @@
-// App tabs, with the same ids and names as the integrated version: links with `tabView=` keep working.
 
 interface ENSTab {
   id: string;
   name: string;
-  // Configuración loads on its own; the others wait for configuration and scope.
   withBootstrap: boolean;
 }
 

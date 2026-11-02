@@ -1,5 +1,3 @@
-// A render failure stays in THAT tab. Mounted with `key` = tab ONLY: with the machine in the key every machine change would remount the tab and lose the last result.
-// Changing machine or control (`resetKey`) clears the error without unmounting; so does 'Reintentar'.
 import React from 'react';
 import { EuiButton, EuiCallOut, EuiSpacer, EuiText } from '@elastic/eui';
 

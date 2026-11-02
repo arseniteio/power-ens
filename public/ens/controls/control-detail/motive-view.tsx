@@ -1,4 +1,3 @@
-// A parsed motive (motive-parser.ts) rendered for reading: badges, lists, es-ES dates (ISO in `title`) and parameters linking to Configuración.
 import React, { useState } from 'react';
 import { EuiBadge, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 import {
@@ -30,7 +29,6 @@ export interface MotiveViewHandlers {
 
 const VISIBLE_LIST_SIZE = 5;
 
-// A badge that is a link only when there is somewhere to go.
 export const LinkBadge = ({
   onClick,
   label,

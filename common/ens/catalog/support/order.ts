@@ -1,6 +1,5 @@
 import { ENSControlDefinition } from '../types';
 
-// The one comparator of dotted identifiers (ENS ids and Annex II sections): segment by segment, numbers as numbers, '4.3.2' < '4.3.10', 'op.exp.1' < 'op.exp.10'.
 const compareENSIds = (a: string, b: string): number => {
   const left = String(a).trim().toLowerCase().split('.');
   const right = String(b).trim().toLowerCase().split('.');
@@ -20,7 +19,6 @@ const compareENSIds = (a: string, b: string): number => {
   return left.length - right.length;
 };
 
-// Annex II order of two controls: by section ('4.2.1' … '5.7.6'); a control without section goes after, by identifier.
 export const compareControlsByAnnex = (
   a: Pick<ENSControlDefinition, 'id'> & { annexSection?: string },
   b: Pick<ENSControlDefinition, 'id'> & { annexSection?: string }

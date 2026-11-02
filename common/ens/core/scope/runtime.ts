@@ -35,7 +35,6 @@ const cloneAgent = (agent: ENSAgentScope): ENSAgentScope => ({
   ...(agent.os ? { os: { ...agent.os } } : {}),
 });
 
-// The scope agents: those resolved by the configured mode (global, group or agent) plus, if some ACTIVE control is measured on the manager, the manager (in no group, which no mode brings). The catalog is a parameter so it can be tested with controls in another state.
 export const resolveENSScopeAgents = (
   inventory: ENSAgentScope[],
   scope: ENSConfigurationScope,
@@ -74,7 +73,6 @@ const resolveHydrationError = (error: unknown): string => {
   return 'No se pudo resolver el alcance ENS.';
 };
 
-// Exported for the server, which resolves the scope with the same code.
 export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
   agents
     .filter((agent) => typeof agent?.id === 'string' && agent.id.trim().length > 0)
@@ -86,11 +84,9 @@ export const normalizeInventory = (agents: ENSAgentScope[]): ENSAgentScope[] =>
             .filter((group) => typeof group === 'string' && group.trim().length > 0)
             .map((group) => group.trim())
         : [],
-      // The status (from wazuh-monitoring) only if present: the selector paints it.
       ...(typeof agent.status === 'string' && agent.status.trim()
         ? { status: agent.status.trim() }
         : {}),
-      // The operating system, if present: Configuration uses it to detect the system type.
       ...(agent.os && typeof agent.os === 'object' ? { os: { ...agent.os } } : {}),
     }));
 

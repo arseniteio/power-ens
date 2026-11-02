@@ -1,11 +1,9 @@
-// Requests to the server evaluation (`/api/powerEns/evaluation`). The browser no longer reads facts to judge: it receives the result.
 import { POWER_ENS_EVALUATION_PATH } from '../../common/constants';
 import { withRequestTimeout } from '../../common/platform/request-timeout';
 import { getHttp } from '../services';
 import { RequestLimiter } from './refresh-policy';
 import type { ENSTraceabilityPageResponse } from '../../common/ens/evaluation/types';
 
-// A cold evaluation reads the whole window (about 20-30 s for the whole scope); the one-minute search timeout is not enough.
 const EVALUATION_TIMEOUT_MS = 180 * 1000;
 
 export interface ENSEvaluationParams {
@@ -31,7 +29,6 @@ const evaluationQuery = (params: Record<string, unknown>) =>
     Object.entries({ ...params, timeZone: browserTimeZone() }).filter(([, value]) => value !== undefined && value !== '')
   );
 
-// The server explains in `body.message` why it fails.
 const withMotive = (error: any): Error => {
   const motive = error?.body?.message;
   return typeof motive === 'string' && motive.trim() ? new Error(motive.trim()) : error;

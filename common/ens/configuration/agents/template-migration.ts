@@ -1,4 +1,3 @@
-// Pins «none» and merges first-wins exactly where needed for every agent to resolve as in 1.2.0.
 import type { ENSAgentProfile, ENSConfigurationVersion, ENSCustomTemplate } from '../types';
 import { ENS_NO_TEMPLATE, knownSystemType } from '../../../agent-configuration';
 import { ENS_PARAMETER_CLASSES } from './parameter-classes';
@@ -10,19 +9,15 @@ type ENSTemplateModelDocument = Pick<ENSConfigurationVersion, 'controls' | 'agen
 export interface ENSTemplateAssignmentChange {
   agentId: string;
   controlId: string;
-  // The assigned id, or ENS_NO_TEMPLATE where 1.2.0 had no template for the control.
   templateId: string;
-  // The 1.2.0 templates that supplied values in this control, in their order.
   from: string[];
 }
 
 export interface ENSTemplateMigrationPlan<T extends ENSTemplateModelDocument = ENSConfigurationVersion> {
   configuration: T;
-  // Something to tell the user and to write: a profile carried 1.2.0 templates or needed a pin.
   changed: boolean;
   assignments: ENSTemplateAssignmentChange[];
   created: ENSCustomTemplate[];
-  // 1.2.0 template ids unknown to this version: they had no effect then either.
   dropped: { agentId: string; templateId: string }[];
 }
 
@@ -44,7 +39,6 @@ export const planTemplateMigration = <T extends ENSTemplateModelDocument>(config
   }
 
   const legacyDocument = !isTemplateModelDocument(configuration);
-  // Controls are shared, not copied: the migration never touches them and the resolver keeps their identity.
   const next: T = { ...configuration };
   if (configuration.agents) next.agents = cloneDocument(configuration.agents);
   const templates: ENSCustomTemplate[] = Array.isArray(configuration.templates) ? cloneDocument(configuration.templates) : [];

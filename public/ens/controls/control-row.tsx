@@ -1,4 +1,3 @@
-// A catalogue row. It queries nothing: the list fetches one server summary, evaluated as in the detail.
 import React from 'react';
 import { EuiBadge, EuiFlexGroup, EuiFlexItem, EuiLoadingSpinner, EuiText } from '@elastic/eui';
 import { ENS_STATUS_COLORS } from '../status-colors';
@@ -21,7 +20,7 @@ interface ControlRowProps {
   onConfigurationChanged?: () => void;
 }
 
-export const CONTROL_COLUMNS = { status: 130, machines: 280, nonConformities: 120 };
+const CONTROL_COLUMNS = { status: 130, machines: 280, nonConformities: 120 };
 
 const shortTally = (tally: ENSMachineTally): string => {
   const parts = [
@@ -103,13 +102,10 @@ export const ControlRow = ({ entry, isLoading, error, colorDelEstado: statusColo
     <EuiText size='xs' color='subdued' title={tip}><span>{text}</span></EuiText>
   );
 
-  // Not measured on this machine: no number, it is neither compliance nor failure.
   if (entry.notMeasured) return row(ENS_THEME.track, subdued('No se mide', entry.notMeasured.text), undefined, undefined, true);
 
-  // In the catalog without collector yet: neither compliance nor failure, and no number on any machine.
   if (entry.pendingMeasurement) return row(ENS_THEME.track, subdued(ENS_PENDING_MEASUREMENT_LABEL, entry.pendingMeasurement), undefined, undefined, true);
 
-  // While this view's summary loads no verdict is drawn: the previous machine's does not apply.
   const waitLabel = error ? undefined : controlRowWaitLabel(isLoading, summary);
   if (waitLabel) return row(ENS_THEME.track, <EuiLoadingSpinner size='s' />);
 

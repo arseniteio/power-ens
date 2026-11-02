@@ -65,7 +65,6 @@ const STATES: Record<string, { label: string; color: 'success' | 'danger' | 'war
 const MAX_LINES = 3;
 
 export const ControlsTab = (props: ControlsTabProps) => {
-  // Loaded once for the list and the control page.
   const data = useAgentsData();
   const { target, getActiveLevel, onNavigate, onConfigurationSaved } = props;
   const configuration = useMemo(() => withInventoryTypes(props.configuration, data.inventory), [props.configuration, data.inventory]);

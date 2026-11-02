@@ -33,11 +33,9 @@ import { GeneralTab } from './general-tab';
 import { OrganizationDataNotice } from './organization-data-panel';
 import { SaveWarningNotice } from './save-warning-notice';
 
-// The URL decides what is shown, so the control detail links here and the browser's «back» works.
 export const ConfigurationShell = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
-  // Opened from the control detail: the way back keeps its control and machine, still in the URL.
   const turn = parseConfigurationBack(search);
   const setSearch = useSetRouterSearch();
 
@@ -61,7 +59,6 @@ export const ConfigurationShell = () => {
       [configurationRevision]
     );
 
-  // The level the engine evaluates each control with: the global one, or the highest of its dimensions (C, I, T, A, D).
   const getControlActiveLevel =
     useCallback(
       (controlId: string): ENSLevel =>

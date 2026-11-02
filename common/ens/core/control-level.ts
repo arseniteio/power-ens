@@ -10,7 +10,6 @@ type ENSDimensionLevelKey =
 
 export const ENS_DIMENSIONS: ENSLevelDimension[] = ['C', 'I', 'T', 'A', 'D'];
 
-// Key holding each dimension's level in the global configuration.
 export const ENS_DIMENSION_LEVEL_KEYS: Record<ENSLevelDimension, ENSDimensionLevelKey> = {
   C: 'confidentialityLevel',
   I: 'integrityLevel',
@@ -34,7 +33,6 @@ const isENSLevel = (value: unknown): value is ENSLevel =>
 
 const compareENSLevels = (a: ENSLevel, b: ENSLevel): number => LEVEL_RANK[a] - LEVEL_RANK[b];
 
-// The dimensions a control declares, always as a list (the catalog accepts one or several).
 export const listControlDimensions = (
   control: Pick<ENSControlDefinition, 'levelDimension'>
 ): ENSLevelDimension[] => {
@@ -47,7 +45,6 @@ export const listControlDimensions = (
   return Array.isArray(declared) ? declared : [declared];
 };
 
-// Level of one dimension: the declared one or, with the key absent, `level`.
 const resolveDimensionLevel = (
   dimension: ENSLevelDimension,
   level: ENSLevel,
@@ -58,8 +55,6 @@ const resolveDimensionLevel = (
   return isENSLevel(declared) ? declared : level;
 };
 
-// Level with which ONE control is evaluated: the global level, unless the catalog says the control follows the level of one or more dimensions (`levelDimension`); then the highest of those dimensions' levels.
-// With no dimension declared in the global configuration every dimension is `level`, so nothing changes.
 export const resolveControlLevel = (
   control: Pick<ENSControlDefinition, 'levelDimension'>,
   level: ENSLevel,
@@ -72,7 +67,6 @@ export const resolveControlLevel = (
       undefined
     ) || level;
 
-// Dimensions whose declared level is above the ENS level. The category is the highest dimension level (Annex I), so this list must be empty.
 export const findDimensionsAboveENSLevel = (
   global?: Partial<ENSGlobalConfiguration>
 ): ENSLevelDimension[] => {
@@ -89,7 +83,6 @@ export const findDimensionsAboveENSLevel = (
   });
 };
 
-// Screen message for `findDimensionsAboveENSLevel`; `undefined` when the levels are coherent.
 export const describeDimensionsAboveENSLevel = (
   global?: Partial<ENSGlobalConfiguration>
 ): string | undefined => {
@@ -106,7 +99,6 @@ export const describeDimensionsAboveENSLevel = (
   return `El nivel ENS (${global.ensLevel}) es inferior a: ${list}.`;
 };
 
-// How the control is applied, for the detail header and the report: by category or by the level of its dimensions.
 export const describeControlAxis = (
   control: Pick<ENSControlDefinition, 'levelDimension'>
 ): string => {
@@ -121,7 +113,6 @@ export const describeControlAxis = (
     : `Se aplica por el nivel más alto de ${dimensions.join('·')}`;
 };
 
-// Where the evaluation level comes from, for labels: nothing for a category control, «Disponibilidad» or «el más alto de C·I·T·A» otherwise.
 export const describeLevelSource = (
   control: Pick<ENSControlDefinition, 'levelDimension'>
 ): string | undefined => {
@@ -134,16 +125,8 @@ export const describeLevelSource = (
   return dimensions.length === 1 ? ENS_DIMENSION_NAMES[dimensions[0]] : `el más alto de ${dimensions.join('·')}`;
 };
 
-// Label of the level a control is evaluated with: «Nivel ENS» by category, «Nivel aplicable (Disponibilidad)» when dimensions govern it.
 export const describeApplicableLevelLabel = (control: Pick<ENSControlDefinition, 'levelDimension'>): string => {
   const source = describeLevelSource(control);
 
   return source ? `Nivel aplicable (${source})` : 'Nivel ENS';
-};
-
-// «Nivel ENS: MEDIO» or «Nivel aplicable: ALTO (Disponibilidad)».
-export const describeApplicableLevel = (control: Pick<ENSControlDefinition, 'levelDimension'>, level: string): string => {
-  const source = describeLevelSource(control);
-
-  return source ? `Nivel aplicable: ${level} (${source})` : `Nivel ENS: ${level}`;
 };

@@ -14,14 +14,12 @@ interface ChangePreviewModalProps {
   confirmLabel: string;
   intro: string;
   configuration: ENSConfigurationVersion;
-  // «101 · web01»; the bare id when unknown.
   agentLabels?: Record<string, string>;
   previews: (ENSAgentChangePreview & Partial<ENSAssignmentPreview>)[];
   onCancel: () => void;
   onConfirm: () => Promise<string | undefined>;
 }
 
-// Typing «aplicar» is required only when a required value is lost or the template is for another type.
 export const ChangePreviewModal = ({ title, confirmLabel, intro, configuration, agentLabels = {}, previews, onCancel, onConfirm }: ChangePreviewModalProps) => {
   const warned = previews.some(preview => preview.leftEmpty.length > 0 || preview.mismatch);
   const names = (keys: string[], empty: string) => (keys.length ? keys.map(key => parameterLabel(configuration, key)).join(', ') : empty);

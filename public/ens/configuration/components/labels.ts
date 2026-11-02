@@ -1,4 +1,3 @@
-// Spanish labels for codes the configuration screen must never show raw (owner: «comprensible»).
 import type {
   ENSAgentProfile,
   ENSConfigurationLifecycleStatus,
@@ -11,9 +10,7 @@ import type { ENSSystemDetection } from '../../../../common/ens/configuration/ag
 interface ENSAgentTypeLabel {
   text: string;
   color: 'hollow' | 'accent' | 'warning';
-  // The type the built-in template follows is stored in the profile.
   stored: boolean;
-  // A detected type waits to be stored; without one there is nothing to save.
   pending: boolean;
 }
 
@@ -58,7 +55,6 @@ const AGENT_STATUS: Record<string, string> = {
 
 export const agentStatusLabel = (status?: string): string => (status ? AGENT_STATUS[status] || status : '—');
 
-// «op.acc.1 P-07» as the parameter's name; with `withControl`, prefixed by the control id.
 export const parameterLabel = (
   configuration: Pick<ENSConfigurationVersion, 'controls'>,
   key: string,

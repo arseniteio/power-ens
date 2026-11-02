@@ -1,5 +1,3 @@
-// Correspondence between the auditor's template and what Power ENS deploys, for controls that were not built from the template.
-// mp.info.6 keeps its deployed parameters, evidences and requirement ids (the PBS and Zimbra collectors report them); this table maps the template's P-xx and EV-xx onto them.
 
 export type ENSTemplateCoverage = 'EQUIVALENT' | 'PARTIAL' | 'NOT_MEASURED';
 
@@ -10,11 +8,8 @@ export const ENS_TEMPLATE_COVERAGE_LABELS: Record<ENSTemplateCoverage, string> =
 };
 
 export interface ENSTemplateCorrespondenceRow {
-  // Identifier in the template (P-01, EV-03, mp.info.6.2).
   template: string;
-  // Name or title in the template.
   templateName: string;
-  // Identifiers deployed in Power ENS; empty when nothing measures it yet.
   ours: string[];
   coverage: ENSTemplateCoverage;
   note: string;
@@ -27,7 +22,6 @@ interface ENSTemplateCorrespondence {
   requirements: ENSTemplateCorrespondenceRow[];
   parameters: ENSTemplateCorrespondenceRow[];
   evidences: ENSTemplateCorrespondenceRow[];
-  // Deployed identifiers the template does not have.
   ownOnly: { id: string; note: string }[];
 }
 
@@ -82,6 +76,5 @@ const mpInfo6Correspondence: ENSTemplateCorrespondence = {
 
 const correspondences: ENSTemplateCorrespondence[] = [mpInfo6Correspondence];
 
-// `undefined` for a control built from its template: there is nothing to map.
 export const getTemplateCorrespondence = (controlId: string): ENSTemplateCorrespondence | undefined =>
   correspondences.find(entry => entry.controlId === controlId);

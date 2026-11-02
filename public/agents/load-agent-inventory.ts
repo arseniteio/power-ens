@@ -1,4 +1,3 @@
-// Loads the agent inventory from the browser as the viewing user. The query and its reading are in `common/agents/agent-inventory.ts`.
 import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import {
   buildMonitoringInventoryRequest,

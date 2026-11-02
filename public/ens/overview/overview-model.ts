@@ -1,4 +1,3 @@
-// Overview model without React (tests/overview-model.test.ts). Everything comes from ONE response of the evaluation route (`include=overview`).
 import type {
   ENSAgentControlsRow,
   ENSControlSummaryEntry,
@@ -11,10 +10,9 @@ import { classifyNonConformity, NonConformityClass } from '../controls/control-d
 import { statusLabel as statusLabelOf } from '../../../common/ens/core/status-label';
 
 const HOUR = 60 * 60 * 1000;
-// The engine judges every hour: a machine without a verdict for a day has stopped reporting.
 const STALE_AFTER_MS = 26 * HOUR;
 
-export interface OverviewMachine {
+interface OverviewMachine {
   agentId: string;
   agentName?: string;
   status?: string;
@@ -39,9 +37,7 @@ export const describeAge = (iso: string | undefined, nowMs: number): string => {
 
 export type MatrixCell =
   | { kind: 'result'; status: string; score?: number; notMet: number; notEvidenced: number }
-  // A manager-only control seen on another machine: its result is the manager's, a different column.
   | { kind: 'manager' }
-  // Not measured on this machine (flat or declared scope), with the reason.
   | { kind: 'not-measured'; reason?: string }
   | { kind: 'pending' };
 
@@ -51,9 +47,7 @@ export interface MatrixRow {
   overall?: ENSControlSummaryEntry;
   cells: Record<string, MatrixCell>;
   tally?: ENSMachineTally;
-  // Still computing (`controls[].pending`): neither a result nor 'not measured'.
   pending?: boolean;
-  // In the catalog without collector yet (`DRAFT`): every cell is a gap with this reason, never a result.
   pendingMeasurement?: string;
 }
 
@@ -80,7 +74,6 @@ export const buildMatrix = (
       });
       return { controlId: control.id, title: control.title, overall: general, cells, pendingMeasurement };
     }
-    // A control the server is still computing has no rows yet; that does not mean it is measured on no machine.
     const pending = Boolean(general?.pending);
     machines.forEach(machine => {
       const rowData = agentRows.find(row => row.agentId === machine.agentId);
@@ -111,7 +104,6 @@ export const buildMatrix = (
     };
   });
 
-// First partial load (`meta.pending`): how much is missing. Meanwhile no aggregate figures are given as final.
 export const describeOverviewPending = (
   pending: { rows: number; controls: string[]; total: number } | undefined
 ): { title: string; text: string; controls: string[] } | undefined =>
@@ -198,7 +190,6 @@ export const buildMachineSummaries = (
 interface WorkItem {
   controlId: string;
   nc: ENSOverviewNonConformity;
-  // First sentence of the culprit evidence (computed by the server with motive-parser.ts, the same parser as the card).
   title: string;
   evidenceId?: string;
   status?: string;
@@ -297,7 +288,6 @@ export const inFleetFilter = (m: MachineSummary, filter: FleetFilter) =>
 
 export const CONTROL_BAR_STATUSES = ['CUMPLE', 'PARCIAL', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA'] as const;
 
-// Machines of each status for one control: the bar of «Estado por control» and the filter it sets.
 export const controlBar = (row: Pick<MatrixRow, 'cells'>): Record<string, string[]> => {
   const out: Record<string, string[]> = Object.fromEntries(CONTROL_BAR_STATUSES.map(s => [s, [] as string[]]));
   Object.entries(row.cells).forEach(([agentId, cell]) => {
@@ -309,7 +299,6 @@ export const controlBar = (row: Pick<MatrixRow, 'cells'>): Record<string, string
 
 const csvField = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
-// Every control on every machine, for the reader who needs the whole matrix: one row per machine.
 export const matrixCsv = (rows: Pick<MatrixRow, 'controlId' | 'cells'>[], machines: OverviewMachine[]): string => {
   const header = ['agente', 'nombre', ...rows.map(r => r.controlId)];
   const lines = machines.map(m => [

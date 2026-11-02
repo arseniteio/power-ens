@@ -8,12 +8,9 @@ import { normalizeAgentId } from '../../../../common/agent-configuration';
 import { ENSSystemDetection, detectAgentSystem } from '../../../../common/ens/configuration/agents/system-detection';
 
 export interface ENSAgentsData {
-  // Scope agents (with the manager when a control is measured there).
   scopeAgents: ENSAgentScope[];
-  // The whole inventory: the distribution by agents also recognises machines named outside the scope.
   inventory: ENSAgentScope[];
   loading: boolean;
-  // What could not be read; the screen goes on with what there is.
   errors: string[];
 }
 
@@ -62,7 +59,6 @@ export const useAgentsData = (): ENSAgentsData => {
   return data;
 };
 
-// Stored profiles of machines out of the scope are kept as rows, so nothing stored is hidden.
 export const buildAgentRows = (configuration: ENSConfigurationVersion, data: ENSAgentsData): ENSAgentRow[] => {
   const byId = new Map<string, ENSAgentRow>();
   const fromInventory = new Map(data.inventory.map(agent => [normalizeAgentId(agent.id), agent]));

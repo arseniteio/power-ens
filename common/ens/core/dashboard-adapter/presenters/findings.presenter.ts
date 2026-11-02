@@ -4,7 +4,6 @@ import { FindingsCardModel } from '../models/findings-card.model';
 
 const UNFAVOURABLE = new Set(['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE']);
 
-// Unfavourable requirements split by the origin of their non-conformities (ENS-DASH-002, Francisco Caicedo): only MEDIDA, only NO_EVIDENCIADA, both, or none.
 export const buildFindingsCardModel = (
   complianceState: ENSComplianceState
 ): FindingsCardModel => {
@@ -15,7 +14,6 @@ export const buildFindingsCardModel = (
   let hasNonCompliant = false;
 
   complianceState.results.forEach(result => {
-    // A control that is not ACTIVE produces no non-conformities: it never counts here.
     if (getENSCatalogControl(result.control.id)?.status !== 'ACTIVE') {
       return;
     }

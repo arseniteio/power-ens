@@ -1,4 +1,3 @@
-// What each view returns. Compact: the browser receives results, never facts.
 import { buildENSDashboardModel } from '../../../common/ens/core/dashboard-adapter/dashboard-adapter';
 import type { ENSComplianceResult } from '../../../common/ens/core/evaluation/types';
 import { ENS_EVALUATION_LIMITS } from '../../../common/ens/evaluation/limits';
@@ -8,11 +7,7 @@ import { agentControlRows, freshnessOf, nonConformitiesOf, visibleTimeline } fro
 
 type RunOutput = Awaited<ReturnType<ENSEvaluationService['run']>>;
 
-// What the control list draws for each: the state and how many applicable requirements fail (and of those, how
-// many for lack of evidence).
 const controlSummaryOf = (controlId: string, result?: ENSComplianceResult) => {
-  // `applicable` is set by the requirement evaluator even if the type does not declare it; same filter the list
-  // row used.
   const requirements = (result?.requirements || []).filter(requirement => (requirement as { applicable?: boolean }).applicable);
   return {
     controlId,
@@ -67,7 +62,6 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     const entry = views.get(query.controlId);
     return {
       meta,
-      // The first traceability entries (the most recent); the rest are paged in `/evaluation/traceability`.
       result: entry?.result
         ? { ...entry.result, traceability: entry.traceability().slice(0, ENS_EVALUATION_LIMITS.traceabilityInitial) }
         : undefined,
@@ -87,7 +81,6 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     return { meta };
   }
 
-  // Controls still to compute (first load): in place, without state.
   const pendings = meta.pending?.controls || [];
   const withPending = <T extends { controlId: string }>(readyOnes: T[], pending: (controlId: string) => T): T[] => {
     if (!pendings.length) return readyOnes;
@@ -105,8 +98,6 @@ export const buildEvaluationResponse = (run: RunOutput) => {
         state.results.map(result => controlSummaryOf(result.control.id, result)),
         controlId => ({ ...controlSummaryOf(controlId, undefined), pending: true })
       ),
-      // Each machine with what each control says on its row; pending ones are not there yet (the screen marks
-      // them by `controls[].pending`).
       agents: agentControlRows(run.state, controlSummaryOf),
       ...(timeline ? { timeline } : {}),
     };
@@ -130,7 +121,6 @@ export const buildEvaluationResponse = (run: RunOutput) => {
     };
   }
 
-  // 'results': everything the engine says of each control, without traceability.
   return {
     meta,
     ...stateHeader(run),
@@ -140,7 +130,6 @@ export const buildEvaluationResponse = (run: RunOutput) => {
   };
 };
 
-// The traceability of a control, paged, from what is stored.
 export const buildTraceabilityPage = (run: RunOutput, from: number, size: number) => {
   const entry = run.query.controlId ? run.views.get(run.query.controlId) : undefined;
   const list = entry ? entry.traceability() : [];

@@ -38,7 +38,6 @@ import { statusLabel } from '../../../common/ens/core/status-label';
 import { ENS_STATUS_COLORS } from '../status-colors';
 import { ENS_THEME } from '../theme-colors';
 
-// A row of the evidences table. No `control` column: the section header says it.
 interface EvidenceRow {
   evidenceId: string;
   category: string;
@@ -50,10 +49,8 @@ interface EvidenceRow {
 
   status: string;
 
-  // Of a control without collector: its NO_APLICA is not the level's, it shows as «Sin medición todavía».
   pending: boolean;
 
-  // Whose gap it is when the status is NO_EVALUABLE: COLLECTION is fixed by whoever operates Wazuh, CONFIGURATION by whoever configures Power ENS, CATALOG by the product.
   gapCauses: ENSGapCause[];
 
   lastValidation: string;
@@ -76,13 +73,11 @@ interface ControlEvidenceGroup {
 
   hasResult: boolean;
 
-  // The counts travel SEPARATELY and are never summed: `failing` and `partial` are proven non-compliances, `unmeasured` is not.
   passing: number;
   failing: number;
   partial: number;
   unmeasured: number;
   notApplicable: number;
-  // Evidences of a control without collector, apart from NO_APLICA.
   pendingMeasurement: number;
 }
 
@@ -106,7 +101,6 @@ const statusColorOf = (status: string): string => {
   return 'default';
 };
 
-// NO_EVALUABLE has an icon and NO_APLICA does not: both are grey but one subtracts and the other leaves the denominator.
 const statusIcon = (status: string): string | undefined =>
   status === 'NO_EVALUABLE' ? 'questionInCircle' : undefined;
 
@@ -197,7 +191,6 @@ const CauseLegend = () => (
   </EuiFlexGroup>
 );
 
-// An empty list is shown as a dash, not as a blank cell.
 const BadgeList = ({
   valores: values,
   color = 'hollow',
@@ -240,7 +233,6 @@ const shortDate = (iso: string): string => {
 
 const QUESTION_PREFIX = 'Pregunta de auditoría:';
 
-// Motive lines, with the machine in front when there are several; they use the control detail functions so both screens format a motive the same way.
 const motiveLines = (
   row: EvidenceRow,
   totalMachines: number,
@@ -249,7 +241,6 @@ const motiveLines = (
   let hidden = 0;
 
   if (row.observationGroups.length > 0) {
-    // Consolidating agents: each motive says on which machines it was observed. The audit question is extracted BEFORE the split because the engine appends it to the motive of every machine.
     const question = row.observationGroups.find(group =>
       group.text.startsWith(QUESTION_PREFIX),
     );
@@ -273,7 +264,6 @@ const motiveLines = (
     lines = row.observations.map(text => ({ texto: text }));
   }
 
-  // The audit question is never lost: if the motive lacks it, it is added.
   const hasQuestion = lines.some(line =>
     line.texto.startsWith(QUESTION_PREFIX),
   );
@@ -287,7 +277,6 @@ const motiveLines = (
   };
 };
 
-// `totalMachines` is a parameter because the '(todas)' label depends on the scope size, known only at render time.
 const buildColumns = (totalMachines: number) => [
   {
     field: 'evidenceId',
@@ -414,7 +403,6 @@ export const EvidencesENS = () => {
   const { agentId, evidenceControl } = useRouterSearch();
   const updateUrl = useSetRouterSearch();
 
-  // Prefix filter on the ENS identifier; empty means no filter. It starts filtered only when arriving from an evidence pressed in the control detail (`evidenceControl=`, its own parameter): the `control=` left open by the detail does NOT filter.
   const [prefix, setPrefix] = useState<string>(() => evidenceControl || '');
 
   const [openControlIds, setOpenControlIds] = useState<
@@ -444,7 +432,6 @@ export const EvidencesENS = () => {
     [scopeAgents.length],
   );
 
-  // Results of ALL controls, evaluated by the server with all facts of the window.
   const evaluation = useEnsEvaluation<{ results: ENSComplianceResult[]; meta: ENSEvaluationMeta }>({
     include: 'results',
     agentId,
@@ -456,19 +443,16 @@ export const EvidencesENS = () => {
     [evaluation.data],
   );
 
-  // All controls are ALWAYS evaluated, including those the filter hides: it allows '8 de 24 evidencias' and the hidden count.
   const groups: ControlEvidenceGroup[] = useMemo(() => {
     return ENSControls.map(control => {
       const complianceResult = results.get(control.id);
 
       const evidences = complianceResult?.evidences || [];
-      // A control without collector: its evidences are counted apart, never as «fuera del nivel activo».
       const pending = isPendingMeasurement(getENSCatalogControl(control.id));
 
       const countByStatus = (status: string) =>
         pending ? 0 : evidences.filter(evidence => evidence.status === status).length;
 
-      // Gap cause per evidence: each NO_EVIDENCIADA non-conformity names in `evidenceIds` the evidences that block its requirement, so giving them its `cause` repeats what the card states.
       const causesByEvidence = new Map<string, ENSGapCause[]>();
 
       (complianceResult?.nonConformities || []).forEach(nonConformity => {
@@ -503,7 +487,6 @@ export const EvidencesENS = () => {
           ruleIds: evidence.relatedRules || [],
           status: evidence.status,
           pending,
-          // Only for NO_EVALUABLE: any other status has no gap.
           gapCauses:
             evidence.status === 'NO_EVALUABLE'
               ? causesByEvidence.get(evidence.id) || []
@@ -536,7 +519,6 @@ export const EvidencesENS = () => {
   const shownEvidences = countEvidences(filtered.matched);
   const totalEvidences = countEvidences(groups);
 
-  // What the filter hides, counted by type and NEVER summed.
   const hiddenFailing = filtered.hidden.reduce(
     (total, group) => total + group.failing + group.partial,
     0,
@@ -574,7 +556,6 @@ export const EvidencesENS = () => {
     );
   }
 
-  // While the evaluation of THIS machine arrives no status is drawn.
   if (!evaluation.data) {
     return (
       <EuiPanel paddingSize='l'>

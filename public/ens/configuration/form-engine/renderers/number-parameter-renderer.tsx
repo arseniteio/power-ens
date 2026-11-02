@@ -4,7 +4,6 @@ import { EuiFieldNumber, EuiFormRow } from '@elastic/eui';
 import { ENSFormFieldProps } from '../types';
 import { validateParameterValue } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// A legacy numeric string ('24') is shown in the field instead of blank, so saving does not lose it.
 const toFieldValue = (
   value: ENSFormFieldProps['value']
 ): number | '' => {

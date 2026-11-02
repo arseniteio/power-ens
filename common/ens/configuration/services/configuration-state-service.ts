@@ -28,24 +28,16 @@ let hydrationPromise:
   | Promise<ENSConfigurationVersion>
   | null = null;
 
-// The 1.2.0 -> 1.3.0 conversion done on load: held in memory and written by the next save of any kind.
 let pendingTemplateMigration: ENSTemplateMigrationPlan | undefined;
 
-export const getPendingTemplateMigration = (): ENSTemplateMigrationPlan | undefined =>
-  pendingTemplateMigration;
-
-// The organisation data migration done on load, kept until the next save; unset when there is nothing to tell.
 let pendingOrganizationMigration: ENSOrganizationMigrationReport | undefined;
 
-// Index version of the loaded document (null: there was none): a save over a newer one is refused with a 409.
 let loadedVersion: ENSConfigurationExpectedVersion | null | undefined;
 
-// What the last save could not do after saving (the history entry), to tell the user.
 let lastSaveWarning: string | undefined;
 
 export const getLastSaveWarning = (): string | undefined => lastSaveWarning;
 
-// Every save waits for the previous one and builds on the document it left: two saves never carry the same version.
 let saveQueue: Promise<unknown> = Promise.resolve();
 
 const inSaveQueue = <T>(run: () => Promise<T>): Promise<T> => {
@@ -81,7 +73,6 @@ const commitPersisted = (
   return ensConfigurationRepository.commitPersisted(configuration);
 };
 
-// The save that first writes a conversion also says so in the history and the audit trail.
 const withPendingConversion = (reason: string): string => {
   const conversions = [
     pendingTemplateMigration ? summarizeTemplateMigration(pendingTemplateMigration) : '',
@@ -122,7 +113,6 @@ export const hydrateENSConfiguration = (
       const serverState =
         await getENSConfiguration();
 
-      // null only when there is no document at all: one without `configuration` is saved over its version.
       loadedVersion = serverState.metadata ? versionFrom(serverState.metadata) : null;
       lastSaveWarning = undefined;
 
@@ -171,7 +161,6 @@ export const getActiveENSConfiguration =
   (): ENSConfigurationVersion =>
     ensConfigurationRepository.getActive();
 
-// The single entry point of the configuration into the engine; see `agents/configuration-resolver.ts`.
 export const getActiveControlConfiguration = (
   controlId: string,
   agentId?: string
@@ -281,7 +270,6 @@ const updateGlobalConfiguration = async (
       },
     };
 
-  // Dimension levels are optional: the merge above would resurrect them from the active configuration if the form removed them.
   ENS_DIMENSIONS.forEach(dimension => {
     const key = ENS_DIMENSION_LEVEL_KEYS[dimension];
 
@@ -297,7 +285,6 @@ const updateGlobalConfiguration = async (
     throw new Error(incoherentLevels);
   }
 
-  // A level change that would leave a choice the new level does not admit (mp.s.2 P-07 = R1 in ALTO).
   const levelIssues = describeNewLevelOptionIssues(candidateConfiguration, activeENSConfiguration);
 
   if (levelIssues.length) {
@@ -326,8 +313,6 @@ const updateGlobalConfiguration = async (
   );
 };
 
-// Saves a whole prepared document (used by the per-system configuration actions). The server keeps the previous
-// version in the history and an entry with `changeReason` in `auditTrail`.
 const saveActiveENSConfiguration = async (
   candidateConfiguration: ENSConfigurationVersion,
   changeReason: string

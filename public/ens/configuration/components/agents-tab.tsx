@@ -66,7 +66,6 @@ interface BulkAssignment {
   previews: ENSAssignmentPreview[];
 }
 
-// Profiles of machines out of the scope are listed too, so nothing stored is hidden.
 export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNavigate, onConfigurationSaved }: AgentsTabProps) => {
   const data = useAgentsData();
   const configuration = useMemo(() => withInventoryTypes(stored, data.inventory), [stored, data.inventory]);
@@ -82,7 +81,6 @@ export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNav
   const agentLabels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
   const errors = useMemo(() => validateAgentsConfiguration(configuration).filter(issue => issue.severity === 'error'), [configuration]);
 
-  // Once per document, not on every click.
   const completeness = useMemo(() => {
     const byId = new Map<string, ReturnType<typeof getAgentCompleteness>>();
     rows.forEach(row => {
@@ -339,7 +337,6 @@ export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNav
               row={openRow}
               known={rows.some(row => row.id === openRow.id) || data.inventory.some(agent => normalizeAgentId(agent.id) === openRow.id)}
               loading={data.loading}
-              detectionErrors={data.errors}
               target={target}
               getActiveLevel={getActiveLevel}
               onNavigate={onNavigate}

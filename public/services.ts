@@ -1,4 +1,3 @@
-// Dashboard core services, kept at plugin start. This is what Wazuh's `kibana-services` gave the integrated version.
 import type { CoreStart } from '../../../src/core/public';
 import type { PowerEnsStartDeps } from './types';
 import { setENSConfigurationHttp } from '../common/ens/configuration/services/configuration-http-client';

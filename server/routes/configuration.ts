@@ -14,11 +14,9 @@ export const registerConfigurationRoutes = (
     {
       path: POWER_ENS_CONFIGURATION_PATH,
       validate: {
-        // Every key the browser sends (ENSConfigurationSaveRequest): the schema rejects any other.
         body: schema.object({
           configuration: schema.any(),
           changeReason: schema.maybe(schema.string()),
-          // null: loaded when there was no configuration; absent: a client or script that does not send it.
           expectedVersion: schema.maybe(
             schema.nullable(schema.object({ seqNo: schema.number(), primaryTerm: schema.number() }))
           ),

@@ -1,29 +1,17 @@
-// Cuts of the daily series: which days have a point, which instant each is evaluated against and with which events.
-// Kept apart from `compliance-timeline.ts` and without importing the engine on purpose (the engine drags `kibana-services`, which exists only in the Wazuh plugin tree), so all the logic that can go wrong is testable here.
-// Three decisions define a point:
-// 1. Events are ACCUMULATED up to the cut, not the day's own: compliance is a state, not a flow; expiry is the collector window's business.
-// 2. Each point is evaluated against ITS cut, not today; otherwise every coverage window would be measured against the present and the history would show expired.
-// 3. A day BEFORE the first event gives no point: with zero events the engine returns NO_EVALUABLE, a legitimate verdict but a lie as history.
 import type { ENSNormalizedEvent } from '../data-source/types';
 
 export interface ENSTimelineCut {
-  // Start of the day the point represents.
   day: Date;
   label: string;
-  // The instant evaluated against: end of the day, or NOW for the last.
   cutoff: Date;
   isCurrent: boolean;
-  // Everything known up to the cut.
   events: ENSNormalizedEvent[];
 }
 
 interface ENSTimelineCutsOptions {
-  // Maximum number of days. Each cut is a full engine pass.
   days?: number;
   now?: Date;
-  // Time zone of the days (IANA, "Europe/Madrid"). Without it, the process zone. The server receives it from the browser so the chart days match.
   timeZone?: string;
-  // The series budget (see `fittingStep`). The server removes it (`Infinity`): it computes past days once and stores them.
   maxEvaluatedEvents?: number;
 }
 
@@ -50,7 +38,6 @@ const addDays = (date: Date, days: number): Date => {
   return moved;
 };
 
-// `dd/mm` by hand, not `toLocaleDateString`: locale formatting depends on the runtime ICU and the same day would come out `03/08` or `3/8`, misaligning the axis.
 const labelOf = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -58,7 +45,6 @@ const labelOf = (date: Date): string => {
   return `${day}/${month}`;
 };
 
-// Calendar days of a concrete time zone. The server cannot use the process zone: the viewer's zone says what "today" is.
 interface ENSTimelineCalendar {
   startOfDay(date: Date): Date;
   endOfDay(date: Date): Date;
@@ -73,7 +59,6 @@ const localCalendar: ENSTimelineCalendar = {
   label: labelOf,
 };
 
-// One formatter per zone: a summary request called this tens of thousands of times, each building a new one.
 const zonedFormatters = new Map<string, Intl.DateTimeFormat>();
 
 const zonedFormatter = (timeZone: string): Intl.DateTimeFormat => {
@@ -108,7 +93,6 @@ const zonedParts = (date: Date, timeZone: string) => {
   };
 };
 
-// Zone offset at that instant (ms to add to UTC).
 const zoneOffset = (date: Date, timeZone: string): number => {
   const p = zonedParts(date, timeZone);
   const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
@@ -116,11 +100,9 @@ const zoneOffset = (date: Date, timeZone: string): number => {
   return asUtc - (date.getTime() - date.getMilliseconds());
 };
 
-// Local midnight of a calendar day (year, month, day) in the zone.
 const zonedMidnight = (year: number, month: number, day: number, timeZone: string): Date => {
   const utc = Date.UTC(year, month - 1, day);
   let timestamp = utc - zoneOffset(new Date(utc), timeZone);
-  // A second pass in case the clock changes in between (daylight saving).
   timestamp = utc - zoneOffset(new Date(timestamp), timeZone);
 
   return new Date(timestamp);
@@ -159,15 +141,11 @@ const zonedCalendar = (timeZone: string): ENSTimelineCalendar => {
 const calendarOf = (timeZone?: string): ENSTimelineCalendar =>
   timeZone ? zonedCalendar(timeZone) : localCalendar;
 
-// Start of the day of `date` in the zone (or the process zone, without one).
 export const startOfDayIn = (date: Date, timeZone?: string): Date =>
   calendarOf(timeZone).startOfDay(date);
 
-// Series budget: each point is a complete engine pass, so the cost is cut by using fewer points (a larger step), never by trimming events.
-// Measured in evaluated events summed over the series.
 const MAX_EVALUATED_EVENTS = 400000;
 
-// Step in days that keeps the series within budget. Never below 1 (daily), and today's point always enters.
 const fittingStep = (
   days: number,
   events: number,
@@ -177,7 +155,6 @@ const fittingStep = (
     return 1;
   }
 
-  // Prefixes grow roughly linearly, so the cost of an N-point series is about N * events / 2.
   const dailyCost = (days * events) / 2;
 
   if (dailyCost <= budget) {
@@ -190,10 +167,8 @@ const fittingStep = (
   );
 };
 
-// A series point without its events: which day, against which instant.
 export type ENSTimelineCutPlan = Omit<ENSTimelineCut, 'events'>;
 
-// The series points from the only things they decide: the first past event and how many there are. It is the event-less half of `buildENSTimelineCuts`, also used by the server to evaluate control by control.
 export const planENSTimelineCuts = (
   firstPastTime: number | undefined,
   pastCount: number,
@@ -226,14 +201,12 @@ export const planENSTimelineCuts = (
     day.getTime() <= today.getTime();
     day = calendar.addDays(day, step)
   ) {
-    // Today's point is added OUTSIDE the loop, always: with step > 1 the loop need not land on today, and this is the one point that MUST equal the panel.
     if (day.getTime() >= today.getTime()) {
       break;
     }
 
     const cutoff = calendar.endOfDay(day);
 
-    // With nothing known yet there is no point: this prevents the false 0 % of the days before the first event.
     if (firstPastTime > cutoff.getTime()) {
       continue;
     }
@@ -246,7 +219,6 @@ export const planENSTimelineCuts = (
     });
   }
 
-  // The present: same instant and SAME events as the panel (all, including future-dated ones from a skewed clock), because both numbers must be the same number.
   cuts.push({
     day: today,
     label: calendar.label(today),

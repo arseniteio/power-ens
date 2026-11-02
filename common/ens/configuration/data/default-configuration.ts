@@ -19,9 +19,7 @@ export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
     groupIds: ['ens'],
   },
   controls: ENSConfigurationRegistry,
-  // New documents are born 1.3.0: no 1.2.0 templates to convert.
   templates: [],
-  // And with the organisation data block: nothing to migrate.
   organizationData: { values: {} },
   auditTrail: [
     {

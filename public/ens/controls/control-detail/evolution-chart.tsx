@@ -1,4 +1,3 @@
-// Daily compliance line of ONE control; its last point equals the large percentage shown above it.
 import React from 'react';
 import type { ENSControlTimelinePoint } from '../../../../common/ens/core/timeline/control-timeline-points';
 
@@ -46,7 +45,6 @@ const ReadingLabel = ({
 }) => {
   return (
     <>
-      {/* The colour of a point is that day's status, not today's. */}
       <div
         style={{
           display: 'flex',
@@ -131,7 +129,6 @@ export const ControlEvolutionChart = ({
     );
   }
 
-  // The original index is kept so the axis does not compress over NO_APLICA days.
   const withNumber = points
     .map((point, index) => ({ point, indice: index }))
     .filter(item => typeof item.point.score === 'number');
@@ -164,7 +161,6 @@ export const ControlEvolutionChart = ({
 
   const shortSeries = dataPoints.length < 4;
 
-  // Smooth Bézier curve with control points at half the horizontal distance: it never leaves the range of the values it joins.
   const stroke = dataPoints.length
     ? dataPoints
         .map((point, index) => {
@@ -185,7 +181,6 @@ export const ControlEvolutionChart = ({
       ? `${stroke} L ${dataPoints[dataPoints.length - 1].x},${HEIGHT} L ${dataPoints[0].x},${HEIGHT} Z`
       : '';
 
-  // Few days: bars; a line needs three or four points to say anything.
   if (dataPoints.length <= 3) {
     return (
       <div>
@@ -292,7 +287,6 @@ export const ControlEvolutionChart = ({
           }}
         >
 
-        {/* The SVG only draws curve and grid (preserveAspectRatio='none' stretches everything inside); points and text are HTML. */}
         <svg
           width='100%'
           height='190'
@@ -338,7 +332,6 @@ export const ControlEvolutionChart = ({
           const left = (point.x / WIDTH) * 100;
           const top = (point.y / HEIGHT) * 100;
 
-          // End labels anchor inward so they do not leave the panel.
           const anchor =
             left < 6
               ? 'translate(0, -50%)'

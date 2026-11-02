@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""Tests of inject-control.py against a fake OpenSearch.
-
-Main point: seeding an already configured control twice must NOT erase the values the auditor set
-from the UI. The destructive behaviour exists, but must be requested.
-
-    python3 test_inject_control.py
-
-No dependencies: the stdlib http.server acts as the index.
-"""
 import json
 import os
 import subprocess
@@ -19,7 +10,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "inject-control.py")
 
-# The 'active' document served by the fake index. Each test resets it.
 state = {"doc": None, "version": 0}
 
 BLOCK = {
@@ -31,7 +21,6 @@ BLOCK = {
     ],
 }
 
-# What "the auditor had already configured": P-01 and P-04 with value, and a P-99 the new block no longer has.
 CONFIGURED = {
     "controlId": "op.acc.1",
     "parameters": [
@@ -60,7 +49,6 @@ class Index(BaseHTTPRequestHandler):
     def do_PUT(self):
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length).decode())
-        # The previous version the tools save before writing.
         if "/_doc/history-" in self.path:
             if state.get("history_fails"):
                 self._respond({"error": "no"}, 403)
@@ -77,7 +65,7 @@ class Index(BaseHTTPRequestHandler):
         self._respond({"result": "updated", "_version": state["version"]})
 
     def log_message(self, *_):
-        pass  # no noise in the test output
+        pass
 
 
 def start_index():
@@ -120,14 +108,12 @@ def main():
         with open(block_path, "w", encoding="utf-8") as f:
             json.dump(BLOCK, f)
 
-        # --- new: the control was not there
         state["doc"] = {"configuration": {"controls": []}, "updatedAt": ""}
         r = seed(url, block_path, "--apply")
         check("new · seeds a new control", r.returncode == 0, r.stderr)
         check("new · without values, as it should",
                   values() == {"P-01": None, "P-04": None, "P-09": None}, str(values()))
 
-        # --- seeding over an already configured control
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
         r = seed(url, block_path, "--apply")
@@ -139,15 +125,12 @@ def main():
         check("merge · warns about the withdrawn parameter with value",
                   "P-99 (with value)" in r.stdout, r.stdout)
 
-        # --- idempotence: a second pass still keeps the values. Checked against the REAL expected values,
-        # not against "what was there": comparing the result with itself also passes when both passes erase.
         seed(url, block_path, "--apply")
         check("idempotence · two passes keep the auditor values",
                   values() == {"P-01": "active_directory",
                                 "P-04": ["admin", "operador"],
                                 "P-09": None}, str(values()))
 
-        # --- a pattern keeps its mode
         with_pattern = json.loads(json.dumps(CONFIGURED))
         with_pattern["parameters"][1].update(value="^svc_.*$", matchMode="regex")
         state["doc"] = {"configuration": {"controls": [with_pattern]}, "updatedAt": ""}
@@ -159,24 +142,21 @@ def main():
         p01 = next(p for p in state["doc"]["configuration"]["controls"][0]["parameters"] if p["id"] == "P-01")
         check("merge · a value without mode stays without mode", "matchMode" not in p01, str(p01))
 
-        # --- dry-run: writes nothing
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
         version_before = state["version"]
         r = seed(url, block_path)
         check("dry-run · writes nothing", state["version"] == version_before, r.stdout)
 
-        # --- destructive, but only if requested
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]},
                          "updatedAt": ""}
-        r = seed(url, block_path, "--apply", "--sustituir")
+        r = seed(url, block_path, "--apply", "--replace")
         v = values()
-        check("--sustituir · discards the values set",
+        check("--replace · discards the values set",
                   v == {"P-01": None, "P-04": None, "P-09": None}, str(v))
-        check("--sustituir · says which are lost",
+        check("--replace · says which are lost",
                   "P-01" in r.stdout and "P-04" in r.stdout, r.stdout)
 
-        # --- the per-system layer (1.2.0) survives seeding
         agents_doc = {"028": {"templates": ["windows-server"],
                            "controls": {"op.acc.1": {"parameters": {"P-07": ["u | s | r"], "P-99": "x"}}}}}
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))],
@@ -188,13 +168,12 @@ def main():
                   str(state["doc"]["configuration"].get("agents")))
         check("agents · warns about the per-agent value of a withdrawn parameter",
                   "P-99 on agent 028" in r.stdout, r.stdout)
-        r = seed(url, block_path, "--apply", "--sustituir")
-        check("agents · not even with --sustituir",
+        r = seed(url, block_path, "--apply", "--replace")
+        check("agents · not even with --replace",
                   state["doc"]["configuration"].get("agents") == agents_doc, r.stdout)
-        check("agents · with --sustituir it also warns about orphans",
+        check("agents · with --replace it also warns about orphans",
                   "P-99 on agent 028" in r.stdout, r.stdout)
 
-        # --- 1.3.0: custom templates and per-control assignments survive seeding
         templates = [{"id": "custom-web", "controlId": "op.acc.1", "name": "Web", "values": {"P-01": "LDAP", "P-99": "x"}}]
         agents = {"028": {"controls": {"op.acc.1": {"templateId": "custom-web", "parameters": {"P-04": ["x"]}}}}}
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))],
@@ -208,7 +187,6 @@ def main():
         check("templates · warns about a template value of a withdrawn parameter",
                   "P-99 in template custom-web" in r.stdout and "Custom templates" in r.stdout, r.stdout)
 
-        # --- the previous version goes to the history BEFORE writing
         state["history"] = []
         previous = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))], "changeReason": "previo"},
                   "updatedAt": ""}
@@ -222,20 +200,18 @@ def main():
                   str(h)[:300])
         check("history · says where", "Previous version saved in: history" in r.stdout, r.stdout)
 
-        # --- no permission for the history: local copy with date
         state["history_fails"] = True
         state["doc"] = json.loads(json.dumps(previous))
         env = dict(os.environ, ENS_OS_URL=url, OS_USER="admin", OS_PASS="x")
         r = subprocess.run([sys.executable, SCRIPT, "op.acc.1", "--block", block_path, "--apply"],
                            capture_output=True, text=True, env=env, cwd=tmp)
-        copies = [f for f in os.listdir(tmp) if f.startswith("active-antes-")]
+        copies = [f for f in os.listdir(tmp) if f.startswith("active-before-")]
         content = json.load(open(os.path.join(tmp, copies[0]))) if copies else {}
         check("history · without permission, restorable local copy (with _source)",
                   len(copies) == 1 and content.get("_source", {}).get("configuration") == previous["configuration"]
                   and "local file" in r.stdout, r.stdout + r.stderr)
         state["history_fails"] = False
 
-        # --- 1.4.0: organisation data is kept and an empty parameter that reads an item takes its value
         org_block = json.loads(json.dumps(BLOCK))
         org_block["parameters"].append({"id": "P-11", "name": "grupos_privilegiados", "type": "list", "required": False, "value": None})
         org_path = os.path.join(tmp, "org-block.json")
@@ -252,8 +228,8 @@ def main():
         state["doc"] = {"configuration": {"controls": [configured], "organizationData": json.loads(json.dumps(organization))}, "updatedAt": ""}
         seed(url, org_path, "--apply")
         check("organisation data · a different value is left for the plugin to show as a conflict", values().get("P-11") == ["root"], str(values()))
-        seed(url, org_path, "--apply", "--sustituir")
-        check("organisation data · with --sustituir the parameter takes the item value again", values().get("P-11") == ["sudo", "wheel"], str(values()))
+        seed(url, org_path, "--apply", "--replace")
+        check("organisation data · with --replace the parameter takes the item value again", values().get("P-11") == ["sudo", "wheel"], str(values()))
         state["doc"] = {"configuration": {"controls": [], "organizationData": {"values": {"retencion": None}}}, "updatedAt": ""}
         r = seed(url, org_path)
         check("organisation data · an invalid block is warned about", "configuration.organizationData is not valid" in r.stdout, r.stdout)
@@ -271,7 +247,6 @@ def main():
         seed(url, org_path, "--apply")
         check("organisation data · and stays empty when they differ (the plugin shows the conflict)", values().get("P-11") is None, str(values()))
 
-        # op.acc.4 P-04 alone: op.acc.6 P-07 would get a channel without encryption or authoriser, so it stays empty.
         six_block = {"controlId": "op.acc.6", "parameters": [{"id": "P-07", "name": "canales_acceso_remoto", "type": "table", "required": True, "value": None, "columns": [
             {"name": "canal", "label": "Canal", "type": "identifier", "required": True},
             {"name": "cifrado", "label": "Cifrado", "type": "select", "required": True, "options": ["si", "no"]},
@@ -293,7 +268,6 @@ def main():
         check("organisation data · not even from a stored value, and the plan says why",
               six["parameters"][0].get("value") is None and "op.acc.6 P-07: " in r.stdout and "stays without value" in r.stdout, r.stdout)
 
-        # Concurrency: only over the version read; a save meanwhile stops it.
         state["doc"] = {"configuration": {"controls": [json.loads(json.dumps(CONFIGURED))]}, "updatedAt": ""}
         version = state["version"]
         seed(url, block_path, "--apply")
@@ -304,7 +278,6 @@ def main():
         check("concurrency · a save that landed meanwhile stops it, saying to run again",
               r.returncode == 1 and "La configuración ha cambiado mientras se aplicaba; volver a ejecutar." in r.stderr, r.stdout + r.stderr)
 
-        # --- does not touch the other controls
         other = {"controlId": "op.acc.2", "parameters": [{"id": "P-01", "value": "intact"}]}
         state["doc"] = {"configuration": {"controls": [other]}, "updatedAt": ""}
         seed(url, block_path, "--apply")

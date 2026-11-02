@@ -1,4 +1,3 @@
-// The value a machine was evaluated with and its origin, from the configuration resolver. Without a machine, the aggregate view.
 import {
   resolveControlConfigurationWithOrigins,
 } from '../../../common/ens/configuration/agents/configuration-resolver';
@@ -54,7 +53,6 @@ export const describeParameterForMachine = (
   if (!resolved || !parameter) return undefined;
   const { text, empty } = summarizeParameterValue(parameter.value);
   const origin = resolved.origins[parameterId];
-  // Without a machine the aggregate view consolidates rows each evaluated with its own value.
   const withOwnValue =
     agentId === undefined && origin?.source !== 'union'
       ? Object.keys(configuration.agents || {}).filter(id => {

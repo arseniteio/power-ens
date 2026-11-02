@@ -1,10 +1,5 @@
 import { ENSControlDefinition } from '../types';
 
-// Controls that entered the catalog before their collector. Owner decision of 19/10/2026: «Todos en catálogo ya,
-// medición por oleadas». They are `DRAFT`: visible, configurable and declarable in the Statement of Applicability,
-// but outside the index until their runbook emits and its rules are deployed. A control without an instrument is
-// not accused of failing: the screen shows «Sin medición todavía» and, per evidence, the data source it needs.
-// Sources come from the auditor v2.0 analysis (§5): the evidence sheet of each template and the platform columns.
 
 type ENSMeasurementWave = 'A' | 'B' | 'C';
 
@@ -19,11 +14,8 @@ export const ENS_PENDING_MEASUREMENT_LABEL = 'Sin medición todavía';
 interface ENSPlannedMeasurement {
   controlId: string;
   wave: ENSMeasurementWave;
-  // What the control needs as a whole, in one line.
   needs: string;
-  // Rules band reserved for its runbook (README, «Desarrollo», rule ID table). No rule is deployed yet.
   rulesBand: { from: number; to: number };
-  // Evidence id -> the data source it needs, shown after «Fuente necesaria:».
   sources: Record<string, string>;
 }
 
@@ -229,15 +221,12 @@ const ENS_PLANNED_MEASUREMENTS: ENSPlannedMeasurement[] = [
 const getPlannedMeasurement = (controlId: string): ENSPlannedMeasurement | undefined =>
   ENS_PLANNED_MEASUREMENTS.find(plan => plan.controlId === controlId);
 
-// The source one evidence of a control without collector needs; undefined for measured controls.
 export const describeRequiredSource = (controlId: string, evidenceId: string): string | undefined =>
   getPlannedMeasurement(controlId)?.sources[evidenceId];
 
-// A control is pending measurement while it is not ACTIVE: the engine leaves it out of the index.
 export const isPendingMeasurement = (control?: Pick<ENSControlDefinition, 'status'>): boolean =>
   Boolean(control && control.status !== 'ACTIVE');
 
-// One sentence for the screen and the report: why the control has no verdict and what it waits for.
 export const describePendingMeasurement = (control: Pick<ENSControlDefinition, 'id' | 'status'>): string => {
   const plan = getPlannedMeasurement(control.id);
   const base = `${control.id} está en el catálogo pero ningún recolector emite todavía sus evidencias: no entra en el índice y no se juzga como incumplimiento.`;

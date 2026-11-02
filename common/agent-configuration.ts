@@ -1,4 +1,3 @@
-// Top-level keys, not inside parameters: inject-control.py keeps only `value` and the validator only scalars and lists.
 
 export type ENSSystemType = 'linux' | 'windows' | 'manager';
 
@@ -10,19 +9,15 @@ export const ENS_SYSTEM_TYPE_LABELS: Record<ENSSystemType, string> = {
   manager: 'Manager Wazuh',
 };
 
-// Same contract as `value`: a scalar or a list of text. Never `null`: removing an agent's own value means DELETING the key.
 export type ENSAgentParameterValue = string | number | boolean | string[];
 
-// How a list value is compared: absent means exact, the 1.1.0 and 1.2.0 behaviour.
 export type ENSMatchMode = 'exact' | 'regex';
 
 export const ENS_MATCH_MODES: ENSMatchMode[] = ['exact', 'regex'];
 
 export interface ENSAgentControlOverrides {
-  // Absent: the built-in template of the agent's type; ENS_NO_TEMPLATE: no template, common values.
   templateId?: string;
   parameters?: Record<string, ENSAgentParameterValue>;
-  // Mode of an override in `parameters`; it never applies to a value from another level.
   matchModes?: Record<string, ENSMatchMode>;
 }
 
@@ -44,14 +39,12 @@ export interface ENSAgentProfile {
   detectedType?: ENSSystemType;
   detectedBy?: string;
   typeOverride?: ENSSystemType;
-  // 1.2.0 cross-control templates, kept only until the 1.3.0 conversion runs.
   templates?: string[];
   controls?: Record<string, ENSAgentControlOverrides>;
 }
 
 export type ENSAgentsConfiguration = Record<string, ENSAgentProfile>;
 
-// Normalized Wazuh id: numeric with at least three digits (`24` and `024` are the same agent), as in the `wazuh-monitoring` inventory.
 export const normalizeAgentId = (value: unknown): string => {
   const text = String(value ?? '').trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
@@ -75,7 +68,6 @@ export const ENS_CUSTOM_TEMPLATE_KEYS = ['id', 'controlId', 'name', 'description
 
 const isMatchMode = (value: unknown): value is ENSMatchMode => ENS_MATCH_MODES.includes(value as ENSMatchMode);
 
-// Fatal like an invalid `value`: a pattern read with the wrong mode would be judged as a literal name.
 const validateMatchModesShape = (value: unknown, path: string): string[] => {
   if (value === undefined) return [];
   if (!isRecord(value)) return [`${path} must be an object keyed by parameter id.`];
@@ -84,7 +76,6 @@ const validateMatchModesShape = (value: unknown, path: string): string[] => {
     .map(([parameterId]) => `${path}.${parameterId} must be "exact" or "regex".`);
 };
 
-// Is `key` a normalized agent id (`000`, `024`, `1003`)? Profiles are stored by id: a name (`srv-web01`) never matches a machine's row and its value would not apply.
 export const isNormalisedAgentId = (key: string): boolean =>
   /^\d+$/.test(key) && normalizeAgentId(key) === key;
 
@@ -93,10 +84,6 @@ export const describeNonIdAgentKey = (key: string): string =>
     ? `«${key}» no es un id de agente normalizado; usar ${normalizeAgentId(key)}`
     : `«${key}» no es un id de agente; usar el id numérico del agente de Wazuh (p. ej. 001)`;
 
-// Checks the SHAPE of `configuration.agents` the engine needs: an absent key is valid; when present, a map of profiles whose known fields have their type and whose values are a scalar or a list of text (never `null` or an object).
-// These are the only FATAL errors, used by the structural validator (hydration) and the server save.
-// Not fatal on purpose, given by `checkAgentsConfigurationKeys`: a profile key that is not a normalized id (a meaning error); a key this version does not know inside a profile or control (a warning, so a later version can add fields);
-// a system type this version does not know (a warning).
 export const validateAgentsConfigurationShape = (
   value: unknown,
   path: string = 'configuration.agents'
@@ -182,7 +169,6 @@ export const validateAgentsConfigurationShape = (
   return errors;
 };
 
-// The common value's mode, checked on save: the hydration refuses an unknown one and the environment would not load.
 export const validateCommonMatchModesShape = (controls: unknown, path: string = 'configuration.controls'): string[] =>
   Array.isArray(controls)
     ? controls.flatMap((control, controlIndex) =>
@@ -195,7 +181,6 @@ export const validateCommonMatchModesShape = (controls: unknown, path: string = 
       )
     : [];
 
-// Only what would stop the environment from loading; meaning is the agent validator's job.
 export const validateCustomTemplatesShape = (
   value: unknown,
   path: string = 'configuration.templates'
@@ -264,9 +249,7 @@ export const checkCustomTemplatesKeys = (
     : [];
 
 interface ENSAgentsKeyCheck {
-  // Profiles stored with a key that is not an id: their value does not apply.
   errors: string[];
-  // What this version does not know and ignores.
   warnings: string[];
 }
 
@@ -317,7 +300,6 @@ export const checkAgentsConfigurationKeys = (
   return result;
 };
 
-// The type, if from this version. An unknown type (from a later version) is treated as absent.
 export const knownSystemType = (value: unknown): ENSSystemType | undefined =>
   typeof value === 'string' && ENS_SYSTEM_TYPES.includes(value as ENSSystemType)
     ? (value as ENSSystemType)

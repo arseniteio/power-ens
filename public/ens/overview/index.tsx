@@ -1,5 +1,3 @@
-// Overview: one request to the evaluation route (`include=overview`). Built for hundreds of machines: fleet figures,
-// one bar per control and a paged machine list; a machine's detail opens in a flyout.
 import React, { useMemo, useState } from 'react';
 import {
   EuiAccordion,

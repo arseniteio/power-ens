@@ -1,7 +1,3 @@
-// The server evaluation: every result comes from the OSCompliance engine verdicts (`oscompliance-verdicts`).
-// A row is one control on one machine: its latest pass and its daily series, read as the viewing user and
-// cached by the instant of its newest verdict. The list, the overview and the panel answer with the rows ready
-// after `firstResponseMs` and the rest keep computing (`meta.pending`).
 import { createHash } from 'crypto';
 import { deflateRawSync, inflateRawSync } from 'zlib';
 import type { Logger } from '../../../../../src/core/server';
@@ -51,11 +47,8 @@ interface ENSEvaluationQuery {
   agentId?: string;
   controlId?: string;
   include: ENSEvaluationInclude;
-  // Series days (0 or none: no series). The panel asks 7, the detail 30.
   timelineDays?: number;
-  // Viewer's IANA time zone: decides what "a day" is in the series.
   timeZone: string;
-  // Per-control figures of each series point (`overview-fields.ts`).
   timelineControls?: boolean;
 }
 
@@ -72,7 +65,6 @@ export class ENSBadRequestError extends Error {
   }
 }
 
-// Machine id as the inventory writes it (`24` -> `024`).
 const normalizeAgentId = (value: string): string => {
   const text = value.trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
@@ -144,11 +136,9 @@ interface ENSEvaluationContext {
 interface CutPoint {
   status: string;
   score?: number;
-  // Machines with a verdict that day: tells a machine that got worse from one that stopped reporting.
   machines?: number;
 }
 
-// Daily points of a row for a time zone and a today (`key`), by day-end instant.
 interface StoredCuts {
   key: string;
   points: Record<string, CutPoint>;
@@ -156,7 +146,6 @@ interface StoredCuts {
 
 interface StoredRow {
   result: ENSComplianceResult;
-  // Compressed: almost all of a row's size, read only by the detail and its pages.
   traceability: Buffer | null;
   traceabilityTotal: number;
   cuts: StoredCuts;
@@ -176,7 +165,6 @@ const storedRowBytes = (row: StoredRow): number =>
 
 const withoutTraceability = (result: ENSComplianceResult): ENSComplianceResult => ({ ...result, traceability: [] });
 
-// The configuration document is re-read only when its stamp (`_seq_no`, `_primary_term`) changes.
 const readConfigurationStamp = async (client: any): Promise<string | undefined> => {
   const body = await searchComplete(
     client,
@@ -195,23 +183,17 @@ interface ENSEvaluationServiceOptions {
   logger: Logger;
   securityEnabled: boolean;
   clock?: () => Date;
-  // Rows read from the indexer at once.
   maxConcurrentReads?: number;
   maxStoredBytes?: number;
-  // What the list or panel waits before answering with what exists.
   firstResponseMs?: number;
 }
 
 interface ENSRunOptions {
-  // Answer with the stored data even if no longer valid, and recompute behind.
   allowStale?: boolean;
-  // Whoever waits for the answer (cancelled if it leaves).
   signal?: Cancellable;
-  // "Reintentar": refresh at once what could not be refreshed, no waiting.
   retryRefresh?: boolean;
 }
 
-// A control's view for the request: its result, traceability and rows.
 interface ENSViewPartition {
   controlId: string;
   result?: ENSComplianceResult;
@@ -224,9 +206,7 @@ interface ENSViewPartition {
 
 const FIRST_RESPONSE_MS = 1500;
 const PROGRESSIVE: ENSEvaluationInclude[] = ['summary', 'overview', 'dashboard'];
-// A failed cold computation is reported in following requests for this time, without relaunching it on every poll.
 const COLD_FAILURE_MS = 30 * 1000;
-// Retry delay of a failed refresh: 30 s, 1 min, 2, 4... up to 5 min.
 const waitAfterFailureMs = (failures: number): number => Math.min(5 * 60 * 1000, 30 * 1000 * 2 ** Math.max(0, failures - 1));
 
 interface RowNeed {
@@ -254,7 +234,6 @@ export const createEvaluationService = ({
 }: ENSEvaluationServiceOptions) => {
   const clockValue = () => clock().getTime();
   const rows = new EvaluationCache<StoredRow>(20000, EVALUATION_TTL_MS, clockValue, maxStoredBytes, storedRowBytes);
-  // The engine writes a pass every few minutes: its newest verdicts are read again at most once a minute.
   const verdictProbes = new EvaluationCache<ENSVerdictsProbe>(100, 60 * 1000, clockValue);
   const inventories = new EvaluationCache<{ agents: ENSAgentScope[]; stale: boolean; newestTimestamp?: string }>(100, 60 * 1000, clockValue);
   const configurations = new EvaluationCache<{ configuration: ENSConfigurationVersion; updatedAt?: string; key: string }>(4, 24 * 3600 * 1000, clockValue);
@@ -263,7 +242,6 @@ export const createEvaluationService = ({
   const refreshFailures = new Map<string, { failures: number; nextAt: number }>();
   const coldFailures = new Map<string, { error: unknown; at: number }>();
 
-  // --- context ---
 
   const loadConfiguration = async (clients: ENSEvaluationClients, stamp: string) => {
     const cached = configurations.get('active', stamp);
@@ -303,7 +281,6 @@ export const createEvaluationService = ({
   const loadContext = async (clients: ENSEvaluationClients, query: ENSEvaluationQuery): Promise<ENSEvaluationContext> => {
     const now = clock();
     const user = await resolveCurrentUser(clients.asCurrentUser, securityEnabled);
-    // What each user sees depends on their indexer permissions: memory is per user and roles, never shared.
     const userKey = `${user.username}|${[...user.roles].sort().join(',')}`;
     const stamp = await readConfigurationStamp(clients.asInternalUser);
     const stored = await loadConfiguration(clients, stamp || 'default');
@@ -336,7 +313,6 @@ export const createEvaluationService = ({
 
   const controlsOf = (query: ENSEvaluationQuery): string[] => (query.controlId ? [query.controlId] : catalogControlIds());
 
-  // The machines of the scope the engine has judged for a control.
   const rowAgentsOf = (ctx: ENSEvaluationContext, controlId: string): ENSAgentScope[] =>
     ctx.scope.filter(agent => ctx.verdicts[controlId]?.[agent.id]);
 
@@ -345,7 +321,6 @@ export const createEvaluationService = ({
   const rowFingerprint = (ctx: ENSEvaluationContext, controlId: string, agentId: string): string =>
     sha(ctx.configurationKey, ctx.scopeKey, seriesKeyOf(ctx), controlId, agentId, ctx.verdicts[controlId]?.[agentId]?.newest || null);
 
-  // The fingerprint the browser probe compares.
   const viewFingerprint = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): string =>
     sha(
       ctx.configurationKey,
@@ -354,7 +329,6 @@ export const createEvaluationService = ({
       controlsOf(query).map(controlId => rowAgentsOf(ctx, controlId).map(agent => rowFingerprint(ctx, controlId, agent.id)))
     );
 
-  // Day ends of the configuration window in the viewer's zone (one more than the window: its first day is partial).
   const seriesCutsOf = (ctx: ENSEvaluationContext): Date[] => {
     const days = Math.min(
       ENS_EVALUATION_LIMITS.maxTimelineDays,
@@ -365,7 +339,6 @@ export const createEvaluationService = ({
       .map(cut => cut.cutoff);
   };
 
-  // --- a row ---
 
   const computeRow = (clients: ENSEvaluationClients, ctx: ENSEvaluationContext, need: RowNeed, signal: Cancellable, background: boolean): Promise<StoredRow> =>
     reads.use(async () => {
@@ -390,8 +363,6 @@ export const createEvaluationService = ({
       };
     }, { background });
 
-  // Computes (or joins the computation of) some rows. A background computation always finishes; a foreground
-  // one is cancelled with the request that asked for it.
   const ensureRows = (
     clients: ENSEvaluationClients,
     ctx: ENSEvaluationContext,
@@ -446,7 +417,6 @@ export const createEvaluationService = ({
     return due.length;
   };
 
-  // --- a view ---
 
   const timelinePlan = (ctx: ENSEvaluationContext, query: ENSEvaluationQuery): ENSTimelineCutPlan[] => {
     if (!query.timelineDays) return [];
@@ -562,7 +532,6 @@ export const createEvaluationService = ({
         });
       needsOf.set(controlId, list);
     }
-    // Room for at least 10 users with all their rows (~60 KB each), between `maxStoredBytes` and 4 times that.
     rows.setMaxBytes(Math.min(maxStoredBytes * 4, Math.max(maxStoredBytes, needs.length * 60 * 1024 * 10)));
 
     const ready = new Map<string, UsedRow>();
@@ -576,7 +545,6 @@ export const createEvaluationService = ({
         ready.set(need.key, { need, row: entry.value, storedAt: entry.storedAt, stale: true, computed: false });
         stale.push(need);
       } else {
-        // A row that failed after answering: the next poll reports the error once instead of relaunching it.
         const failure = coldFailures.get(need.key);
         if (failure) {
           coldFailures.delete(need.key);

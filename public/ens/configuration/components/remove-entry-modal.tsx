@@ -6,7 +6,6 @@ import { describeAgentEntryRemoval } from '../../../../common/ens/configuration/
 import { ConfirmModal } from './confirm-modal';
 
 export interface ENSEntryRemoval {
-  // The profile key AS stored in the document (may be a name).
   agentKey: string;
   controlId?: string;
 }
@@ -18,8 +17,6 @@ interface RemoveEntryModalProps {
   onConfirm: () => Promise<string | undefined>;
 }
 
-// Removes a whole profile, or a whole control of a profile, showing what is lost value by value first. A whole
-// profile requires typing «quitar»: it is owner data, recoverable only from the history.
 export const RemoveEntryModal = ({ configuration, removal, onCancel, onConfirm }: RemoveEntryModalProps) => {
   const lines = describeAgentEntryRemoval(configuration, removal.agentKey, removal.controlId);
   const whole = !removal.controlId;

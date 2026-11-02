@@ -30,7 +30,6 @@ const getParameterCandidateValue = (
   return undefined;
 };
 
-/** Verdict of a parameter for the active level, with the reason if invalid. "Configured" means configured with a value valid for its type. */
 const getParameterVerdict = (
   parameter: ENSControlParameter,
   activeLevel: ENSLevel
@@ -111,7 +110,6 @@ export const validateControlConfiguration = (
     parameter => parameter.status === 'INVALID'
   );
 
-  // `INVALID` implies applicable at the active level: `getParameterVerdict` returns `NOT_APPLICABLE` first.
   const invalidRequired = invalidParameters.filter(
     parameter => parameter.required
   );
@@ -138,11 +136,9 @@ export const validateControlConfiguration = (
   };
 };
 
-/** Invalidity reasons of a not yet persisted set of values, used by the form before saving. Ignores levels (the whole control is being edited) and does not judge absences. */
 export const validateControlParameterValues = (
   control: ENSControlConfiguration,
   values: ENSControlParameterValues,
-  // With it, a select with `optionsByLevel` accepts only what that level admits.
   level?: ENSLevel
 ): ENSParameterValueIssue[] =>
   control.parameters.reduce<ENSParameterValueIssue[]>(

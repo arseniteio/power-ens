@@ -4,11 +4,9 @@ import { EuiCallOut, EuiConfirmModal, EuiFieldText, EuiFormRow, EuiSpacer } from
 interface ConfirmModalProps {
   title: string;
   confirmLabel: string;
-  // If given, it must be typed to confirm (house rule for bulk rewrites; see `control-configuration-reset.tsx`).
   typedWord?: string;
   danger?: boolean;
   onCancel: () => void;
-  // Returns an error to show, or nothing on success.
   onConfirm: () => Promise<string | undefined>;
   children: React.ReactNode;
 }
@@ -32,7 +30,6 @@ export const ConfirmModal = ({
     setBusy(true);
     setError(undefined);
     const failure = await onConfirm();
-    // On success the caller closes the modal; state of an unmounted component is not touched.
     if (failure) {
       setBusy(false);
       setError(failure);

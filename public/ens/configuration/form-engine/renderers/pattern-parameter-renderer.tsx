@@ -17,7 +17,6 @@ import { TextParameterRenderer } from './text-parameter-renderer';
 export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchModeChange }: ENSFormFieldProps) => {
   const mode: ENSMatchMode = parameter.matchMode === 'regex' ? 'regex' : 'exact';
   const [sample, setSample] = useState('');
-  // Switching mode keeps what was being edited in the other one.
   const [drafts, setDrafts] = useState<Partial<Record<ENSMatchMode, ENSFormFieldProps['value']>>>({});
   const verdict = validateParameterValue(parameter, value);
   let matches: boolean | undefined;

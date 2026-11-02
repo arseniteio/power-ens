@@ -1,7 +1,3 @@
-// What the control detail shows at each moment, without React. Rules, in order:
-// 1. The result for the current request (control and machine) is shown; no result with a chosen machine means the control is not measured there, never a verdict.
-// 2. While loading or after a failure the last result of the SAME control is shown, labelled with its machine and time.
-// 3. With nothing to show: loading, or the error with 'Reintentar'. Another control never inherits anything.
 
 interface ENSDetailRequest {
   controlId: string;

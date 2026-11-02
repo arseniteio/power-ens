@@ -67,17 +67,14 @@ import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 interface AgentConfigurationPageProps {
   configuration: ENSConfigurationVersion;
   row: ENSAgentRow;
-  // The agent exists (scope, inventory or a stored profile).
   known: boolean;
   loading: boolean;
-  detectionErrors: string[];
   target: ENSConfigurationTarget;
   getActiveLevel: (controlId: string) => ENSLevel;
   onNavigate: (target: Partial<ENSConfigurationTarget>) => void;
   onConfigurationSaved: () => void;
 }
 
-// Parameters that describe machines are declared per agent as its contribution to a union.
 const isContribution = (controlId: string, parameterId: string): boolean => isUnionParameter(controlId, parameterId);
 
 const BY_TYPE = '__type';
@@ -96,7 +93,6 @@ export const AgentConfigurationPage = ({
   row,
   known,
   loading,
-  detectionErrors,
   target,
   getActiveLevel,
   onNavigate,
@@ -147,7 +143,6 @@ export const AgentConfigurationPage = ({
     }
   };
 
-  // Saves directly when no effective value changes; otherwise asks after a preview.
   const saveWithPreview = (change: Omit<PendingChange, 'previews'>, previews?: PendingChange['previews']) => {
     const shown = previews || previewConfigurationChange(configuration, change.build(configuration), [agentId]);
     if (shown.every(item => !item.changes.length)) {
@@ -468,7 +463,6 @@ export const AgentConfigurationPage = ({
 
               {parameters.map(parameter => {
                 const contribution = isContribution(control.controlId, parameter.id);
-                // In a contribution the agent edits only its rows; the common rows are shown apart and never copied.
                 const agentLevel = contribution ? getAgentLevelValue(configuration, agentId, control.controlId, parameter.id) : undefined;
                 const shown = contribution ? { ...parameter, value: agentLevel?.value } : parameter;
                 const origin = contribution
@@ -481,7 +475,6 @@ export const AgentConfigurationPage = ({
                     key={parameter.id}
                     agentId={agentId}
                     parameter={shown}
-                    parameterClass={getParameterClass(control.controlId, parameter.id) as 'system' | 'platform'}
                     origin={origin}
                     contributionOnly={contribution}
                     organisationRows={contribution ? valueRows(parameter, commonValue) : undefined}

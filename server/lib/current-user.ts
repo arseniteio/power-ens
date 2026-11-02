@@ -1,6 +1,3 @@
-// Who makes the request and whether they can administer Power ENS. `authinfo` is always queried first; only if
-// OpenSearch has no such endpoint (no security plugin) AND the configuration says there is no security is there
-// nobody to restrict. Any other doubt closes access.
 import { POWER_ENS_ADMIN_ROLES } from '../../common/constants';
 
 interface ENSCurrentUser {
@@ -17,7 +14,6 @@ class CurrentUserError extends Error {
 
 const statusOf = (error: any): number => Number(error?.statusCode || error?.meta?.statusCode) || 0;
 
-// OpenSearch without the security plugin answers 400/404 "no handler found for uri".
 const isNoEndpoint = (error: any): boolean => {
   const status = statusOf(error);
   if (status !== 400 && status !== 404) return false;

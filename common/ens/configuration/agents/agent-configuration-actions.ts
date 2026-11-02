@@ -1,4 +1,3 @@
-// Pure: each action returns a new document, so it is tested without a server and saved through the queue.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -45,7 +44,6 @@ const sameValue = (left: unknown, right: unknown): boolean =>
 const sameMode = (left: ENSMatchMode | undefined, right: ENSMatchMode | undefined): boolean =>
   (left === 'regex') === (right === 'regex');
 
-// Only `regex` is stored: absent means exact.
 const setMode = (modes: Record<string, ENSMatchMode>, parameterId: string, mode: ENSMatchMode | undefined) => {
   if (mode === 'regex') modes[parameterId] = 'regex';
   else delete modes[parameterId];
@@ -57,7 +55,6 @@ type ENSControlEntry = {
   matchModes?: Record<string, ENSMatchMode>;
 };
 
-// The stored type changes only through its own actions: it decides which built-in template applies.
 const withProfile = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -92,7 +89,6 @@ const withControlEntry = (
   return { ...profile, controls };
 };
 
-// A value equal to the inherited one, in the same mode, is not stored, so it keeps following its source.
 export const setAgentParameterValue = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -160,17 +156,13 @@ export const setControlTemplateAssignment = (
   );
 };
 
-// --- previews -----------------------------------------------------------------
 
 export interface ENSAgentChangePreview {
   agentId: string;
-  // Parameters whose effective value changes on this agent's row.
   changes: string[];
-  // Required parameters that had a value and lose it.
   leftEmpty: string[];
 }
 
-// Effective values that change between two documents for each agent, over the controls of both.
 export const previewConfigurationChange = (
   before: ENSConfigurationVersion,
   after: ENSConfigurationVersion,
@@ -213,9 +205,7 @@ export const describeTemplateChoice = (
 export interface ENSAssignmentPreview extends ENSAgentChangePreview {
   from: string;
   to: string;
-  // Overrides that keep winning over the template.
   ownWins: string[];
-  // The template is meant for another system type.
   mismatch?: string;
 }
 
@@ -255,7 +245,6 @@ export const previewControlAssignment = (
   };
 };
 
-// --- custom templates -------------------------------------------------------
 
 const slug = (text: string): string =>
   text
@@ -286,7 +275,6 @@ export interface ENSTemplateInput {
 const controlFor = (configuration: ENSConfigurationVersion, controlId: string): ENSControlConfiguration | undefined =>
   configuration.controls.find(control => control.controlId === controlId) || getENSControlConfiguration(controlId);
 
-// Throws with the reason; empty values are dropped (an unset parameter inherits the common value).
 const cleanTemplate = (configuration: ENSConfigurationVersion, input: ENSTemplateInput, id: string): ENSCustomTemplate => {
   const name = String(input.name || '').trim();
   if (!name) throw new Error('La plantilla necesita un nombre.');
@@ -386,7 +374,6 @@ export const getTemplateUsage = (
     .map(([agentId]) => agentId)
     .sort();
 
-// In use, refused unless `reassign` says where its agents go (`{}`: the built-in of their type).
 export const deleteControlTemplate = (
   configuration: ENSConfigurationVersion,
   templateId: string,
@@ -409,9 +396,7 @@ export const deleteControlTemplate = (
   return reassigned;
 };
 
-// --- system type ------------------------------------------------------------
 
-// Manual type (`undefined` goes back to the detected one).
 export const setAgentTypeOverride = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -449,7 +434,6 @@ export const setAgentAliases = (
     agent
   );
 
-// --- catalog controls missing from the document -----------------------------
 
 export const getMissingCatalogControls = (
   configuration: Pick<ENSConfigurationVersion, 'controls'>,
@@ -457,7 +441,6 @@ export const getMissingCatalogControls = (
 ): ENSControlConfiguration[] =>
   registry.filter(control => !configuration.controls.some(item => item.controlId === control.controlId));
 
-// Same as `inject-control.py` for a new control: the seed block, no values but its declared defaults.
 export const addMissingControls = (
   configuration: ENSConfigurationVersion,
   controlIds: string[],
@@ -484,7 +467,6 @@ export const addMissingControls = (
   return { configuration: next, added: missing.map(control => control.controlId) };
 };
 
-// --- completeness -------------------------------------------------------------
 
 interface ENSAgentCompleteness {
   withValue: number;
@@ -493,7 +475,6 @@ interface ENSAgentCompleteness {
   missingRequired: string[];
 }
 
-// Per-system and per-platform parameters with an effective value on this agent, at each control's level.
 export const getAgentCompleteness = (
   configuration: ENSConfigurationVersion,
   agentId: string,
@@ -517,7 +498,6 @@ export const getAgentCompleteness = (
   return result;
 };
 
-// Per control and parameter, how many agents lack a required value: a control is not complete while one does.
 export const getAgentGaps = (
   configuration: ENSConfigurationVersion,
   agents: { agentId: string; type?: ENSSystemType }[],
@@ -538,9 +518,7 @@ export const getAgentGaps = (
   return gaps;
 };
 
-// --- removals -----------------------------------------------------------------
 
-// `agentKey` is the key as stored, not normalised: a profile saved under a name must be removable.
 export const removeAgentEntry = (
   configuration: ENSConfigurationVersion,
   agentKey: string,
@@ -587,7 +565,6 @@ const describeValue = (value: unknown): string => {
   return value === undefined || value === null || value === '' ? '(vacío)' : String(value);
 };
 
-// One line per stored datum lost by `removeAgentEntry`, shown before removing a whole profile or control.
 export const describeAgentEntryRemoval = (
   configuration: ENSConfigurationVersion,
   agentKey: string,
@@ -626,7 +603,6 @@ export const describeAgentEntryRemoval = (
   return lines;
 };
 
-// What saving `value` as an override does: removes it (empty), nothing (same as inherited) or stores it.
 export const describeAgentValueSave = (
   configuration: ENSConfigurationVersion,
   agentId: string,

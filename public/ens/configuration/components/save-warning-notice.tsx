@@ -3,7 +3,6 @@ import { EuiCallOut, EuiSpacer } from '@elastic/eui';
 
 import { getLastSaveWarning } from '../../../../common/ens/configuration/services/configuration-state-service';
 
-// The last save went through but something after it did not (the history entry); kept until the next save.
 export const SaveWarningNotice = () => {
   const warning = getLastSaveWarning();
   if (!warning) return null;

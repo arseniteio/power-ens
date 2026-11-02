@@ -1,4 +1,3 @@
-// Where a page of the traceability table comes from: the entries the evaluation already brought, or the server. No React. A page is requested only beyond what the response holds, and never beyond what the server keeps (`available`).
 export const traceabilityPageSource = (options: {
   initialCount: number;
   available: number;

@@ -1,4 +1,3 @@
-/** In-memory indexer with the subset of the DSL used by the Power ENS server. */
 
 import { startOfDayIn } from '../../common/ens/core/timeline/timeline-cuts';
 
@@ -8,14 +7,14 @@ export interface FakeDoc {
   _source: any;
 }
 
-const valuesOf = (obj: any, campo: string): any[] => {
+const valuesOf = (obj: any, field: string): any[] => {
   if (obj === null || obj === undefined) return [];
-  if (Array.isArray(obj)) return obj.flatMap(o => valuesOf(o, campo));
+  if (Array.isArray(obj)) return obj.flatMap(o => valuesOf(o, field));
   if (typeof obj !== 'object') return [];
   const output: any[] = [];
-  if (Object.prototype.hasOwnProperty.call(obj, campo)) output.push(...[].concat(obj[campo]));
-  for (let p = campo.indexOf('.'); p !== -1; p = campo.indexOf('.', p + 1)) {
-    output.push(...valuesOf(obj[campo.slice(0, p)], campo.slice(p + 1)));
+  if (Object.prototype.hasOwnProperty.call(obj, field)) output.push(...[].concat(obj[field]));
+  for (let p = field.indexOf('.'); p !== -1; p = field.indexOf('.', p + 1)) {
+    output.push(...valuesOf(obj[field.slice(0, p)], field.slice(p + 1)));
   }
   return output.filter(v => v !== undefined && v !== null && typeof v !== 'object');
 };
@@ -75,45 +74,40 @@ const matches = (doc: FakeDoc, q: any): boolean => {
     return true;
   }
   if (q.range) {
-    const [campo, r]: [string, any] = Object.entries(q.range)[0] as any;
-    return valuesOf(doc._source, campo).some(v => {
+    const [field, r]: [string, any] = Object.entries(q.range)[0] as any;
+    return valuesOf(doc._source, field).some(v => {
       const t = time(v);
       return (r.gte === undefined || t >= time(r.gte)) && (r.lte === undefined || t <= time(r.lte)) &&
         (r.gt === undefined || t > time(r.gt)) && (r.lt === undefined || t < time(r.lt));
     });
   }
   if (q.term) {
-    const [campo, value]: [string, any] = Object.entries(q.term)[0] as any;
+    const [field, value]: [string, any] = Object.entries(q.term)[0] as any;
     const searched = value && typeof value === 'object' && 'value' in value ? value.value : value;
-    return valuesOf(doc._source, campo).some(v => String(v) === String(searched));
+    return valuesOf(doc._source, field).some(v => String(v) === String(searched));
   }
   if (q.terms) {
-    const [campo, values]: [string, any] = Object.entries(q.terms)[0] as any;
-    return valuesOf(doc._source, campo).some(v => values.map(String).includes(String(v)));
+    const [field, values]: [string, any] = Object.entries(q.terms)[0] as any;
+    return valuesOf(doc._source, field).some(v => values.map(String).includes(String(v)));
   }
   if (q.match_phrase) {
-    const [campo, value]: [string, any] = Object.entries(q.match_phrase)[0] as any;
-    return valuesOf(doc._source, campo).some(v => String(v) === String(value));
+    const [field, value]: [string, any] = Object.entries(q.match_phrase)[0] as any;
+    return valuesOf(doc._source, field).some(v => String(v) === String(value));
   }
   if (q.exists) return valuesOf(doc._source, q.exists.field).length > 0;
   throw new Error(`fake-indexer: unsupported query ${JSON.stringify(q).slice(0, 120)}`);
 };
 
-const matchesQuery = (doc: FakeDoc, query: unknown, now?: number): boolean => {
-  if (now !== undefined) indexNow = () => now;
-  return matches(doc, query);
-};
-
-const orderValue = (doc: FakeDoc, campo: string): number | string | null => {
-  if (campo === '_id') throw new Error('fake-indexer: sorting by _id is not supported (it loads its fielddata in OpenSearch)');
-  const v = valuesOf(doc._source, campo)[0];
+const orderValue = (doc: FakeDoc, field: string): number | string | null => {
+  if (field === '_id') throw new Error('fake-indexer: sorting by _id is not supported (it loads its fielddata in OpenSearch)');
+  const v = valuesOf(doc._source, field)[0];
   if (v === undefined) return null;
-  return DATE_FIELDS.has(campo) ? time(v) : String(v);
+  return DATE_FIELDS.has(field) ? time(v) : String(v);
 };
 
-const orderOf = (s: any): { campo: string; desc: boolean } => {
-  const [campo, o]: [string, any] = Object.entries(s)[0] as any;
-  return { campo, desc: (o?.order || o) === 'desc' };
+const orderOf = (s: any): { field: string; desc: boolean } => {
+  const [field, o]: [string, any] = Object.entries(s)[0] as any;
+  return { field, desc: (o?.order || o) === 'desc' };
 };
 
 const compare = (a: number | string | null, b: number | string | null, desc: boolean): number => {
@@ -127,8 +121,8 @@ const compare = (a: number | string | null, b: number | string | null, desc: boo
 const sorts = (docs: FakeDoc[], sort: any[] = []) => {
   const keys = sort.map(orderOf);
   return [...docs].sort((a, b) => {
-    for (const { campo, desc } of keys) {
-      const r = compare(orderValue(a, campo), orderValue(b, campo), desc);
+    for (const { field, desc } of keys) {
+      const r = compare(orderValue(a, field), orderValue(b, field), desc);
       if (r) return r;
     }
     return 0;
@@ -141,10 +135,10 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
   const output: any = {};
   for (const [name, def] of Object.entries<any>(aggs || {})) {
     if (def.max || def.min) {
-      const campo = (def.max || def.min).field;
+      const field = (def.max || def.min).field;
       let value: number | null = null;
       for (const d of docs) {
-        for (const v of valuesOf(d._source, campo)) {
+        for (const v of valuesOf(d._source, field)) {
           const t = time(v);
           if (!Number.isFinite(t)) continue;
           if (value === null || (def.max ? t > value : t < value)) value = t;
@@ -181,7 +175,6 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
         buckets: buckets.map(([key, ds]) => ({ key, doc_count: ds.length, ...aggregate(ds, def.aggs) })),
       };
     } else if (def.multi_terms) {
-      // One bucket per combination (first value of each field, or its `missing`); ordered by `_count`, `_key` or a sub-aggregation.
       const groups = new Map<string, { key: string[]; docs: FakeDoc[] }>();
       for (const d of docs) {
         const key: string[] = [];
@@ -266,16 +259,16 @@ export const createFakeIndexer = (
   const matchingIndex = (patron: string | undefined, index: string) =>
     !patron || patron.split(',').some(p => new RegExp(`^${p.trim().replace(/\./g, '\\.').replace(/\*/g, '.*')}$`).test(index));
 
-  const maps = (index: string, campo: string) =>
-    !campo.startsWith('data.') || docs.some(d => d._index === index && valuesOf(d._source, campo).length > 0);
+  const maps = (index: string, field: string) =>
+    !field.startsWith('data.') || docs.some(d => d._index === index && valuesOf(d._source, field).length > 0);
   const checkOrder = (index: string | undefined, sort: any[]) => {
     const indices = [...new Set(docs.map(d => d._index))].filter(i => matchingIndex(index, i));
     for (const s of sort) {
-      const [campo, o]: [string, any] = Object.entries(s)[0] as any;
+      const [field, o]: [string, any] = Object.entries(s)[0] as any;
       if (o && typeof o === 'object' && o.unmapped_type) continue;
-      const unmapped = indices.find(i => !maps(i, campo));
+      const unmapped = indices.find(i => !maps(i, field));
       if (unmapped) {
-        const motive = `No mapping found for [${campo}] in order to sort on`;
+        const motive = `No mapping found for [${field}] in order to sort on`;
         throw Object.assign(new Error(`search_phase_execution_exception: [query_shard_exception] Reason: ${motive}`), {
           name: 'ResponseError',
           statusCode: 400,
@@ -298,7 +291,7 @@ export const createFakeIndexer = (
       const after = body.search_after;
       candidates = candidates.filter(d => {
         for (let i = 0; i < keys.length; i++) {
-          const r = compare(orderValue(d, keys[i].campo), after[i], keys[i].desc);
+          const r = compare(orderValue(d, keys[i].field), after[i], keys[i].desc);
           if (r) return r > 0;
         }
         return false;
@@ -320,7 +313,7 @@ export const createFakeIndexer = (
             _id: d._id,
             _index: d._index,
             _source: pickSource(d._source, body?._source),
-            sort: sort.length ? sort.map((s: any) => orderValue(d, orderOf(s).campo)) : undefined,
+            sort: sort.length ? sort.map((s: any) => orderValue(d, orderOf(s).field)) : undefined,
           })),
         },
         aggregations: body?.aggs ? aggregate(candidates, body.aggs) : undefined,

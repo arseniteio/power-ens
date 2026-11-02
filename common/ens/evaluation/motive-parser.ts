@@ -1,11 +1,9 @@
 import { dateTimeLabel } from '../core/date-label';
 
-// Splits a nonconformity motive for reading.
 
 const MOTIVE_STATUSES = ['CUMPLE', 'NO_CUMPLE', 'NO_EVALUABLE', 'NO_APLICA', 'PARCIAL'] as const;
 
 export interface MotiveList {
-  // Position of the part in the text (without "Además"): `text.slice(start, end)` is exactly `values.join('; ') + (more ? ` y ${more} más` : '')`.
   start: number;
   end: number;
   values: string[];
@@ -15,9 +13,7 @@ export interface MotiveList {
 export interface MotivePart {
   evidenceId?: string;
   status?: string;
-  // Text of the part, without `ID ESTADO: ` or "Además: …".
   text: string;
-  // First sentence of `text` and the rest (summary + detail = text).
   summary: string;
   detail: string;
   secondary?: string;
@@ -32,11 +28,9 @@ export interface ParsedMotive {
   policy?: { policyId: string; requirementId: string };
   question?: string;
   parts: MotivePart[];
-  // The parts come from `reasonParts`, not from the text.
   structured: boolean;
 }
 
-// Text formed by published parts (as `compositeReason`).
 const knownPartsText = (parts: KnownReasonParts['parts']): string =>
   parts
     .map(p => `${p.evidenceId} ${p.status}: ${p.text}${p.secondary?.length ? `${p.text ? ' ' : ''}Además: ${p.secondary.join(' ')}` : ''}`)
@@ -52,12 +46,10 @@ const BRIDGE = /^Resuelta por la política del control \(([^()]*)\), que mide es
 const QUESTION = 'Pregunta de auditoría: ';
 const STATES = MOTIVE_STATUSES.join('|');
 const HEAD = new RegExp(`^([A-Z]+-[\\w/.-]+) (${STATES}): `);
-// Split by ` | ` only when followed by `ID ESTADO: ` (` | ` also appears inside values: `srv | MEDIA`).
 const SEPARATOR = new RegExp(` \\| (?=[A-Z]+-[\\w/.-]+ (?:${STATES}): )`, 'g');
 const ALSO = 'Además: ';
 const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g;
 const PARAMETER = /\b(P-\d{2})(?: \(([^()]+)\))?/g;
-// Sentence end: a period after a lowercase letter, a digit with unit, a closing parenthesis or quote, then a space and an uppercase or "¿". Does not cut "9.0 h", IPs or paths. No lookbehind (absent in Safari before 16.4).
 const SENTENCE_END = /[\p{Ll})»'"\d]\. (?=[\p{Lu}¿«])/u;
 
 const firstSentence = (text: string): { summary: string; detail: string } => {
@@ -67,8 +59,6 @@ const firstSentence = (text: string): { summary: string; detail: string } => {
   return { summary: text.slice(0, cut), detail: text.slice(cut + 1) };
 };
 
-// A `formatList()` list inside the text. Starts after ": " or " en " or at the beginning; the last value ends at " y N más", sentence end, ", ", " (" or " y ". Recognised only with three or more values, or with "y N más", and short values:
-// two sentences separated by "; " are not a list.
 const MAX_VALUE_LENGTH = 160;
 
 const findList = (text: string): MotiveList | undefined => {
@@ -123,7 +113,6 @@ const part = (text: string, head?: { evidenceId: string; status: string }, secon
   };
 };
 
-// "Además:" at the start, or after a space and something before (from position 1, or the leading space would be lost).
 const splitAlso = (text: string): { principal: string; secondary?: string } => {
   if (text.startsWith(ALSO)) return { principal: '', secondary: text.slice(ALSO.length) };
   const i = text.indexOf(` ${ALSO}`, 1);
@@ -179,13 +168,11 @@ export const parseMotive = (raw: string, known: KnownReasonParts[] = []): Parsed
   };
 };
 
-// The text back, equal to the original (proof that nothing is lost).
 export const partToText = (p: Pick<MotivePart, 'evidenceId' | 'status' | 'text' | 'secondary'>): string =>
   `${p.evidenceId ? `${p.evidenceId} ${p.status}: ` : ''}${p.text}${
     p.secondary !== undefined ? `${p.text ? ' ' : ''}${ALSO}${p.secondary}` : ''
   }`;
 
-// The part to read first for a nonconformity: that of one of its evidences that does NOT comply; else the first that does not conform; else the first.
 export const guiltyPart = (parts: MotivePart[], evidenceIds: string[] = []): MotivePart | undefined =>
   parts.find(p => p.evidenceId && evidenceIds.includes(p.evidenceId) && p.status === 'NO_CUMPLE') ||
   parts.find(p => p.evidenceId && evidenceIds.includes(p.evidenceId) && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
@@ -193,13 +180,11 @@ export const guiltyPart = (parts: MotivePart[], evidenceIds: string[] = []): Mot
   parts.find(p => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
   parts[0];
 
-// "Se pedía EV-01 CUMPLE y EV-04 CUMPLE / Hay NO_CUMPLE" says nothing: it is the generic composite motive. Hidden, and the badges are shown.
 export const isGenericExpectation = (expected?: string, actual?: string): boolean =>
   Boolean(expected) &&
   new RegExp(`^[A-Z]+-[\\w/.-]+ CUMPLE( y [A-Z]+-[\\w/.-]+ CUMPLE)*$`).test(expected as string) &&
   (!actual || new RegExp(`^(${STATES})$`).test(actual));
 
-// "Corregir para alcanzar: EV-01 CUMPLE y EV-03 CUMPLE. Valor actual: NO_CUMPLE." neither: it says which evidence to fix.
 export const describeAction = (requiredAction: string, guilty?: MotivePart): string => {
   if (!/^Corregir para alcanzar: [A-Z]+-[\w/.-]+ CUMPLE( y [A-Z]+-[\w/.-]+ CUMPLE)*\. Valor actual: [A-Z_]+\.$/.test(requiredAction)) {
     return requiredAction;
@@ -208,7 +193,6 @@ export const describeAction = (requiredAction: string, guilty?: MotivePart): str
   return `Corregir ${guilty.evidenceId}${guilty.secondary ? ' y lo indicado en «Además»' : ''}.`;
 };
 
-// The text split into text and date chunks (to paint the date in es-ES with the ISO in the `title`). Joined, they are the text.
 export const splitTimestamps = (text: string): { text: string; iso?: string }[] => {
   const chunks: { text: string; iso?: string }[] = [];
   let since = 0;

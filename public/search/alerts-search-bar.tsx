@@ -1,7 +1,5 @@
-// The dashboard search bar and dates over the `wazuh-alerts-*` pattern, the filters it yields for `useEsSearch`, and the frame that draws it with its notices. Used by the Controles and Eventos tabs.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EuiButton, EuiCallOut, EuiSpacer } from '@elastic/eui';
-// Types only from the data plugin: runtime pieces come from its start contract (`getData()`); a value import of `src/plugins/data/public` would bundle a whole copy of the plugin.
 import type { Filter, IndexPattern, Query, TimeRange } from '../../../../src/plugins/data/public';
 import { POWER_ENS_PLUGIN_ID, ENS_ALERTS_INDEX } from '../../common/constants';
 import { LoadingSpinner } from '../platform/loading-spinner';
@@ -12,7 +10,6 @@ import { buildAlertsSearchFilters } from './alerts-search-filters';
 interface AlertsSearchBar {
   searchBar: React.ReactNode;
   filters: unknown[];
-  // For the `refreshKey` of `useEsSearch`: it rises on 'Actualizar' and on auto-refresh. With an absolute range the recomputed filters have the same JSON, so without it no new search would run.
   refreshKey: number;
   ready: boolean;
   missingIndexPattern: boolean;
@@ -54,7 +51,6 @@ export const useAlertsSearchBar = (): AlertsSearchBar => {
     return () => subscriptions.forEach(s => s.unsubscribe());
   }, [data]);
 
-  // Memoised on the stored state, never recomputed per render: with a relative range the date filter carries the current time, and a new filter per render would make every search trigger another.
   const { filters, queryError } = useMemo(
     () =>
       buildAlertsSearchFilters(
@@ -98,7 +94,6 @@ export const useAlertsSearchBar = (): AlertsSearchBar => {
   };
 };
 
-// The bar with its notices and, below, the view. The view (`children`) mounts only with the pattern found, so its first search already carries the bar dates. The notices last as long as their cause.
 export const AlertsSearchFrame = ({ barra: bar, children }: { barra: AlertsSearchBar; children: React.ReactNode }) => {
   if (!bar.ready) {
     return <LoadingSpinner message={`Buscando el patrón de índice ${ENS_ALERTS_INDEX}…`} />;

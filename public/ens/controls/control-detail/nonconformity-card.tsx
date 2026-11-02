@@ -1,4 +1,3 @@
-// A non-conformity card.
 import React, { useState } from 'react';
 import {
   EuiAccordion,
@@ -45,7 +44,6 @@ import { statusLabel } from '../../../../common/ens/core/status-label';
 interface NonConformityItem {
   id: string;
   requirement: string;
-  // Distinguishes a measured failure from a missing proof and gives the card background; not tied to `status`, since every drawn card is OPEN.
   origin: string;
   finding: string;
   impact: string;
@@ -84,7 +82,6 @@ const readCardMotive = (
   finding: string,
   known: KnownReasonParts[] = []
 ) => {
-  // The engine finding of a measure is the same motive without prefixes: not repeated when already in an observation.
   const seen = new Set<string>();
   const bodies = new Set<string>();
   const parsedItems: ParsedLine[] = lines
@@ -114,7 +111,6 @@ const readCardMotive = (
   };
 };
 
-// Layout of the culprit part (no React, tested in tests/nonconformity-card.test.ts): headline (first sentence), remainder of that sentence if cut, and rest of the part.
 const HEADLINE_MAX = 200;
 const INTRO_MIN = 15;
 

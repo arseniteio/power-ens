@@ -1,15 +1,12 @@
 import { ENS_VERDICTS_INDEX } from '../../../common/constants';
 import type { ENSEngineVerdict } from '../../../common/ens/core/engine-verdicts';
 
-// Until the engine has run once the index does not exist: no verdicts, not an error.
 const search = (body: unknown) => ({ index: ENS_VERDICTS_INDEX, ignore_unavailable: true, body });
 
 const ofRow = (controlId: string, agentId: string) => [{ term: { control: controlId } }, { term: { 'agent.id': agentId } }];
 
 export const VERDICTS_PROBE_PAGE = 1000;
 
-// First and newest control verdict per control and machine, a page at a time: a row is recomputed only when the
-// newest changes.
 export const buildVerdictsProbeRequest = (controlIds: string[], from: string, after?: Record<string, string>) =>
   search({
     size: 0,
@@ -50,14 +47,12 @@ export const addVerdictsProbePage = (probe: ENSVerdictsProbe, body: any): Record
   return (rows?.buckets || []).length === VERDICTS_PROBE_PAGE ? rows?.after_key : undefined;
 };
 
-// The engine stamps every verdict of a pass with the same instant, so the latest pass is that instant.
 export const buildLatestPassRequest = (controlId: string, agentId: string, newest: string) =>
   search({
     size: 500,
     query: { bool: { filter: [...ofRow(controlId, agentId), { range: { '@timestamp': { gte: newest, lte: newest } } }] } },
   });
 
-// The last control verdict of each day of the window, in the viewer's zone: the series needs no more.
 export const buildDailyVerdictsRequest = (controlId: string, agentId: string, from: string, to: string, timeZone: string) =>
   search({
     size: 0,

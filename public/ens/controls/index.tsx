@@ -18,7 +18,6 @@ import { IncoherentLevelsNotice } from '../configuration/components/incoherent-l
 import { buildControlListEntries, describeLevelExclusions } from './controls-list-model';
 import { statusBadgeColor, statusColor } from '../status-colors';
 
-// The colour is the control status; NO_EVALUABLE and NO_APLICA keep distinct greys (status-colors.ts).
 const statusColorValue = (status: string): string => statusColor(status);
 
 const statusBadge = (status: string): string => statusBadgeColor(status);
@@ -26,14 +25,12 @@ const statusBadge = (status: string): string => statusBadgeColor(status);
 export const ControlsENS = () => {
   const { control, agentId } = useRouterSearch();
 
-  // The open control comes from the URL (`control=`), not local state: it survives tab changes and reloads.
   const selectedControl: ENSControl | null = ENSControls.find(item => item.id === control) || null;
 
   const updateUrl = useSetRouterSearch();
 
    const scopeAgents = useActiveENSScopeAgents();
 
-   // One request for the whole list; not requested while the detail is open.
    const summary = useEnsEvaluation<ENSSummaryEvaluationResponse>({
      include: 'summary',
      agentId,

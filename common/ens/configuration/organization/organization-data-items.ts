@@ -1,12 +1,9 @@
-// Shared data asked once in General; the scripts parse the array below as JSON, so it stays strict JSON.
 import type { ENSParameterColumn } from '../types';
 
 export interface ENSOrganizationDataView {
   controlId: string;
   parameterId: string;
-  // Only the item rows whose cell in each named column equals the value (a multiselect cell contains it).
   where?: Record<string, string>;
-  // Item columns that make the parameter row, in the parameter order; absent: every item column.
   columns?: string[];
 }
 
@@ -23,12 +20,9 @@ export interface ENSOrganizationDataItem {
   type: 'list' | 'table' | 'select';
   columns?: ENSParameterColumn[];
   options?: string[];
-  // Columns that identify a row when two views fill different cells of it.
   key?: string[];
-  // Columns whose meaning depends on the use: a row with several uses and one of them filled is warned about.
   perUseColumns?: string[];
   views: ENSOrganizationDataView[];
-  // Parameters the auditor's map relates to the item that stay in their control, with the reason.
   unmapped: ENSOrganizationDataUnmapped[];
 }
 
@@ -149,7 +143,6 @@ ENS_ORGANIZATION_DATA_ITEMS.forEach(item =>
   item.views.forEach(view => LINKS.set(`${view.controlId} ${view.parameterId}`, { item, view }))
 );
 
-// The item a control parameter reads, if it is organisation data.
 export const findOrganizationDataLink = (
   controlId: string,
   parameterId: string
@@ -158,7 +151,6 @@ export const findOrganizationDataLink = (
 export const isOrganizationDataParameter = (controlId: string, parameterId: string): boolean =>
   LINKS.has(`${controlId} ${parameterId}`);
 
-// «op.exp.4 P-02 (mantenimiento)»: who reads the item and which rows.
 export const describeOrganizationDataView = (view: ENSOrganizationDataView): string => {
   const slice = Object.entries(view.where || {})
     .filter(([column]) => column !== 'medida' || !view.where?.aplicable)

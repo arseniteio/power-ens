@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""Tests of per-type parameter value validation (T1.4).
-
-"Configured" must no longer mean "the field is not empty": a `umask_minimo` of
-'abc', or a `retencion_dias` of -5 or 'treinta', is filled in and means nothing.
-
-    python3 test_parameter_value_validator.py
-
-Runs the real TypeScript (a Python copy of the rule would pass with and without
-the change): copies `public/` to a temp dir, adds a stub `kibana-services` next
-to it and launches a harness with bun, deno or `npx tsx` (dependencies from
-`yarn install`). Python stdlib only.
-"""
 import json
 import os
 import shutil
@@ -22,8 +10,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 DASHBOARD = os.path.join(ROOT, "public")
 
-
-# --- runtime lookup ---------------------------------------------------------
 
 def find_runtime():
     candidates = [
@@ -42,8 +28,6 @@ def find_runtime():
     return None
 
 
-# --- harness ----------------------------------------------------------------
-# Kept here, not as a repo file: `public/` is what `config/build-plugin.sh` compiles and ships.
 HARNESS = r"""
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
@@ -162,16 +146,12 @@ console.log(JSON.stringify(output));
 
 
 def prepare(tmp):
-    """Copies the tree and leaves the kibana-services stub where the import looks for it."""
     shutil.copytree(DASHBOARD, os.path.join(tmp, "repo", "public"))
     shutil.copytree(os.path.join(ROOT, "common"), os.path.join(tmp, "repo", "common"))
 
-    # `configuration/services/configuration-http-client.ts` imports '../../../../../kibana-services':
-    # five levels up from services/ (configuration, ens, public, repo, temp dir).
     with open(os.path.join(tmp, "kibana-services.ts"), "w", encoding="utf-8") as f:
         f.write("export const getHttp = () => { throw new Error('stub'); };\n")
 
-    # The validator imports re2js: the real package, from the repository's yarn install.
     shutil.copytree(os.path.join(ROOT, "node_modules", "re2js"), os.path.join(tmp, "node_modules", "re2js"))
 
     harness = os.path.join(tmp, "harness.ts")
@@ -199,10 +179,6 @@ def run(runtime, harness, tmp, cases):
     return json.loads(process.stdout.strip().splitlines()[-1])
 
 
-# --- cases ------------------------------------------------------------------
-# (name, case, expected validity). Parameters are the product's REAL ones: if the declared
-# type of op.acc.2 P-07 changes, this test notices.
-
 def value(control_id, parameter_id, v, parameter=None):
     case = {"kind": "value", "controlId": control_id,
             "parameterId": parameter_id, "value": v}
@@ -229,7 +205,6 @@ def synth(type_, **extra):
 
 
 VALUE_CASES = [
-    # --- duration_days / duration_hours: non-negative integer
     ("duration_days · integer", value("op.acc.1", "P-06", 365), True),
     ("duration_days · inherited numeric string", value("op.acc.1", "P-06", "365"), True),
     ("duration_days · decimal", value("op.acc.1", "P-06", 30.5), False),
@@ -243,7 +218,6 @@ VALUE_CASES = [
     ("duration_hours · integer", value("mp.info.6", "P-01", 24), True),
     ("duration_hours · decimal", value("mp.info.6", "P-01", 1.5), False),
 
-    # --- path: absolute, Windows included
     ("path · absolute POSIX", value("mp.info.6", "P-06", "/backup"), True),
     ("path · Windows with drive", value("mp.info.6", "P-06", "C:\\Backups"), True),
     ("path · Windows with forward slash", value("mp.info.6", "P-06", "C:/Backups"), True),
@@ -255,18 +229,15 @@ VALUE_CASES = [
     ("path · example menu pasted as is",
      value("mp.info.6", "P-06", "/backup | C:\\Backups"), False),
 
-    # --- list: at least one item, and NEVER split by `|`
     ("list · array with items", value("op.acc.1", "P-04", ["admin", "guest"]), True),
     ("list · inherited string with commas", value("op.acc.1", "P-04", "admin, guest, test"), True),
     ("list · inherited string with newlines", value("op.acc.1", "P-04", "admin\nguest"), True),
     ("list · an item with `|` is still one item",
      value("op.acc.1", "P-02", "srv-dc01 | Windows"), True),
-    # Present but with no item: a written value that means nothing, not an absence. Invalid, with reason.
     ("list · only separators", value("op.acc.1", "P-04", ",,,"), False),
     ("list · empty list counts as absence, not as error",
      value("op.acc.1", "P-04", []), True),
 
-    # --- boolean: the forms the product really uses
     ("boolean · true", value("mp.info.6", "P-08", True), True),
     ("boolean · 'sí'", value("mp.info.6", "P-08", "sí"), True),
     ("boolean · 'si' without accent", value("mp.info.6", "P-08", "si"), True),
@@ -277,22 +248,16 @@ VALUE_CASES = [
      value("op.acc.2", "P-03", "no (ninguno) / sí - /tmp, /var/tmp"), False),
     ("boolean · free text", value("mp.info.6", "P-08", "quizá"), False),
 
-    # --- select
-    # A block seeded BEFORE `options` existed still accepts any text: the form edits it as free text,
-    # so rejecting it here would reject what the field lets you write.
     ("select · without declared options accepts anything (unreseeded block)",
      synthetic(synth("select"), "lo que sea"), True),
     ("select · with options, value from the list",
      synthetic(synth("select", options=["Veeam", "Bacula"]), "Bacula"), True),
     ("select · with options, value outside the list",
      synthetic(synth("select", options=["Veeam", "Bacula"]), "Acronis"), False),
-    # op.acc.1 P-01 stopped being a select (b47427e): it is a LIST of identity sources, with no closed
-    # options. It accepts the former option values and legacy strings.
     ("list · op.acc.1 P-01 accepts several sources",
      value("op.acc.1", "P-01", ["Active Directory", "Local"]), True),
     ("list · op.acc.1 P-01 accepts the value inherited from when it was a select",
      value("op.acc.1", "P-01", "  local "), True),
-    # The product's REAL selects, with the options they declare today.
     ("select · op.acc.2 P-05 rejects free text",
      value("op.acc.2", "P-05", "lo que se nos ocurra"), False),
     ("select · op.acc.2 P-05 accepts a declared option",
@@ -307,15 +272,12 @@ VALUE_CASES = [
      value("mp.info.6", "P-10",
            "Veeam / Bacula / Amanda / rsync / Windows Backup / Otro"), False),
 
-    # --- url
     ("url · with scheme", synthetic(synth("url"), "https://siem.cliente.es"), True),
     ("url · without scheme", synthetic(synth("url"), "siem.cliente.es"), False),
 
-    # --- string
     ("string · text", value("op.acc.2", "P-04", "Política de acceso v2.1"), True),
-    ("string · only spaces", value("op.acc.2", "P-04", "   "), True),  # empty -> no value
+    ("string · only spaces", value("op.acc.2", "P-04", "   "), True),
 
-    # --- umask (op.acc.2 P-07, declared `string`)
     ("umask · 022", value("op.acc.2", "P-07", "022"), True),
     ("umask · 0027 with fourth digit", value("op.acc.2", "P-07", "0027"), True),
     ("umask · 'abc'", value("op.acc.2", "P-07", "abc"), False),
@@ -324,9 +286,6 @@ VALUE_CASES = [
     ("umask · the sheet example pasted as is",
      value("op.acc.2", "P-07", "022 (permisos 755/644)"), False),
 
-    # --- table: rows with declared columns
-    # "Has rows" must no longer mean "configured": half a row is not policy ('jgomez' without a
-    # profile does not say what is authorised, and comparing it against the machine would invent a result).
     ("table · complete row",
      value("op.acc.2", "P-08", ["/srv/datos | 750 | root:ops | u:auditor:r-x"]), True),
     ("table · several rows",
@@ -343,7 +302,6 @@ VALUE_CASES = [
      value("op.acc.2", "P-08", ["srv/datos | 750 | root:ops | -"]), False),
     ("table · row has more fields than columns",
      value("op.acc.2", "P-08", ["/srv/datos | 750 | root:ops | - | sobra"]), False),
-    # A row just added in the form is blank until typed in: marking it red would be noise.
     ("table · a blank row next to a complete one is not judged",
      value("op.acc.2", "P-08", ["/srv/datos | 750 |  | ", ""]), True),
     ("table · only blank rows counts as absence, not as error",
@@ -356,7 +314,6 @@ VALUE_CASES = [
      value("op.acc.2", "P-06", ["ops | /srv/datos | lectura,escritura,ejecucion"]), True),
     ("table · multiselect outside the ENS vocabulary",
      value("op.acc.2", "P-06", ["ops | /srv/datos | borrado"]), False),
-    # The comma separates values INSIDE a cell: splitting rows by comma would make two broken rows.
     ("table · the comma does not split rows",
      value("op.acc.2", "P-06", ["ops | /srv/datos | lectura,escritura"]), True),
     ("table · the old P-06 format is no longer accepted",
@@ -367,7 +324,6 @@ VALUE_CASES = [
      value("op.acc.1", "P-09", ["mlopez | 2026-02-31"]), False),
     ("table · leaving date in another format",
      value("op.acc.1", "P-09", ["mlopez | 31/03/2026"]), False),
-    # The authorised-users file held bare names. Only User is required, so they stay valid and are not lost.
     ("table · P-07 with the single-column inherited value",
      value("op.acc.1", "P-07", ["jgomez", "mlopez"]), True),
     ("table · P-07 with the whole row",
@@ -375,7 +331,6 @@ VALUE_CASES = [
     ("table · P-07 with a user containing spaces",
      value("op.acc.1", "P-07", ["j gomez | srv01 | ops"]), False),
 
-    # --- list with the item shape declared
     ("list with column · SUID with absolute path",
      value("op.acc.2", "P-10", ["/usr/bin/sudo", "/usr/bin/su"]), True),
     ("list with column · SUID without path (the massive false NO_CUMPLE)",
@@ -389,7 +344,6 @@ VALUE_CASES = [
     ("list WITHOUT declared column still accepts any item",
      value("op.acc.1", "P-04", ["admin", "guest"]), True),
 
-    # --- mp.info.6 P-05: duration_days that accepts a per-criticality contract
     ("P-05 · plain integer", value("mp.info.6", "P-05", 30), True),
     ("P-05 · per-criticality contract, the sheet example",
      value("mp.info.6", "P-05", "ALTA=30; MEDIA=90"), True),
@@ -399,9 +353,6 @@ VALUE_CASES = [
 ]
 
 
-# op.acc.2 with every BAJO-level required parameter filled in correctly. P-08 and P-10 are policy that
-# used to live in machine files (opacc2-acl.tsv, opacc2-suid.allow); they are required because their
-# absence already left the evidence NO_EVALUABLE on the agent: now it shows on the screen too.
 OPACC2_OK = {
     "P-01": ["srv01 | Linux"],
     "P-02": ["/etc/passwd", "/etc/sudoers"],
@@ -434,7 +385,6 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         harness = prepare(tmp)
 
-        # --- layer 1: the per-type rule
         results = run(runtime, harness, tmp, [case for _, case, _ in VALUE_CASES])
 
         for (name, _, expected), got in zip(VALUE_CASES, results):
@@ -444,7 +394,6 @@ def main():
 
         print()
 
-        # --- layer 2: the configuration validation engine
         layer2 = run(runtime, harness, tmp, [
             {"kind": "control", "controlId": "op.acc.2", "level": "BAJO",
              "values": dict(OPACC2_OK, **{"P-07": "abc"})},
@@ -472,7 +421,6 @@ def main():
 
         print()
 
-        # --- layer 3: saving from the form
         form = run(runtime, harness, tmp, [
             {"kind": "form", "controlId": "op.acc.2",
              "values": {"umask_minimo": "abc"}},
@@ -496,7 +444,6 @@ def main():
 
         print()
 
-        # --- layer 4: evaluation and the message to the auditor
         layer4 = run(runtime, harness, tmp, [
             {"kind": "evaluation", "controlId": "op.acc.2", "level": "BAJO",
              "compliantEvidences": True,
@@ -513,14 +460,10 @@ def main():
 
         check("evaluation · an invalid value opens NC-CFG",
               with_invalid["ncCfg"] is not None, str(with_invalid))
-        # With evidences in CUMPLE, the configuration is the ONLY thing between the control and green:
-        # without meaningful data there is no compliance claim.
         check("evaluation · with everything CUMPLE except the umask, the control is NOT green",
               with_invalid["status"] == "NO_CUMPLE", str(with_invalid["status"]))
         check("evaluation · with the umask fixed it is green",
               with_valid["status"] == "CUMPLE", str(with_valid["status"]))
-        # What cannot be proven is NO CUMPLE (owner decision 04/08): the score is 0, and the `score` key
-        # is present (its absence is reserved for NO_APLICA). `measuredRequirements` says how much was looked at.
         check("evaluation · with a valid umask the control measures, and measures 100",
               with_valid.get("score") == 100, str(with_valid))
         check("evaluation · unable to prove the umask, the report shows a 0",
@@ -529,8 +472,6 @@ def main():
         check("evaluation · the same when a required parameter is also missing",
               mixed.get("score") == 0 and "score" in mixed,
               "publishes score={}".format(mixed.get("score")))
-        # Negative control of the two above: if the harness never published the key, `score == 0` would
-        # pass by chance in a `.get()`; the valid case carries 100, so the key exists and holds the number.
         check("evaluation · the 0 is not an absent key in disguise",
               "score" in with_valid and with_valid["score"] != 0,
               str(with_valid.get("score")))

@@ -1,4 +1,3 @@
-// Also bounds services that do not settle their promise on abort.
 export const ENS_REQUEST_TIMEOUT_MS = 60000;
 
 export class ENSRequestTimeoutError extends Error {
@@ -17,7 +16,6 @@ export const withRequestTimeout = async <T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      // Rejected before aborting to keep the failure reason.
       reject(new ENSRequestTimeoutError(operation));
       controller.abort();
     }, timeoutMs);

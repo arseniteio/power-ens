@@ -16,7 +16,7 @@ export const withEvaluableGroups = (configuration: ENSConfigurationVersion, grou
   },
 });
 
-export const ENS_EXCLUSION_GROUP_PREFIX = 'ens-excluir-';
+const ENS_EXCLUSION_GROUP_PREFIX = 'ens-excluir-';
 
 export const exclusionGroupOf = (controlId: string): string => `${ENS_EXCLUSION_GROUP_PREFIX}${controlId}`;
 

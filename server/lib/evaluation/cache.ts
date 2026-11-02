@@ -1,10 +1,3 @@
-// Server memory for evaluations.
-// An entry is valid while its fingerprint (configuration, scope, and the facts of that row: count and latest) is
-// the same. The probe checks it on every request, so new data expires only its control on its machine. Maximum
-// life 60 minutes for what changes with the clock alone (a collector that stops beating stops proving after 24
-// h).
-// What is no longer valid can still be SHOWN while recomputing (`peek`): the server answers at once with it,
-// marked, and recomputes behind.
 export const EVALUATION_TTL_MS = 60 * 60 * 1000;
 
 interface CacheEntry<T> {
@@ -18,8 +11,6 @@ export class EvaluationCache<T> {
   private readonly entries = new Map<string, CacheEntry<T>>();
   private totalBytes = 0;
 
-  // `maxBytes` and `sizeOf`: besides the entry count, a size cap (JSON size of each value, measured once on
-  // store).
   constructor(
     private readonly maxEntries: number,
     private readonly ttlMs: number = EVALUATION_TTL_MS,
@@ -36,8 +27,6 @@ export class EvaluationCache<T> {
     return this.maxBytes;
   }
 
-  // Adjusts the size cap (the service derives it from the scope). What no longer fits is evicted on the next
-  // store.
   setMaxBytes(maxBytes: number): void {
     this.maxBytes = maxBytes;
   }
@@ -49,7 +38,6 @@ export class EvaluationCache<T> {
     this.entries.delete(key);
   }
 
-  // The value if the fingerprint matches and it has not expired; otherwise nothing.
   get(key: string, fingerprint: string): T | undefined {
     const entry = this.peek(key);
     if (!entry || entry.fingerprint !== fingerprint || this.clock() - entry.storedAt > this.ttlMs) {
@@ -58,11 +46,9 @@ export class EvaluationCache<T> {
     return entry.value;
   }
 
-  // The entry as is, valid or not (to show while recomputing).
   peek(key: string): CacheEntry<T> | undefined {
     const entry = this.entries.get(key);
     if (!entry) return undefined;
-    // Used entries move to the end: the least recently used is evicted first.
     this.entries.delete(key);
     this.entries.set(key, entry);
     return entry;
@@ -84,7 +70,6 @@ export class EvaluationCache<T> {
     }
   }
 
-  // The stored keys, oldest first (tests check which rows were kept).
   keys(): string[] {
     return Array.from(this.entries.keys());
   }
@@ -104,7 +89,6 @@ export interface Cancellable {
   onAbort(listener: () => void): void;
 }
 
-// A signal cancelled by hand.
 export class CancelSignal implements Cancellable {
   private cancelled = false;
   private readonly listeners: (() => void)[] = [];
@@ -125,8 +109,6 @@ export class CancelSignal implements Cancellable {
   }
 }
 
-// How many heavy reads (one control on one machine) run at once on the dashboard server. Memory hits do not pass
-// through here. What someone waits for now goes ahead of background refreshes.
 export class Semaphore {
   private active = 0;
   private readonly waiting: { resolve: () => void; background: boolean }[] = [];
@@ -143,7 +125,6 @@ export class Semaphore {
 
   async use<T>(task: () => Promise<T>, options: { background?: boolean } = {}): Promise<T> {
     if (this.active >= this.limit) {
-      // Whoever finishes hands its slot over directly (see `finally`).
       await new Promise<void>(resolve => {
         const entry = { resolve, background: Boolean(options.background) };
         if (entry.background) this.waiting.push(entry);

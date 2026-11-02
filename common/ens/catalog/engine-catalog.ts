@@ -1,6 +1,3 @@
-// The controls the OSCompliance engine judges are defined once, in its catalog (oscompliance-ens
-// catalog/controls/ens). `common/ens/catalog/engine/` is a byte-for-byte copy kept by
-// `config/sync-catalog.ts`; `tests/engine-catalog.test.ts` fails when it drifts.
 import type { ENSControlConfiguration, ENSControlParameter } from '../configuration/types';
 import type { ENSEvidenceDefinition } from '../core/evidence/types';
 import type { ENSControlDefinition } from './types';
@@ -137,7 +134,6 @@ export const engineCatalogEntry = (controlId: string): any => {
   return entry;
 };
 
-// What `config/inject-control.py` seeds: the configuration without initial values.
 export const controlBlockOf = (entry: any): ENSControlConfiguration => {
   const configuration = toControlConfiguration(entry);
   return { ...configuration, parameters: configuration.parameters.map(({ value, ...parameter }) => parameter) };

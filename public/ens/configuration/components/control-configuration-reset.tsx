@@ -10,9 +10,6 @@ import {
 } from '../../../../common/ens/configuration/services/configuration-state-service';
 import type { ENSControlConfiguration } from '../../../../common/ens/configuration/types';
 
-// Deletes the declared configuration of a control.
-// The button asks to type the control id: a "¿seguro?" is accepted without reading. Only the VALUES are deleted,
-// not the control (see `configuration-reset-service`).
 
 interface ControlConfigurationResetProps {
   control: ENSControlConfiguration;
@@ -36,7 +33,6 @@ export const ControlConfigurationReset = ({
     setError(null);
   };
 
-  // A control with nothing declared has nothing to delete; this is stated instead of hiding the button.
   if (summary.clearedParameters === 0) {
     return (
       <EuiText size='s' color='subdued'>
@@ -78,7 +74,6 @@ export const ControlConfigurationReset = ({
       close();
       onConfigurationSaved();
     } catch (caught) {
-      // The error is shown: a silent failure would leave the operator believing it was deleted.
       setError(
         caught instanceof Error
           ? caught.message

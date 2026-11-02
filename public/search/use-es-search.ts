@@ -1,11 +1,9 @@
-// Search of the ENS screens over the dashboard search service, as the viewing user. Same name and shape as the Wazuh `useEsSearch` it replaces, so the screens do not change; it searches again when the filters change.
 import { useEffect, useRef, useState } from 'react';
 import { getCore, getData } from '../services';
 import { ENSRequestTimeoutError, withRequestTimeout } from '../../common/platform/request-timeout';
 import { buildENSSearchRequest, ENSSearchParams } from './search-request';
 import { decideSearch, isOwnCancellation, searchDataKey, shouldToast } from './search-decision';
 
-// Shared by all searches of the page: one notice per message and minute.
 const givenNotices = new Map<string, number>();
 
 interface PendingSearch {
@@ -17,7 +15,6 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
   const [esResults, setEsResults] = useState<any>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | undefined>();
-  // A notice is given when going from good to error, not on every refresh that fails again.
   const hadFailed = useRef(false);
   const inProgress = useRef<PendingSearch | undefined>();
   const key = JSON.stringify(params);

@@ -1,4 +1,3 @@
-// Item states, the automatic migration (values that differ are a conflict, never overwritten) and item actions.
 import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
@@ -27,7 +26,6 @@ import {
 
 type ENSOrganizationDocument = Pick<ENSConfigurationVersion, 'controls' | 'organizationData'>;
 
-// Source of a candidate: a view (`op.exp.4 P-06`) or the stored organisation value.
 export const ORGANIZATION_SOURCE = 'organizacion';
 
 export interface ENSOrganizationViewState {
@@ -40,30 +38,22 @@ export interface ENSOrganizationViewState {
 
 export interface ENSOrganizationCandidate {
   value: ENSAgentParameterValue;
-  // Where it comes from: a view key or ORGANIZATION_SOURCE.
   from: string;
-  // Views whose current value it keeps (an unconfigured view keeps nothing to lose).
   keeps: string[];
 }
 
-// `incomplete`: the controls with a value agree, but the item or a parameter that reads it does not accept it.
 export type ENSOrganizationItemStatus = 'informative' | 'empty' | 'value' | 'conflict' | 'incomplete';
 
 export interface ENSOrganizationItemState {
   item: ENSOrganizationDataItem;
   status: ENSOrganizationItemStatus;
-  // The item value: the stored one, or the one the migration moves.
   value?: ENSAgentParameterValue;
   stored: boolean;
   views: ENSOrganizationViewState[];
   candidates: ENSOrganizationCandidate[];
-  // Views whose value the item cannot hold as it is (cells it has no column for).
   unrepresentable: string[];
-  // Why a value everyone agrees on is not moved or not completed: the item or a parameter would not accept it.
   reasons: string[];
-  // Parameters without value left so because they do not accept the item value.
   blocked: string[];
-  // The sentence for the screen and the validator when there is something to say that is not a choice.
   notice?: string;
 }
 
@@ -104,7 +94,6 @@ const inverse = (item: ENSOrganizationDataItem, state: ENSOrganizationViewState)
 const mergeAll = (item: ENSOrganizationDataItem, rows: ENSOrganizationRow[], extra: ENSOrganizationRow[]): ENSOrganizationRow[] =>
   extra.reduce((accumulated, row) => mergeOrganizationRow(item, accumulated, row), rows);
 
-// Keyed rows in the order the sources list them, whichever source a candidate starts from.
 const keyOrder = (item: ENSOrganizationDataItem, rows: ENSOrganizationRow[], sources: ENSOrganizationRow[][]): ENSOrganizationRow[] => {
   const key = item.key || [];
   if (!key.length) return rows;
@@ -122,7 +111,6 @@ const keyOrder = (item: ENSOrganizationDataItem, rows: ENSOrganizationRow[], sou
   return rows.map((row, index) => ({ row, index })).sort((a, b) => position(a.row) - position(b.row) || a.index - b.index).map(entry => entry.row);
 };
 
-// Starts from one view and adds every row of the others that leaves that view's value as it is.
 const candidateFrom = (
   item: ENSOrganizationDataItem,
   start: ENSOrganizationViewState,
@@ -167,7 +155,6 @@ const describeOrganizationItem = (
   const unrepresentable = configured.filter(state => !keepsValue(item, state, mergeAll(item, [], inverse(item, state))));
   const representable = configured.filter(state => !unrepresentable.includes(state));
   const stored = storedOrganizationValue(configuration, item.id);
-  // A parameter without value is completed only with a value valid for it, as the screen would require.
   const refusedFills = (rows: ENSOrganizationRow[]): { key: string; reason: string }[] =>
     present
       .filter(state => !state.configured)
@@ -180,7 +167,6 @@ const describeOrganizationItem = (
   if (stored !== undefined) {
     const storedRows = organizationRows(item, stored);
     const diverging = configured.filter(state => !keepsValue(item, state, storedRows));
-    // The stored value stands; a parameter that does not accept it stays without value and the screen says so.
     if (!diverging.length) {
       const refused = refusedFills(storedRows);
       return {
@@ -193,7 +179,6 @@ const describeOrganizationItem = (
         ...(refused.length ? { notice: `${refused.map(entry => entry.reason).join('; ')}: se queda sin valor hasta corregir «${item.label}».` } : {}),
       };
     }
-    // Changed outside this version (a 1.3.0 plugin, a manual edit): nothing is overwritten until someone chooses.
     const storedCandidate: ENSOrganizationCandidate = {
       value: stored,
       from: ORGANIZATION_SOURCE,
@@ -224,12 +209,10 @@ const describeOrganizationItem = (
 
   if (!configured.length) return { ...base, status: 'empty', stored: false };
 
-  // A parameter without value is not a different value: it takes the item's, and the migration says so.
   const full = configured.reduce((rows, state) => mergeAll(item, rows, inverse(item, state)), [] as ENSOrganizationRow[]);
   const agreed = !unrepresentable.length && configured.every(state => keepsValue(item, state, full));
   const composed = organizationValueFromRows(item, full);
   const own = validateParameterValue(organizationDataParameter(item), composed);
-  // Agreed but not valid for the item or a reader (op.acc.4 P-04 alone): not a choice, the item stays empty.
   const reasons = !agreed ? [] : own.valid ? refusedFills(full).map(entry => entry.reason) : [own.reason || 'valor no válido'];
   if (agreed && !reasons.length) {
     return { ...base, status: 'value', value: composed, stored: false };
@@ -263,7 +246,6 @@ const describeOrganizationItem = (
 export const describeOrganizationData = (configuration: ENSOrganizationDocument): ENSOrganizationItemState[] =>
   ENS_ORGANIZATION_DATA_ITEMS.map(item => describeOrganizationItem(configuration, item));
 
-// Writes the item value into every mapped parameter whose value differs (removes the key when empty).
 const writeThrough = <T extends ENSOrganizationDocument>(
   configuration: T,
   item: ENSOrganizationDataItem,
@@ -299,16 +281,13 @@ const withValues = <T extends ENSOrganizationDocument>(configuration: T, values:
   organizationData: { ...(configuration.organizationData || {}), values } as ENSOrganizationData,
 });
 
-// A parameter without value that took an item's value, and where the value came from.
 export interface ENSOrganizationFill {
   parameter: string;
-  // View keys, or ORGANIZATION_SOURCE for the stored value.
   from: string[];
 }
 
 export interface ENSOrganizationMigrationReport<T extends ENSOrganizationDocument = ENSConfigurationVersion> {
   configuration: T;
-  // Something to save: the block was added, an item moved or a parameter took the organisation value.
   changed: boolean;
   added: boolean;
   moved: string[];
@@ -318,7 +297,6 @@ export interface ENSOrganizationMigrationReport<T extends ENSOrganizationDocumen
   incomplete: string[];
 }
 
-// Idempotent: a second pass changes nothing. Items in conflict keep each parameter as it is.
 export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(configuration: T): ENSOrganizationMigrationReport<T> => {
   if (!Array.isArray(configuration.controls)) {
     return { configuration, changed: false, added: false, moved: [], written: [], filled: [], conflicts: [], incomplete: [] };
@@ -359,7 +337,6 @@ export const normalizeOrganizationData = <T extends ENSOrganizationDocument>(con
   return { configuration: changed ? withValues(next, values) : configuration, changed, added, moved, written, filled, conflicts, incomplete };
 };
 
-// Sets (or, with no value, removes) an item and writes it into every mapped parameter: resolves its conflict.
 export const setOrganizationValue = <T extends ENSOrganizationDocument>(
   configuration: T,
   itemId: string,
@@ -375,7 +352,6 @@ export const setOrganizationValue = <T extends ENSOrganizationDocument>(
   return writeThrough(withValues(configuration, values), item, values[itemId]).configuration;
 };
 
-// «Se ha completado op.acc.4 P-06 con el valor de op.acc.1 P-11.», one per filled parameter.
 export const describeOrganizationFills = (filled: ENSOrganizationFill[]): string[] =>
   filled.map(
     fill =>
@@ -396,7 +372,6 @@ export const summarizeOrganizationMigration = (
   return parts.length ? `Datos de la organización: ${parts.join('; ')}.` : 'Datos de la organización: sin cambios.';
 };
 
-// A control form keeps the stored organisation values: a form opened before a change in General cannot undo it.
 export const keepOrganizationParameters = (
   next: ENSControlConfiguration,
   current: ENSControlConfiguration | undefined

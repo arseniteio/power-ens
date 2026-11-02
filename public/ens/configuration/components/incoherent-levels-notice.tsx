@@ -1,4 +1,3 @@
-// One line above the Controls list and the dashboard when a declared dimension exceeds the ENS level: the General tab will not save, so the reader is sent there.
 import React from 'react';
 import { EuiCallOut, EuiLink, EuiSpacer } from '@elastic/eui';
 import type { ENSGlobalConfiguration } from '../../../../common/ens/configuration/types';
@@ -10,7 +9,6 @@ import {
 import { configurationSearchChanges } from '../../../routing/configuration-link';
 import { useSetRouterSearch } from '../../../routing/use-router-search';
 
-// «Disponibilidad (D) ALTO supera el nivel ENS MEDIO»; undefined when the levels are coherent.
 const describeIncoherentLevelsLine = (global?: Partial<ENSGlobalConfiguration>): string | undefined => {
   const above = findDimensionsAboveENSLevel(global);
 

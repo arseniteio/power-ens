@@ -1,4 +1,3 @@
-// Not used on hydration: a bad value must degrade its own row, never stop the whole environment.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -29,9 +28,7 @@ interface ENSAgentConfigurationIssue {
   agentId: string;
   controlId?: string;
   parameterId?: string;
-  // `error`: to be fixed. `warning`: unknown to this version, or converted on load; ignored.
   severity: 'error' | 'warning';
-  // Only `huerfano` (not applied) can be removed from the screen; `valor` is applied but invalid.
   kind: 'huerfano' | 'valor' | 'plantilla' | 'desconocido';
   message: string;
 }
@@ -44,7 +41,6 @@ interface ENSTemplateIssue {
   message: string;
 }
 
-// Problems of one value for a control parameter: undefined if it is applied and valid.
 export const describeAgentLevelValueIssue = (
   control: ENSControlConfiguration,
   parameterId: string,
@@ -73,7 +69,6 @@ export const describeAgentLevelValueIssue = (
     : { kind: 'valor', message: `${control.controlId} «${parameter.label}» ${verdict.reason || 'tiene un valor inválido'}` };
 };
 
-// A mode applies only to a value at its own level: alone, it changes nothing.
 const describeModesWithoutValue = (
   control: ENSControlConfiguration,
   modes: Record<string, ENSMatchMode> | undefined,
@@ -113,7 +108,6 @@ export const validateAgentProfile = (
     const values = entry?.parameters || {};
     const templateId = entry?.templateId;
 
-    // An assignment alone on a control not yet added is harmless: it applies once the control is added.
     if (!control) {
       if (Object.keys(values).length) {
         add(

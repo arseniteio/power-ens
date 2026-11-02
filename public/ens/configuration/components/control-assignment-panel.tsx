@@ -48,7 +48,6 @@ interface ControlAssignmentPanelProps {
   onConfigurationSaved: () => void;
 }
 
-// Select value for «no assignment: the built-in of its type».
 const BY_TYPE = '__type';
 
 const describeEffectiveTemplate = (configuration: ENSConfigurationVersion, row: ENSAgentRow, controlId: string): string => {
@@ -75,7 +74,6 @@ export const ControlAssignmentPanel = ({
   const [choice, setChoice] = useState<string>('');
   const [preview, setPreview] = useState<{ previews: ENSAssignmentPreview[]; templateId?: string } | undefined>();
   const [notice, setNotice] = useState<{ color: 'success' | 'danger'; text: string } | undefined>();
-  // EuiBasicTable selection is uncontrolled: remount to clear it after assigning.
   const [tableKey, setTableKey] = useState(0);
 
   const missing = useMemo(() => {

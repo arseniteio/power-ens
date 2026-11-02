@@ -1,5 +1,3 @@
-// A control seen over several machines, and the panel state built from those views. Consolidation is
-// presentation: every result it combines comes from the engine verdicts.
 import { ENSCatalog } from '../catalog';
 import { buildComplianceState, consolidateAgentComplianceResultByControl } from './compliance-state';
 import type { ENSComplianceState } from './compliance-state/types';
@@ -48,7 +46,6 @@ export const assembleState = (partitions: ENSControlPartition[], agents: ENSAgen
   );
 };
 
-// A result reduced to what consolidation uses for state and number (past days of the series).
 export const resultStatusStub = (controlId: string, status: string, score: number | undefined): ENSComplianceResult =>
   ({
     control: { id: controlId, name: controlId, family: '', category: '', description: '' },

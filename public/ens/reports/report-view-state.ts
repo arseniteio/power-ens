@@ -1,4 +1,3 @@
-// What a control's report section shows, without React (tests/report-view-state.test.ts). Never a filler that looks measured.
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
 
 type ENSReportViewState =

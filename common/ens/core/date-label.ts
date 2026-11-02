@@ -8,21 +8,17 @@ const parse = (value?: string | number | Date): Date | undefined => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
-// Built by hand, not with toLocaleString: the output must not depend on the runtime ICU.
 
-// «31 oct 2026, 17:11», in the viewer's zone.
 export const dateTimeLabel = (value?: string | number | Date): string => {
   const d = parse(value);
   return d ? `${dateLabel(d)}, ${two(d.getHours())}:${two(d.getMinutes())}` : '';
 };
 
-// «31 oct 2026».
 export const dateLabel = (value?: string | number | Date): string => {
   const d = parse(value);
   return d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : '';
 };
 
-// «hace 5 min» within the hour, «hace 3 h» within the day, the date otherwise.
 export const ageLabel = (value?: string | number | Date, now: number = Date.now()): string => {
   const d = parse(value);
   if (!d) return '';

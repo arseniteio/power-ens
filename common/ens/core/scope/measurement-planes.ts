@@ -1,17 +1,11 @@
 import type { ENSControlDefinition, ENSMeasurementPlane } from '../../catalog/types';
 import type { ENSControlConfiguration } from '../../configuration/types';
-// From the file, not the `configuration/services` barrel (it drags `kibana-services` into the engine graph).
 import { toParameterListItems, toTableRowCells } from '../../configuration/services/parameter-value-validator';
 import { ENSAgentScope } from './types';
 
-// Measurement planes: where each control is measured. The ENS scope is resolved by the `ens` group, and the Wazuh manager (agent 000) cannot be in a group. Some controls are measured ONLY on the manager (op.exp.7, op.exp.9) and one on both planes (op.exp.8),
-// so the manager enters the scope when an ACTIVE control asks, and each row evaluates only the controls of its plane: the manager row those with plane `manager`, any other machine those with plane `agent`.
-// A control not measured on a row produces no result there (no invented NO_APLICA): consolidation already skips rows without result.
 
-// The manager's id in Wazuh: fixed, always agent 000.
 export const ENS_MANAGER_AGENT_ID = '000';
 
-// Manager name when the agent inventory lacks it. The name its own events carry does not replace it: identity comes from the scope.
 const ENS_MANAGER_FALLBACK_NAME = 'Manager de Wazuh';
 
 const DEFAULT_MEASUREMENT_PLANES: ENSMeasurementPlane[] = ['agent'];
@@ -38,20 +32,15 @@ const isControlMeasuredOnPlane = (
   plane: ENSMeasurementPlane
 ): boolean => getControlMeasurementPlanes(control).includes(plane);
 
-// Is this control evaluated on this machine's row?
 const isControlMeasuredOnAgent = (
   control: ENSMeasuredControl,
   agentId: string
 ): boolean =>
   isControlMeasuredOnPlane(control, getAgentMeasurementPlane(agentId));
 
-// Declared scope. A control may be measured only on the machines the organisation names in a configuration parameter (`scopeParameter` of the catalog; P-04 in mp.info.6). Same rule as the plane:
-// on an undeclared machine's row the control produces no result (neither adds nor subtracts), and on a declared one that sent nothing it comes out "sin datos".
 
 type ENSScopedControl = Pick<ENSControlDefinition, 'scopeParameter'>;
 
-// Lowercase names of the declared machines. Each entry is a machine and, after a vertical bar, whatever the parameter adds (criticality in P-04: `srv-bd01 | ALTA`); only the name counts.
-// `undefined` if the control declares no scope parameter: measured everywhere.
 const getDeclaredScopeAgentNames = (
   control: ENSScopedControl,
   configuration: ENSControlConfiguration | undefined
@@ -64,7 +53,6 @@ const getDeclaredScopeAgentNames = (
     parameter => parameter.id === control.scopeParameter
   )?.value;
 
-  // A bare number or boolean names no machine.
   if (!Array.isArray(value) && typeof value !== 'string') {
     return [];
   }
@@ -78,7 +66,6 @@ const getDeclaredScopeAgentNames = (
   );
 };
 
-// Is this machine one of the declared? The Wazuh agent name, case-insensitive, as the owner writes it on screen.
 const isAgentNameDeclared = (
   agentName: string | undefined,
   declared: string[]
@@ -88,14 +75,12 @@ const isAgentNameDeclared = (
   return name !== '' && declared.includes(name);
 };
 
-// A manager-ONLY control belongs to the organisation, not a machine: in an agent's view it shows with the manager row's result.
 export const isManagerOnlyControl = (
   control: ENSMeasuredControl
 ): boolean =>
   isControlMeasuredOnPlane(control, 'manager') &&
   !isControlMeasuredOnPlane(control, 'agent');
 
-// The manager enters the scope if some ACTIVE control is measured on its plane. A DRAFT control does not count.
 export const isManagerPlaneActive = (
   catalog: Array<Pick<ENSControlDefinition, 'status' | 'measurementPlanes'>>
 ): boolean =>
@@ -105,8 +90,6 @@ export const isManagerPlaneActive = (
       isControlMeasuredOnPlane(control, 'manager')
   );
 
-// Applies the manager plane to the agents already resolved by the scope mode (global, group or agent). The manager is in no group, so no mode brings it; and if one does (global mode with an inventory that includes it, or a hand-written 000),
-// without an active `manager` plane it is removed: its row would have no control to evaluate.
 export const applyManagerPlaneToScope = (
   resolvedAgents: ENSAgentScope[],
   inventory: ENSAgentScope[],
@@ -131,16 +114,11 @@ export const applyManagerPlaneToScope = (
   return [...agents, manager];
 };
 
-// "Not measured on this machine". With a chosen machine, a control may have no result on it for two reasons, and the screen must say which:
-// - PLANE           the control is not measured on that machine's plane: `agent`-plane controls on the manager (000);
-// - DECLARED_SCOPE  the control declares the machines it is measured on (P-04 of mp.info.6) and this one is not listed.
-// A manager-only control in another machine's view DOES have a result (the manager row's): here it returns nothing. Same rule as the server's `deriveForAgent`.
 export type ENSNotMeasuredCause = 'PLANE' | 'DECLARED_SCOPE';
 
 export interface ENSNotMeasuredReason {
   cause: ENSNotMeasuredCause;
   text: string;
-  // Only with DECLARED_SCOPE: the parameter declaring the machines and the ones it names (lowercase, as the engine compares them).
   parameterId?: string;
   declared?: string[];
 }
@@ -167,7 +145,6 @@ export const describeNotMeasuredOnAgent = (
     };
   }
 
-  // A control with declared scope that is not in the configuration: not that its parameter fails to name the machine, there is no parameter.
   if (control.scopeParameter && !configuration) {
     return {
       cause: 'DECLARED_SCOPE',

@@ -1,4 +1,3 @@
-// All catalogue controls always appear; those not measured on the chosen machine go last, greyed, with the reason and no number.
 import type { ENSControlSummaryEntry, ENSAgentControlsRow } from '../../../common/ens/evaluation/types';
 import type { ENSNotMeasuredReason } from '../../../common/ens/core/scope/measurement-planes';
 import { describePendingMeasurement, getENSCatalogControl, isPendingMeasurement } from '../../../common/ens/catalog';
@@ -25,7 +24,6 @@ export interface ENSControlListEntry {
   levels: string;
   measured: boolean;
   notMeasured?: ENSNotMeasuredReason;
-  // A catalog control without collector yet (`DRAFT`): no verdict on any machine, it keeps its Annex II place.
   pendingMeasurement?: string;
   configured: boolean;
   appliesAtLevel: boolean;
@@ -73,7 +71,6 @@ export const buildControlListEntries = (controls: ENSListControl[], options: ENS
     const catalogControl = getENSCatalogControl(control.id);
     const pendingMeasurement =
       catalogControl && isPendingMeasurement(catalogControl) ? describePendingMeasurement(catalogControl) : undefined;
-    // Measured nowhere yet: that comes before the plane or the declared scope of a machine.
     const notMeasured = options.agentId && !pendingMeasurement ? options.notMeasured(control.id) : undefined;
     return {
       id: control.id,
@@ -94,10 +91,8 @@ export const buildControlListEntries = (controls: ENSListControl[], options: ENS
 export const describeLevelExclusions = (
   entries: (Pick<ENSControlListEntry, 'id' | 'appliesAtLevel'> & Partial<Pick<ENSControlListEntry, 'pendingMeasurement'>>)[],
   globalLevel: string,
-  // A control governed by a dimension is excluded by its own level: the text says which one, not the ENS level.
   levelOf?: (controlId: string) => string
 ): { count: number; ids: string[]; text: string } | undefined => {
-  // A control without collector is not evaluated at any level: it carries its own label, not this notice.
   const ids = entries.filter(entry => !entry.appliesAtLevel && !entry.pendingMeasurement).map(entry => entry.id);
   if (!ids.length) return undefined;
   const named = ids.map(id => {

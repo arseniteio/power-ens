@@ -14,7 +14,6 @@ const PERIOD_DAYS: Record<string, number> = {
   'Últimos 90 días': 90,
 };
 
-// The configuration's evaluation period as absolute instants; anything not understood is 30 days.
 export const resolveEvaluationWindow = (evaluationPeriod: string, now: Date): ENSEvaluationWindow => ({
   from: new Date(now.getTime() - (PERIOD_DAYS[evaluationPeriod] || 30) * 86400e3).toISOString(),
   to: now.toISOString(),
@@ -28,7 +27,6 @@ export interface ENSVerdictStamp {
   newest?: string;
 }
 
-// What the engine has judged in the window: in total, per machine and per control and machine.
 export interface ENSVerdictActivity {
   total: ENSVerdictStamp;
   agents: Record<string, ENSVerdictStamp>;

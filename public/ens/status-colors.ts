@@ -1,11 +1,8 @@
-// One status, one colour on every screen (list stripe, machine bar, matrix, trend and badges).
 export const ENS_STATUS_COLORS: Record<string, string> = {
   CUMPLE: '#00A65A',
   PARCIAL: '#F5A700',
   NO_CUMPLE: '#BD271E',
-  // Unproven: dark grey (it matters).
   NO_EVALUABLE: '#98A2B3',
-  // Out of level: light grey (it does not count).
   NO_APLICA: '#D3DAE6',
 };
 

@@ -1,4 +1,3 @@
-// Fixed columns and filters of the Eventos tab, the same as the Wazuh table it replaces. No React: tested in tests/events-columns.test.ts.
 import type { ENSAgentScope } from '../../common/ens/core/scope/types';
 import { buildRawFactsFilters } from '../search/raw-facts-filters';
 
@@ -33,12 +32,10 @@ export const getField = (source: any, route: string): string => {
   return Array.isArray(value) ? value.join(', ') : String(value);
 };
 
-// OpenSearch serves nothing beyond from + size = index.max_result_window (10,000 by default): with more facts the table shows the total and lets the user page through the latest 10,000.
 export const ENS_EVENTS_MAX_WINDOW = 10000;
 
 export const navigableEventRows = (total: number): number =>
   Number.isFinite(total) && total > 0 ? Math.min(total, ENS_EVENTS_MAX_WINDOW) : 0;
 
-// The chosen page is valid for the filters it was chosen with (`key`, their JSON); with other filters it is the first page from the same render, so the old page is never requested with new filters.
 export const pageIndexFor = (page: { key: string; index: number }, key: string): number =>
   page.key === key ? page.index : 0;

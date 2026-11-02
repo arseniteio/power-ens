@@ -1,4 +1,3 @@
-// What would stop the environment from loading (fatal) and what this version does not know (warnings).
 import { isAgentParameterValue } from '../../../agent-configuration';
 import { ENS_ORGANIZATION_DATA_ITEMS } from './organization-data-items';
 

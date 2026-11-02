@@ -77,12 +77,10 @@ const fmt = (iso?: string) => {
   return dateTimeLabel(d);
 };
 
-// Maximum length of observations in the table; the full text is in the expanded row and the PDF.
 const OBSERVATION_PREVIEW_LENGTH = 90;
 
 const PDF_SECONDARY_COLOR = '#69707d';
 
-// Same vocabulary as the control detail: the cause label must be the same string on both screens.
 const CAUSE_LABEL: Record<string, string> = {
   CATALOG: 'catálogo',
   CONFIGURATION: 'sin configurar',
@@ -119,7 +117,6 @@ const ControlReport = ({
   const { error } = evaluation;
   const complianceResult = evaluation.data?.result;
   const ensLevel = evaluation.data?.meta?.level || activeConfiguration.global.ensLevel;
-  // A report is drawn and exported only with a real result for THIS selection: no filler while loading.
   const machine = agentId ? evaluation.data?.meta?.scope?.find(agent => agent.id === agentId) : undefined;
   const view = reportViewState({
     controlId,
@@ -142,11 +139,9 @@ const ControlReport = ({
     [definition, complianceResult],
   );
 
-  // `?? null`, not only the ternary: an unmeasured control has no score (undefined) and would print 'undefined%'.
   const engineScore = complianceResult ? complianceResult.score ?? null : null;
   const engineCoverage = complianceResult ? complianceResult.coverage : null;
   const engineLevel = complianceResult?.level || ensLevel;
-  // The level this control is evaluated with: «Nivel ENS» by category, «Nivel aplicable (Disponibilidad)» by dimension.
   const levelLabel = describeApplicableLevelLabel(getENSCatalogControl(controlId) || {});
   const engineEvaluatedAt = complianceResult?.evaluatedAt || '-';
 
@@ -186,7 +181,6 @@ const ControlReport = ({
 
   const rows: ENSReportRow[] = buildENSReportRows(reportModel);
 
-  // MEDIDO and NO EVIDENCIADO share the verdict on purpose (unproven counts against): the distinction comes from `evidenced` and the cause of the non-conformities, not from the status.
   const requirementCauses = (requirementId: string): string[] => {
     const causes: string[] = [];
 
@@ -373,7 +367,6 @@ const ControlReport = ({
     (acc: Record<string, React.ReactNode>, id) => {
       const row = requirementRows.find(item => item.id === id);
 
-      // `hasDetail` is the condition that renders the expand button; without it an id left in expandedReqIds opens an empty panel.
       if (row && hasDetail(row)) {
         acc[id] = (
           <EuiText size='xs'>
@@ -521,7 +514,6 @@ const ControlReport = ({
   ];
 
   const exportPdf = () => {
-    // A signed report is not issued without the result of this selection.
     if (!exportable || !complianceResult) return;
     const now = new Date();
     const issueDate = dateTimeLabel(now);
@@ -585,7 +577,6 @@ const ControlReport = ({
                 {
                   text: provenText,
                   style: 'scoreCell',
-                  // `> 0` as well as equality: a draft control has no applicable requirements and 0/0 would paint it green in the signed document.
                   color:
                     engineApplicable !== null &&
                     engineApplicable > 0 &&
@@ -605,7 +596,6 @@ const ControlReport = ({
         {
           table: {
             headerRows: 1,
-            // Fixed width for 'Evidencia', not 'auto': pdfMake would size it to the unbroken line and squeeze 'Valor'.
             widths: ['38%', '*', '18%'],
             body: [
               [
@@ -639,7 +629,6 @@ const ControlReport = ({
         {
           table: {
             headerRows: 1,
-            // 'Estado' has a fixed width: 'auto' would not wrap its longest line.
             widths: ['auto', '*', 'auto', 105],
             body: [
               [
@@ -935,7 +924,6 @@ const ControlReportHeader = ({ entry }: { entry: ControlReportEntry }) => (
   </EuiFlexGroup>
 );
 
-// A control without a report model never borrows another's: the selector used to default to mp.info.6 and produced a plausible, wrong document.
 const ControlWithoutReportModel = ({
   entry,
 }: {
@@ -985,7 +973,6 @@ export const ReportsENS = () => {
     [],
   );
 
-  // Controls missing a report model are named at the top, unfiltered: the omission must be visible.
   const withoutReportModel = React.useMemo(
     () =>
       listENSControlsWithoutReportModel(
@@ -1144,7 +1131,6 @@ export const ReportsENS = () => {
                 }
                 paddingSize='m'
               >
-                {/* Mounted ONLY while the section is open: each `<ControlReport>` requests its control's evaluation. Without a model there is no fallback report. */}
                 {isOpen(entry.controlId) ? (
                   entry.reportModelDefinition ? (
                     <ControlReport

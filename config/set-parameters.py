@@ -1,116 +1,4 @@
 #!/usr/bin/env python3
-"""Declares the values of a control's parameters without going through the screen.
-
-`inject-control.py` seeds a control's definition but leaves its values empty. This tool takes a file
-with values, MERGES them with what exists and writes. What is not named is not touched. The merge is
-per PARAMETER: the value of each named parameter is REPLACED whole (a list or table is not extended;
-to add a row, pass the complete list).
-
-    export OS_CERT=/etc/wazuh-indexer/certs/admin.pem
-    export OS_KEY=/etc/wazuh-indexer/certs/admin-key.pem
-    python3 set-parameters.py policy.json            # plan
-    python3 set-parameters.py policy.json --apply    # writes
-
-The file is JSON:
-
-    {
-      "op.acc.1": {
-        "P-03": ["www-data", "sshd"],
-        "P-07": ["usuario1 | servidor1 | Administrador de sistema"]
-      }
-    }
-
-A list is stored as a list (what a `list` or `table` parameter expects, one row per item); a string as
-a string; a number as a number. EMPTY = NO VALUE: `null`, `""` and `[]` REMOVE the value (the `value`
-key disappears, never `null`), like emptying a field on the screen.
-
-AGENT VALUES (plugin 1.2.0). The `agents` key declares a machine's own values by Wazuh id; they go to
-`configuration.agents` and do not touch the organization value:
-
-    {
-      "op.acc.1": { "P-04": ["admin", "test"] },
-      "agents": {
-        "001": {
-          "op.acc.1": { "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
-          "op.acc.5": { "P-02": null }
-        }
-      }
-    }
-
-Only per-system and per-platform parameters accept a per-agent value (classification in
-`common/ens/configuration/agents/parameter-classes.ts`); an organization one is rejected. `null` (or
-empty) REMOVES the agent's own value, which goes back to its template or the common value; removing is
-always accepted, even for a value that does not apply. The key is the agent id (`7` becomes `007`); a
-name is rejected, with the id if the document already knows that name.
-
-AGENT TEMPLATE IN A CONTROL (plugin 1.3.0). Inside an agent's control, the `template` key assigns that
-control's template; without it the assignment is untouched:
-
-    {
-      "agents": {
-        "001": {
-          "op.acc.1": { "template": "linux-ubuntu", "P-07": ["usuario1 | servidor1 | Administrador de sistema"] },
-          "op.acc.2": { "template": "custom-servidores-web" },
-          "op.acc.3": { "template": "none" },
-          "op.acc.4": { "template": null }
-        }
-      }
-    }
-
-The value is the id of a built-in template of the control (`linux-ubuntu`, `windows-server`,
-`manager-wazuh`, whichever the control has) or of
-a custom template in `configuration.templates` of the same control; `none` leaves the agent without
-template (common values) and `null` removes the assignment (the built-in of its type applies again).
-Applied value order: own setting, assigned template, built-in of its type, control common value. A
-document without `configuration.templates` and with nothing to convert is marked 1.3.0 on write; one
-with templates or types stored by 1.2.0 does not accept `template` until a change is saved from
-Configuración (the plugin converts it).
-
-REGULAR EXPRESSION (plugin 1.3.0). In the parameters the engine compares as names (op.acc.1 P-03
-and P-04), a value can be an RE2 regular expression, without
-slashes, compared with the whole value. It is declared with a `value` + `matchMode` object, in the
-organization or in an agent:
-
-    {
-      "op.acc.1": { "P-04": { "value": "^(admin|guest)$", "matchMode": "regex" } },
-      "agents": {
-        "001": { "op.acc.1": { "P-03": { "value": "^svc_.*$", "matchMode": "regex" } } }
-      }
-    }
-
-A value without object is exact text and removes any mode; emptying the value also removes its mode.
-Mode, parameter, length (512 characters at most) and no leading or trailing spaces are checked; RE2
-syntax is checked by `npx --yes tsx config/validate-configuration.ts` on the written document.
-
-ORGANISATION DATA (plugin 1.4.0). The data several controls ask (who may administer, pre-production
-environment, CCN-authorised algorithms, privileged groups, the Statement of Applicability…) is set once
-in `configuration.organizationData` and written into every parameter that reads it. The `organization`
-key sets an item by its id (list in Configuración > General > «Datos de la organización»):
-
-    {
-      "organization": {
-        "grupos_privilegiados": ["sudo", "wheel"],
-        "entorno_preproduccion": ["srv-app01 | pre-app01 | informe 2026-05"],
-        "retencion": null
-      }
-    }
-
-`null` (or empty) removes the item and its value in every parameter that reads it. The P-xx form keeps
-working: a parameter that is organisation data (op.acc.1 P-11, op.acc.2 P-12…) writes to its item, and
-the plan lists every other parameter that changes with it. A parameter that reads only part of an item
-(op.acc.4 P-02 is the «autorizaciones» rows of «Personal autorizado») changes only that part. If the item
-has no value yet and the parameter reads only part of it, only the parameter is written: the plugin moves
-it to the item on load, or shows the conflict. Per-agent values work as before.
-
-BEFORE WRITING, the version being replaced is saved in the `wazuh-ens-configuration` history, like the
-plugin does, or, if the index does not accept it, in a local file `active-antes-<date>.json`. The tool
-says where.
-
-DRY-RUN BY DEFAULT. Writing requires `--apply`: this overwrites owner decisions.
-
-IT DOES NOT INVENT PARAMETERS. If the file names a parameter the control does not declare, it stops
-and says so.
-"""
 import argparse
 import base64
 import datetime
@@ -194,8 +82,6 @@ def agent_id(value):
 
 
 def classes():
-    """Parameter classification, from the engine catalog copy in `common/ens/catalog/engine/`.
-    None if absent (script outside the repo)."""
     engine = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "ens", "catalog", "engine")
     if not os.path.isdir(engine):
         return None
@@ -207,7 +93,6 @@ def classes():
     return found
 
 
-# Built-in template ids per control; tests/control-templates-model.test.ts checks it against the plugin.
 BUILTIN_TEMPLATES = {
     "op.acc.1": ["linux-ubuntu", "windows-server", "manager-wazuh"],
     "op.acc.2": ["linux-ubuntu", "windows-server", "manager-wazuh"],
@@ -230,8 +115,6 @@ BUILTIN_TEMPLATES = {
 NO_TEMPLATE = "none"
 TEMPLATE_KEY = "template"
 
-# Parameters with the «Expresión regular» mode; tests/parameter-match-mode-levels.test.ts checks it against the
-# plugin.
 PATTERN_PARAMETERS = {
     "op.acc.1": ["P-03", "P-04"]
 }
@@ -240,7 +123,6 @@ ENTRY_KEYS = {"value", "matchMode"}
 
 
 def needs_conversion(agents):
-    # Profiles the plugin's 1.2.0 conversion would change: their resolution needs it before any 1.3.0 key.
     return any(isinstance(p, dict) and (isinstance(p.get("templates"), list) or p.get("detectedType") or p.get("typeOverride"))
                for p in (agents or {}).values())
 
@@ -258,7 +140,6 @@ def valid_value(v):
 
 
 def unwrap(entry):
-    """(value, mode, problem) of a file entry: a plain value is exact, an object carries `value` and `matchMode`."""
     if not isinstance(entry, dict):
         return entry, "exact", None
     if set(entry) - ENTRY_KEYS or "value" not in entry:
@@ -300,7 +181,6 @@ mark_130 = legacy_document and not needs_conversion(agents_doc)
 
 
 def suggestion(name):
-    """The id of a profile that already knows that name (its name or an alias)."""
     searched = str(name).strip().lower()
     for aid, profile in agents_doc.items():
         names = [str((profile or {}).get("name") or "")] + list((profile or {}).get("aliases") or [])
@@ -309,7 +189,6 @@ def suggestion(name):
     return None
 
 
-# --- validation BEFORE touching anything ------------------------------------
 errors = []
 
 for control_id, values in wanted.items():
@@ -358,7 +237,6 @@ for agent, controls in per_agent.items():
         for pid, v in (values or {}).items():
             if pid == TEMPLATE_KEY:
                 continue
-            # Removing is always accepted, even a value that does not apply.
             if not unwrap(v)[2] and is_empty(unwrap(v)[0]):
                 continue
             parameter_class = classification.get(control_id, {}).get(pid)
@@ -372,11 +250,8 @@ for agent, controls in per_agent.items():
             elif entry_problem(control_id, pid, v):
                 errors.append("agent %s: %s %s %s" % (aid, control_id, pid, entry_problem(control_id, pid, v)))
 
-# --- organisation data: items set by id and P-xx that are a view of an item
 items = organization.load_items()
-# item id -> (new value, what asked for it)
 item_changes = {}
-# (control, parameter) written as a parameter only: the item has no value and the view is partial
 partial_only = set()
 
 if per_item and items is None:
@@ -434,7 +309,6 @@ for control_id, values in wanted.items():
 for item_id, (value, source) in item_changes.items():
     item = organization.get_item(items, item_id)
     errors += ["%s: %s" % (source, problem) for problem in organization.single_value_problems(config, item, value)]
-    # As the screen: the item is written into every parameter that reads it, so each one must accept it.
     for view in item.get("views", []):
         target = organization.find_parameter(config, view["controlId"], view["parameterId"])
         problem = target is not None and organization.value_problem(target, organization.view_value(item, view, target.get("type"), value))
@@ -456,7 +330,6 @@ def stored_mode(mode):
     return "regex" if mode == "regex" else "exact"
 
 
-# --- the plan ---------------------------------------------------------------
 changes = 0
 
 for control_id, values in sorted(wanted.items()):
@@ -554,7 +427,6 @@ for agent, controls in sorted(per_agent.items()):
                     modes.pop(pid, None)
                 print("   %s %-6s %s  ->  %s" % (control_id, pid, shown(old, old_mode) if old is not None else "(inherits)", shown(new, new_mode)))
             changes += 1
-        # Other keys stored next to `parameters` (`templateId`, or a later version's) are kept.
         if parameters:
             entry_doc["parameters"] = parameters
         else:
@@ -587,12 +459,10 @@ if not args.apply:
     print("\n%d change(s). DRY-RUN: nothing written. Add --apply." % changes)
     sys.exit(0)
 
-# The version being replaced, before writing (the document as read).
 print("Previous version saved in: %s" % save_previous_version(req, INDEX, previous, "set-parameters.py"))
 
 config["updatedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 current["configuration"] = config
-# Only over the version read: a save from the screen meanwhile is not overwritten.
 try:
     req("PUT", organization.guarded_path("/%s/_doc/%s" % (INDEX, DOC), read), current)
 except urllib.error.HTTPError as e:

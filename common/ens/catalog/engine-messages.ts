@@ -1,5 +1,3 @@
-// The texts of the engine's reasons, by code: a byte-for-byte copy of oscompliance-ens catalog/messages kept by
-// `config/sync-catalog.ts`. The screens are in Spanish only for now.
 import es from './messages/es.json';
 
 const TEXTS: Record<string, string> = es as Record<string, string>;
@@ -23,7 +21,6 @@ const argText = (value: unknown): string => {
   return String(value);
 };
 
-// Same rules as the engine's catalog.Message.Render; an unknown code is undefined so the caller falls back.
 export const renderEngineMessage = (code?: string, args?: Record<string, unknown>): string | undefined => {
   if (!code || TEXTS[code] === undefined) return undefined;
   return TEXTS[code].replace(/\{([a-z_]+)\}/g, (_, name: string) => argText(args?.[name])).trim();

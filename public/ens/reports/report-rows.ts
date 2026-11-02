@@ -1,4 +1,3 @@
-/** Rows of the 'Campos del informe' table, on screen and in the signed PDF. Keys live in a type, so reading a missing key is a compile error. */
 import type { ENSReportField, ENSReportFieldStatus, ENSReportModel } from './registry';
 import { statusLabel } from '../../../common/ens/core/status-label';
 
@@ -29,7 +28,6 @@ interface ENSReportPdfCell {
 
 export const ENS_REPORT_NO_EVIDENCE = 'Sin evidencia';
 
-// Key the on-screen 'Evidencia' column reads; defined here so a loose literal cannot drift.
 export const ENS_REPORT_EVIDENCE_FIELD = 'evidencia';
 
 const UNMEASURED_COLOR = '#69707d';
@@ -43,7 +41,6 @@ const STATUSES: ENSReportFieldStatus[] = [
   'SIN_DATOS',
 ];
 
-// A status outside the six is published as SIN_DATOS (grey), never undefined and never as non-compliance.
 const asStatus = (value: unknown): ENSReportFieldStatus =>
   STATUSES.indexOf(value as ENSReportFieldStatus) >= 0
     ? (value as ENSReportFieldStatus)
@@ -83,7 +80,6 @@ export const buildENSReportRows = (
   model: ENSReportModel | undefined,
 ): ENSReportRow[] => (model?.fields || []).map(buildENSReportRow);
 
-// Evidence line under each requirement verdict. The verdict is the same on purpose (unproven counts against); this line separates measured from unevidenced.
 export const ensRequirementProofLabel = (
   requirement: { status: string; attested?: boolean; evidenced?: boolean; documental?: boolean },
   causes: string[] = [],
@@ -120,7 +116,6 @@ export const ensReportStatusBadgeColor = (status: string): string =>
     ? 'hollow'
     : 'default';
 
-// NO_CUMPLE is red; NO_EVALUABLE and SIN_DATOS are grey: the same split the engine keeps between nonConformities and unproven.
 export const ensReportStatusPdfColor = (status: string): string =>
   status === 'CUMPLE'
     ? '#4caf50'

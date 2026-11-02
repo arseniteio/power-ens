@@ -1,31 +1,8 @@
 #!/usr/bin/env bash
-###############################################################################
-# create-admin-role.sh · creates the power_ens_admin role and, if asked, assigns it
-#
-#   sudo bash config/create-admin-role.sh [--dry-run] [--mapear <user>]...
-#
-# Whoever has the power_ens_admin role (or all_access) can save the ENS configuration and see its
-# history; the others see it but get a 403 on save. The role is a mark the plugin looks for among the
-# user's roles, and grants one permission: read on wazuh-ens-snapshots (the maturity series).
-#
-# Talks to the indexer with its administration certificate, no password, and verifies the indexer
-# certificate against its CA (never `-k`: this script writes to cluster security, and without
-# verifying who it talks to anyone in the middle would receive the administration certificate):
-#   OS_CERT   default /etc/wazuh-indexer/certs/admin.pem
-#   OS_KEY    default /etc/wazuh-indexer/certs/admin-key.pem
-#   OS_CA     default /etc/wazuh-indexer/certs/root-ca.pem
-#   OS_URL    default https://127.0.0.1:9200 (ENS_OS_URL also works)
-# The URL must carry the name the indexer certificate was made for: a default Wazuh install's is for
-# 127.0.0.1, not localhost (with localhost curl refuses: «no alternative certificate subject name matches»).
-#
-# Repeatable: the role is rewritten the same and the mapping only ADDS missing users; it never removes
-# anyone. --dry-run shows the requests that would change something and does not send them (it does read
-# the mapping, to know what is missing).
-###############################################################################
 set -euo pipefail
 
 ROLE=power_ens_admin
-ROLE_BODY='{"description":"Power ENS: puede cambiar la configuración ENS, ver su historial y leer las instantáneas de madurez","cluster_permissions":[],"index_permissions":[{"index_patterns":["wazuh-ens-snapshots"],"allowed_actions":["read"]}],"tenant_permissions":[]}'
+ROLE_BODY='{"description":"Power ENS: puede cambiar la configuración ENS y ver su historial","cluster_permissions":[],"index_permissions":[],"tenant_permissions":[]}'
 ROLE_PATH="_plugins/_security/api/roles/$ROLE"
 MAPPING_PATH="_plugins/_security/api/rolesmapping/$ROLE"
 
@@ -37,7 +14,7 @@ OS_URL="${OS_URL:-${ENS_OS_URL:-https://127.0.0.1:9200}}"
 OS_URL="${OS_URL%/}"
 
 usage() {
-  echo "usage: sudo bash create-admin-role.sh [--dry-run] [--mapear <user>]..." >&2
+  echo "usage: sudo bash create-admin-role.sh [--dry-run] [--map <user>]..." >&2
 }
 
 DRY_RUN=0
@@ -48,9 +25,9 @@ while [ $# -gt 0 ]; do
       DRY_RUN=1
       shift
       ;;
-    --mapear)
+    --map)
       if [ -z "${2:-}" ] || [ "${2#-}" != "$2" ]; then
-        echo "--mapear needs a user name" >&2
+        echo "--map needs a user name" >&2
         usage
         exit 1
       fi
@@ -69,8 +46,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# The certificate is needed for any request, also to read the mapping in dry-run mode. Without --mapear,
-# dry-run does not talk to the indexer.
 if [ "$DRY_RUN" = 0 ] || [ "${#USERS[@]}" -gt 0 ]; then
   if [ ! -r "$OS_CERT" ] || [ ! -r "$OS_KEY" ]; then
     echo "cannot read the administration certificate ($OS_CERT, $OS_KEY)." >&2
@@ -84,8 +59,6 @@ if [ "$DRY_RUN" = 0 ] || [ "${#USERS[@]}" -gt 0 ]; then
   fi
 fi
 
-# request METHOD PATH [BODY]: leaves the response body in RESPONSE and the HTTP code in CODE.
-# Never user or password: only the certificate.
 RESPONSE=
 CODE=
 request_to_indexer() {
@@ -102,7 +75,6 @@ request_to_indexer() {
   RESPONSE="${output%$'\n'*}"
 }
 
-# change METHOD PATH BODY: prints it and, except in dry-run mode, sends it.
 change_request() {
   echo "$1 $2 $3"
   if [ "$DRY_RUN" = 1 ]; then
@@ -138,9 +110,6 @@ if [ "${#USERS[@]}" -gt 0 ]; then
       ;;
   esac
 
-  # What is missing: the requested users not already there, without repeats. If the mapping does not exist
-  # it is created with them (nobody to remove); if it exists, they are added with PATCH `add` at the end of
-  # `users`, which does not touch those already there.
   PLAN="$(RESPONSE="$RESPONSE" python3 -c '
 import json, os, sys
 
@@ -187,7 +156,6 @@ if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 
-# How it ends up.
 request_to_indexer GET "$MAPPING_PATH"
 if [ "$CODE" = 200 ]; then
   CURRENT_USERS="$(RESPONSE="$RESPONSE" python3 -c '
@@ -197,6 +165,6 @@ print(", ".join((data.get(sys.argv[1]) or {}).get("users") or []))
 ' "$ROLE")"
   echo "users with the role $ROLE: ${CURRENT_USERS:-none}"
 else
-  echo "the role $ROLE is not assigned to anyone yet (assign it with --mapear <user>)"
+  echo "the role $ROLE is not assigned to anyone yet (assign it with --map <user>)"
 fi
 echo "Users with $ROLE or all_access can save the ENS configuration."

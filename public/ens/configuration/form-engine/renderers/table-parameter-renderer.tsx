@@ -22,11 +22,6 @@ import {
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 
-// Renderer of `type: 'table'` parameters: grids of policy rows (`opacc2-acl.tsv`, `opacc2-privilegios.tsv`,
-// `opacc2-accesos.tsv`) edited in the screen instead of uploading a file, so there is a single original.
-// What is shown and stored is decided by `resolveTableFieldModel` (services/parameter-value-validator); only the
-// EUI is here.
-// No factory values: an unset table shows ZERO rows and says so; a prefilled row would read as a decision taken.
 
 const MIN_CELL = 140;
 
@@ -34,8 +29,6 @@ const requiredColumn = (
   cell: ENSTableCellModel
 ): boolean => cell.column.required;
 
-// Field for each column type: `select` and `multiselect` offer only what is declared; the rest is text with its
-// own validation.
 const EditableCell = ({
   celda: cell,
   invalida: invalidOne,
@@ -82,7 +75,6 @@ const EditableCell = ({
         isInvalid={invalidOne}
         aria-label={cell.column.label}
         placeholder={cell.placeholder}
-        // Without declared options the auditor writes freely; with options, only those are offered.
         noSuggestions={declared.length === 0}
         options={declared}
         selectedOptions={cell.items.map(

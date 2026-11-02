@@ -1,4 +1,3 @@
-// Requirement texts with their provenance (BOE literal or application criterion) and, where it exists, the correspondence with the auditor's template.
 import React from 'react';
 import {
   EuiAccordion,
@@ -32,7 +31,6 @@ export const ProvenanceLabel = ({ provenance }: { provenance: ENSTextProvenance 
   </EuiBadge>
 );
 
-// A text preceded by its provenance label.
 export const ProvenancedText = ({ provenance, text }: { provenance: ENSTextProvenance; text: string }) => (
   <EuiText size='xs'>
     <p>

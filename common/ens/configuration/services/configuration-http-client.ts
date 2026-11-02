@@ -6,8 +6,6 @@ import { normalizeOrganizationData } from '../organization/organization-data-mig
 
 const ENS_CONFIGURATION_API_PATH = POWER_ENS_CONFIGURATION_PATH;
 
-// HTTP client of the dashboard core. Lives in `common/` (shared with the server), which cannot import from
-// `public/`: the browser registers it at startup (`public/services.ts`).
 interface ENSConfigurationHttp {
   get<T>(path: string, options?: { signal?: AbortSignal; query?: Record<string, string> }): Promise<T>;
   put<T>(path: string, options?: { body?: string; signal?: AbortSignal }): Promise<T>;
@@ -33,7 +31,6 @@ export interface ENSConfigurationMetadata {
   createdBy?: string;
   updatedAt?: string;
   updatedBy?: string;
-  // Index version of the document; sent back on save so a newer one is not overwritten.
   seqNo?: number;
   primaryTerm?: number;
 }
@@ -46,7 +43,6 @@ export interface ENSConfigurationExpectedVersion {
 export interface ENSConfigurationServerState {
   configuration: ENSConfigurationVersion | null;
   metadata: ENSConfigurationMetadata | null;
-  // Saved, but something after it failed (the history entry).
   warning?: string;
 }
 
@@ -56,11 +52,9 @@ interface ENSConfigurationApiResponse {
   data: ENSConfigurationServerState;
 }
 
-// Keys checked by the route schema (server/routes/configuration.ts); tests/configuration-route-schema.test.ts.
 interface ENSConfigurationSaveRequest {
   configuration: ENSConfigurationVersion;
   changeReason?: string;
-  // null: there was no configuration when it was loaded, so it must still not exist.
   expectedVersion?: ENSConfigurationExpectedVersion | null;
 }
 
@@ -95,8 +89,6 @@ const getResponseData = (
   return response.data;
 };
 
-// The server explains in `body.message` why it rejects a request; the core HTTP client only reports the status
-// text.
 const withServerReason = (error: any): Error => {
   const reason = error?.body?.message;
 
@@ -133,7 +125,6 @@ export async function saveENSConfiguration(
 ): Promise<ENSConfigurationServerState> {
   const normalizedChangeReason = changeReason?.trim();
 
-  // Every save writes each organisation item into its mapped parameters (items in conflict stay as they are).
   const requestBody: ENSConfigurationSaveRequest = {
     configuration: withoutDerivedParameterStatuses(normalizeOrganizationData(configuration).configuration),
     ...(normalizedChangeReason
@@ -155,7 +146,6 @@ export async function saveENSConfiguration(
       undefined,
       saveTimeoutMs,
     ).catch(error => {
-      // A save that does not answer must not hold every later save of the queue.
       if (error instanceof ENSRequestTimeoutError) {
         throw new Error(SAVE_TIMED_OUT);
       }

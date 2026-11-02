@@ -1,13 +1,3 @@
-"""Organisation data (plugin 1.4.0) for the scripts that write `_doc/active` directly.
-
-The items and the view each mapped parameter reads come from their single source, the JSON array of
-`common/ens/configuration/organization/organization-data-items.ts`. The rules are those of
-`organization-data-views.ts`; `tests/organization-data-scripts.test.ts` runs both on the same cases.
-
-The item value lives in `configuration.organizationData.values.<item>` (absent key: no value, never
-null) and is written into every mapped parameter, so the plugin, the engine and a 1.3.0 plugin read it
-in the `value` of each parameter.
-"""
 import datetime
 import json
 import os
@@ -21,7 +11,6 @@ NUMERIC_TYPES = ("number", "duration_hours", "duration_days")
 
 
 def load_items(path=ITEMS_FILE):
-    """The items, or None if the file is not there (script outside the repo)."""
     try:
         with open(path, encoding="utf-8") as f:
             source = f.read()
@@ -44,10 +33,7 @@ def get_item(items, item_id):
     return next((item for item in items or [] if item["id"] == item_id), None)
 
 
-# --- values -----------------------------------------------------------------
-
 def cell_text(value):
-    # As JavaScript's String(): true, 365 (not True, 365.0).
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, float) and value.is_integer():
@@ -174,7 +160,6 @@ def is_identity(view):
 
 
 def project(item, view, parameter_type, rows):
-    """What the parameter reads from the item rows (None: no value)."""
     columns = view.get("columns") or column_names(item)
     projected = [[cell(row.get(c)) for c in columns] for row in rows if matches(item, row, view)]
     projected = [p for p in projected if any(p)]
@@ -203,7 +188,6 @@ def view_value(item, view, parameter_type, value):
 
 
 def view_rows(item, view, parameter_type, value):
-    """The parameter value as item rows: its cells under the view columns plus the `where` cells."""
     if is_empty(value):
         return []
     columns = view.get("columns") or column_names(item)
@@ -226,7 +210,6 @@ def view_rows(item, view, parameter_type, value):
 
 
 def merge_row(item, rows, row):
-    """Adds a row: with `key`, into the row with the same key (existing cells win); otherwise into an identical row."""
     key = item.get("key") or []
     if key and all(cell(row.get(k)) for k in key):
         index = next((i for i, r in enumerate(rows) if all(same(r.get(k), row.get(k)) for k in key)), -1)
@@ -258,8 +241,6 @@ def same_value(parameter_type, left, right):
         normalize = lambda v: sorted(set(list_items(v)))  # noqa: E731
     return normalize(left) == normalize(right)
 
-
-# --- validity (parameter-value-validator.ts: the screen's rules, without the per-parameter refinements) --------
 
 IDENTIFIER = re.compile(r"^[^\s|,]+$")
 NUMBER = re.compile(r"^-?\d+(?:\.\d+)?$")
@@ -332,7 +313,6 @@ def _cell_problem(column, parameter, text):
 
 
 def value_problem(parameter, value):
-    """Why the value is not valid for the parameter, or None (an empty value is valid: «not configured» is apart)."""
     if is_empty(value):
         return None
     kind = parameter.get("type")
@@ -381,11 +361,8 @@ def value_problem(parameter, value):
 
 
 def item_parameter(item):
-    """The item as a parameter, to validate its own value."""
     return {"type": item["type"], "columns": item.get("columns") or [], "options": item.get("options") or []}
 
-
-# --- the document -------------------------------------------------------------
 
 def stored_value(config, item_id):
     values = ((config.get("organizationData") or {}).get("values") or {})
@@ -410,7 +387,6 @@ CHANGED_WHILE_APPLYING = "La configuración ha cambiado mientras se aplicaba; vo
 
 
 def guarded_path(path, read):
-    """The PUT path that only writes over the version that was read (`_seq_no`/`_primary_term` of the GET)."""
     seq, term = (read or {}).get("_seq_no"), (read or {}).get("_primary_term")
     return path if seq is None or term is None else "%s?if_seq_no=%d&if_primary_term=%d" % (path, seq, term)
 
@@ -425,7 +401,6 @@ def find_parameter(config, control_id, parameter_id):
 
 
 def adopted_value(config, item):
-    """(value, sources) the plugin moves to an item without stored value; (None, []) if none or they differ."""
     configured = []
     for view in item.get("views", []):
         parameter = find_parameter(config, view["controlId"], view["parameterId"])
@@ -452,7 +427,6 @@ def adopted_value(config, item):
 
 
 def fill_problems(config, item, value):
-    """Parameters without value that cannot take the item value as it is: «<control> <parameter>: <reason>»."""
     problems = []
     for view in item.get("views", []):
         parameter = find_parameter(config, view["controlId"], view["parameterId"])
@@ -465,7 +439,6 @@ def fill_problems(config, item, value):
 
 
 def single_value_problems(config, item, value):
-    """A parameter that reads one value and finds several rows of its use: their order would decide."""
     problems = []
     rows = item_rows(item, value)
     for view in item.get("views", []):
@@ -481,10 +454,6 @@ def single_value_problems(config, item, value):
 
 
 def write_through(config, item, value, only_empty=False):
-    """Writes the item into every mapped parameter of the document. Returns [(control, parameter, old, new)].
-
-    With `only_empty`, only parameters without value take it: a different value is the plugin's conflict to show.
-    """
     written = []
     for view in item.get("views", []):
         parameter = find_parameter(config, view["controlId"], view["parameterId"])
@@ -494,7 +463,6 @@ def write_through(config, item, value, only_empty=False):
         if only_empty and not is_empty(old):
             continue
         new = view_value(item, view, parameter.get("type"), value)
-        # A parameter without value is completed only with a value valid for it.
         if only_empty and value_problem(parameter, new):
             continue
         if same_value(parameter.get("type"), new, old) and is_empty(new) == is_empty(old):
@@ -508,7 +476,6 @@ def write_through(config, item, value, only_empty=False):
 
 
 def assign_view(item, stored, view, parameter_type, new_value):
-    """The item value after setting one view: only that view's rows change. None if the item ends empty."""
     if is_identity(view):
         return value_from_rows(item, view_rows(item, view, parameter_type, new_value))
     columns = view.get("columns") or column_names(item)
@@ -520,13 +487,11 @@ def assign_view(item, stored, view, parameter_type, new_value):
             continue
         multi = [c for c in where if is_multiselect(item, c)]
         if multi:
-            # The row keeps its other uses; it goes only if it has none left.
             for column in multi:
                 row[column] = ", ".join(o for o in options(row.get(column)) if not same(o, where[column]))
             if all(options(row.get(c)) for c in multi):
                 rows.append(row)
         elif item.get("key"):
-            # A keyed row stays for the other views; only this view's cells are cleared.
             for column in columns:
                 row[column] = ""
             rows.append(row)
@@ -543,7 +508,6 @@ def assign_view(item, stored, view, parameter_type, new_value):
 
 
 def validate_shape(config, path="configuration.organizationData"):
-    """What would stop the plugin from loading the environment. An absent key is valid; `null` is not."""
     if "organizationData" not in config:
         return []
     block = config["organizationData"]

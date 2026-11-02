@@ -1,4 +1,3 @@
-// The body of every ENS screen query against the facts. Same content as the Wazuh search it replaces: the screen filters, cap, order and aggregations.
 import { ENS_ALERTS_INDEX } from '../../common/constants';
 
 export interface ENSSearchParams {
@@ -9,7 +8,6 @@ export interface ENSSearchParams {
   sorting?: unknown[];
 }
 
-// Filters arrive as loose DSL ({ range }, { bool }…) or as bar filters with `meta` (and sometimes `$state`): for these the `query` counts or, without it, what remains without `meta` and `$state`, which OpenSearch does not accept.
 const clause = (filter: any): { incluir?: unknown; excluir?: unknown } => {
   if (!filter) return {};
   if (filter.meta) {

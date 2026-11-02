@@ -1,6 +1,5 @@
 import { ENSControlDefinition, ENSRequirementDefinition } from '../types';
 
-// Where a text shown to the auditor comes from. Only the «Ficha del Control» of the templates is the BOE; parameters, evidences, thresholds, non-compliance conditions and report fields are the auditor's proposal or Power ENS's criterion («Metodología y fuentes» of the auditor's index).
 export type ENSTextProvenance = 'BOE' | 'CRITERION';
 
 export const ENS_TEXT_PROVENANCE_LABELS: Record<ENSTextProvenance, string> = {
@@ -20,10 +19,8 @@ const provenanced = (provenance: ENSTextProvenance, text: string): ENSProvenance
   text,
 });
 
-// Evidence, parameter and report-field texts are never the norm: the template proposes them.
 export const ENS_PROPOSAL_TEXT_PROVENANCE: ENSTextProvenance = 'CRITERION';
 
-// The texts of a requirement in reading order: the BOE literal, then how it is read and measured.
 export const describeRequirementTexts = (
   requirement: Pick<ENSRequirementDefinition, 'description' | 'interpretation'>
 ): ENSProvenancedText[] => [
@@ -37,11 +34,9 @@ const formatISODate = (date: string): string => {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : date;
 };
 
-// «Anexo II, apdo. 4.2.1»; empty when the control declares no section.
 export const describeAnnexSection = (control: Pick<ENSControlDefinition, 'annexSection'>): string =>
   control.annexSection ? `Anexo II, apdo. ${control.annexSection}` : '';
 
-// «Plantilla del auditor v2.0 (15/10/2026)»; without the date when the template has none («Plantilla del auditor v1.0»).
 export const describeControlSource = (control: Pick<ENSControlDefinition, 'source'>): string =>
   control.source
     ? `Plantilla del auditor v${control.source.version}${control.source.date ? ` (${formatISODate(control.source.date)})` : ''}`

@@ -1,9 +1,3 @@
-// Copies the engine catalog (controls, built-in templates, system types and the Spanish texts of its reasons)
-// and writes the seed blocks from it.
-//
-//   CORE_SRC=../oscompliance-ens npx tsx config/sync-catalog.ts
-//
-// CORE_SRC defaults to the oscompliance-ens folder next to the plugin.
 import { copyFileSync, mkdirSync, readdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -26,7 +20,6 @@ for (const name of readdirSync(join(catalog, 'templates'))) {
   copyFileSync(join(catalog, 'templates', name), join(templates, name));
 }
 
-// Imported after the copy so the blocks come from the files just copied.
 const { ENGINE_CATALOG, controlBlockOf } = require('../common/ens/catalog/engine-catalog');
 declare const require: any;
 for (const entry of ENGINE_CATALOG) {

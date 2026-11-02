@@ -1,5 +1,3 @@
-// Prefix filter over ENS identifiers, compared by segment: 'op.exp.1' must not match 'op.exp.10'.
-// Only the last segment may match partially, and only if nothing matches by whole segments.
 
 import { ENSPrefixFilterResult } from './types';
 import { compareENSFamiliesByAnnex } from '../../../common/ens/catalog';
@@ -86,7 +84,6 @@ export const listENSFamilies = (ids: readonly string[]): string[] => {
   return [...new Set(families)].sort(compareENSFamiliesByAnnex);
 };
 
-// Sections start closed; with exactly one matching control the section starts open.
 const isENSSectionOpenByDefault = (matchedCount: number): boolean =>
   matchedCount === 1;
 

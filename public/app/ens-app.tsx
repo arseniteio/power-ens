@@ -10,7 +10,6 @@ import { isAgentInScope } from './agent-in-scope';
 import { useActiveENSScopeAgents } from '../ens/scope/use-active-scope-agents';
 import { POWER_ENS_VERSION } from '../../common/ens/plugin-version';
 
-// A URL machine outside the scope renders no tab: the selector says so, and each screen would otherwise request an evaluation that answers 400.
 const OnlyInScope = ({ children }: { children: React.ReactNode }) => {
   const { agentId } = useRouterSearch();
   const scope = useActiveENSScopeAgents();
@@ -27,12 +26,10 @@ const VIEWS: Record<string, React.ComponentType> = {
   evidences: React.lazy(() => import('../ens/evidences').then(m => ({ default: m.EvidencesENS }))),
 };
 
-// Outside the component: a component created on every render would remount each time.
 const EmptyView = () => null;
 
 export const EnsApp = () => {
   const { tabView, agentId, control } = useRouterSearch();
-  // Changing machine or control does not unmount the tab (see tab-error-boundary.tsx): it only clears a previous render error.
   const retry = `${agentId || ''}|${control || ''}`;
   const changes = useSetRouterSearch();
   const tab = resolveTab(tabView);
@@ -63,7 +60,6 @@ export const EnsApp = () => {
         <EuiTabs>
           {ENS_TABS.map(t => (
             <EuiTab key={t.id} isSelected={t.id === tab.id} onClick={() =>
-                // Configuration parameters (and their return to the detail) belong to that screen: cleared on tab change.
                 changes({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
               }>
               {t.name}

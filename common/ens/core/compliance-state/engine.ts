@@ -23,7 +23,6 @@ const createSummaryFromItems = (
   const partial = items.filter(item => item.status === 'PARCIAL').length;
   const notEvaluable = items.filter(item => item.status === 'NO_EVALUABLE').length;
   const notApplicable = items.filter(item => item.status === 'NO_APLICA').length;
-  // The global index averages over everything APPLICABLE: what is not proven counts against, so a control without data contributes its 0 and the index drops. Only NO_APLICA stays out of the average (a control not governing at the active level cannot subtract; this allows 100 % at BAJO).
   const measuredItems = items.filter(item => item.status !== 'NO_APLICA');
 
   const scoreAverage = measuredItems.length

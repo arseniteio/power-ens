@@ -33,29 +33,19 @@ import { findOrganizationDataLink } from '../../../../common/ens/configuration/o
 
 interface AgentParameterRowProps {
   agentId: string;
-  // `value` is what is shown and edited: the effective value or, in a contribution parameter, only what this
-  // system adds.
   parameter: ENSControlParameter;
-  parameterClass: 'system' | 'platform';
   origin: ENSResolvedValueOrigin;
-  // Parameter describing other machines in a manager control (or the declared scope): only this system's
-  // contribution is declared here.
   contributionOnly?: boolean;
-  // The organization rows, apart and read-only.
   organisationRows?: string[];
-  // What is really evaluated (the union on the manager row), read-only.
   effectiveRows?: string[];
   note?: string;
   applicable: boolean;
   focused: boolean;
-  // What saving this value will do (empty, same as inherited, or own).
   describeSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => 'quitar' | 'igual' | 'propio';
   onSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => Promise<void>;
-  // After saving the parameter requested by the URL, so it does not open again.
   onDone?: () => void;
 }
 
-// Short origin label of the value the agent is evaluated with.
 const describeOrigin = (origin: ENSResolvedValueOrigin, hasValue: boolean, contributionOnly = false): { text: string; color: 'primary' | 'hollow' | 'default' | 'warning' } => {
   if (origin.source === 'agent') return { text: 'Personalizado', color: 'primary' };
   if (origin.source === 'template') return { text: `Plantilla «${origin.templateName || origin.templateId}»`, color: 'hollow' };
@@ -94,7 +84,6 @@ const HINTS: Record<'quitar' | 'igual', string> = {
 export const AgentParameterRow = ({
   agentId,
   parameter,
-  parameterClass,
   origin,
   contributionOnly = false,
   organisationRows,
@@ -106,10 +95,8 @@ export const AgentParameterRow = ({
   onSave,
   onDone,
 }: AgentParameterRowProps) => {
-  // On mount only: the parameter requested by the URL opens once.
   const [editing, setEditing] = useState(focused);
   const link = findOrganizationDataLink(parameter.controlId, parameter.id);
-  // Identical data read by other controls: an agent's own value is still set in each of them.
   const siblings = link
     ? link.item.views
         .filter(view => !view.where && !view.columns && !(view.controlId === parameter.controlId && view.parameterId === parameter.id))
@@ -139,7 +126,6 @@ export const AgentParameterRow = ({
     if (focused) anchor.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  // When the value changes (after saving), the draft returns to it.
   useEffect(() => {
     if (!editing) resetDraft();
   }, [valueKey]);

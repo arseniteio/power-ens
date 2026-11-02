@@ -1,6 +1,4 @@
-// The evolution chart. The series is computed by the engine day by day and this file only paints it; see `core/timeline/compliance-timeline.ts`. It no longer averages the agent's `score_snapshot` per week, which was another number.
 import { ENSComplianceState } from '../../compliance-state/types';
-// `import type`: only a type; as a value it would drag the whole engine into this presenter. See the header of `dashboard-adapter.ts`.
 import type { ENSComplianceTimelinePoint } from '../../timeline/compliance-timeline';
 import { EvolutionModel, EvolutionRowModel } from '../models/evolution.model';
 
@@ -26,7 +24,6 @@ export const buildEvolutionModel = (
         .controlSummary.parcial
     ) > 0;
 
-  // Without a series, a single point with the current value, the same number the last point would give, so the card never contradicts the panel.
   const fallbackRows:
     EvolutionRowModel[] =
       hasEvaluableControls

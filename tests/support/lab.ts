@@ -46,7 +46,6 @@ interface PassSpec {
   evidences?: Partial<ENSEngineVerdict>[];
 }
 
-// One engine pass of a control on a machine: every verdict stamped with the same instant, as the engine writes it.
 export const enginePass = ({ control = 'op.acc.1', machine = AGENT, at, status, score, requirements = [], evidences = [] }: PassSpec): FakeDoc[] => {
   const common = { '@timestamp': at, control, agent: { id: machine.id, name: machine.name } };
   return [

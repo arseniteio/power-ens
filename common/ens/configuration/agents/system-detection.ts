@@ -1,4 +1,3 @@
-// System type of a machine from its inventory platform: the same rule as the engine (`catalog.SystemTypeOf`).
 import {
   ENSAgentProfile,
   ENSSystemType,
@@ -22,11 +21,9 @@ export interface ENSDetectableAgent {
 export interface ENSSystemDetection {
   type?: ENSSystemType;
   source: 'id' | 'inventario' | 'ninguna';
-  // "detectado por ..." in one sentence.
   evidence: string;
 }
 
-// Platforms of the Wazuh inventory behind each system type, from the engine catalog.
 const PLATFORM_TYPES = new Map<string, ENSSystemType>(
   Object.entries(systemTypes as Record<string, string[]>).flatMap(([type, platforms]) => platforms.map(platform => [platform, type as ENSSystemType]))
 );
@@ -57,7 +54,6 @@ export const detectAgentSystem = (agent: ENSDetectableAgent): ENSSystemDetection
 interface ENSEffectiveSystemType {
   type?: ENSSystemType;
   manual: boolean;
-  // "detectado por ..." or "corregido a mano (detectado: ...)".
   description: string;
 }
 
@@ -65,7 +61,6 @@ export const effectiveSystemType = (
   detection: ENSSystemDetection,
   profile?: ENSAgentProfile
 ): ENSEffectiveSystemType => {
-  // Without live data, the type detected last time it was stored.
   const detectedType = detection.type || knownSystemType(profile?.detectedType);
   const detectedBy = detection.type ? detection.evidence : profile?.detectedBy || detection.evidence;
   const override = knownSystemType(profile?.typeOverride);
@@ -85,38 +80,11 @@ export const effectiveSystemType = (
   };
 };
 
-// Machine name in `os.uname` ("Linux |host.domain |...").
 export const hostnameFromUname = (uname?: string): string | undefined => {
   const parts = String(uname || '').split('|').map(part => part.trim());
   return /^linux$/i.test(parts[0] || '') && parts[1] ? parts[1] : undefined;
 };
 
-// Names a machine is known by in the configuration tables: id, agent name, `os.uname` hostname, the short part
-// of both (before the first dot) and stored profile aliases. Lowercase, deduplicated.
-export const agentAliases = (
-  agent: ENSDetectableAgent,
-  profile?: ENSAgentProfile
-): string[] => {
-  const names = [
-    normalizeAgentId(agent.id),
-    agent.name,
-    hostnameFromUname(agent.os?.uname),
-    profile?.name,
-    ...(profile?.aliases || []),
-  ]
-    .map(name => String(name || '').trim().toLowerCase())
-    .filter(Boolean);
-
-  const short = names
-    .filter(name => !/^\d+$/.test(name) && name.includes('.'))
-    .map(name => name.split('.')[0])
-    .filter(Boolean);
-
-  return Array.from(new Set([...names, ...short]));
-};
-
-// The configuration as the engine reads it: each machine with the type its inventory says, unless corrected by
-// hand, so a new machine gets the template of its type without anyone saving it.
 export const withInventoryTypes = <T extends { agents?: Record<string, ENSAgentProfile> }>(configuration: T, inventory: ENSDetectableAgent[]): T => {
   const agents = { ...(configuration.agents || {}) };
   let changed = false;

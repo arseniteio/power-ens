@@ -8,7 +8,6 @@ export interface ENSComplianceSummary {
   noEvaluable: number;
   noAplica: number;
 
-  // Average OVER THE APPLICABLE (everything but NO_APLICA). `measured` says over how many elements it was computed: with `measured` at 0 nothing applies and the screen cannot paint a percentage.
   scoreAverage: number;
   measured: number;
 }

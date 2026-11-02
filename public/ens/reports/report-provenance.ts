@@ -1,4 +1,3 @@
-// Provenance, Annex II section and template correspondence in the control report (screen and PDF). Pure: the PDF blocks are plain pdfmake objects.
 import { getENSCatalogControl } from '../../../common/ens/catalog';
 import {
   ENS_PENDING_MEASUREMENT_LABEL,
@@ -24,7 +23,6 @@ import {
 const NORM_COLOR = '#006bb4';
 const CRITERION_COLOR = '#69707d';
 
-// «Anexo II, apdo. 4.2.1 · Se aplica por … · Plantilla del auditor v2.0 (15/10/2026)»; empty outside the catalog.
 export const describeReportControlLine = (controlId: string): string => {
   const control = getENSCatalogControl(controlId);
 
@@ -33,7 +31,6 @@ export const describeReportControlLine = (controlId: string): string => {
     : '';
 };
 
-// A control without collector, in the report header (screen and PDF): why it has no verdict. Empty otherwise.
 export const describeReportPendingMeasurement = (controlId: string): string => {
   const control = getENSCatalogControl(controlId);
 
@@ -42,14 +39,12 @@ export const describeReportPendingMeasurement = (controlId: string): string => {
     : '';
 };
 
-// The texts of one requirement of the control, each with its provenance; empty outside the catalog.
 export const reportRequirementTexts = (controlId: string, requirementId: string): ENSProvenancedText[] => {
   const requirement = getENSCatalogControl(controlId)?.requirements.find(item => item.id === requirementId);
 
   return requirement ? describeRequirementTexts(requirement) : [];
 };
 
-// pdfmake runs: a small coloured label in front of each text, one per line.
 export const pdfProvenanceRuns = (texts: ENSProvenancedText[]): object[] =>
   texts.flatMap(text => [
     { text: '\n' },
@@ -62,7 +57,6 @@ export const pdfProvenanceRuns = (texts: ENSProvenancedText[]): object[] =>
     { text: text.text, color: text.provenance === 'BOE' ? '#1a1c21' : CRITERION_COLOR },
   ]);
 
-// The small label at the start of a PDF row, as the screen shows per row; fields and parameters are criterion.
 export const pdfRowLabel = (provenance: ENSTextProvenance = ENS_PROPOSAL_TEXT_PROVENANCE): object => ({
   text: `${ENS_TEXT_PROVENANCE_LABELS[provenance]}\n`,
   bold: true,
@@ -70,7 +64,6 @@ export const pdfRowLabel = (provenance: ENSTextProvenance = ENS_PROPOSAL_TEXT_PR
   color: provenance === 'BOE' ? NORM_COLOR : CRITERION_COLOR,
 });
 
-// Line under the «Campos del informe» and «Parámetros» headings: they are the template's proposal, not the norm.
 export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por Power ENS, sin valor normativo.`;
 
 const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]): object[] => [
@@ -94,7 +87,6 @@ const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]
   },
 ];
 
-// «Correspondencia con la plantilla del auditor» for the PDF; no blocks for a control built from its template.
 export const buildTemplateCorrespondencePdf = (controlId: string): object[] => {
   const correspondence = getTemplateCorrespondence(controlId);
 

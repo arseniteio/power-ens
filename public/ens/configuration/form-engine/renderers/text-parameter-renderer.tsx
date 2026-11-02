@@ -9,7 +9,6 @@ export const TextParameterRenderer = ({
   value,
   onChange,
 }: ENSFormFieldProps) => {
-  // The reason is shown while typing, so a failure does not reappear later as an unexplained degraded control.
   const verdict = validateParameterValue(
     parameter,
     value
@@ -35,8 +34,7 @@ export const TextParameterRenderer = ({
             ? value
             : typeof value === 'number' ||
               typeof value === 'boolean'
-            ?  // A legacy non-string value (30 in P-05, true in a
-              // boolean) is shown as is: a blank field would make the next save erase it.
+            ?
               String(value)
             : ''
         }

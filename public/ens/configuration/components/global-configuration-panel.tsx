@@ -43,7 +43,6 @@ const ensLevelOptions = [
   },
 ];
 
-// Dimension level. The first option leaves the key ABSENT (never empty or `null`): the control then uses the global ENS level.
 const dimensionLevelOptions = [
   {
     value: '',
@@ -52,7 +51,6 @@ const dimensionLevelOptions = [
   ...ensLevelOptions,
 ];
 
-// One short help line per dimension: which catalog controls follow it.
 const describeDimensionUse = (dimension: ENSLevelDimension): string => {
   const users = ENSCatalog.filter(control => listControlDimensions(control).includes(dimension)).map(control => control.id);
 
@@ -152,8 +150,6 @@ export const GlobalConfigurationPanel = ({
           [field]: value,
         } as ENSGlobalConfiguration;
 
-        // An optional field without a value is REMOVED: an absent key is what the validator accepts as "not
-        // declared".
         if (
           !value &&
           (Object.values(ENS_DIMENSION_LEVEL_KEYS) as string[]).includes(field)

@@ -1,16 +1,9 @@
-// When the browser requests an evaluation again, without React (tests/evaluation-refresh.test.ts).
-// - Every 5 minutes with the tab visible: first the probe (a few hundred bytes), and the evaluation only if the fingerprint changed.
-// - Whatever the fingerprint, a result older than 60 minutes is requested again: the engine measures against the clock.
-// - A stored result served while the server recalculates (`meta.refreshing`) is requested again after 10 s.
-// - First load (`meta.pending`, `meta.seriesPending`, `meta.maturityPending`): every 2 s for 2 minutes, then every 15 s.
-// - At most 2 concurrent requests in the whole app.
 const EVALUATION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EVALUATION_MAX_AGE_MS = 60 * 60 * 1000;
 const EVALUATION_REFRESHING_RETRY_MS = 10 * 1000;
 const EVALUATION_PENDING_RETRY_MS = 2 * 1000;
 const EVALUATION_PENDING_FAST_FOR_MS = 2 * 60 * 1000;
 const EVALUATION_PENDING_SLOW_RETRY_MS = 15 * 1000;
-// After a failure the next automatic attempt waits twice as long each time, up to 5 minutes.
 const EVALUATION_BACKOFF_MAX_MS = 5 * 60 * 1000;
 
 const backoffAfter = (failures: number): number =>
@@ -66,7 +59,6 @@ export class RequestLimiter {
   }
 }
 
-// What the screen sees, render by render. A response is only valid for the key it was requested with; a refresh of the SAME key keeps showing the previous result meanwhile.
 export interface EvaluationViewState<T> {
   key?: string;
   data?: T;
@@ -110,11 +102,6 @@ export const visibleEvaluation = <T>(state: EvaluationViewState<T>, key: string)
   };
 };
 
-// The cycle of one screen, without React (wrapped by `useEnsEvaluation`).
-// - A load is identified by its request: responses of a request that is no longer current are dropped.
-// - A load cancelled by the screen is not an error; a timeout is, and it is shown with 'Reintentar'.
-// - The probe never interrupts a load, and its clock resets when machine or control change.
-// - Requesting the same key again does not clear what is shown: it is refreshed on top.
 interface EvaluationControllerDeps<T> {
   fetch: (controller: AbortController, options?: { retryRefresh?: boolean }) => Promise<T>;
   probe: (controller: AbortController) => Promise<{ fingerprint: string }>;
@@ -177,7 +164,6 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         if (current !== request) return;
         current = undefined;
         lastCheck = deps.now();
-        // A stored result the server cannot refresh counts as a failure, but only a NEW error does: the same error repeated does not lengthen the wait.
         const error = (data as any)?.meta?.refreshError;
         const pending = Boolean((data as any)?.meta?.pending?.rows > 0 || (data as any)?.meta?.seriesPending || (data as any)?.meta?.maturityPending);
         partialSince = pending ? partialSince ?? deps.now() : undefined;
@@ -236,7 +222,6 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
       const now = deps.now();
       const data: any = state.key === key ? state.data : undefined;
       if (failureCount > 0 && now - (lastLoad ?? 0) < backoffAfter(failureCount)) return 'skip';
-      // First partial load: every 2 s for 2 minutes, then every 15 s; nothing while the tab is hidden.
       const partial = Boolean(data?.meta?.pending?.rows > 0 || data?.meta?.seriesPending || data?.meta?.maturityPending);
       const each =
         partialSince !== undefined && now - partialSince >= EVALUATION_PENDING_FAST_FOR_MS ? EVALUATION_PENDING_SLOW_RETRY_MS : EVALUATION_PENDING_RETRY_MS;
@@ -265,15 +250,12 @@ export const createEvaluationController = <T extends { meta?: { fingerprint?: st
         }
         return 'unchanged';
       } catch {
-        // Cancelled by the screen: not a failure. A timeout also aborts, and that one is a failure.
         if (key !== probeKey || probing !== controller) return 'busy';
-        // The probe fails silently: what is shown still belongs to this key and the next round tries again.
         return 'probe-failed';
       } finally {
         if (probing === controller) probing = undefined;
       }
     },
-    // Hidden screen: releases the load in progress without clearing what is shown; it is repeated on return.
     suspend() {
       if (current) {
         releasedWithRetry = Boolean(current.retryRefresh);

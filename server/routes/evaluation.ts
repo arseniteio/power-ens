@@ -5,7 +5,6 @@ import { createEvaluationHandlers } from '../lib/evaluation-handlers';
 import type { ENSEvaluationService } from '../lib/evaluation/evaluation-service';
 import { buildEvaluationQuerySchema } from './evaluation-query';
 
-// Parameters declared in `evaluation-query.ts` (what is not there never reaches the service).
 const searchQuery = buildEvaluationQuerySchema(schema);
 
 export const registerEvaluationRoutes = (

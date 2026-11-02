@@ -18,7 +18,6 @@ import { ControlTemplatesPanel } from './control-templates-panel';
 import { ControlAssignmentPanel } from './control-assignment-panel';
 import { ENSAgentsData, buildAgentRows } from './use-agents-data';
 
-// Only common parameters judge the common state: agent-level ones are judged per agent.
 const commonParameterIds = (control: ENSControlConfiguration): string[] =>
   control.parameters
     .filter(parameter => {

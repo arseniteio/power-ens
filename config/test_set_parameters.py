@@ -1,19 +1,4 @@
 #!/usr/bin/env python3
-"""Tests of set-parameters.py against a fake OpenSearch.
-
-Covered:
-  - organization values are declared as always and the per-system layer (`configuration.agents`) survives;
-  - the `agents` section declares a machine's own values, `null` removes them, and the id is normalised;
-  - it does not invent: it rejects an unseeded control, a nonexistent parameter, an organization
-    parameter per agent and an impossible value shape, writing nothing;
-  - dry-run by default;
-  - the «Expresión regular» mode (`matchMode`) in the organization and in an agent;
-  - organisation data (1.4.0): items by id, the P-xx form writing to its item, partial views.
-
-    python3 test_set_parameters.py
-
-No dependencies: the stdlib http.server acts as the index.
-"""
 import json
 import os
 import subprocess
@@ -54,7 +39,6 @@ class Index(BaseHTTPRequestHandler):
     def do_PUT(self):
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length).decode())
-        # The previous version the tools save before writing.
         if "/_doc/history-" in self.path:
             if state.get("history_fails"):
                 self._respond({"error": "no"}, 403)
@@ -131,14 +115,12 @@ def main():
         check("agent · null removes the own value (without writing null)",
                   r.returncode == 0 and "controls" not in cfg["agents"]["028"] and "null" not in json.dumps(cfg["agents"]), json.dumps(cfg["agents"]))
 
-        # --- empty = no value, also in the organization (never null)
         reset(agents_doc)
         r = run_script(url, tmp, {"op.acc.1": {"P-04": [], "P-01": None}}, "--apply")
         params = {x["id"]: x for x in state["doc"]["configuration"]["controls"][0]["parameters"]}
         check("organization · [] and null remove the value key",
                   r.returncode == 0 and "value" not in params["P-04"] and "value" not in params["P-01"], json.dumps(params))
 
-        # --- removing is always accepted: an orphan value too
         reset({"028": {"controls": {"op.acc.1": {"parameters": {"P-99": "x", "P-04": ["y"]}},
                                        "op.exp.1": {"parameters": {"P-01": ["a | b | c | d"]}}}}})
         r = run_script(url, tmp, {"agents": {"028": {"op.acc.1": {"P-99": None, "P-04": ""}, "op.exp.1": {"P-01": None}}}}, "--apply")
@@ -146,7 +128,6 @@ def main():
                   r.returncode == 0 and "controls" not in state["doc"]["configuration"]["agents"]["028"],
                   r.stdout + r.stderr + json.dumps(state["doc"]["configuration"].get("agents")))
 
-        # --- the key is the id; a name is rejected, with the id if known
         reset({"028": {"name": "dirHost", "aliases": ["dir01.example.com"]}})
         version = state["version"]
         r = run_script(url, tmp, {"agents": {"dirHost": {"op.acc.1": {"P-07": ["x | y | z"]}}}}, "--apply")
@@ -156,7 +137,6 @@ def main():
         check("key · an unknown name is rejected the same",
                   r.returncode == 1 and '"srv-desconocido" is not an agent id' in r.stderr, r.stderr)
 
-        # --- the previous version goes to the history before writing
         reset(agents_doc)
         state["history"] = []
         r = run_script(url, tmp, {"agents": {"028": {"op.acc.1": {"P-11": ["sudo"]}}}}, "--apply")
@@ -165,7 +145,6 @@ def main():
                   len(h) == 1 and h[0]["doc"]["configuration"]["agents"] == agents_doc and "Previous version saved in: history" in r.stdout,
                   r.stdout + str(h)[:200])
 
-        # --- 1.3.0: template assignment per agent and control
         def reset_130(agents=None, templates=None):
             reset(agents)
             state["doc"]["configuration"]["templates"] = json.loads(json.dumps(templates or []))
@@ -185,7 +164,6 @@ def main():
         check("template · «none» pins the common values; null removes the assignment",
                   r.returncode == 0 and cfg["agents"]["028"]["controls"]["op.acc.1"]["templateId"] == "none"
                   and "controls" not in cfg["agents"]["024"] and "null" not in json.dumps(cfg["agents"]), json.dumps(cfg["agents"]))
-        # A 1.1.0-shaped document (no agents, no templates) has nothing to convert: it is marked 1.3.0 on write.
         lab = os.environ.get("POWER_ENS_LAB_DOC")
         shapes = [("synthetic", {"configuration": {"controls": [json.loads(json.dumps(CONTROL))]}})]
         if lab and os.path.exists(lab):
@@ -220,7 +198,6 @@ def main():
             r = run_script(url, tmp, content, "--apply")
             check("template · refuses " + name, r.returncode == 1 and reason in r.stderr and state["version"] == version, r.stderr)
 
-        # --- 1.3.0: «Expresión regular» travels with the value
         reset(agents_doc)
         r = run_script(url, tmp, {"op.acc.1": {"P-04": {"value": "^(admin|guest)$", "matchMode": "regex"}}}, "--apply")
         params = {x["id"]: x for x in state["doc"]["configuration"]["controls"][0]["parameters"]}
@@ -259,7 +236,6 @@ def main():
             r = run_script(url, tmp, content, "--apply")
             check("regex · refuses " + name, r.returncode == 1 and reason in r.stderr and state["version"] == version, r.stderr)
 
-        # --- 1.4.0: organisation data
         org_doc = {"configuration": {"controls": [
             {"controlId": "op.acc.1", "parameters": [{"id": "P-11", "type": "list", "value": ["sudo"]}, {"id": "P-06", "type": "duration_days", "value": 365}]},
             {"controlId": "op.acc.2", "parameters": [{"id": "P-12", "type": "list", "value": ["sudo"]}]},
@@ -325,7 +301,6 @@ def main():
                   r.returncode == 0 and org_param("op.acc.4", "P-06")["value"] == ["sudo", "wheel", "admin"]
                   and state["doc"]["configuration"]["organizationData"]["values"] == {"grupos_privilegiados": ["sudo", "wheel", "admin"]},
                   r.stdout + r.stderr)
-        # Only config/ copied somewhere else (Docker with config/ mounted): no items to read.
         alone = os.path.join(tmp, "solo-config")
         os.makedirs(alone, exist_ok=True)
         for name in ("set-parameters.py", "power_ens_history.py", "power_ens_organization.py"):

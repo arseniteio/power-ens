@@ -4,7 +4,6 @@ import { ENSControlFormProps, ParameterRendererFactory } from '.';
 import { findOrganizationDataLink } from '../../../../common/ens/configuration/organization/organization-data-items';
 import { OrganizationParameterRenderer } from './renderers/organization-parameter-renderer';
 
-// Anchor of a parameter on the screen, to open it from the URL (`configParam`).
 export const parameterAnchorId = (controlId: string, parameterId: string, agentId?: string): string =>
   `ens-config-${agentId ? `${agentId}-` : ''}${controlId}-${parameterId}`.replace(/[^A-Za-z0-9_-]/g, '_');
 

@@ -1,26 +1,3 @@
-/**
- * Validates the WHOLE `active` document of `wazuh-ens-configuration` with the same validator the
- * plugin uses when loading the ENS environment.
- *
- *     npx --yes tsx config/validate-configuration.ts active.json
- *
- * `active.json` is the response of `GET wazuh-ens-configuration/_doc/active` as is (with `_source`),
- * or just its `_source`, or just `_source.configuration`.
- *
- * An invalid parameter does not degrade its control: it prevents loading the whole ENS environment
- * («No se pudo cargar el entorno ENS»). It happens with `value: null` (an empty parameter is the ABSENT
- * `value` key), a table with fewer columns than declared, commas in an `identifier` column, or a
- * dimension level (`confidentialityLevel`, `integrityLevel`, `traceabilityLevel`, `authenticityLevel`,
- * `availabilityLevel`) that is not BAJO, MEDIO or ALTO. A dimension above `ensLevel` loads but is incoherent
- * (the category is the highest dimension): it is reported and exits 1. `inject-control.py` and
- * `set-parameters.py` write what they are given; this check says whether the plugin will accept it.
- *
- * A 1.2.0 document is checked as the plugin loads it: converted first. The organisation data
- * (`organizationData`, 1.4.0) too: what the plugin moves on load, the items with a value, and the items
- * whose controls hold different values (a choice pending in Configuración > General, not an error).
- *
- * Exits 0 if the document is valid and 1 if not, listing each error.
- */
 import { readFileSync } from 'fs';
 import { validateENSConfigurationStructure } from '../common/ens/configuration/services/configuration-structure-validator';
 import {
@@ -124,14 +101,12 @@ organizationStates
         .join(' | ')}. Each control keeps its value until it is chosen in Configuración > General.${state.reasons.length ? ` ${state.reasons.join('; ')}` : ''}`
     )
   );
-// Not a choice: the item stays empty (or a parameter without value) because the value does not fit; the reason says why.
 organizationStates
   .filter(state => state.notice)
   .forEach(state =>
     console.log(`  ${state.status === 'incomplete' ? 'NO COMMON VALUE' : 'NOT COMPLETED'} «${state.item.label}» (${state.item.id}): ${state.notice}`)
   );
 checkOrganizationDataKeys(configuration.organizationData).forEach(message => console.log(`  warning: ${message}`));
-// A parameter that reads one value and finds several rows: which one applies would depend on their order.
 const organizationErrors: string[] = organizationStates
   .filter(state => state.value !== undefined)
   .flatMap(state => organizationSingleValueIssues(model, state.item, state.value).map(issue => `«${state.item.label}» ${issue.source}: ${issue.reason}`));
@@ -172,7 +147,6 @@ if (warnings.length) {
   warnings.forEach(message => console.log(`  - ${message}`));
 }
 
-// The same check as «Ajustes comunes»: a regex written by set-parameters.py is only compiled here.
 const commonErrors: string[] = model.controls.flatMap((control: ENSControlConfiguration) =>
   validateControlParameterValues(control, {}).map(issue => `${control.controlId} «${issue.label}»: ${issue.reason}`)
 );

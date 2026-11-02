@@ -1,7 +1,3 @@
-// Controls measured on a machine, for its system screen and completeness: those of its measurement plane
-// (`manager` plane for the manager, `agent` for the rest) and, if its platform has a collector for only some
-// (Windows: op.acc.1-4), only those. The others are shown apart as "sin recolector en esta plataforma", which is
-// not a failure.
 import type { ENSConfigurationVersion, ENSLevel, ENSSystemType } from '../types';
 import { normalizeAgentId } from '../../../agent-configuration';
 import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../catalog';
@@ -14,7 +10,6 @@ interface ENSAgentControl {
   controlName: string;
   level: ENSLevel;
   measured: boolean;
-  // Why it is not measured on this machine, if it is not.
   reason?: string;
 }
 
@@ -28,7 +23,6 @@ export const getAgentControls = (
   const plane = manager ? 'manager' : 'agent';
   const only = getCollectedControls(type);
 
-  // The stored document keeps its own order (seed order); the screen follows Annex II like every other list.
   return [...configuration.controls]
     .sort((a, b) => compareENSControlIdsByAnnex(a.controlId, b.controlId))
     .filter(control => control.parameters.some(parameter => isAgentLevelParameter(control.controlId, parameter.id)))

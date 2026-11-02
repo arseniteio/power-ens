@@ -52,7 +52,6 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
   const total = templateParameters(control).length;
   const labels = Object.fromEntries(rows.map(row => [row.id, agentRowLabel(row)]));
   const [editor, setEditor] = useState<Editor>();
-  // An edit of a template in use waits here for its preview to be confirmed.
   const [pendingEdit, setPendingEdit] = useState<{ template: ENSControlTemplate; input: TemplateEdit; previews: ENSAgentChangePreview[] } | undefined>();
   const [removal, setRemoval] = useState<ENSControlTemplate | undefined>();
   const [reassignTo, setReassignTo] = useState<string>(TYPE_DEFAULT);

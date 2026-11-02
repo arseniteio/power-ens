@@ -1,4 +1,3 @@
-// Reading and writing the app URL parameters, without React.
 
 export const parseRouterSearch = (search: string): Record<string, string> => {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);

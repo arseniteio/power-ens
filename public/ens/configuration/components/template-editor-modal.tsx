@@ -44,10 +44,8 @@ interface TemplateEditorModalProps {
   mode: ENSTemplateEditorMode;
   control: ENSControlConfiguration;
   template?: ENSControlTemplate;
-  // Labels of the agents that have it assigned.
   usage: string[];
   onCancel: () => void;
-  // Returns the error to show, or nothing.
   onSave: (input: Omit<ENSTemplateInput, 'controlId'>) => Promise<string | undefined>;
 }
 

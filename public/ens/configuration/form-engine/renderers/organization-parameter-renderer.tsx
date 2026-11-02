@@ -15,7 +15,6 @@ interface OrganizationParameterRendererProps {
   item: ENSOrganizationDataItem;
 }
 
-// A parameter that is organisation data: read-only here, with the way to where it is edited.
 export const OrganizationParameterRenderer = ({ parameter, value, item }: OrganizationParameterRendererProps) => {
   const setSearch = useSetRouterSearch();
   const lines = organizationValueLines(value);

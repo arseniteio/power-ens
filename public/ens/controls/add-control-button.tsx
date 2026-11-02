@@ -1,10 +1,7 @@
-// Adds a catalogue control with default values, saving over the latest configuration document.
 import React, { useState } from 'react';
 import { EuiButton, EuiText } from '@elastic/eui';
 import { addMissingControls } from '../../../common/ens/configuration/agents/agent-configuration-actions';
 import { saveFromLatestConfiguration } from '../../../common/ens/configuration/services/configuration-state-service';
-
-export const NOT_IN_CONFIGURATION_TEXT = 'No está en la configuración activa';
 
 const addControlWithDefaults = (controlId: string) =>
   saveFromLatestConfiguration(latest => {

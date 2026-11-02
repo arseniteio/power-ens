@@ -1,6 +1,5 @@
 import { POWER_ENS_APP_TITLE, POWER_ENS_PLUGIN_ID } from '../common/constants';
 
-// Power ENS card on the OpenSearch Dashboards home (/app/home, 'Manage your data'). Wazuh's home builds a fixed list of cards and offers no extension point, so there Power ENS only appears in the menu.
 export interface HomeFeatureCatalogueEntry {
   id: string;
   title: string;
@@ -29,7 +28,6 @@ const buildHomeCard = (icon: string): HomeFeatureCatalogueEntry => ({
   category: 'admin',
 });
 
-// Registers the card if the dashboard has the `home` plugin. Without it, or if registration fails (repeated id), the plugin still loads: the card is an extra entry, not a dependency.
 export const registerHomeCard = (home: HomeSetupLike | undefined, icon: string): boolean => {
   if (!home?.featureCatalogue) return false;
   try {

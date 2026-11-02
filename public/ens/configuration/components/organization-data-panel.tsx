@@ -107,14 +107,12 @@ const statusBadge = (state: ENSOrganizationItemState) =>
 const candidateSource = (candidate: ENSOrganizationCandidate): string =>
   candidate.from === ORGANIZATION_SOURCE ? 'Valor guardado en Datos de la organización' : `Valor de ${candidate.from}`;
 
-// Configuración > General > «Datos de la organización»: each shared item once, its conflicts first.
 export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: OrganizationDataPanelProps) => {
   const focusItemId = useRouterSearch().configItem;
   const states = describeOrganizationData(configuration);
   const editable = states.filter(state => state.status !== 'informative');
   const informative = states.filter(state => state.status === 'informative');
   const conflicts = states.filter(state => state.status === 'conflict');
-  // Not a choice between controls: told apart, each control keeps its value until the item has a valid one.
   const incomplete = states.filter(state => state.status === 'incomplete');
   const pending = getPendingOrganizationMigration();
   const pendingSave = pending && (pending.moved.length > 0 || pending.written.length > 0);
@@ -124,7 +122,6 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
   const [issues, setIssues] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  // The value about to be chosen: the dialog lists what each parameter loses before saving it.
   const [choosing, setChoosing] = useState<{ state: ENSOrganizationItemState; candidate: ENSOrganizationCandidate } | undefined>();
 
   useEffect(() => {
@@ -456,7 +453,6 @@ interface OrganizationDataNoticeProps {
   onOpen: () => void;
 }
 
-// Outside General: says there is something to save or to choose, and takes there.
 export const OrganizationDataNotice = ({ configuration, onOpen }: OrganizationDataNoticeProps) => {
   const pending = getPendingOrganizationMigration();
   const states = describeOrganizationData(configuration);

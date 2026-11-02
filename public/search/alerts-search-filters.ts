@@ -1,4 +1,3 @@
-// Filters the dashboard search bar adds to the ENS screen queries. No React or dashboard: the builders come from outside (the data plugin start contract in the app).
 
 interface AlertsSearchBuilders<P, T> {
   buildQuery: (indexPattern: P) => unknown;
@@ -18,7 +17,6 @@ export const buildAlertsSearchFilters = <P, F, T>(
 ): AlertsSearchFilters => {
   if (!indexPattern) return { filters: [] };
 
-  // With a badly written query the dashboard throws, and with a language that does not translate to DSL (PPL, SQL) it returns `{ type: 'unsupported' }`. Neither may reach OpenSearch or break the view.
   let queryError: string;
   try {
     const dsl = buildQuery(indexPattern) as { bool?: unknown } | undefined;
@@ -28,7 +26,6 @@ export const buildAlertsSearchFilters = <P, F, T>(
     queryError = String((failure as Error)?.message || failure);
   }
 
-  // Search without the query and warn: the bar filters as they are (the request strips `meta`, skips disabled ones and negates negated ones) and the dates.
   return {
     filters: [...filters, buildTimeFilter(indexPattern, timeRange)].filter(Boolean),
     queryError,

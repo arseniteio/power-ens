@@ -1,4 +1,3 @@
-// The 'Motivo' cell: one line in the table, the full text in a panel.
 import React, { useState } from 'react';
 import {
   EuiBadge,

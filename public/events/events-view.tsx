@@ -1,4 +1,3 @@
-// Eventos tab: the ENS facts of the scope machines, latest first, with the dashboard search bar and dates. A table page is one search (`from`/`size`).
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EuiButtonIcon,
@@ -31,14 +30,12 @@ import { dateTimeLabel } from '../../common/ens/core/date-label';
 const PAGE_SIZES = [25, 50, 100];
 const INITIAL_PAGE_SIZE = 50;
 
-// Outside the component: columns do not change and the grid need not recalculate them on every render.
 const COLUMNS = ENS_EVENT_COLUMNS.map(c => ({
   id: c.id,
   displayAsText: c.label,
   initialWidth: c.initialWidth,
 }));
 const ALL = ENS_EVENT_COLUMNS.map(c => c.id);
-// No sorting from the table: the order is the search's (latest first); a column sort would only sort the page.
 const TABLE_TOOLBAR = { showSortSelector: false };
 
 const number = (n: number): string => n.toLocaleString('es-ES');
@@ -95,7 +92,6 @@ const EventDocument = ({ hit, onClose }: { hit: any; onClose: () => void }) => {
 
 const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refreshKey: number }) => {
   const { agentId } = useRouterSearch();
-  // Deterministic filters (scope, machine) plus the bar's, memoised in their hook: the same JSON across renders, so `useEsSearch` does not search again.
   const filters = [...buildEventsFilters(getActiveENSScopeAgents(), agentId), ...barFilters];
   const key = JSON.stringify(filters);
 
@@ -121,7 +117,6 @@ const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refre
   const total = Number(esResults?.hits?.total?.value ?? esResults?.hits?.total ?? 0) || 0;
   const start = pageIndex * pageSize;
 
-  // Stable while the rows do not change: the grid treats them as components and a new function per render would remount the cells.
   const cell = useCallback(
     ({ rowIndex, columnId }: { rowIndex: number; columnId: string }) => {
       const value = getField(hits[rowIndex - start]?._source, columnId);
@@ -158,7 +153,6 @@ const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refre
     [key]
   );
 
-  // If the search for the current filters fails, `esResults` holds the previous search: neither the table nor the count is shown as current. They return with the first successful search.
   if (error) {
     return (
       <>

@@ -111,7 +111,6 @@ export const ControlDetailENS = ({
 
   const scopeAgents = useActiveENSScopeAgents();
 
-  // The server evaluates the control with all its facts of the window; there is no cut-off.
   const evaluation = useEnsEvaluation<ENSControlEvaluationResponse>({
     include: 'control',
     controlId: control.id,
@@ -120,7 +119,6 @@ export const ControlDetailENS = ({
   });
   const updateUrl = useSetRouterSearch();
 
-  // What is shown (detail-view-state.ts): the current request; while loading or on failure, the last result of this control labelled with its machine and time.
   const request = { controlId: control.id, agentId };
   const computedAt = (data: ENSControlEvaluationResponse) => data?.meta?.computedAt || data?.meta?.evaluatedAt;
   const retained = useRef<ENSRetainedEvaluation<ENSControlEvaluationResponse> | undefined>(undefined);
@@ -188,7 +186,6 @@ export const ControlDetailENS = ({
   ).length;
   const measuredRequirements = complianceResult?.measuredRequirements ?? 0;
 
-  // The denominator must be the same set as the numerator: applicableRequirements is summed per machine when consolidating, so it is not used.
   const consolidatedRequirements = (complianceResult?.requirements || []).filter(
     (requirement: any) => requirement.status !== 'NO_APLICA'
   ).length;
@@ -199,7 +196,6 @@ export const ControlDetailENS = ({
     ? consolidatedRequirements
     : applicableRequirements;
 
-  // The level this control is evaluated with: the global one or that of its dimensions.
   const levelsText = String(complianceResult?.level || ensLevel);
 
   const evidenceStatusItems = (complianceResult?.evidences || []).map(evidence => ({
@@ -213,7 +209,6 @@ export const ControlDetailENS = ({
     motivos: evidence.observationGroups || [],
   }));
 
-  // One list and one counter: the former PM- cards are non-conformities with origin NO_EVIDENCIADA.
   const nonConformityItems = (complianceResult?.nonConformities || []).map(
     nonConformity => ({
       id: nonConformity.id,
@@ -270,7 +265,6 @@ export const ControlDetailENS = ({
   const knownParts: KnownReasonParts[] = [];
 
   const handlers: MotiveViewHandlers = {
-    // Configuration of the CHOSEN machine, the one the user returns to.
     onParameter: parameterId =>
       updateUrl(
         detailConfigurationChanges({
@@ -330,7 +324,6 @@ export const ControlDetailENS = ({
     return lines;
   };
 
-  // Criticality is declared by the catalogue per evidence; the highest wins.
   const criticalityOf = (evidenceIds: string[]): string | undefined => {
     const order: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
     const labels: Record<string, string> = {
@@ -374,7 +367,6 @@ export const ControlDetailENS = ({
   const auditorSheet: { etiqueta: string; valor: string }[] = [
     { etiqueta: 'Score', valor: `${engineScoreText} · ${engineStatus}` },
     {
-      // In aggregated view this fraction differs from the adjacent one: applicableRequirements is summed per machine.
       etiqueta: isAggregatedView
         ? 'Demostrados · requisito × máquina'
         : 'Requisitos demostrados',
@@ -475,7 +467,6 @@ export const ControlDetailENS = ({
       auditorMeaning: item.description,
     });
 
-  // The table is paginated on the server: the card carries the first entries and each further page is requested with its own loading and error state.
   const initials = complianceResult?.traceability || [];
   const pageFrom = tracePageIndex * tracePageSize;
   const traceabilityAvailable = data?.traceabilityAvailable ?? initials.length;
@@ -491,7 +482,6 @@ export const ControlDetailENS = ({
   useEffect(() => {
     if (!needsRemote) return;
     const controller = new AbortController();
-    // Only cancellations made by the screen are silenced; a timeout also aborts the controller and must show.
     let cancelled = false;
     fetchTraceabilityPage({ controlId: control.id, agentId: displayedAgent, from: pageFrom, size: tracePageSize }, controller)
       .then(page => {
@@ -816,7 +806,6 @@ export const ControlDetailENS = ({
     </>
   ) : null;
 
-  // In the catalog without collector yet: its evidences have no instrument, so nothing is judged (the engine leaves it out of the index).
   const pendingMeasurement = isPendingMeasurement(headerCatalog);
   const pendingMeasurementNotice = pendingMeasurement && headerCatalog ? (
     <>
@@ -831,7 +820,6 @@ export const ControlDetailENS = ({
     </>
   ) : null;
 
-  // The control is not measured on this machine: neither 'no data' nor 'all compliant'.
   if (!complianceResult) {
     const catalog = getENSCatalogControl(control.id);
     const motive =
@@ -907,7 +895,6 @@ export const ControlDetailENS = ({
     );
   }
 
-  // Without a selected agent data of several agents is not mixed: a combined compliance is not valid for audit.
   const kpis = [
     { title: engineScoreText, description: `Cumplimiento · ${statusLabel(engineStatus)}`, color: getBadgeColor(engineStatus) },
     { title: `${compliantRequirements}/${denominatorRequirements}`, description: 'Requisitos cumpliendo' },
@@ -1243,7 +1230,6 @@ export const ControlDetailENS = ({
         {detailTab === 'no-conformidades' && (
           <>
             {pendingMeasurement ? (
-              // Not a green «all clear»: nothing has been measured.
               <EuiCallOut
                 title={`${ENS_PENDING_MEASUREMENT_LABEL}: nada que remediar hasta que exista el recolector`}
                 color='primary'
@@ -1352,7 +1338,6 @@ export const ControlDetailENS = ({
                 {block.items.map(nonConformity => {
                   const kind = classify(nonConformity);
 
-                  // The anchor (`evidence`) is only used without a list: 'CONFIG' for configuration ones, 'ENS' for catalogue ones.
                   const involvedEvidences =
                     nonConformity.evidenceIds.length > 0
                       ? nonConformity.evidenceIds
@@ -1360,7 +1345,6 @@ export const ControlDetailENS = ({
                       ? [nonConformity.evidence]
                       : [];
 
-                  // Evidence motive first, engine verdict after: MotiveCell shows the first line and folds the rest.
                   const motiveRows: MotiveLine[] = [
                     ...evidenceMotives(nonConformity.evidenceIds),
                     ...(nonConformity.finding

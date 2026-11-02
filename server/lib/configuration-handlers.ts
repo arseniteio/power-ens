@@ -31,7 +31,6 @@ interface Options {
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
-// `seqNo` and `primaryTerm` travel back with the next save, which is refused if the document changed meanwhile.
 const metadata = (doc?: ENSConfigurationStoredDocument, version?: ENSConfigurationDocumentVersion) =>
   doc
     ? { createdAt: doc.createdAt, createdBy: doc.createdBy, updatedAt: doc.updatedAt, updatedBy: doc.updatedBy, ...(version || {}) }
@@ -49,8 +48,6 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
   const internal = (context: any) => context.core.opensearch.client.asInternalUser;
   const actual = (context: any) => context.core.opensearch.client.asCurrentUser;
 
-  // Who the user is and whether they can administer; null and the error response otherwise. Each rejected
-  // attempt (403) is logged with the user and what they wanted to do: never the body or the session.
   const administrator = async (context: any, response: any, logLabel: string) => {
     try {
       const user = await resolveCurrentUser(actual(context), securityEnabled);
@@ -85,9 +82,6 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, 'Hace falta una configuración ENS válida.');
     }
 
-    // The per-system layer (1.2.0) is shape-validated before writing: a `null` or an object on an agent would
-    // stop the ENS environment from loading. Keys too: a profile must be an agent id (a name would never apply).
-    // What this version does not know is accepted and ignored.
     const agentErrors = [
       ...validateAgentsConfigurationShape(bodyText.configuration.agents),
       ...checkAgentsConfigurationKeys(bodyText.configuration.agents).errors,
@@ -117,7 +111,6 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
     try {
       const { document: previous, version } = await readActiveENSConfigurationWithVersion(internal(context), logger);
-      // null: the browser loaded when there was no configuration, so one created since then is newer.
       const expectsNone = bodyText.expectedVersion === null;
       const expected = parseConfigurationVersion(bodyText.expectedVersion);
       if (
@@ -136,32 +129,26 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
         text(bodyText.configuration.changeReason) ||
         (initial ? 'Configuración ENS creada.' : 'Configuración ENS actualizada.');
 
-      // A body WITHOUT the `agents` key does not delete it: the existing one is kept. Only an empty `agents: {}`
-      // removes it, so a client that does not know the key cannot lose per-system values.
       const keepsAgents =
         !Object.prototype.hasOwnProperty.call(bodyText.configuration, 'agents') &&
         previous2.agents && typeof previous2.agents === 'object'
           ? { agents: previous2.agents }
           : {};
 
-      // Same rule for the custom templates: a client that does not know the key cannot drop them.
       const keptTemplates =
         !Object.prototype.hasOwnProperty.call(bodyText.configuration, 'templates') && Array.isArray(previous2.templates)
           ? { templates: previous2.templates }
           : {};
 
-      // And for the organisation data.
       const keptOrganizationData =
         !Object.prototype.hasOwnProperty.call(bodyText.configuration, 'organizationData') &&
         previous2.organizationData && typeof previous2.organizationData === 'object'
           ? { organizationData: previous2.organizationData }
           : {};
 
-      // Every save writes each organisation item into its parameters, whoever sends it, and the reason says what it filled.
       const organization = normalizeOrganizationData(
         withCatalogControls({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData })
       );
-      // A choice the control's level does not admit (by a new value or a new level) is refused; a leftover is not.
       const levelIssues = describeNewLevelOptionIssues(organization.configuration, previous2);
       if (levelIssues.length) {
         return failure(response, 400, `No se guarda: ${levelIssues.slice(0, 5).join('; ')}.`);
@@ -181,7 +168,6 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
         ],
       };
 
-      // The previous version goes to the history unless it is already its last entry.
       const last = previous ? (await readENSConfigurationHistory(internal(context), logger, 1))[0] : undefined;
       const previousOutsideHistory =
         previous && JSON.stringify(last?.configuration ?? null) !== JSON.stringify(previous.configuration)

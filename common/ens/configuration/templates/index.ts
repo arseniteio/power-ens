@@ -30,17 +30,14 @@ export interface ENSControlTemplate {
   description?: string;
   systemType?: ENSSystemType;
   values: Record<string, ENSAgentParameterValue>;
-  // Built-ins have none: their values are exact.
   matchModes?: Record<string, ENSMatchMode>;
   builtin: boolean;
-  // Built-in applied to agents of `systemType` that have no template assigned in the control.
   typeDefault: boolean;
 }
 
 export const getPlatformSource = (id: string): ENSPlatformSource | undefined =>
   ENS_PLATFORM_SOURCES.find(source => source.id === id);
 
-// Controls with per-system or per-platform parameters: the only ones with templates and assignment.
 export const hasTemplateParameters = (controlId: string): boolean =>
   Object.keys(ENS_PARAMETER_CLASSES[controlId] || {}).some(parameterId => isAgentLevelParameter(controlId, parameterId));
 
@@ -72,7 +69,6 @@ export const getBuiltinTemplates = (controlId: string): ENSControlTemplate[] => 
   return builtinsByControl.get(controlId)!;
 };
 
-// What the screen says of a template; an empty built-in says why it changes nothing.
 export const describeTemplate = (template: ENSControlTemplate): string =>
   template.builtin && !Object.keys(template.values).length
     ? `${template.description || ''} Sin valores de serie en este control: se aplican los ajustes comunes.`.trim()
@@ -116,10 +112,8 @@ export const findControlTemplate = (
 ): ENSControlTemplate | undefined =>
   templateId ? getControlTemplates(configuration, controlId).find(template => template.id === templateId) : undefined;
 
-// Ids a custom template cannot take: every built-in id and the explicit «no template».
 export const isReservedTemplateId = (id: string): boolean =>
   id === ENS_NO_TEMPLATE || ENS_PLATFORM_SOURCES.some(source => source.id === id);
 
-// Controls with a collector for this system type; undefined means all.
 export const getCollectedControls = (type: ENSSystemType | undefined): string[] | undefined =>
   type ? ENS_PLATFORM_SOURCES.find(source => source.kind === 'base' && source.systemTypes.includes(type))?.onlyControls : undefined;

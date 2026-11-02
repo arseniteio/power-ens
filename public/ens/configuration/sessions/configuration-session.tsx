@@ -20,13 +20,10 @@ import { isOrganizationDataParameter } from '../../../../common/ens/configuratio
 interface ConfigurationSessionProps {
   control: ENSControlConfiguration;
   onConfigurationSaved: () => void;
-  // Parameters shown first (default, all) and those in a separate dropdown, with its title. The whole control is
-  // ALWAYS saved: filtering what is shown cannot delete what is not shown.
   parameterIds?: string[];
   secondaryParameterIds?: string[];
   secondaryTitle?: string;
   secondaryDescription?: string;
-  // Parameter requested by the URL: its dropdown opens and it scrolls into view.
   focusParameterId?: string;
 }
 
@@ -121,8 +118,6 @@ export const ConfigurationSession = ({
   const [saveError, setSaveError] =
     useState<string | undefined>();
 
-  // Reasons why the save was rejected before leaving the screen; apart from `saveError` (server errors) because
-  // the fix differs: here a field is corrected, there it is retried.
   const [valueIssues, setValueIssues] =
     useState<string[]>([]);
 
@@ -139,7 +134,6 @@ export const ConfigurationSession = ({
     }));
   };
 
-  // The level this control is edited for: a choice the ENS admits only at some levels is offered and checked for it.
   const editedLevel = controlLevelIn(getActiveENSConfiguration(), control.controlId);
 
   const handleSave = async () => {
@@ -147,8 +141,6 @@ export const ConfigurationSession = ({
       return;
     }
 
-    // An invalid value is rejected here, with the reason: absence is fixed by filling, this by correcting.
-    // Organisation data is checked and fixed in General, not here.
     const issues = validateControlParameterValues(
       draftControl,
       values,

@@ -1,5 +1,3 @@
-// Searches as the viewing user. OpenSearch answers 200 with partial results if a shard fails: each search sends
-// `allow_partial_search_results=false` and the response is still checked, so nothing is judged on partial data.
 
 class ENSIncompleteDataError extends Error {
   statusCode = 503;

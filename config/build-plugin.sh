@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-###############################################################################
-# build-plugin.sh · builds Power ENS as a standalone plugin
-#
-#   sudo bash config/build-plugin.sh [<OpenSearch Dashboards tree>]
-#
-# Default tree: the guides' (/opt/power-ens/build), an OpenSearch Dashboards 2.19.5 source prepared with
-# `yarn osd bootstrap`. Copies the plugin (only what is distributed) to <tree>/plugins/powerEns and builds
-# there; it does NOT touch plugins/main or any other plugin of the tree. With the repository yarn.lock the
-# dependencies are always the same (--frozen-lockfile: stops if it does not match package.json).
-###############################################################################
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,9 +10,6 @@ if [ ! -f "$OSD_SRC/package.json" ] || [ ! -d "$OSD_SRC/scripts" ]; then
   exit 2
 fi
 
-# `rm -rf "$DEST"` deletes the whole destination: if the repository IS the destination, or one is
-# inside the other, it would delete the code (or copy the plugin into itself). Real paths are compared,
-# links resolved; `os.path.realpath` works even if the destination does not exist yet.
 real_path() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
 REPO_REAL="$(real_path "$REPO")"
 DEST_REAL="$(real_path "$DEST")"
@@ -53,7 +40,6 @@ if [ -f "$REPO/yarn.lock" ]; then
   cp -a "$REPO/yarn.lock" "$DEST/"
 fi
 
-# node 18.19.0 from the dashboard itself; yarn from the PATH (or root's nvm).
 export PATH="/usr/share/wazuh-dashboard/node/bin:/root/.nvm/versions/node/v16.20.0/bin:$PATH"
 export YARN_IGNORE_ENGINES=1
 

@@ -1,7 +1,6 @@
 import { ENSCatalog } from '../catalog';
 import type { ENSControlDefinition, ENSRequirementDefinition } from '../catalog/types';
 import type { ENSLevel } from '../configuration/types';
-// From the files, not the `configuration/services` barrel (it drags `kibana-services` into the engine graph).
 import {
   getActiveControlConfiguration,
   getActiveENSConfiguration,
@@ -48,7 +47,6 @@ const STATUS: Record<string, ENSComplianceStatus> = {
   NOT_APPLICABLE: 'NO_APLICA',
 };
 
-// What the reader sees: the engine's message in Spanish, or its English text when the reason has no code yet.
 const reasonOf = (verdict?: ENSEngineVerdict): string | undefined =>
   verdict && (renderEngineMessage(verdict.reason_code, verdict.reason_args) ?? verdict.reason);
 
@@ -240,7 +238,6 @@ export const buildENSResultFromVerdicts = (
   };
 };
 
-// One point per day end with a verdict: the latest control verdict of the day before it.
 export const verdictSeriesPoints = (
   cutoffs: Date[],
   daily: ENSEngineVerdict[]

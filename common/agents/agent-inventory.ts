@@ -1,5 +1,3 @@
-// Agent inventory from `wazuh-monitoring-*`, which Wazuh itself fills every 15 minutes; it replaces the Wazuh API so the plugin needs no credentials. Read as the viewing user.
-// The pure part (the query and how its response is read) is in `common/` because the server resolves the scope with the same code as the browser. The browser load is in `public/agents/load-agent-inventory.ts`.
 import { ENS_MONITORING_INDEX } from '../constants';
 import { ENS_MANAGER_AGENT_ID } from '../ens/core/scope/measurement-planes';
 import type { ENSAgentScope } from '../ens/core/scope/types';
@@ -40,7 +38,6 @@ const agentId = (value: unknown): string => {
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
-// The agent's operating system, to detect its type in Configuration (Windows, Linux). Only the text fields used; a never-connected agent has no `os`.
 const systemOf = (value: any): ENSAgentScope['os'] => {
   if (!value || typeof value !== 'object') return undefined;
   const os: NonNullable<ENSAgentScope['os']> = {};
@@ -58,10 +55,8 @@ const groupsOf = (value: unknown): string[] => {
 
 export const inventoryFromMonitoring = (aggregations: any, now: number = Date.now()): ENSAgentInventory => {
   let mostRecent: number | undefined;
-  // The manager (000) is not written to wazuh-monitoring: its name comes from the `manager` field of the most recent document carrying it. A never-connected agent lacks it, and the pass writes all with the same instant, so the first cannot decide.
   let managerName: string | undefined;
   let managerTimestamp = -Infinity;
-  // One agent per normalized id: if two buckets give the same (`24` and `024`), the one with the most recent datum stays; without a date, it counts as the oldest.
   const byId = new Map<string, { agent: ENSAgentScope; timestamp: number }>();
 
   for (const bucket of aggregations?.agentes?.buckets || []) {
@@ -93,7 +88,6 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
     });
   }
 
-  // A decommissioned agent stops appearing in wazuh-monitoring (a disconnected one keeps appearing, with its status): one with no datum in the last hour of the inventory is dropped, counted from its most recent datum and not the clock, so a stalled inventory does not empty. Without a date it stays.
   const current = (timestamp: number) =>
     mostRecent === undefined || timestamp === -Infinity || mostRecent - timestamp <= ENS_INVENTORY_MAX_AGE_MS;
 
@@ -104,7 +98,6 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
 
   const stale = mostRecent === undefined || now - mostRecent > ENS_INVENTORY_MAX_AGE_MS;
 
-  // If there is an inventory without a 000, the manager is added: it writes that inventory, so with an up-to-date inventory it is active; if old, unknown and no status is set.
   if (agents.length && !agents.some(a => a.id === ENS_MANAGER_AGENT_ID)) {
     agents.unshift({
       id: ENS_MANAGER_AGENT_ID,

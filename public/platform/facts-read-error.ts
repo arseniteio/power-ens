@@ -1,4 +1,3 @@
-// What the screens say when the fact search fails. What remains in `esResults` belongs to the previous search, so it is not shown as current. No React: tested in tests/facts-read-error.test.ts.
 
 export const FACTS_READ_ERROR_TITLE = 'No se pudieron leer los hechos';
 

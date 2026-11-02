@@ -2,7 +2,6 @@ export interface ComplianceCardModel {
   title: string;
   score: number;
 
-  // Over how many controls `score` was computed. With 0 there is no index to show: the card must say "sin medir", not "0 %".
   measured: number;
 
   total: number;
@@ -11,7 +10,6 @@ export interface ComplianceCardModel {
   noCumple: number;
   noEvaluable: number;
   noAplica: number;
-  // Controls in the catalog without collector (`DRAFT`): neither measured nor «no aplica» by level.
   notMeasured: number;
   lastEvaluation: string;
   description: string;

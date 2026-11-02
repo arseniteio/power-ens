@@ -36,8 +36,6 @@ async function ensureENSConfigurationIndex(client: any, logger: Logger): Promise
     await client.indices.create({
       index: ENS_CONFIGURATION_INDEX,
       body: {
-        // `auto_expand_replicas` instead of a fixed replica: on a single-node indexer a replica can never be
-        // assigned and the index stays yellow; with more nodes, the replica is created.
         settings: { index: { number_of_shards: 1, auto_expand_replicas: '0-1' } },
         mappings: {
           properties: {
@@ -60,7 +58,6 @@ async function ensureENSConfigurationIndex(client: any, logger: Logger): Promise
   }
 }
 
-// Version of the active document in the index, for a save that must not overwrite a newer one.
 export interface ENSConfigurationDocumentVersion {
   seqNo: number;
   primaryTerm: number;
@@ -93,7 +90,6 @@ export async function readActiveENSConfigurationWithVersion(
     },
   });
 
-  // With a failed shard it does not silently fall back to the default template.
   assertCompleteResponse(result.body, 'la configuración ENS');
   const hit = result.body?.hits?.hits?.[0];
 
@@ -127,7 +123,6 @@ export async function readENSConfigurationHistory(
   return (result.body?.hits?.hits || []).map((hit: any) => hit._source as ENSConfigurationStoredDocument);
 }
 
-// Writes the active document only over `expected` ('absent': none yet), then the history (`previous` 1 ms earlier).
 export async function persistENSConfiguration(
   client: any,
   logger: Logger,
@@ -193,7 +188,6 @@ export async function persistENSConfiguration(
 
   const saved = { ...activeDocument, version: versionOf(item?._seq_no, item?._primary_term) };
 
-  // The active document is already saved: a failed history entry is reported, not turned into a failed save.
   try {
     const result = await client.bulk({ body: historyBody, refresh: 'wait_for' });
     if (result.body?.errors) {

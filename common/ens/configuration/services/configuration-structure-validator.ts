@@ -134,9 +134,6 @@ const validateRequiredStrings = (
   });
 };
 
-// `columns` is checked for shape only; whether a cell is valid for its column is decided by
-// `parameter-value-validator`. This validator THROWS on hydration, and a badly filled table must degrade its
-// control, not the whole Configuration screen.
 const validateParameterColumns = (
   value: unknown,
   path: string,
@@ -221,8 +218,6 @@ const validateParameter = (
     errors.push(`${path}.example must be a string.`);
   }
 
-  // `options` is checked for shape only; whether the value is one of them is decided by
-  // `parameter-value-validator.ts` (this validator throws on hydration).
   if (
     value.options !== undefined &&
     !isStringArray(value.options)
@@ -401,8 +396,6 @@ const validateGlobalConfiguration = (
     errors.push('configuration.global.ensLevel is invalid.');
   }
 
-  // Dimension levels are optional: an absent key is valid (`ensLevel` is used). If present it must be a level; `null` is not.
-  // `ensLevel` below a dimension is NOT a structural error: it would stop the whole environment loading, so the panel and the scripts reject it instead.
   for (const key of Object.values(ENS_DIMENSION_LEVEL_KEYS)) {
     if (key in value && !isAllowedString(value[key], ENS_LEVELS)) {
       errors.push(`configuration.global.${key} is invalid.`);
@@ -536,12 +529,8 @@ export const validateENSConfigurationStructure = (
     });
   }
 
-  // Per-system layer (1.2.0): optional; if present, shape-checked. Existence of controls and parameters and
-  // value validity are judged in `agents/agent-configuration-validator.ts`: a bad value in an agent degrades
-  // that machine's row, not the whole environment.
   errors.push(...validateAgentsConfigurationShape(value.agents));
   errors.push(...validateCustomTemplatesShape(value.templates));
-  // Organisation data (1.4.0): optional; a `null` item value would reach every mapped parameter.
   errors.push(...validateOrganizationDataShape(value.organizationData));
 
   if (!Array.isArray(value.auditTrail)) {

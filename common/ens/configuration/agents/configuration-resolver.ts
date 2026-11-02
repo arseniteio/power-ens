@@ -1,4 +1,3 @@
-// Override -> assigned template, or else the type's built-in -> common value; the two templates never mix, for 1.2.0 parity.
 import type {
   ENSAgentParameterValue,
   ENSAgentProfile,
@@ -28,16 +27,13 @@ export interface ENSResolvedValueOrigin {
   source: ENSValueSource;
   templateId?: string;
   templateName?: string;
-  // `assigned` in the control, or the built-in of the agent's `type`.
   via?: 'assigned' | 'type';
-  // Agents that add rows to a union.
   contributors?: string[];
 }
 
 interface ENSEffectiveTemplate {
   template?: ENSControlTemplate;
   via: 'assigned' | 'type' | 'none';
-  // The stored assignment, even when it names a template that no longer exists.
   assignedId?: string;
 }
 
@@ -48,7 +44,6 @@ const defaultCatalogLookup: CatalogLookup = controlId => getENSCatalogControl(co
 const hasOwn = (record: object | undefined, key: string): boolean =>
   !!record && Object.prototype.hasOwnProperty.call(record, key);
 
-// Not memoised: callers such as the distribution by agents mutate their working copy between calls.
 export const toTemplateModel = <T extends ENSResolvable>(configuration: T): T =>
   needsTemplateMigration(configuration) ? planTemplateMigration(configuration).configuration : configuration;
 
@@ -87,7 +82,6 @@ export const getEffectiveTemplate = (
 interface ENSAgentLevelValue {
   value: ENSAgentParameterValue;
   origin: ENSResolvedValueOrigin;
-  // The mode stored with this value at its level; absent is exact.
   matchMode?: ENSMatchMode;
 }
 
@@ -119,7 +113,6 @@ const agentLevelValueOf = (
 const modeOf = (modes: Record<string, ENSMatchMode> | undefined, parameterId: string): { matchMode?: ENSMatchMode } =>
   modes?.[parameterId] === 'regex' ? { matchMode: 'regex' } : {};
 
-// The agent-level value (override or template), without falling back to the common value.
 export const getAgentLevelValue = (
   configuration: ENSResolvable,
   agentId: string,
@@ -130,7 +123,6 @@ export const getAgentLevelValue = (
   return agentLevelValueOf(model, profileOf(model, agentId), controlId, parameterId, true);
 };
 
-// What the agent would get without its override: template value, or the common value, each with its own mode.
 export const getInheritedSetting = (
   configuration: ENSResolvable,
   agentId: string,
@@ -146,7 +138,6 @@ export const getInheritedSetting = (
   return { value: common?.value, ...(common?.matchMode === 'regex' ? { matchMode: 'regex' as const } : {}) };
 };
 
-// A control's scope list names other machines: every row reads it whole, so its values add up.
 export const isUnionParameter = (
   controlId: string,
   parameterId: string,
@@ -162,8 +153,7 @@ const rowsOf = (parameter: ENSControlParameter, value: unknown): string[] =>
     .map(row => String(row))
     .filter(row => row.trim().length > 0);
 
-// Same row only if identical cell by cell, ignoring spaces around `|`; case counts (`Ana` and `ana` are two accounts).
-export const rowKey = (row: string): string =>
+const rowKey = (row: string): string =>
   toTableRowCells(row).join('|');
 
 const resolveUnion = (
@@ -265,7 +255,6 @@ export const resolveControlConfigurationWithOrigins = (
 ): ENSResolvedControlConfiguration | undefined =>
   resolveInModel(toTemplateModel(configuration), controlId, agentId, catalogLookup);
 
-// Per-document memo for the engine: the repository replaces the object on every save, so a key never goes stale.
 const cache = new WeakMap<object, { model: ENSResolvable; byKey: Map<string, ENSControlConfiguration | undefined> }>();
 
 export const resolveControlConfigurationForAgent = (

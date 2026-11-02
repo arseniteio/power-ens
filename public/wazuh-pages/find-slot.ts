@@ -11,6 +11,5 @@ const agentComplianceSlot = (root: ParentNode): Element | null | undefined =>
 const homeSlot = (root: ParentNode): Element | null | undefined =>
   findByText(root, '.euiBetaBadge', 'Agents summary')?.closest('.euiFlexGroup')?.parentElement;
 
-// Wazuh offers no extension point on these pages: the slot is found by what they show, and a page that changes only leaves the block out.
 export const findSlot = (page: WazuhPage, root: ParentNode): Element | undefined =>
   (page.kind === 'agent' ? agentComplianceSlot(root) : homeSlot(root)) || undefined;

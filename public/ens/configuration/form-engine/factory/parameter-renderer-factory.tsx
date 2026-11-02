@@ -23,20 +23,11 @@ import {
 import { getENSCatalogControl } from '../../../../../common/ens/catalog';
 import { resolveControlLevel } from '../../../../../common/ens/core/control-level';
 
-// The level the control is evaluated at (its dimension or the ENS level), to offer only the options the ENS admits there.
 const applicableLevelOf = (controlId: string) => {
   const global = getActiveENSConfiguration().global;
   return resolveControlLevel(getENSCatalogControl(controlId) || {}, global.ensLevel, global);
 };
 
-// `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
-// their own renderer.
-// A `table` without declared columns falls to the list renderer, and a `select` without options to the text
-// renderer (blocks seeded earlier); their validation degrades the same way (`validateTable`,
-// `validateSelection`), so form and engine agree: never offer a field that accepts what the engine rejects, nor
-// reject what the field lets you write. Reseed with `inject-control.py`, which keeps configured values.
-// The numeric field is only for parameters whose value is just a number: mp.info.6 P-05 is `duration_days` but
-// accepts 'ALTA=30; MEDIA=90', so it uses the text renderer.
 export const ParameterRendererFactory = ({
   parameter: declared,
   value,

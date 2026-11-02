@@ -1,4 +1,3 @@
-// The report of a control, built from its catalog fields (`report` in the engine catalog) and the engine verdicts.
 import { ENGINE_CATALOG } from '../../../common/ens/catalog/engine-catalog';
 import { statusLabel } from '../../../common/ens/core/status-label';
 import type { ENSComplianceResult, ENSEvidenceResult } from '../../../common/ens/core/evaluation/types';
@@ -12,7 +11,6 @@ export interface ENSReportField {
   value: string;
   evidenceIds: string[];
   details: string[];
-  // Parameters the field needs that have no value yet.
   producerGaps: string[];
 }
 
@@ -40,7 +38,6 @@ interface CatalogReportField {
   parameters: string[];
 }
 
-// Worst first: the field takes the status of its worst evidence.
 const SEVERITY: ENSReportFieldStatus[] = ['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE', 'CUMPLE', 'NO_APLICA'];
 
 const asStatus = (status?: string): ENSReportFieldStatus =>
@@ -104,7 +101,6 @@ const definitions = new Map<string, ENSReportModelDefinition>(
   ])
 );
 
-// `undefined` for a control without a report: never another control's.
 export const getENSReportModelDefinition = (controlId: string): ENSReportModelDefinition | undefined => definitions.get((controlId || '').trim());
 
 export const listENSControlsWithoutReportModel = (controlIds: string[]): string[] =>

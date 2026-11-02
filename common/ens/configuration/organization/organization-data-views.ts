@@ -1,4 +1,3 @@
-// Item rows and what each mapped parameter reads from them; config/power_ens_organization.py mirrors these rules.
 import type { ENSAgentParameterValue, ENSControlParameter } from '../types';
 import {
   isEmptyParameterValue,
@@ -8,7 +7,6 @@ import {
 } from '../services/parameter-value-validator';
 import type { ENSOrganizationDataItem, ENSOrganizationDataView } from './organization-data-items';
 
-// One row of an item by column name; a view's row defines only the columns it fills.
 export type ENSOrganizationRow = Record<string, string>;
 
 type ParameterShape = Pick<ENSControlParameter, 'type'>;
@@ -33,7 +31,6 @@ const organizationColumnNames = (item: ENSOrganizationDataItem): string[] =>
 const isMultiselect = (item: ENSOrganizationDataItem, column: string): boolean =>
   (item.columns || []).some(candidate => candidate.name === column && candidate.type === 'multiselect');
 
-// A row without the empty cells at its end, so «a | b» and «a | b | » are the same row.
 const serializeCells = (cells: string[]): string => {
   const trimmed = cells.map(value => cell(value).replace(/[|\n\r]/g, ' ').trim());
   while (trimmed.length && !trimmed[trimmed.length - 1]) trimmed.pop();
@@ -52,7 +49,6 @@ const shapeOf = (parameter: ParameterShape): 'table' | 'list' | 'scalar' =>
 const isNumericType = (parameter: ParameterShape): boolean =>
   ['number', 'duration_hours', 'duration_days'].includes(parameter.type);
 
-// The item value as rows. Cells beyond the item columns are not kept.
 export const organizationRows = (
   item: ENSOrganizationDataItem,
   value: ENSAgentParameterValue | undefined
@@ -103,7 +99,6 @@ const matchesView = (
 
 const isIdentityView = (view: ENSOrganizationDataView): boolean => !view.where && !view.columns;
 
-// What the parameter reads from these rows: filtered by `where`, projected to `columns`, without empty rows.
 export const projectOrganizationRows = (
   item: ENSOrganizationDataItem,
   view: ENSOrganizationDataView,
@@ -124,12 +119,10 @@ export const projectOrganizationRows = (
   }
 
   let entries = projected.map(cells => (shape === 'list' && cells.length === 1 ? cells[0] : serializeCells(cells))).filter(Boolean);
-  // A projection can repeat a row (one account with two scopes); the identity keeps the value as written.
   if (!isIdentityView(view)) entries = Array.from(new Set(entries));
   return entries.length ? entries : undefined;
 };
 
-// Rows of its use beyond the first, for a parameter that reads one value: the order would decide its threshold.
 export const singleValueExtraRows = (
   item: ENSOrganizationDataItem,
   view: ENSOrganizationDataView,
@@ -149,7 +142,6 @@ export const organizationViewValue = (
   value: ENSAgentParameterValue | undefined
 ): ENSControlParameter['value'] | undefined => projectOrganizationRows(item, view, parameter, organizationRows(item, value));
 
-// The parameter value as item rows: its cells under the view columns, plus the `where` cells.
 export const organizationViewRows = (
   item: ENSOrganizationDataItem,
   view: ENSOrganizationDataView,
@@ -167,7 +159,6 @@ export const organizationViewRows = (
         : [[cell(value)]];
   return rows.map(cells => {
     const row: ENSOrganizationRow = { ...(view.where || {}) };
-    // A cell beyond the view columns is kept so the comparison sees the loss.
     columns.forEach((column, index) => {
       row[column] = cells[index] ?? '';
     });
@@ -178,7 +169,6 @@ export const organizationViewRows = (
   });
 };
 
-// Same value for the engine: the same rows in any order (a table compares cell by cell, case counts).
 export const sameParameterValue = (
   parameter: ParameterShape,
   left: ENSControlParameter['value'] | undefined,
@@ -203,7 +193,6 @@ const sameColumns = (left: ENSOrganizationRow, right: ENSOrganizationRow): boole
   return a.length === b.length && a.every((column, index) => column === b[index]);
 };
 
-// With `key`, into the row with that key (existing cells win); else into an identical row, joining multiselects.
 export const mergeOrganizationRow = (
   item: ENSOrganizationDataItem,
   rows: ENSOrganizationRow[],

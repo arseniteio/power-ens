@@ -1,4 +1,3 @@
-// Without React, so the links are tested; `configView=sistemas` keeps 1.2.0 links working.
 import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
 const CONFIGURATION_TAB_ID = 'configuration';
@@ -10,7 +9,6 @@ export interface ENSConfigurationTarget {
   controlId?: string;
   agentId?: string;
   parameterId?: string;
-  // An organisation data item (General view).
   itemId?: string;
 }
 
@@ -46,7 +44,6 @@ export const configurationSearchChanges = (
   configItem: target.view === 'general' ? clean(target.itemId) : undefined,
 });
 
-// From the control detail, round trip: 'Configurar este control' opens Configuración with `control` and `agentId` kept in the URL and `configBack` naming the tab to return to.
 const CONFIGURATION_BACK_PARAM = 'configBack';
 const CONTROL_DETAIL_TAB_ID = ENS_CONTROL_DETAIL_TAB_ID;
 
@@ -54,7 +51,6 @@ interface ENSDetailConfigurationTarget {
   controlId: string;
   agentId?: string;
   parameterId?: string;
-  // With an agent chosen and per-system or per-platform parameters, the agent page opens; otherwise the control page.
   hasAgentLevelParameters?: boolean;
   parameterIsAgentLevel?: boolean;
 }

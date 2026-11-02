@@ -1,4 +1,3 @@
-// The server evaluation result for a screen: the React wrapper of the `refresh-policy.ts` cycle. While the result for THIS key (machine, control, view) has not arrived, `data` is `undefined` and `isLoading` is true: the previous machine's is never shown as current.
 import { useEffect, useRef, useState } from 'react';
 import { getCore } from '../services';
 import { ENSEvaluationParams, fetchEvaluation, fetchEvaluationProbe } from './evaluation-client';
