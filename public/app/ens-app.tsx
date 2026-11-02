@@ -1,5 +1,5 @@
 import React from 'react';
-import { EuiFlexGroup, EuiFlexItem, EuiPage, EuiPageBody, EuiSpacer, EuiTab, EuiTabs } from '@elastic/eui';
+import { EuiFlexGroup, EuiFlexItem, EuiPage, EuiPageBody, EuiSpacer, EuiTab, EuiTabs, EuiText } from '@elastic/eui';
 import { ENSConfigurationBootstrap, ConfigurationENS } from '../ens/configuration';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
@@ -8,6 +8,7 @@ import { MachineSelector } from './machine-selector';
 import { TabErrorBoundary } from './tab-error-boundary';
 import { isAgentInScope } from './agent-in-scope';
 import { useActiveENSScopeAgents } from '../ens/scope/use-active-scope-agents';
+import { POWER_ENS_VERSION } from '../../common/ens/plugin-version';
 
 // A URL machine outside the scope renders no tab: the selector says so, and each screen would otherwise request an evaluation that answers 400.
 const OnlyInScope = ({ children }: { children: React.ReactNode }) => {
@@ -73,6 +74,10 @@ export const EnsApp = () => {
         <React.Suspense fallback={<LoadingSpinner message="Cargando pantalla ENS..." />}>
           {content}
         </React.Suspense>
+        <EuiSpacer size="l" />
+        <EuiText size="xs" color="subdued" textAlign="center">
+          Power ENS v{POWER_ENS_VERSION}
+        </EuiText>
       </EuiPageBody>
     </EuiPage>
   );
