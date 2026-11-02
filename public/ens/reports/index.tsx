@@ -1099,18 +1099,6 @@ export const ReportsENS = () => {
           )}
         </EuiFlexGroup>
 
-        {filtered.isActive && filtered.hidden.length > 0 && (
-          <>
-            <EuiSpacer size='s' />
-            <EuiText size='xs' color='subdued'>
-              <p>
-                Fuera del filtro:{' '}
-                {filtered.hidden.map(entry => entry.controlId).join(', ')}
-              </p>
-            </EuiText>
-          </>
-        )}
-
         {withoutReportModel.length > 0 && (
           <>
             <EuiSpacer size='s' />
