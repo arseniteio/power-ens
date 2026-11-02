@@ -76,6 +76,7 @@ export interface ENSConfigurationScope {
   mode: ENSConfigurationScopeMode;
   agentIds: string[];
   groupIds: string[];
+  controlGroups?: boolean;
 }
 
 export interface ENSGlobalConfiguration {

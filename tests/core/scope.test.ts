@@ -1,4 +1,4 @@
-import { describeEvaluableGroups, withEvaluableGroups } from '../../common/ens/core/scope/evaluable-groups';
+import { describeEvaluableGroups, exclusionGroupOf, withControlGroups, withEvaluableGroups } from '../../common/ens/core/scope/evaluable-groups';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inventoryFromMonitoring } from '../../common/agents/agent-inventory';
@@ -69,5 +69,13 @@ describe('evaluable groups', () => {
 
   test('the tooltip lists the groups', () => {
     assert.match(describeEvaluableGroups({ mode: 'group', agentIds: [], groupIds: ['ens', 'dmz'] }), /ens, dmz/);
+  });
+});
+
+describe('control groups', () => {
+  test('the option only changes the scope flag and names the group as the engine does', () => {
+    const configuration = { scope: { mode: 'group', agentIds: [], groupIds: ['ens'] } } as any;
+    assert.deepEqual(withControlGroups(configuration, true).scope, { mode: 'group', agentIds: [], groupIds: ['ens'], controlGroups: true });
+    assert.equal(exclusionGroupOf('op.acc.1'), 'ens-excluir-op.acc.1');
   });
 });

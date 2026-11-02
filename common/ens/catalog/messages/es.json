@@ -165,6 +165,7 @@
   "mps1.no_domains": "P-02 no nombra ningún dominio de correo propio",
   "mps1.no_platform_machine": "ninguna máquina de la plataforma de correo de P-01 informa a Wazuh: no se puede acreditar",
   "mps1.no_postfix": "no hay configuración de Postfix en la máquina de la plataforma de correo",
+  "scope.excluded_by_group": "la máquina está en el grupo de Wazuh {group}: este control no se le aplica",
   "mps1.not_platform": "la máquina no forma parte de la plataforma de correo de P-01",
   "mps1.tls": "Postfix ofrece y usa TLS, nada anterior a TLS 1.2",
   "mps1.tls_weak": "TLS de Postfix demasiado débil: {list}",

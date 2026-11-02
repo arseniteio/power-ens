@@ -15,3 +15,12 @@ export const withEvaluableGroups = (configuration: ENSConfigurationVersion, grou
     groupIds: Array.from(new Set(groups.map(group => group.trim()).filter(Boolean))),
   },
 });
+
+export const ENS_EXCLUSION_GROUP_PREFIX = 'ens-excluir-';
+
+export const exclusionGroupOf = (controlId: string): string => `${ENS_EXCLUSION_GROUP_PREFIX}${controlId}`;
+
+export const withControlGroups = (configuration: ENSConfigurationVersion, controlGroups: boolean): ENSConfigurationVersion => ({
+  ...configuration,
+  scope: { ...configuration.scope, controlGroups },
+});

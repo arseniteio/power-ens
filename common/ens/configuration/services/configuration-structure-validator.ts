@@ -443,6 +443,10 @@ const validateScope = (
       'configuration.scope.groupIds must be a string array.',
     );
   }
+
+  if (value.controlGroups !== undefined && typeof value.controlGroups !== 'boolean') {
+    errors.push('configuration.scope.controlGroups must be a boolean.');
+  }
 };
 
 const validateAuditEntry = (
