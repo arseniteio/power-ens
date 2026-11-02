@@ -131,8 +131,8 @@ export const ControlsENS = () => {
               entry={entry}
               isLoading={summary.isLoading}
               error={summary.error}
-              colorDelEstado={statusColorValue}
-              badgeDelEstado={statusBadge}
+              statusColor={statusColorValue}
+              statusBadge={statusBadge}
               onSelect={() => updateUrl({ control: entry.id })}
               onConfigurationChanged={() => {
                 setRevision(n => n + 1);

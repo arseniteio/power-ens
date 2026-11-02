@@ -21,7 +21,7 @@ const clients = (context: any) => ({
 const signalOf = (request: any) => {
   const signal = new CancelSignal();
   const subscription = request?.events?.aborted$?.subscribe?.(() => signal.cancel());
-  return { signal, suelta: () => subscription?.unsubscribe?.() };
+  return { signal, release: () => subscription?.unsubscribe?.() };
 };
 
 const integer = (value: unknown, defaultValue: number, min: number, max: number, name: string): number => {
@@ -42,7 +42,7 @@ export const createEvaluationHandlers = (options: {
   const service = options.service || createEvaluationService(options);
 
   const withErrors = async (request: any, response: any, actionName: string, logLabel: string, taskItem: (signal: CancelSignal) => Promise<unknown>) => {
-    const { signal, suelta: looseOne } = signalOf(request);
+    const { signal, release: releaseSignal } = signalOf(request);
     try {
       return correct(response, await taskItem(signal));
     } catch (error: any) {
@@ -54,7 +54,7 @@ export const createEvaluationHandlers = (options: {
       logger.error(`Power ENS: could not ${logLabel}: ${error?.message || error}`);
       return failure(response, 500, `No se pudo ${actionName}; el detalle está en el log del dashboard.`);
     } finally {
-      looseOne();
+      releaseSignal();
     }
   };
 

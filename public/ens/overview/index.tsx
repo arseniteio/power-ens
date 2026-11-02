@@ -211,12 +211,12 @@ const MachineFlyout = ({
           <EuiAccordion
             key={group.owner}
             id={`queue-${machine.agentId}-${group.owner}`}
-            initialIsOpen={group.clase.orden <= 1}
+            initialIsOpen={group.classification.order <= 1}
             paddingSize='s'
             buttonContent={
               <span>
-                <EuiBadge color={group.clase.badgeColor} iconType={group.clase.icono}>
-                  {group.clase.accion}
+                <EuiBadge color={group.classification.badgeColor} iconType={group.classification.icon}>
+                  {group.classification.action}
                 </EuiBadge>{' '}
                 {`${group.owner} · ${group.items.length}`}
               </span>

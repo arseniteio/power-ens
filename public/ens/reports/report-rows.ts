@@ -2,17 +2,17 @@ import type { ENSReportField, ENSReportFieldStatus, ENSReportModel } from './reg
 import { statusLabel } from '../../../common/ens/core/status-label';
 
 export interface ENSReportRow {
-  campo: string;
+  field: string;
 
-  valor: string;
+  value: string;
 
-  contexto: string;
+  context: string;
 
-  evidencia: string;
+  evidence: string;
 
-  datosPendientes: string;
+  pendingData: string;
 
-  estado: ENSReportFieldStatus;
+  status: ENSReportFieldStatus;
 }
 
 interface ENSReportPdfTextRun {
@@ -28,7 +28,7 @@ interface ENSReportPdfCell {
 
 export const ENS_REPORT_NO_EVIDENCE = 'Sin evidencia';
 
-export const ENS_REPORT_EVIDENCE_FIELD = 'evidencia';
+export const ENS_REPORT_EVIDENCE_FIELD = 'evidence';
 
 const UNMEASURED_COLOR = '#69707d';
 
@@ -53,27 +53,27 @@ const isScore = (field: ENSReportField): boolean =>
   field.id.endsWith('.puntuacion');
 
 const buildENSReportRow = (field: ENSReportField): ENSReportRow => ({
-  campo: `${field.id} · ${field.title}`,
+  field: `${field.id} · ${field.title}`,
 
-  valor: isScore(field)
+  value: isScore(field)
     ? field.value || '—'
     : findingOf(field) || field.value || '—',
 
-  contexto: isScore(field)
+  context: isScore(field)
     ? findingOf(field)
     : findingOf(field) ? field.value || '' : '',
 
-  evidencia:
+  evidence:
     (field.evidenceIds || []).length > 0
       ? field.evidenceIds.join(', ')
       : ENS_REPORT_NO_EVIDENCE,
 
-  datosPendientes:
+  pendingData:
     (field.producerGaps || []).length > 0
       ? `Datos pendientes: ${field.producerGaps.join(', ')}`
       : '',
 
-  estado: asStatus(field.status),
+  status: asStatus(field.status),
 });
 
 export const buildENSReportRows = (
@@ -131,17 +131,17 @@ export const buildENSReportEvidencePdfCell = (
   style: 'td',
   text: [
     {
-      text: statusLabel(row.estado),
-      color: ensReportStatusPdfColor(row.estado),
+      text: statusLabel(row.status),
+      color: ensReportStatusPdfColor(row.status),
       bold: true,
     },
     {
-      text: `\n${row.evidencia}`,
+      text: `\n${row.evidence}`,
     },
-    ...(row.datosPendientes
+    ...(row.pendingData
       ? [
           {
-            text: `\n${row.datosPendientes}`,
+            text: `\n${row.pendingData}`,
             color: UNMEASURED_COLOR,
           },
         ]

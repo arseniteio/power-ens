@@ -5,11 +5,11 @@ export interface ComplianceCardModel {
   measured: number;
 
   total: number;
-  cumple: number;
-  parcial: number;
-  noCumple: number;
-  noEvaluable: number;
-  noAplica: number;
+  compliant: number;
+  partial: number;
+  nonCompliant: number;
+  notEvaluable: number;
+  notApplicable: number;
   notMeasured: number;
   lastEvaluation: string;
   description: string;

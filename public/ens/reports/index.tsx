@@ -227,12 +227,12 @@ const ControlReport = ({
     id: requirement.id,
     title: requirement.title,
     status: requirement.status,
-    prueba: testLabel(requirement),
+    test: testLabel(requirement),
     level: requirement.level.join(', ') || '-',
     evidences: (requirement.evidenceIds || []).join(', ') || '-',
     observationList: requirement.observations || [],
     observations: (requirement.observations || []).join(' · '),
-    traza: evidenceTrace(requirement.evidenceIds || []),
+    trace: evidenceTrace(requirement.evidenceIds || []),
     texts: reportRequirementTexts(controlId, requirement.id),
   }));
 
@@ -257,7 +257,7 @@ const ControlReport = ({
   };
 
   const parameterRows = parameterResults.map(parameter => ({
-    parametro: `${parameter.id} · ${parameter.label}`,
+    parameter: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
     value: formatParameterValue(parameter.value, describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.matchMode),
     origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
@@ -287,9 +287,9 @@ const ControlReport = ({
       ? '#f5a700'
       : PDF_SECONDARY_COLOR;
 
-  const hasDetail = (item: { observations: string; traza: string[]; texts?: unknown[] }) =>
+  const hasDetail = (item: { observations: string; trace: string[]; texts?: unknown[] }) =>
     (item.observations || '').length > OBSERVATION_PREVIEW_LENGTH ||
-    item.traza.length > 0 ||
+    item.trace.length > 0 ||
     (item.texts || []).length > 0;
 
   const requirementColumns = [
@@ -311,12 +311,12 @@ const ControlReport = ({
       field: 'status',
       name: 'Estado',
       width: '190px',
-      render: (status: string, item: { prueba: string }) => (
+      render: (status: string, item: { test: string }) => (
         <>
           <EuiBadge color={ensReportStatusBadgeColor(status)}>{statusLabel(status)}</EuiBadge>
-          {item.prueba ? (
+          {item.test ? (
             <EuiText size='xs' color='subdued'>
-              {item.prueba}
+              {item.test}
             </EuiText>
           ) : null}
         </>
@@ -346,7 +346,7 @@ const ControlReport = ({
       align: 'right' as const,
       width: '40px',
       isExpander: true,
-      render: (item: { id: string; observations: string; traza: string[] }) =>
+      render: (item: { id: string; observations: string; trace: string[] }) =>
         hasDetail(item) ? (
           <EuiButtonIcon
             onClick={() => toggleRequirementDetail(item.id)}
@@ -385,11 +385,11 @@ const ControlReport = ({
               </>
             ) : null}
 
-            {row.traza.length > 0 ? (
+            {row.trace.length > 0 ? (
               <>
                 <strong>Trazabilidad</strong>
                 <ul>
-                  {row.traza.map((line, index) => (
+                  {row.trace.map((line, index) => (
                     <li key={index}>{line}</li>
                   ))}
                 </ul>
@@ -406,7 +406,7 @@ const ControlReport = ({
 
   const parameterColumns = [
     {
-      field: 'parametro',
+      field: 'parameter',
       name: 'Parámetro',
       render: (parameter: string, item: { ifNotConfigured: string }) => (
         <>
@@ -457,31 +457,31 @@ const ControlReport = ({
 
   const columns = [
     {
-      field: 'campo',
+      field: 'field',
       name: 'Campo',
       width: '28%',
-      render: (campo: string) => (
+      render: (field: string) => (
         <EuiText size='s'>
-          {campo} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
+          {field} <ProvenanceLabel provenance={ENS_PROPOSAL_TEXT_PROVENANCE} />
         </EuiText>
       ),
     },
     {
-      field: 'valor',
+      field: 'value',
       name: 'Valor',
       render: (value: string, item: ENSReportRow) => (
         <>
           <MotiveCell
-            lineas={value
+            lines={value
               .split(' · ')
               .map(text => text.trim())
               .filter(Boolean)
-              .map(text => ({ texto: text }))}
-            titulo={item.campo}
+              .map(text => ({ text }))}
+            title={item.field}
           />
-          {item.contexto ? (
+          {item.context ? (
             <EuiText size='xs' color='subdued'>
-              {item.contexto}
+              {item.context}
             </EuiText>
           ) : null}
         </>
@@ -494,17 +494,17 @@ const ControlReport = ({
       render: (evidence: string, item: ENSReportRow) => (
         <EuiFlexGroup direction='column' gutterSize='xs' responsive={false} alignItems='flexStart'>
           <EuiFlexItem grow={false}>
-            <EuiBadge color={ensReportStatusBadgeColor(item.estado)}>{statusLabel(item.estado)}</EuiBadge>
+            <EuiBadge color={ensReportStatusBadgeColor(item.status)}>{statusLabel(item.status)}</EuiBadge>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color={evidence === ENS_REPORT_NO_EVIDENCE ? 'subdued' : 'default'}>
               <span>{evidence}</span>
             </EuiText>
           </EuiFlexItem>
-          {item.datosPendientes ? (
+          {item.pendingData ? (
             <EuiFlexItem grow={false}>
               <EuiText size='xs' color='subdued'>
-                <span>{item.datosPendientes}</span>
+                <span>{item.pendingData}</span>
               </EuiText>
             </EuiFlexItem>
           ) : null}
@@ -604,18 +604,18 @@ const ControlReport = ({
                 { text: 'Evidencia', style: 'th' },
               ],
               ...rows.map((r) => [
-                { text: [pdfRowLabel(), r.campo], style: 'td' },
+                { text: [pdfRowLabel(), r.field], style: 'td' },
                 {
-                  text: r.contexto
+                  text: r.context
                     ? [
-                        r.valor,
+                        r.value,
                         {
-                          text: `\n${r.contexto}`,
+                          text: `\n${r.context}`,
                           fontSize: 7,
                           color: '#69707D',
                         },
                       ]
-                    : r.valor,
+                    : r.value,
                   style: 'td',
                 },
                 buildENSReportEvidencePdfCell(r),
@@ -643,7 +643,7 @@ const ControlReport = ({
                   text: [
                     { text: requirement.title, bold: true },
                     ...pdfProvenanceRuns(requirement.texts),
-                    ...[...requirement.traza, requirement.observations || undefined]
+                    ...[...requirement.trace, requirement.observations || undefined]
                       .filter(Boolean)
                       .map(line => ({ text: `\n${line}` })),
                   ],
@@ -658,8 +658,8 @@ const ControlReport = ({
                       color: ensReportStatusPdfColor(requirement.status),
                       bold: true,
                     },
-                    ...(requirement.prueba
-                      ? [{ text: `\n${requirement.prueba}`, color: PDF_SECONDARY_COLOR }]
+                    ...(requirement.test
+                      ? [{ text: `\n${requirement.test}`, color: PDF_SECONDARY_COLOR }]
                       : []),
                   ],
                 },
@@ -685,7 +685,7 @@ const ControlReport = ({
               ],
               ...parameterRows.map(parameter => [
                 {
-                  text: [pdfRowLabel(), `${parameter.parametro}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`],
+                  text: [pdfRowLabel(), `${parameter.parameter}: ${parameter.value}${parameter.origin ? ` (${parameter.origin})` : ''}`],
                   style: 'td',
                 },
                 { text: parameter.required, style: 'td' },

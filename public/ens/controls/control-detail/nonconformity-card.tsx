@@ -56,15 +56,15 @@ interface NonConformityItem {
 
 interface NonConformityCardProps {
   item: NonConformityItem;
-  clase: NonConformityClass;
-  criticidad?: string;
-  etiquetaAlcance: string;
-  textoAlcance: string;
-  lineasMotivo: MotiveLine[];
-  evidenciasImplicadas: string[];
+  classification: NonConformityClass;
+  criticality?: string;
+  scopeLabel: string;
+  scopeText: string;
+  motiveRows: MotiveLine[];
+  involvedEvidences: string[];
   controlId: string;
-  ocultos?: number;
-  conocidos?: KnownReasonParts[];
+  hidden?: number;
+  known?: KnownReasonParts[];
   handlers?: MotiveViewHandlers;
   onGuide?: (target: GuideTarget) => void;
 }
@@ -72,8 +72,8 @@ interface NonConformityCardProps {
 const QUESTION_PREFIX = 'Pregunta de auditoría:';
 
 interface ParsedLine {
-  linea: MotiveLine;
-  motivo: ParsedMotive;
+  line: MotiveLine;
+  motive: ParsedMotive;
 }
 
 const readCardMotive = (
@@ -85,29 +85,29 @@ const readCardMotive = (
   const seen = new Set<string>();
   const bodies = new Set<string>();
   const parsedItems: ParsedLine[] = lines
-    .filter(line => line.texto.trim() && !line.texto.startsWith(QUESTION_PREFIX))
-    .map(line => ({ linea: line, motivo: parseMotive(line.texto, known) }))
-    .filter(({ linea: line, motivo: motive }) => {
+    .filter(line => line.text.trim() && !line.text.startsWith(QUESTION_PREFIX))
+    .map(line => ({ line, motive: parseMotive(line.text, known) }))
+    .filter(({ line, motive }) => {
       const body = motive.parts.map(partToText).join(' | ');
       const key = `${motive.machines || ''}|${body}`;
-      if (seen.has(key) || (line.etiqueta === 'Motor' && bodies.has(body))) return false;
+      if (seen.has(key) || (line.label === 'Motor' && bodies.has(body))) return false;
       seen.add(key);
       bodies.add(body);
       return true;
     });
   const nonConforming = (p: MotivePart) => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA';
   const main =
-    parsedItems.find(l => l.motivo.parts.some(p => p.evidenceId && evidenceIds.includes(p.evidenceId) && nonConforming(p))) || parsedItems[0];
-  const culprit = main ? guiltyPart(main.motivo.parts, evidenceIds) : undefined;
-  const others = main ? main.motivo.parts.filter(p => p !== culprit) : [];
+    parsedItems.find(l => l.motive.parts.some(p => p.evidenceId && evidenceIds.includes(p.evidenceId) && nonConforming(p))) || parsedItems[0];
+  const culprit = main ? guiltyPart(main.motive.parts, evidenceIds) : undefined;
+  const others = main ? main.motive.parts.filter(p => p !== culprit) : [];
   return {
-    leidas: parsedItems,
+    readLines: parsedItems,
     principal: main,
     culpable: culprit,
     titular: culprit?.summary || finding,
-    otrasNoConformes: others.filter(p => nonConforming(p)),
+    otherNonCompliant: others.filter(p => nonConforming(p)),
     conformes: others.filter(p => p.status === 'CUMPLE' || p.status === 'NO_APLICA'),
-    pregunta: lines.find(line => line.texto.startsWith(QUESTION_PREFIX)),
+    question: lines.find(line => line.text.startsWith(QUESTION_PREFIX)),
   };
 };
 
@@ -163,15 +163,15 @@ const layoutGuiltyPart = (part: Pick<MotivePart, 'text' | 'summary' | 'list'>, m
 
 export const NonConformityCard = ({
   item,
-  clase: kind,
-  criticidad: criticality,
-  etiquetaAlcance: scopeLabel,
-  textoAlcance: scopeText,
-  lineasMotivo: motiveRows,
-  evidenciasImplicadas: involvedEvidences,
+  classification: kind,
+  criticality,
+  scopeLabel,
+  scopeText,
+  motiveRows,
+  involvedEvidences,
   controlId,
-  ocultos: hidden = 0,
-  conocidos: known = [],
+  hidden = 0,
+  known = [],
   handlers = {},
   onGuide,
 }: NonConformityCardProps) => {
@@ -203,8 +203,8 @@ export const NonConformityCard = ({
       >
         <EuiFlexGroup gutterSize='xs' alignItems='center' wrap responsive={false}>
           <EuiFlexItem grow={false}>
-            <EuiBadge color={kind.badgeColor} iconType={kind.icono}>
-              {kind.etiqueta}
+            <EuiBadge color={kind.badgeColor} iconType={kind.icon}>
+              {kind.label}
             </EuiBadge>
           </EuiFlexItem>
           {criticality && (
@@ -266,27 +266,27 @@ export const NonConformityCard = ({
               {layout.rest && (
                 <div style={{ marginBottom: 6 }}>
                   {layout.cutAtWord ? '…' : ''}
-                  <MotiveText texto={layout.rest.text} list={layout.rest.list} />
+                  <MotiveText text={layout.rest.text} list={layout.rest.list} />
                 </div>
               )}
               {layout.detail && (
                 <div style={{ marginBottom: 6 }}>
-                  <MotiveText texto={layout.detail.text} list={layout.detail.list} />
+                  <MotiveText text={layout.detail.text} list={layout.detail.list} />
                 </div>
               )}
               {culprit?.secondary !== undefined && (
                 <p style={{ color: ENS_THEME.subduedText }}>
-                  <strong>Además:</strong> <MotiveText texto={culprit.secondary} />
+                  <strong>Además:</strong> <MotiveText text={culprit.secondary} />
                 </p>
               )}
             </EuiText>
           </>
         )}
 
-        {reading.otrasNoConformes.length > 0 && (
+        {reading.otherNonCompliant.length > 0 && (
           <>
             <EuiSpacer size='s' />
-            {reading.otrasNoConformes.map((part, i) => (
+            {reading.otherNonCompliant.map((part, i) => (
               <EuiText size='xs' key={`${part.evidenceId}-${i}`}>
                 <p style={{ marginBottom: 2 }}>
                   <LinkBadge
@@ -297,7 +297,7 @@ export const NonConformityCard = ({
                     {part.evidenceId}
                   </LinkBadge>{' '}
                   <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
-                  <MotiveText texto={part.summary} />
+                  <MotiveText text={part.summary} />
                 </p>
               </EuiText>
             ))}
@@ -314,7 +314,7 @@ export const NonConformityCard = ({
                 <p style={{ marginBottom: 2 }}>
                   <EuiBadge color='hollow'>{part.evidenceId}</EuiBadge>{' '}
                   <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
-                  <MotiveText texto={part.summary} />
+                  <MotiveText text={part.summary} />
                 </p>
               </EuiText>
             ))}
@@ -358,11 +358,11 @@ export const NonConformityCard = ({
           <EuiFlexItem grow={false}>
             <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false} wrap>
               <EuiFlexItem grow={false}>
-                <EuiBadge color={kind.badgeColor}>{kind.accion}</EuiBadge>
+                <EuiBadge color={kind.badgeColor}>{kind.action}</EuiBadge>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiText size='xs' color='subdued'>
-                  {kind.responsable}
+                  {kind.owner}
                 </EuiText>
               </EuiFlexItem>
             </EuiFlexGroup>
@@ -388,8 +388,8 @@ export const NonConformityCard = ({
             <EuiSpacer size='xs' />
             <EuiFlexGroup gutterSize='xs' responsive={false} wrap>
               <EuiFlexItem grow={false}>
-                <EuiBadge color={kind.badgeColor} iconType={kind.icono}>
-                  {kind.etiqueta}
+                <EuiBadge color={kind.badgeColor} iconType={kind.icon}>
+                  {kind.label}
                 </EuiBadge>
               </EuiFlexItem>
               {criticality && (
@@ -405,9 +405,9 @@ export const NonConformityCard = ({
               <h3>Motivo</h3>
             </EuiTitle>
             <EuiSpacer size='xs' />
-            {reading.leidas.length > 0 ? (
-              reading.leidas.map(({ linea: line, motivo: motive }, index) => (
-                <MotiveView key={`${index}`} parsed={motive} label={line.etiqueta} handlers={handlers} />
+            {reading.readLines.length > 0 ? (
+              reading.readLines.map(({ line, motive }, index) => (
+                <MotiveView key={`${index}`} parsed={motive} label={line.label} handlers={handlers} />
               ))
             ) : (
               <EuiText size='s'>
@@ -462,11 +462,11 @@ export const NonConformityCard = ({
               </>
             )}
 
-            {reading.pregunta && (
+            {reading.question && (
               <>
                 <EuiSpacer size='m' />
                 <EuiText size='s' color='subdued'>
-                  <p style={{ fontStyle: 'italic' }}>{reading.pregunta.texto}</p>
+                  <p style={{ fontStyle: 'italic' }}>{reading.question.text}</p>
                 </EuiText>
               </>
             )}

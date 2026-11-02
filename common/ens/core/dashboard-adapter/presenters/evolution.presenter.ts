@@ -17,11 +17,11 @@ export const buildEvolutionModel = (
   const hasEvaluableControls =
     (
       complianceState
-        .controlSummary.cumple +
+        .controlSummary.compliant +
       complianceState
-        .controlSummary.noCumple +
+        .controlSummary.nonCompliant +
       complianceState
-        .controlSummary.parcial
+        .controlSummary.partial
     ) > 0;
 
   const fallbackRows:

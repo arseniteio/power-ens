@@ -17,10 +17,10 @@ export const buildMonitoringInventoryRequest = () => ({
     size: 0,
     query: { range: { timestamp: { gte: 'now-7d' } } },
     aggs: {
-      agentes: {
+      agents: {
         terms: { field: 'id', size: 10000 },
         aggs: {
-          ultimo: {
+          latest: {
             top_hits: {
               size: 1,
               sort: [{ timestamp: { order: 'desc' } }],
@@ -59,8 +59,8 @@ export const inventoryFromMonitoring = (aggregations: any, now: number = Date.no
   let managerTimestamp = -Infinity;
   const byId = new Map<string, { agent: ENSAgentScope; timestamp: number }>();
 
-  for (const bucket of aggregations?.agentes?.buckets || []) {
-    const doc = bucket?.ultimo?.hits?.hits?.[0]?._source;
+  for (const bucket of aggregations?.agents?.buckets || []) {
+    const doc = bucket?.latest?.hits?.hits?.[0]?._source;
     const id = agentId(doc?.id ?? bucket?.key);
     if (!id) continue;
 

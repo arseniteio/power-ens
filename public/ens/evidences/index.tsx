@@ -104,22 +104,22 @@ const statusColorOf = (status: string): string => {
 const statusIcon = (status: string): string | undefined =>
   status === 'NO_EVALUABLE' ? 'questionInCircle' : undefined;
 
-const StatusBadge = ({ estado: status }: { estado: string }) => (
+const StatusBadge = ({ status }: { status: string }) => (
   <EuiBadge color={statusColorOf(status)} iconType={statusIcon(status)}>
     {statusLabel(status)}
   </EuiBadge>
 );
 
-const STATUS_LEGEND: { estado: string; glosa: string }[] = [
-  { estado: 'CUMPLE', glosa: 'demostrado' },
-  { estado: 'NO_CUMPLE', glosa: 'medido · resta · se corrige la máquina' },
-  { estado: 'PARCIAL', glosa: 'conforma en parte · resta' },
+const STATUS_LEGEND: { status: string; gloss: string }[] = [
+  { status: 'CUMPLE', gloss: 'demostrado' },
+  { status: 'NO_CUMPLE', gloss: 'medido · resta · se corrige la máquina' },
+  { status: 'PARCIAL', gloss: 'conforma en parte · resta' },
   {
-    estado: 'NO_EVALUABLE',
-    glosa: 'no demostrado · resta igual · se habilita la prueba',
+    status: 'NO_EVALUABLE',
+    gloss: 'no demostrado · resta igual · se habilita la prueba',
   },
-  { estado: 'NO_APLICA', glosa: 'fuera del nivel activo · no resta' },
-  { estado: ENS_PENDING_MEASUREMENT_LABEL, glosa: 'control sin recolector todavía · no entra en el índice' },
+  { status: 'NO_APLICA', gloss: 'fuera del nivel activo · no resta' },
+  { status: ENS_PENDING_MEASUREMENT_LABEL, gloss: 'control sin recolector todavía · no entra en el índice' },
 ];
 
 const PendingBadge = () => (
@@ -130,11 +130,11 @@ const PendingBadge = () => (
 
 const StatusLegend = () => (
   <EuiFlexGroup gutterSize='m' alignItems='center' wrap responsive={false}>
-    {STATUS_LEGEND.map(({ estado: status, glosa: gloss }) => (
+    {STATUS_LEGEND.map(({ status, gloss }) => (
       <EuiFlexItem grow={false} key={status}>
         <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
           <EuiFlexItem grow={false}>
-            {status === ENS_PENDING_MEASUREMENT_LABEL ? <PendingBadge /> : <StatusBadge estado={status} />}
+            {status === ENS_PENDING_MEASUREMENT_LABEL ? <PendingBadge /> : <StatusBadge status={status} />}
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color='subdued'>
@@ -161,7 +161,7 @@ const CAUSE_GLOSS: Record<ENSGapCause, string> = {
   EVIDENCE: 'llegó incompleta · productor de la evidencia',
 };
 
-const CauseBadge = ({ causa: cause }: { causa: ENSGapCause }) => (
+const CauseBadge = ({ cause }: { cause: ENSGapCause }) => (
   <EuiBadge color='hollow' title={CAUSE_GLOSS[cause]}>
     {cause}
   </EuiBadge>
@@ -178,7 +178,7 @@ const CauseLegend = () => (
       <EuiFlexItem grow={false} key={cause}>
         <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
           <EuiFlexItem grow={false}>
-            <CauseBadge causa={cause} />
+            <CauseBadge cause={cause} />
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiText size='xs' color='subdued'>
@@ -192,10 +192,10 @@ const CauseLegend = () => (
 );
 
 const BadgeList = ({
-  valores: values,
+  values,
   color = 'hollow',
 }: {
-  valores: string[];
+  values: string[];
   color?: string;
 }) => {
   if (!values || values.length === 0) {
@@ -236,7 +236,7 @@ const QUESTION_PREFIX = 'Pregunta de auditoría:';
 const motiveLines = (
   row: EvidenceRow,
   totalMachines: number,
-): { visibles: MotiveLine[]; ocultos: number } => {
+): { visibles: MotiveLine[]; hidden: number } => {
   let lines: MotiveLine[];
   let hidden = 0;
 
@@ -251,29 +251,29 @@ const motiveLines = (
       ),
     );
 
-    hidden = summary.ocultos;
+    hidden = summary.hidden;
     lines = summary.visibles.map(group => ({
-      texto: group.text,
-      etiqueta: machinesLabel(group.agents, totalMachines),
+      text: group.text,
+      label: machinesLabel(group.agents, totalMachines),
     }));
 
     if (question) {
-      lines.push({ texto: question.text });
+      lines.push({ text: question.text });
     }
   } else {
-    lines = row.observations.map(text => ({ texto: text }));
+    lines = row.observations.map(text => ({ text }));
   }
 
   const hasQuestion = lines.some(line =>
-    line.texto.startsWith(QUESTION_PREFIX),
+    line.text.startsWith(QUESTION_PREFIX),
   );
 
   return {
     visibles:
       hasQuestion || !row.auditQuestion
         ? lines
-        : [...lines, { texto: `${QUESTION_PREFIX} ${row.auditQuestion}` }],
-    ocultos: hidden,
+        : [...lines, { text: `${QUESTION_PREFIX} ${row.auditQuestion}` }],
+    hidden,
   };
 };
 
@@ -294,11 +294,11 @@ const buildColumns = (totalMachines: number) => [
         responsive={false}
       >
         <EuiFlexItem grow={false}>
-          {item.pending ? <PendingBadge /> : <StatusBadge estado={value} />}
+          {item.pending ? <PendingBadge /> : <StatusBadge status={value} />}
         </EuiFlexItem>
         {item.gapCauses.map(cause => (
           <EuiFlexItem grow={false} key={cause}>
-            <CauseBadge causa={cause} />
+            <CauseBadge cause={cause} />
           </EuiFlexItem>
         ))}
       </EuiFlexGroup>
@@ -326,24 +326,24 @@ const buildColumns = (totalMachines: number) => [
   {
     field: 'requirements',
     name: 'Requisitos ENS',
-    render: (value: string[]) => <BadgeList valores={value} />,
+    render: (value: string[]) => <BadgeList values={value} />,
   },
   {
     field: 'ruleIds',
     name: 'Rule ID',
-    render: (value: string[]) => <BadgeList valores={value} />,
+    render: (value: string[]) => <BadgeList values={value} />,
   },
   {
     field: 'observations',
     name: 'Motivo',
     render: (_value: string[], item: EvidenceRow) => {
-      const { visibles: visibleItems, ocultos: hidden } = motiveLines(item, totalMachines);
+      const { visibles: visibleItems, hidden } = motiveLines(item, totalMachines);
 
       return (
           <MotiveCell
-            lineas={visibleItems}
-            ocultos={hidden}
-            titulo={`Motivo · ${item.evidenceId}`}
+            lines={visibleItems}
+            hidden={hidden}
+            title={`Motivo · ${item.evidenceId}`}
           />
         );
     },
@@ -351,15 +351,15 @@ const buildColumns = (totalMachines: number) => [
 ];
 
 const CountBadge = ({
-  valor: value,
+  value,
   color,
-  etiqueta: label,
-  icono: icon,
+  label,
+  icon,
 }: {
-  valor: number;
+  value: number;
   color: string;
-  etiqueta: string;
-  icono?: string;
+  label: string;
+  icon?: string;
 }) =>
   value > 0 ? (
     <EuiFlexItem grow={false}>
@@ -689,15 +689,15 @@ export const EvidencesENS = () => {
               responsive={false}
             >
               <CountBadge
-                valor={hiddenFailing}
+                value={hiddenFailing}
                 color='danger'
-                etiqueta='no cumplen o parciales'
+                label='no cumplen o parciales'
               />
               <CountBadge
-                valor={hiddenUnmeasured}
+                value={hiddenUnmeasured}
                 color='default'
-                etiqueta='no evaluables'
-                icono='questionInCircle'
+                label='no evaluables'
+                icon='questionInCircle'
               />
             </EuiFlexGroup>
           </EuiCallOut>

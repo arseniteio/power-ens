@@ -147,11 +147,11 @@ const IndexPanel = ({ data, counts, delta }: { data: DashboardResponse; counts: 
   const segments = statusSegments(counts);
   const requirements = data.requirementSummary;
   const requirementSegments = statusSegments({
-    CUMPLE: requirements.cumple,
-    PARCIAL: requirements.parcial,
-    NO_CUMPLE: requirements.noCumple,
-    NO_EVALUABLE: requirements.noEvaluable,
-    NO_APLICA: requirements.noAplica,
+    CUMPLE: requirements.compliant,
+    PARCIAL: requirements.partial,
+    NO_CUMPLE: requirements.nonCompliant,
+    NO_EVALUABLE: requirements.notEvaluable,
+    NO_APLICA: requirements.notApplicable,
   });
   const level = getActiveENSConfiguration()?.global?.ensLevel;
 
@@ -304,7 +304,7 @@ const MachinesPanel = ({ machines, onOpen }: { machines: ENSMachineScore[]; onOp
           <EuiFlexItem style={{ minWidth: 0 }}>
             <EuiLink onClick={() => onOpen(machine.agentId)}>{machine.agentName ? `${machine.agentName} (${machine.agentId})` : machine.agentId}</EuiLink>
             <EuiText size='xs' color='subdued'>
-              <span>{joinParts([[machine.noCumple, 'no cumplen'], [machine.parcial, machine.parcial === 1 ? 'parcial' : 'parciales']]) || 'Sin incumplimientos'}</span>
+              <span>{joinParts([[machine.nonCompliant, 'no cumplen'], [machine.partial, machine.partial === 1 ? 'parcial' : 'parciales']]) || 'Sin incumplimientos'}</span>
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false} style={{ width: 170 }}>

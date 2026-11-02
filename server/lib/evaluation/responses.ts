@@ -38,10 +38,10 @@ const worstMachines = (run: RunOutput) =>
       agentId: agent.agentId,
       agentName: agent.agentName || run.meta.scope.find(machine => machine.id === agent.agentId)?.name,
       score: agent.summary.scoreAverage,
-      noCumple: agent.summary.noCumple,
-      parcial: agent.summary.parcial,
+      nonCompliant: agent.summary.nonCompliant,
+      partial: agent.summary.partial,
     }))
-    .sort((a, b) => a.score - b.score || b.noCumple - a.noCumple)
+    .sort((a, b) => a.score - b.score || b.nonCompliant - a.nonCompliant)
     .slice(0, WORST_MACHINES);
 
 const stateHeader = (run: RunOutput) => {

@@ -43,8 +43,8 @@ export interface ENSMachineScore {
   agentId: string;
   agentName?: string;
   score: number;
-  noCumple: number;
-  parcial: number;
+  nonCompliant: number;
+  partial: number;
 }
 
 export interface ENSControlEvaluationResponse {

@@ -8,15 +8,15 @@ export interface ENSSearchParams {
   sorting?: unknown[];
 }
 
-const clause = (filter: any): { incluir?: unknown; excluir?: unknown } => {
+const clause = (filter: any): { include?: unknown; exclude?: unknown } => {
   if (!filter) return {};
   if (filter.meta) {
     if (filter.meta.disabled) return {};
     const { meta, $state, query, ...rest } = filter;
     const searchQuery = query ?? rest;
-    return meta.negate ? { excluir: searchQuery } : { incluir: searchQuery };
+    return meta.negate ? { exclude: searchQuery } : { include: searchQuery };
   }
-  return { incluir: filter };
+  return { include: filter };
 };
 
 export const buildENSSearchRequest = ({
@@ -27,8 +27,8 @@ export const buildENSSearchRequest = ({
   sorting = [],
 }: ENSSearchParams) => {
   const clauses = preAppliedFilters.map(clause);
-  const filter = clauses.map(c => c.incluir).filter(Boolean);
-  const mustNot = clauses.map(c => c.excluir).filter(Boolean);
+  const filter = clauses.map(c => c.include).filter(Boolean);
+  const mustNot = clauses.map(c => c.exclude).filter(Boolean);
 
   return {
     index: ENS_ALERTS_INDEX,

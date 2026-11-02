@@ -6,16 +6,16 @@ export const buildCoverageCardModel = (
 ): CoverageCardModel => {
   const totalEvidences = complianceState.evidenceSummary.totalEvidences || 0;
   const verifiedEvidences =
-  (complianceState.evidenceSummary.cumple || 0) +
-  (complianceState.evidenceSummary.parcial || 0) +
-  (complianceState.evidenceSummary.noCumple || 0);
+  (complianceState.evidenceSummary.compliant || 0) +
+  (complianceState.evidenceSummary.partial || 0) +
+  (complianceState.evidenceSummary.nonCompliant || 0);
   const noEvaluableEvidences =
-    complianceState.evidenceSummary.noEvaluable || 0;
+    complianceState.evidenceSummary.notEvaluable || 0;
   const noApplicableEvidences =
-    complianceState.evidenceSummary.noAplica || 0;
+    complianceState.evidenceSummary.notApplicable || 0;
 
   const pendingEvidences =
-    complianceState.evidenceSummary.noEvaluable || 0;
+    complianceState.evidenceSummary.notEvaluable || 0;
 
   const applicableEvidences = Math.max(
     totalEvidences - noApplicableEvidences,

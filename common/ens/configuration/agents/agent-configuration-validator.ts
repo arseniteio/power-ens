@@ -29,7 +29,7 @@ interface ENSAgentConfigurationIssue {
   controlId?: string;
   parameterId?: string;
   severity: 'error' | 'warning';
-  kind: 'huerfano' | 'valor' | 'plantilla' | 'desconocido';
+  kind: 'orphan' | 'value' | 'template' | 'unknown';
   message: string;
 }
 
@@ -46,18 +46,18 @@ export const describeAgentLevelValueIssue = (
   parameterId: string,
   value: ENSAgentParameterValue,
   matchMode?: ENSMatchMode
-): { kind: 'huerfano' | 'valor'; message: string } | undefined => {
+): { kind: 'orphan' | 'value'; message: string } | undefined => {
   const parameter = control.parameters.find(item => item.id === parameterId);
 
   if (!parameter) {
-    return { kind: 'huerfano', message: `${control.controlId} no declara el parámetro ${parameterId}: el valor no se aplica` };
+    return { kind: 'orphan', message: `${control.controlId} no declara el parámetro ${parameterId}: el valor no se aplica` };
   }
 
   const parameterClass = getParameterClass(control.controlId, parameterId);
 
   if (parameterClass !== 'system' && parameterClass !== 'platform') {
     return {
-      kind: 'huerfano',
+      kind: 'orphan',
       message: `${control.controlId} «${parameter.label}» es un ajuste común del control: no admite valor por agente ni por plantilla y este no se aplica`,
     };
   }
@@ -66,7 +66,7 @@ export const describeAgentLevelValueIssue = (
 
   return verdict.valid
     ? undefined
-    : { kind: 'valor', message: `${control.controlId} «${parameter.label}» ${verdict.reason || 'tiene un valor inválido'}` };
+    : { kind: 'value', message: `${control.controlId} «${parameter.label}» ${verdict.reason || 'tiene un valor inválido'}` };
 };
 
 const describeModesWithoutValue = (
@@ -96,11 +96,11 @@ export const validateAgentProfile = (
   ) => issues.push({ agentId, controlId, parameterId, severity, kind, message });
 
   if (!isNormalisedAgentId(agentId)) {
-    add('error', 'huerfano', `${describeNonIdAgentKey(agentId)}: sus valores no se aplican a ninguna máquina`);
+    add('error', 'orphan', `${describeNonIdAgentKey(agentId)}: sus valores no se aplican a ninguna máquina`);
   }
 
   if (Array.isArray(profile.templates) && profile.templates.length) {
-    add('warning', 'plantilla', `plantillas de la 1.2.0 (${profile.templates.join(', ')}): se convierten en asignaciones por control al cargar`);
+    add('warning', 'template', `plantillas de la 1.2.0 (${profile.templates.join(', ')}): se convierten en asignaciones por control al cargar`);
   }
 
   Object.entries(profile.controls || {}).forEach(([controlId, entry]) => {
@@ -112,7 +112,7 @@ export const validateAgentProfile = (
       if (Object.keys(values).length) {
         add(
           'error',
-          'huerfano',
+          'orphan',
           `${controlId} no está en la configuración: sus ${Object.keys(values).length} ajuste(s) propio(s) no se aplican (se quitan, o se añade antes el control)`,
           controlId
         );
@@ -121,7 +121,7 @@ export const validateAgentProfile = (
     }
 
     if (templateId && templateId !== ENS_NO_TEMPLATE && !findControlTemplate(configuration, controlId, templateId)) {
-      add('error', 'plantilla', `${controlId}: la plantilla asignada «${templateId}» no existe; se aplica la de serie de su tipo`, controlId);
+      add('error', 'template', `${controlId}: la plantilla asignada «${templateId}» no existe; se aplica la de serie de su tipo`, controlId);
     }
 
     Object.entries(values).forEach(([parameterId, value]) => {
@@ -130,7 +130,7 @@ export const validateAgentProfile = (
         add(
           'error',
           issue.kind,
-          issue.kind === 'valor' ? `${issue.message}: esta máquina se evalúa con una configuración inválida` : issue.message,
+          issue.kind === 'value' ? `${issue.message}: esta máquina se evalúa con una configuración inválida` : issue.message,
           controlId,
           parameterId
         );
@@ -138,7 +138,7 @@ export const validateAgentProfile = (
     });
 
     describeModesWithoutValue(control, entry?.matchModes, values).forEach(([parameterId, name]) =>
-      add('error', 'huerfano', `${name}: modo de comparación sin ajuste propio; no se aplica`, controlId, parameterId)
+      add('error', 'orphan', `${name}: modo de comparación sin ajuste propio; no se aplica`, controlId, parameterId)
     );
   });
 
@@ -152,7 +152,7 @@ export const validateAgentsConfiguration = (
   const warnings = checkAgentsConfigurationKeys(agents).warnings.map(message => ({
     agentId: message.split(':')[0].replace(/^configuration\.agents\./, '').split('.')[0],
     severity: 'warning' as const,
-    kind: 'desconocido' as const,
+    kind: 'unknown' as const,
     message,
   }));
 

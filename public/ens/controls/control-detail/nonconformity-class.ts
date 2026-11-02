@@ -1,11 +1,11 @@
 export interface NonConformityClass {
   color: string;
   badgeColor: 'danger' | 'default' | 'warning' | 'primary';
-  icono: string;
-  etiqueta: string;
-  accion: string;
-  responsable: string;
-  orden: number;
+  icon: string;
+  label: string;
+  action: string;
+  owner: string;
+  order: number;
 }
 
 export const classifyNonConformity = (
@@ -13,22 +13,22 @@ export const classifyNonConformity = (
   options: { controlConfigured?: boolean } = {}
 ): NonConformityClass => {
   if (options.controlConfigured === false && item.origin !== 'MEDIDA' && item.cause !== 'CATALOG') {
-    return { etiqueta: 'No evidenciado · control sin añadir', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Añadir el control a la configuración', responsable: 'Responsable ENS', orden: 3 };
+    return { label: 'No evidenciado · control sin añadir', icon: 'gear', color: '#F5A700', badgeColor: 'warning', action: 'Añadir el control a la configuración', owner: 'Responsable ENS', order: 3 };
   }
   if (item.origin === 'MEDIDA' && item.documental) {
-    return { etiqueta: 'Declarado (documental)', icono: 'document', color: '#BD271E', badgeColor: 'danger', accion: 'Renovar o completar la documentación', responsable: 'Organización (contratos y proveedores)', orden: 2 };
+    return { label: 'Declarado (documental)', icon: 'document', color: '#BD271E', badgeColor: 'danger', action: 'Renovar o completar la documentación', owner: 'Organización (contratos y proveedores)', order: 2 };
   }
   if (item.origin === 'MEDIDA') {
-    return { etiqueta: 'Medido', icono: 'inspect', color: '#BD271E', badgeColor: 'danger', accion: 'Corregir la máquina', responsable: 'Sistema auditado', orden: 1 };
+    return { label: 'Medido', icon: 'inspect', color: '#BD271E', badgeColor: 'danger', action: 'Corregir la máquina', owner: 'Sistema auditado', order: 1 };
   }
   if (item.cause === 'CATALOG') {
-    return { etiqueta: 'No evidenciado · catálogo', icono: 'package', color: '#98A2B3', badgeColor: 'default', accion: 'Declarar la evidencia', responsable: 'Producto Power ENS', orden: 6 };
+    return { label: 'No evidenciado · catálogo', icon: 'package', color: '#98A2B3', badgeColor: 'default', action: 'Declarar la evidencia', owner: 'Producto Power ENS', order: 6 };
   }
   if (item.cause === 'CONFIGURATION') {
-    return { etiqueta: 'No evidenciado · sin configurar', icono: 'gear', color: '#F5A700', badgeColor: 'warning', accion: 'Declarar la decisión', responsable: 'Responsable ENS', orden: 3 };
+    return { label: 'No evidenciado · sin configurar', icon: 'gear', color: '#F5A700', badgeColor: 'warning', action: 'Declarar la decisión', owner: 'Responsable ENS', order: 3 };
   }
   if (item.cause === 'COLLECTION') {
-    return { etiqueta: 'No evidenciado · sin recogida', icono: 'offline', color: '#0077CC', badgeColor: 'primary', accion: 'Restablecer la recogida', responsable: 'Operación Wazuh', orden: 4 };
+    return { label: 'No evidenciado · sin recogida', icon: 'offline', color: '#0077CC', badgeColor: 'primary', action: 'Restablecer la recogida', owner: 'Operación Wazuh', order: 4 };
   }
-  return { etiqueta: 'No evidenciado · evidencia insuficiente', icono: 'alert', color: '#F5A700', badgeColor: 'warning', accion: 'Habilitar la prueba', responsable: 'Productor de la evidencia', orden: 5 };
+  return { label: 'No evidenciado · evidencia insuficiente', icon: 'alert', color: '#F5A700', badgeColor: 'warning', action: 'Habilitar la prueba', owner: 'Productor de la evidencia', order: 5 };
 };

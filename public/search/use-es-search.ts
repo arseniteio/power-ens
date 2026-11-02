@@ -7,8 +7,8 @@ import { decideSearch, isOwnCancellation, searchDataKey, shouldToast } from './s
 const givenNotices = new Map<string, number>();
 
 interface PendingSearch {
-  clave: string;
-  controlador: AbortController;
+  key: string;
+  controller: AbortController;
 }
 
 export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) => {
@@ -21,11 +21,11 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
   const dataKey = searchDataKey(params as Record<string, unknown>);
 
   useEffect(() => {
-    const decision = decideSearch(inProgress.current?.clave, dataKey);
+    const decision = decideSearch(inProgress.current?.key, dataKey);
     if (decision === 'skip') return;
-    if (decision === 'abort-and-start') inProgress.current?.controlador.abort();
+    if (decision === 'abort-and-start') inProgress.current?.controller.abort();
 
-    const search: PendingSearch = { clave: dataKey, controlador: new AbortController() };
+    const search: PendingSearch = { key: dataKey, controller: new AbortController() };
     inProgress.current = search;
     const valid = () => inProgress.current === search;
     setIsLoading(true);
@@ -36,7 +36,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         { abortSignal: signal }
       ).toPromise(),
       'eventos ENS',
-      search.controlador
+      search.controller
     )
       .then((response: any) => {
         if (!valid()) return;
@@ -45,7 +45,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         hadFailed.current = false;
       })
       .catch((failure: any) => {
-        if (!valid() || (!(failure instanceof ENSRequestTimeoutError) && isOwnCancellation(search.controlador.signal))) return;
+        if (!valid() || (!(failure instanceof ENSRequestTimeoutError) && isOwnCancellation(search.controller.signal))) return;
         setError(failure);
         if (hadFailed.current) return;
         hadFailed.current = true;
@@ -53,7 +53,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
         if (!shouldToast(givenNotices, text, Date.now())) return;
         getCore().notifications.toasts.addDanger({
           title: 'Power ENS: no se pudo consultar el índice',
-          text: text,
+          text,
         });
       })
       .finally(() => {
@@ -66,7 +66,7 @@ export const useEsSearch = (params: ENSSearchParams & { refreshKey?: number }) =
 
   useEffect(
     () => () => {
-      inProgress.current?.controlador.abort();
+      inProgress.current?.controller.abort();
       inProgress.current = undefined;
     },
     []

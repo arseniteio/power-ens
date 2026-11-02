@@ -56,7 +56,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
         return { error: failure(response, 403, NO_ROLE) };
       }
       if (!user.username) return { error: failure(response, 401, 'No se pudo identificar al usuario.') };
-      return { usuario: user };
+      return { user };
     } catch (error: any) {
       const status = statusOf(error);
       if (status === 403) logger.warn(`ENS config: refused ${logLabel}; OpenSearch does not let the user be identified (403)`);
@@ -107,7 +107,7 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
 
     const access = await administrator(context, response, 'save the configuration');
     if (access.error) return access.error;
-    const username = access.usuario!.username;
+    const username = access.user!.username;
 
     try {
       const { document: previous, version } = await readActiveENSConfigurationWithVersion(internal(context), logger);

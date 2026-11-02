@@ -50,7 +50,7 @@ export const LinkBadge = ({
     <EuiBadge {...badge}>{children}</EuiBadge>
   );
 
-const WithDates = ({ texto: text }: { texto: string }) => (
+const WithDates = ({ text }: { text: string }) => (
   <>
     {splitTimestamps(text).map((slice, i) =>
       slice.iso ? (
@@ -74,7 +74,7 @@ const ListView = ({ list }: { list: MotiveList }) => {
         {visibleItems.map((value, i) => (
           <li key={i}>
             <code>
-              <WithDates texto={value} />
+              <WithDates text={value} />
             </code>
           </li>
         ))}
@@ -93,15 +93,15 @@ const ListView = ({ list }: { list: MotiveList }) => {
   );
 };
 
-export const MotiveText = ({ texto: text, list }: { texto: string; list?: MotiveList }) =>
+export const MotiveText = ({ text, list }: { text: string; list?: MotiveList }) =>
   list ? (
     <>
-      <WithDates texto={text.slice(0, list.start)} />
+      <WithDates text={text.slice(0, list.start)} />
       <ListView list={list} />
-      <WithDates texto={text.slice(list.end)} />
+      <WithDates text={text.slice(list.end)} />
     </>
   ) : (
-    <WithDates texto={text} />
+    <WithDates text={text} />
   );
 
 export const ParameterBadges = ({ ids, handlers }: { ids: { id: string; label?: string }[]; handlers: MotiveViewHandlers }) => (
@@ -148,14 +148,14 @@ const MotivePartView = ({ part, handlers, withSummary = true }: { part: MotivePa
             <EuiBadge color={statusBadgeColor(part.status)}>{statusLabel(part.status)}</EuiBadge>{' '}
           </>
         )}
-        {withSummary ? <MotiveText texto={part.text} list={part.list} /> : <MotiveText texto={part.detail} list={undefined} />}
+        {withSummary ? <MotiveText text={part.text} list={part.list} /> : <MotiveText text={part.detail} list={undefined} />}
       </div>
     </EuiText>
     {part.parameters.length > 0 && <ParameterBadges ids={part.parameters} handlers={handlers} />}
     {part.secondary !== undefined && (
       <EuiText size='xs' color='subdued'>
         <div style={{ marginTop: 4 }}>
-          <strong>Además:</strong> <MotiveText texto={part.secondary} />
+          <strong>Además:</strong> <MotiveText text={part.secondary} />
         </div>
       </EuiText>
     )}

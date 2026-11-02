@@ -707,8 +707,8 @@ const validateString = (
 interface ParameterRefinement {
   controlId: string;
   name: string;
-  criterio: string;
-  validar: (
+  criterion: string;
+  validate: (
     parameter: ENSControlParameter,
     value: ENSControlParameter['value']
   ) => ENSParameterValueVerdict;
@@ -820,22 +820,22 @@ const PARAMETER_REFINEMENTS: ParameterRefinement[] = [
   {
     controlId: 'op.mon.2',
     name: 'declaracion_aplicabilidad',
-    criterio: 'una fila por medida',
-    validar: validateStatementOfApplicability,
+    criterion: 'una fila por medida',
+    validate: validateStatementOfApplicability,
   },
   {
     controlId: 'op.acc.2',
     name: 'umask_minimo',
-    criterio:
+    criterion:
       'tres o cuatro dígitos octales',
-    validar: validateUmask,
+    validate: validateUmask,
   },
   {
     controlId: 'mp.info.6',
     name: 'periodo_max_sin_prueba_dias',
-    criterio:
+    criterion:
       'entero de días o contrato por criticidad (ALTA=30; MEDIA=90)',
-    validar: validateRestoreThreshold,
+    validate: validateRestoreThreshold,
   },
 ];
 
@@ -1196,7 +1196,7 @@ export const validateParameterValue = (
     findRefinement(parameter);
 
   if (refinement) {
-    return refinement.validar(
+    return refinement.validate(
       parameter,
       value
     );

@@ -37,11 +37,11 @@ const colorOf = (status: string): string => {
 const ReadingLabel = ({
   puntos: dataPoints,
   sinNumero: withoutNumber,
-  serieCorta: shortSeries,
+  shortSeries,
 }: {
   puntos: { events: number; isCurrent: boolean }[];
   sinNumero: number;
-  serieCorta: boolean;
+  shortSeries: boolean;
 }) => {
   return (
     <>
@@ -57,12 +57,12 @@ const ReadingLabel = ({
         }}
       >
         {[
-          { estado: 'CUMPLE', texto: 'cumple' },
-          { estado: 'PARCIAL', texto: 'parcial' },
-          { estado: 'NO_CUMPLE', texto: 'no cumple' },
+          { status: 'CUMPLE', text: 'cumple' },
+          { status: 'PARCIAL', text: 'parcial' },
+          { status: 'NO_CUMPLE', text: 'no cumple' },
         ].map(item => (
           <span
-            key={item.estado}
+            key={item.status}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <span
@@ -70,11 +70,11 @@ const ReadingLabel = ({
                 width: 9,
                 height: 9,
                 borderRadius: '50%',
-                background: colorOf(item.estado),
+                background: colorOf(item.status),
                 display: 'inline-block',
               }}
             />
-            {item.texto}
+            {item.text}
           </span>
         ))}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -130,7 +130,7 @@ export const ControlEvolutionChart = ({
   }
 
   const withNumber = points
-    .map((point, index) => ({ point, indice: index }))
+    .map((point, index) => ({ point, index }))
     .filter(item => typeof item.point.score === 'number');
 
   const withoutNumber = points.length - withNumber.length;
@@ -153,7 +153,7 @@ export const ControlEvolutionChart = ({
     );
   }
 
-  const dataPoints = withNumber.map(({ point, indice: index }) => ({
+  const dataPoints = withNumber.map(({ point, index }) => ({
     ...point,
     x: xCoordinate(index, points.length),
     y: yCoordinate(point.score as number),
@@ -249,7 +249,7 @@ export const ControlEvolutionChart = ({
         <ReadingLabel
           puntos={dataPoints}
           sinNumero={withoutNumber}
-          serieCorta
+          shortSeries
         />
       </div>
     );
@@ -409,7 +409,7 @@ export const ControlEvolutionChart = ({
       <ReadingLabel
         puntos={dataPoints}
         sinNumero={withoutNumber}
-        serieCorta={shortSeries}
+        shortSeries={shortSeries}
       />
     </div>
   );

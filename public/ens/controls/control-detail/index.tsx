@@ -106,7 +106,7 @@ export const ControlDetailENS = ({
   const [tracePageIndex, setTracePageIndex] = useState(0);
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
-  const [detailTab, setDetailTab] = useState('evidencias');
+  const [detailTab, setDetailTab] = useState('evidences');
   const [guideTarget, setGuideTarget] = useState<GuideTarget | undefined>();
 
   const scopeAgents = useActiveENSScopeAgents();
@@ -205,8 +205,8 @@ export const ControlDetailENS = ({
     level: evidence.levels.join(', '),
     status: evidence.status,
     ruleId: evidence.relatedRules.join(', '),
-    motivo: (evidence.observations || []).join(' · '),
-    motivos: evidence.observationGroups || [],
+    motive: (evidence.observations || []).join(' · '),
+    motives: evidence.observationGroups || [],
   }));
 
   const nonConformityItems = (complianceResult?.nonConformities || []).map(
@@ -301,8 +301,8 @@ export const ControlDetailENS = ({
       if (groups.length > 0) {
         summarizeMotives(groups).visibles.forEach(group => {
           lines.push({
-            texto: group.text,
-            etiqueta: group.agents.length
+            text: group.text,
+            label: group.agents.length
               ? `${evidenceId} · ${machinesLabel(
                   group.agents,
                   totalMachines,
@@ -316,7 +316,7 @@ export const ControlDetailENS = ({
 
       (evidence.observations || []).forEach(text => {
         if (text && text.trim()) {
-          lines.push({ texto: text.trim(), etiqueta: evidenceId });
+          lines.push({ text: text.trim(), label: evidenceId });
         }
       });
     });
@@ -364,17 +364,17 @@ export const ControlDetailENS = ({
           .filter(Boolean)
           .join(' · ');
 
-  const auditorSheet: { etiqueta: string; valor: string }[] = [
-    { etiqueta: 'Score', valor: `${engineScoreText} · ${engineStatus}` },
+  const auditorSheet: { label: string; value: string }[] = [
+    { label: 'Score', value: `${engineScoreText} · ${engineStatus}` },
     {
-      etiqueta: isAggregatedView
+      label: isAggregatedView
         ? 'Demostrados · requisito × máquina'
         : 'Requisitos demostrados',
-      valor: `${measuredRequirements}/${applicableRequirements}`,
+      value: `${measuredRequirements}/${applicableRequirements}`,
     },
     {
-      etiqueta: 'No conformidades',
-      valor: `${openNonConformitiesCount}${
+      label: 'No conformidades',
+      value: `${openNonConformitiesCount}${
         machinesWithNonConformity > 0
           ? ` · ${machinesWithNonConformity} máquina${
               machinesWithNonConformity === 1 ? '' : 's'
@@ -383,14 +383,14 @@ export const ControlDetailENS = ({
       }`,
     },
     {
-      etiqueta: 'Medidas',
-      valor: `${measures.length}${
+      label: 'Medidas',
+      value: `${measures.length}${
         documentary.length > 0 ? ` · ${documentary.length} documental${documentary.length === 1 ? '' : 'es'}` : ''
       }`,
     },
     {
-      etiqueta: 'No evidenciadas',
-      valor: `${unevidenced.length}${
+      label: 'No evidenciadas',
+      value: `${unevidenced.length}${
         unprovenMachines > 0
           ? ` · ${unprovenMachines} máquina${
               unprovenMachines === 1 ? '' : 's'
@@ -399,44 +399,44 @@ export const ControlDetailENS = ({
       }`,
     },
     ...(catalogGapsCount > 0
-      ? [{ etiqueta: 'Del catálogo', valor: String(catalogGapsCount) }]
+      ? [{ label: 'Del catálogo', value: String(catalogGapsCount) }]
       : []),
     ...(collectionGapsCount > 0
-      ? [{ etiqueta: 'Fallo de recogida', valor: String(collectionGapsCount) }]
+      ? [{ label: 'Fallo de recogida', value: String(collectionGapsCount) }]
       : []),
-    { etiqueta: 'Acción', valor: actionSummary },
+    { label: 'Acción', value: actionSummary },
   ];
 
   const remediationTotals = [
     {
-      etiqueta: 'medidas · corregir el sistema',
-      valor: technicalMeasures.length,
+      label: 'medidas · corregir el sistema',
+      value: technicalMeasures.length,
       color: 'danger' as const,
     },
     {
-      etiqueta: 'documentales · renovar o completar la documentación',
-      valor: documentary.length,
+      label: 'documentales · renovar o completar la documentación',
+      value: documentary.length,
       color: 'danger' as const,
     },
     {
-      etiqueta: 'no evidenciadas · habilitar la prueba',
-      valor: unevidenced.length,
+      label: 'no evidenciadas · habilitar la prueba',
+      value: unevidenced.length,
       color: 'warning' as const,
     },
-  ].filter(item => item.valor > 0);
+  ].filter(item => item.value > 0);
 
   const remediationBreakdown = [
     {
-      etiqueta: 'del catálogo · producto Power ENS',
-      valor: catalogGapsCount,
+      label: 'del catálogo · producto Power ENS',
+      value: catalogGapsCount,
       color: 'default' as const,
     },
     {
-      etiqueta: 'fallo de recogida · operación Wazuh',
-      valor: collectionGapsCount,
+      label: 'fallo de recogida · operación Wazuh',
+      value: collectionGapsCount,
       color: 'primary' as const,
     },
-  ].filter(item => item.valor > 0);
+  ].filter(item => item.value > 0);
 
   const toTraceItem = (item: ENSTraceabilityResult, index: number) => ({
       key: `${item.source}-${item.reference}-${index}`,
@@ -656,22 +656,22 @@ export const ControlDetailENS = ({
   const evidenceSummary = evidenceStatusItems.reduce(
     (acc, evidence) => {
       if (evidence.status === 'CUMPLE') {
-        acc.cumple += 1;
+        acc.compliant += 1;
       } else if (evidence.status === 'NO_EVALUABLE') {
-        acc.noEvaluable += 1;
+        acc.notEvaluable += 1;
       } else if (evidence.status === 'NO_APLICA') {
-        acc.noAplica += 1;
+        acc.notApplicable += 1;
       } else if (evidence.status === 'NO_CUMPLE') {
-        acc.noCumple += 1;
+        acc.nonCompliant += 1;
       }
 
       return acc;
     },
-    { cumple: 0, noEvaluable: 0, noAplica: 0, noCumple: 0 },
+    { compliant: 0, notEvaluable: 0, notApplicable: 0, nonCompliant: 0 },
   );
 
   const evaluableEvidences =
-    evidenceSummary.cumple + evidenceSummary.noCumple + evidenceSummary.noEvaluable;
+    evidenceSummary.compliant + evidenceSummary.nonCompliant + evidenceSummary.notEvaluable;
 
   const configureControl = () =>
     updateUrl(
@@ -898,15 +898,15 @@ export const ControlDetailENS = ({
   const kpis = [
     { title: engineScoreText, description: `Cumplimiento · ${statusLabel(engineStatus)}`, color: getBadgeColor(engineStatus) },
     { title: `${compliantRequirements}/${denominatorRequirements}`, description: 'Requisitos cumpliendo' },
-    { title: `${evidenceSummary.cumple}/${evaluableEvidences}`, description: 'Evidencias conformes' },
+    { title: `${evidenceSummary.compliant}/${evaluableEvidences}`, description: 'Evidencias conformes' },
     { title: String(openNonConformitiesCount), description: 'No conformidades abiertas', color: openNonConformitiesCount ? 'danger' : 'success' },
   ];
   const detailTabs = [
-    { id: 'evidencias', name: `Evidencias · ${evidenceStatusItems.length}` },
-    { id: 'no-conformidades', name: `No conformidades · ${openNonConformitiesCount}` },
-    { id: 'evolucion', name: 'Evolución' },
-    { id: 'trazabilidad', name: 'Trazabilidad' },
-    { id: 'texto', name: 'Texto ENS' },
+    { id: 'evidences', name: `Evidencias · ${evidenceStatusItems.length}` },
+    { id: 'non-conformities', name: `No conformidades · ${openNonConformitiesCount}` },
+    { id: 'evolution', name: 'Evolución' },
+    { id: 'traceability', name: 'Trazabilidad' },
+    { id: 'text', name: 'Texto ENS' },
   ];
 
   return (
@@ -1064,19 +1064,19 @@ export const ControlDetailENS = ({
               <EuiSpacer size='s' />
                   {auditorSheet.map(pair => (
                     <EuiFlexGroup
-                      key={pair.etiqueta}
+                      key={pair.label}
                       gutterSize='s'
                       responsive={false}
                       style={{ padding: '2px 0' }}
                     >
                       <EuiFlexItem grow={false} style={{ minWidth: 128 }}>
                         <EuiText size='xs' color='subdued'>
-                          {pair.etiqueta}
+                          {pair.label}
                         </EuiText>
                       </EuiFlexItem>
                       <EuiFlexItem>
                         <EuiText size='xs'>
-                          <strong>{pair.valor}</strong>
+                          <strong>{pair.value}</strong>
                         </EuiText>
                       </EuiFlexItem>
                     </EuiFlexGroup>
@@ -1097,7 +1097,7 @@ export const ControlDetailENS = ({
 
         <EuiSpacer size='m' />
 
-        {detailTab === 'evidencias' && (
+        {detailTab === 'evidences' && (
           <>
         {!displayedAgent && totalMachines > 1 && (
           <>
@@ -1180,7 +1180,7 @@ export const ControlDetailENS = ({
               render: (level: string) => <EuiBadge color='hollow'>{level}</EuiBadge>,
             },
             {
-              field: 'motivos',
+              field: 'motives',
               name: 'Motivo',
               render: (
                 motives: ENSObservationGroup[],
@@ -1189,34 +1189,34 @@ export const ControlDetailENS = ({
                 if (motives.length === 0) {
                   return (
                     <MotiveCell
-                      lineas={(item.motivo || '')
+                      lines={(item.motive || '')
                         .split(' · ')
                         .map(text => text.trim())
                         .filter(Boolean)
-                        .map(text => ({ texto: text }))}
-                      titulo={`Motivo · ${item.id}`}
+                        .map(text => ({ text }))}
+                      title={`Motivo · ${item.id}`}
                       evidenceId={item.id}
-                      conocidos={knownParts}
+                      known={knownParts}
                       handlers={handlers}
                     />
                   );
                 }
 
-                const { visibles: visibleItems, ocultos: hidden } = summarizeMotives(motives);
+                const { visibles: visibleItems, hidden } = summarizeMotives(motives);
 
                 return (
                   <MotiveCell
-                    lineas={visibleItems.map(group => ({
-                      texto: group.text,
-                      etiqueta: machinesLabel(
+                    lines={visibleItems.map(group => ({
+                      text: group.text,
+                      label: machinesLabel(
                         group.agents,
                         totalMachines
                       ),
                     }))}
-                    ocultos={hidden}
-                    titulo={`Motivo · ${item.id}`}
+                    hidden={hidden}
+                    title={`Motivo · ${item.id}`}
                     evidenceId={item.id}
-                    conocidos={knownParts}
+                    known={knownParts}
                     handlers={handlers}
                   />
                 );
@@ -1227,7 +1227,7 @@ export const ControlDetailENS = ({
           </>
         )}
 
-        {detailTab === 'no-conformidades' && (
+        {detailTab === 'non-conformities' && (
           <>
             {pendingMeasurement ? (
               <EuiCallOut
@@ -1251,9 +1251,9 @@ export const ControlDetailENS = ({
 
                 <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
                   {remediationTotals.map(item => (
-                    <EuiFlexItem grow={false} key={item.etiqueta}>
+                    <EuiFlexItem grow={false} key={item.label}>
                       <EuiBadge color={item.color}>
-                        {item.valor} {item.etiqueta}
+                        {item.value} {item.label}
                       </EuiBadge>
                     </EuiFlexItem>
                   ))}
@@ -1276,9 +1276,9 @@ export const ControlDetailENS = ({
                       </EuiFlexItem>
 
                       {remediationBreakdown.map(item => (
-                        <EuiFlexItem grow={false} key={item.etiqueta}>
+                        <EuiFlexItem grow={false} key={item.label}>
                           <EuiBadge color={item.color}>
-                            {item.valor} {item.etiqueta}
+                            {item.value} {item.label}
                           </EuiBadge>
                         </EuiFlexItem>
                       ))}
@@ -1301,31 +1301,31 @@ export const ControlDetailENS = ({
 
         {[
           {
-            clave: 'medidas',
-            titulo: `Medidas · ${technicalMeasures.length}`,
+            key: 'medidas',
+            title: `Medidas · ${technicalMeasures.length}`,
             pie: 'Corregir el sistema auditado.',
             items: technicalMeasures,
           },
           {
-            clave: 'documentales',
-            titulo: `Documentales · ${documentary.length}`,
+            key: 'documentales',
+            title: `Documentales · ${documentary.length}`,
             pie: 'Cuentan igual. La acción es renovar o completar la documentación.',
             items: documentary,
           },
           {
-            clave: 'no-evidenciadas',
-            titulo: `No evidenciadas · ${unevidenced.length}`,
+            key: 'no-evidenciadas',
+            title: `No evidenciadas · ${unevidenced.length}`,
             pie: 'Cuentan igual. La acción es habilitar la prueba.',
             items: unevidenced,
           },
         ]
           .filter(block => block.items.length > 0)
           .map(block => (
-            <div key={block.clave}>
+            <div key={block.key}>
               <EuiSpacer size='m' />
 
               <EuiTitle size='xxs'>
-                <h4>{block.titulo}</h4>
+                <h4>{block.title}</h4>
               </EuiTitle>
 
               <EuiText size='xs' color='subdued'>
@@ -1350,8 +1350,8 @@ export const ControlDetailENS = ({
                     ...(nonConformity.finding
                       ? [
                           {
-                            texto: nonConformity.finding,
-                            etiqueta: 'Motor',
+                            text: nonConformity.finding,
+                            label: 'Motor',
                           },
                         ]
                       : []),
@@ -1383,14 +1383,14 @@ export const ControlDetailENS = ({
                     >
                       <NonConformityCard
                         item={nonConformity}
-                        clase={kind}
-                        criticidad={criticality}
-                        etiquetaAlcance={scopeLabel}
-                        textoAlcance={scopeText}
-                        lineasMotivo={motiveRows}
-                        evidenciasImplicadas={involvedEvidences}
+                        classification={kind}
+                        criticality={criticality}
+                        scopeLabel={scopeLabel}
+                        scopeText={scopeText}
+                        motiveRows={motiveRows}
+                        involvedEvidences={involvedEvidences}
                         controlId={control.id}
-                        conocidos={knownParts}
+                        known={knownParts}
                         handlers={handlers}
                         onGuide={setGuideTarget}
                       />
@@ -1403,7 +1403,7 @@ export const ControlDetailENS = ({
           </>
         )}
 
-        {detailTab === 'evolucion' && (
+        {detailTab === 'evolution' && (
           <ControlEvolutionChart
             points={controlTimeline}
             controlId={control.id}
@@ -1411,7 +1411,7 @@ export const ControlDetailENS = ({
           />
         )}
 
-        {detailTab === 'trazabilidad' && (
+        {detailTab === 'traceability' && (
           <>
           <EuiFlexGroup
             alignItems='center'
@@ -1477,7 +1477,7 @@ export const ControlDetailENS = ({
           </>
         )}
 
-        {detailTab === 'texto' && (
+        {detailTab === 'text' && (
           <>
           <RequirementTextsPanel controlId={control.id} />
           <TemplateCorrespondencePanel controlId={control.id} />

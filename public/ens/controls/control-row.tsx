@@ -14,8 +14,8 @@ interface ControlRowProps {
   entry: ENSControlListEntry;
   isLoading: boolean;
   error?: Error;
-  colorDelEstado: (status: string) => string;
-  badgeDelEstado: (status: string) => string;
+  statusColor: (status: string) => string;
+  statusBadge: (status: string) => string;
   onSelect: () => void;
   onConfigurationChanged?: () => void;
 }
@@ -24,27 +24,27 @@ const CONTROL_COLUMNS = { status: 130, machines: 280, nonConformities: 120 };
 
 const shortTally = (tally: ENSMachineTally): string => {
   const parts = [
-    tally.noCumple ? `${tally.noCumple} no cumplen` : '',
-    tally.parcial ? `${tally.parcial} parciales` : '',
-    tally.sinDatos ? `${tally.sinDatos} sin datos` : '',
-    tally.cumple ? `${tally.cumple} cumplen` : '',
+    tally.nonCompliant ? `${tally.nonCompliant} no cumplen` : '',
+    tally.partial ? `${tally.partial} parciales` : '',
+    tally.noData ? `${tally.noData} sin datos` : '',
+    tally.compliant ? `${tally.compliant} cumplen` : '',
   ].filter(Boolean);
   return parts.slice(0, 2).join(' · ') || `${tally.total} máquinas`;
 };
 
 const MachineTallyBar = ({ tally }: { tally: ENSMachineTally }) => {
   const spans = [
-    { estado: 'CUMPLE', n: tally.cumple },
-    { estado: 'PARCIAL', n: tally.parcial },
-    { estado: 'NO_CUMPLE', n: tally.noCumple },
-    { estado: 'NO_EVALUABLE', n: tally.sinDatos },
-    { estado: 'NO_APLICA', n: tally.noAplica },
+    { status: 'CUMPLE', n: tally.compliant },
+    { status: 'PARCIAL', n: tally.partial },
+    { status: 'NO_CUMPLE', n: tally.nonCompliant },
+    { status: 'NO_EVALUABLE', n: tally.noData },
+    { status: 'NO_APLICA', n: tally.notApplicable },
   ].filter(barSpan => barSpan.n > 0);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={`Máquinas: ${describeTally(tally)}`}>
       <span style={{ display: 'inline-flex', width: 100, height: 6, borderRadius: 3, overflow: 'hidden', background: ENS_THEME.track, flexShrink: 0 }}>
         {spans.map(barSpan => (
-          <span key={barSpan.estado} style={{ width: `${(barSpan.n / tally.total) * 100}%`, background: ENS_STATUS_COLORS[barSpan.estado] }} />
+          <span key={barSpan.status} style={{ width: `${(barSpan.n / tally.total) * 100}%`, background: ENS_STATUS_COLORS[barSpan.status] }} />
         ))}
       </span>
       <EuiText size='xs' color='subdued'>
@@ -63,7 +63,7 @@ export const ControlListHeader = () => (
   </EuiFlexGroup>
 );
 
-export const ControlRow = ({ entry, isLoading, error, colorDelEstado: statusColor, badgeDelEstado: statusBadge, onSelect, onConfigurationChanged }: ControlRowProps) => {
+export const ControlRow = ({ entry, isLoading, error, statusColor, statusBadge, onSelect, onConfigurationChanged }: ControlRowProps) => {
   const { id: controlId, title, levels, summary } = entry;
 
   const row = (dot: string, statusCell: React.ReactNode, machinesCell?: React.ReactNode, ncCell?: React.ReactNode, muted = false) => (

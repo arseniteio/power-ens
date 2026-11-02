@@ -10,11 +10,11 @@ interface ENSListControl {
 }
 
 export interface ENSMachineTally {
-  cumple: number;
-  parcial: number;
-  noCumple: number;
-  sinDatos: number;
-  noAplica: number;
+  compliant: number;
+  partial: number;
+  nonCompliant: number;
+  noData: number;
+  notApplicable: number;
   total: number;
 }
 
@@ -41,27 +41,27 @@ interface ENSControlListOptions {
 }
 
 export const tallyMachines = (controlId: string, agentRows: ENSAgentControlsRow[] = []): ENSMachineTally | undefined => {
-  const tally: ENSMachineTally = { cumple: 0, parcial: 0, noCumple: 0, sinDatos: 0, noAplica: 0, total: 0 };
+  const tally: ENSMachineTally = { compliant: 0, partial: 0, nonCompliant: 0, noData: 0, notApplicable: 0, total: 0 };
   agentRows.forEach(row => {
     const entry = row.controls.find(control => control.controlId === controlId);
     if (!entry) return;
     tally.total += 1;
-    if (entry.status === 'CUMPLE') tally.cumple += 1;
-    else if (entry.status === 'PARCIAL') tally.parcial += 1;
-    else if (entry.status === 'NO_CUMPLE') tally.noCumple += 1;
-    else if (entry.status === 'NO_APLICA') tally.noAplica += 1;
-    else tally.sinDatos += 1;
+    if (entry.status === 'CUMPLE') tally.compliant += 1;
+    else if (entry.status === 'PARCIAL') tally.partial += 1;
+    else if (entry.status === 'NO_CUMPLE') tally.nonCompliant += 1;
+    else if (entry.status === 'NO_APLICA') tally.notApplicable += 1;
+    else tally.noData += 1;
   });
   return tally.total ? tally : undefined;
 };
 
 export const describeTally = (tally: ENSMachineTally): string =>
   [
-    tally.cumple ? `${tally.cumple} ${tally.cumple === 1 ? 'cumple' : 'cumplen'}` : '',
-    tally.parcial ? `${tally.parcial} parcial${tally.parcial === 1 ? '' : 'es'}` : '',
-    tally.noCumple ? `${tally.noCumple} no ${tally.noCumple === 1 ? 'cumple' : 'cumplen'}` : '',
-    tally.sinDatos ? `${tally.sinDatos} sin datos` : '',
-    tally.noAplica ? `${tally.noAplica} no aplica${tally.noAplica === 1 ? '' : 'n'}` : '',
+    tally.compliant ? `${tally.compliant} ${tally.compliant === 1 ? 'cumple' : 'cumplen'}` : '',
+    tally.partial ? `${tally.partial} parcial${tally.partial === 1 ? '' : 'es'}` : '',
+    tally.nonCompliant ? `${tally.nonCompliant} no ${tally.nonCompliant === 1 ? 'cumple' : 'cumplen'}` : '',
+    tally.noData ? `${tally.noData} sin datos` : '',
+    tally.notApplicable ? `${tally.notApplicable} no aplica${tally.notApplicable === 1 ? '' : 'n'}` : '',
   ]
     .filter(Boolean)
     .join(' · ') + ` (de ${tally.total} máquina${tally.total === 1 ? '' : 's'})`;

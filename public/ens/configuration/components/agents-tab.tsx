@@ -231,7 +231,7 @@ export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNav
               {errors.map((issue, index) => (
                 <li key={`${index}-${issue.agentId}`}>
                   {agentLabels[issue.agentId] || issue.agentId}: {issue.message}
-                  {issue.kind === 'huerfano' && (
+                  {issue.kind === 'orphan' && (
                     <EuiButtonEmpty
                       size='xs'
                       color='danger'

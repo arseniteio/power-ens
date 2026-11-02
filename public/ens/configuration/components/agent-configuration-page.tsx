@@ -109,8 +109,8 @@ export const AgentConfigurationPage = ({
     controls.filter(control => control.measured).map(control => ({ controlId: control.controlId, level: control.level }))
   );
   const issues = profile ? validateAgentProfile(agentId, profile, configuration) : [];
-  const orphans = issues.filter(issue => issue.kind === 'huerfano');
-  const otherIssues = issues.filter(issue => issue.kind !== 'huerfano' && issue.severity === 'error');
+  const orphans = issues.filter(issue => issue.kind === 'orphan');
+  const otherIssues = issues.filter(issue => issue.kind !== 'orphan' && issue.severity === 'error');
   const typeLabel = agentTypeLabel(profile, row.detection, loading);
 
   const [choices, setChoices] = useState<Record<string, string>>({});

@@ -19,16 +19,16 @@ const QUESTION_PREFIX = 'Pregunta de auditoría:';
 const TEXT_LIMIT = 190;
 
 export interface MotiveLine {
-  texto: string;
-  etiqueta?: string;
+  text: string;
+  label?: string;
 }
 
 interface MotiveCellProps {
-  lineas: MotiveLine[];
-  ocultos?: number;
-  titulo?: string;
+  lines: MotiveLine[];
+  hidden?: number;
+  title?: string;
   evidenceId?: string;
-  conocidos?: KnownReasonParts[];
+  known?: KnownReasonParts[];
   handlers?: MotiveViewHandlers;
 }
 
@@ -38,25 +38,25 @@ const cellLine = (text: string, evidenceId?: string, known: KnownReasonParts[] =
     (evidenceId && motive.parts.find(p => p.evidenceId === evidenceId)) ||
     motive.parts.find(p => p.status && p.status !== 'CUMPLE' && p.status !== 'NO_APLICA') ||
     motive.parts[0];
-  return { motivo: motive, parte: part, compuesto: motive.parts.length > 1 || Boolean(motive.policy) };
+  return { motive, part, compound: motive.parts.length > 1 || Boolean(motive.policy) };
 };
 
 export const MotiveCell = ({
-  lineas: lines,
-  ocultos: hidden = 0,
-  titulo: title = 'Motivo completo',
+  lines,
+  hidden = 0,
+  title = 'Motivo completo',
   evidenceId,
-  conocidos: known = [],
+  known = [],
   handlers = {},
 }: MotiveCellProps) => {
   const [panelOpen, setPanelOpen] = useState(false);
 
   const question = lines.find(line =>
-    line.texto.startsWith(QUESTION_PREFIX)
+    line.text.startsWith(QUESTION_PREFIX)
   );
 
   const body = lines.filter(
-    line => !line.texto.startsWith(QUESTION_PREFIX)
+    line => !line.text.startsWith(QUESTION_PREFIX)
   );
 
   if (!body.length && !question) {
@@ -68,23 +68,23 @@ export const MotiveCell = ({
   }
 
   const first = body[0];
-  const parsed = first ? cellLine(first.texto, evidenceId, known) : undefined;
-  const summary = parsed?.parte ? parsed.parte.summary : first?.texto || '';
-  const hasMore = body.length > 1 || Boolean(parsed && (parsed.compuesto || parsed.parte?.detail || parsed.parte?.secondary !== undefined)) || summary.length > TEXT_LIMIT;
+  const parsed = first ? cellLine(first.text, evidenceId, known) : undefined;
+  const summary = parsed?.part ? parsed.part.summary : first?.text || '';
+  const hasMore = body.length > 1 || Boolean(parsed && (parsed.compound || parsed.part?.detail || parsed.part?.secondary !== undefined)) || summary.length > TEXT_LIMIT;
 
   return (
     <>
       <EuiText size='xs'>
         {first && (
           <p style={{ marginBottom: hasMore ? 2 : 6 }}>
-            {first.etiqueta && (
+            {first.label && (
               <>
-                <EuiBadge color='hollow'>{first.etiqueta}</EuiBadge>{' '}
+                <EuiBadge color='hollow'>{first.label}</EuiBadge>{' '}
               </>
             )}
-            {parsed?.parte?.evidenceId && parsed.compuesto && (
+            {parsed?.part?.evidenceId && parsed.compound && (
               <>
-                <EuiBadge color={statusBadgeColor(parsed.parte.status)}>{`${parsed.parte.evidenceId} ${statusLabel(parsed.parte.status)}`}</EuiBadge>{' '}
+                <EuiBadge color={statusBadgeColor(parsed.part.status)}>{`${parsed.part.evidenceId} ${statusLabel(parsed.part.status)}`}</EuiBadge>{' '}
               </>
             )}
             {summary.length > TEXT_LIMIT ? `${summary.slice(0, TEXT_LIMIT).trimEnd()}…` : summary}
@@ -113,7 +113,7 @@ export const MotiveCell = ({
 
         {question && (
           <p style={{ color: ENS_THEME.mutedText, fontStyle: 'italic', marginBottom: 0 }}>
-            {question.texto}
+            {question.text}
           </p>
         )}
       </EuiText>
@@ -134,9 +134,9 @@ export const MotiveCell = ({
           <EuiFlyoutBody>
             {body.map((line, index) => (
               <MotiveView
-                key={`${line.texto}-${index}`}
-                parsed={parseMotive(line.texto, known)}
-                label={line.etiqueta}
+                key={`${line.text}-${index}`}
+                parsed={parseMotive(line.text, known)}
+                label={line.label}
                 handlers={handlers}
               />
             ))}
@@ -145,7 +145,7 @@ export const MotiveCell = ({
               <>
                 <EuiSpacer size='m' />
                 <EuiText size='s' color='subdued'>
-                  <p style={{ fontStyle: 'italic' }}>{question.texto}</p>
+                  <p style={{ fontStyle: 'italic' }}>{question.text}</p>
                 </EuiText>
               </>
             )}

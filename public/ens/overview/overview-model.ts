@@ -198,7 +198,7 @@ interface WorkItem {
 
 interface WorkGroup {
   owner: string;
-  clase: NonConformityClass;
+  classification: NonConformityClass;
   items: WorkItem[];
   controls: number;
 }
@@ -221,7 +221,7 @@ export const buildWorkQueue = (
     .filter(nc => !agentId || !nc.agentIds.length || nc.agentIds.includes(agentId))
     .forEach(nc => {
       const kind = classifyNonConformity(nc, { controlConfigured: isConfigured(nc.controlId) });
-      const group = groups.get(kind.responsable) || { owner: kind.responsable, clase: kind, items: [], controls: 0 };
+      const group = groups.get(kind.owner) || { owner: kind.owner, classification: kind, items: [], controls: 0 };
       group.items.push({
         controlId: nc.controlId,
         nc,
@@ -229,11 +229,11 @@ export const buildWorkQueue = (
         ...(nc.titleEvidenceId ? { evidenceId: nc.titleEvidenceId, status: nc.titleStatus } : {}),
         machines: describeMachines(nc.agentIds, nameOf),
       });
-      groups.set(kind.responsable, group);
+      groups.set(kind.owner, group);
     });
   return Array.from(groups.values())
     .map(g => ({ ...g, controls: new Set(g.items.map(i => i.controlId)).size }))
-    .sort((a, b) => a.clase.orden - b.clase.orden);
+    .sort((a, b) => a.classification.order - b.classification.order);
 };
 
 interface TrendControlRow {

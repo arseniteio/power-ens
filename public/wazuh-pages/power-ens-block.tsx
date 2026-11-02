@@ -10,8 +10,8 @@ import { powerEnsPathOf, type WazuhPage } from './wazuh-page';
 interface Summary {
   scoreAverage: number;
   measured: number;
-  noCumple: number;
-  parcial: number;
+  nonCompliant: number;
+  partial: number;
 }
 
 type BlockState = { kind: 'loading' } | { kind: 'ready'; summary: Summary } | { kind: 'outOfGroup' } | { kind: 'unavailable' };
@@ -30,10 +30,10 @@ const Figures = ({ summary }: { summary: Summary }) =>
         <EuiStat title={`${summary.scoreAverage} %`} description='Cumplimiento' titleSize='s' />
       </EuiFlexItem>
       <EuiFlexItem grow={false}>
-        <EuiStat title={summary.noCumple} description='No cumplen' titleSize='s' />
+        <EuiStat title={summary.nonCompliant} description='No cumplen' titleSize='s' />
       </EuiFlexItem>
       <EuiFlexItem grow={false}>
-        <EuiStat title={summary.parcial} description='Parciales' titleSize='s' />
+        <EuiStat title={summary.partial} description='Parciales' titleSize='s' />
       </EuiFlexItem>
     </EuiFlexGroup>
   );

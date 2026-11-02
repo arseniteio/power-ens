@@ -7,12 +7,12 @@ import { detectAgentSystem, withInventoryTypes } from '../../common/ens/configur
 
 const NOW = Date.parse('2026-10-17T12:00:00Z');
 
-const bucket = (source: Record<string, unknown>) => ({ key: source.id, ultimo: { hits: { hits: [{ _source: source }] } } });
+const bucket = (source: Record<string, unknown>) => ({ key: source.id, latest: { hits: { hits: [{ _source: source }] } } });
 
 describe('the agent inventory', () => {
   const inventory = inventoryFromMonitoring(
     {
-      agentes: {
+      agents: {
         buckets: [
           bucket({ id: '1', name: 'web-01', group: ['ens'], status: 'active', timestamp: '2026-10-17T11:55:00Z', manager: 'wazuh.manager', os: { platform: 'ubuntu' } }),
           bucket({ id: '2', name: 'db-01', group: ['other'], status: 'disconnected', timestamp: '2026-10-17T11:55:00Z' }),

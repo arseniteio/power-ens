@@ -41,7 +41,7 @@ interface AgentParameterRowProps {
   note?: string;
   applicable: boolean;
   focused: boolean;
-  describeSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => 'quitar' | 'igual' | 'propio';
+  describeSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => 'remove' | 'same' | 'propio';
   onSave: (value: ENSAgentParameterValue | undefined, matchMode?: ENSMatchMode) => Promise<void>;
   onDone?: () => void;
 }
@@ -76,9 +76,9 @@ const Rows = ({ rows }: { rows: string[] }) =>
     <span>—</span>
   );
 
-const HINTS: Record<'quitar' | 'igual', string> = {
-  quitar: 'Vacío: se restablece el valor heredado.',
-  igual: 'Igual al heredado: no se personaliza.',
+const HINTS: Record<'remove' | 'same', string> = {
+  remove: 'Vacío: se restablece el valor heredado.',
+  same: 'Igual al heredado: no se personaliza.',
 };
 
 export const AgentParameterRow = ({

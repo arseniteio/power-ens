@@ -30,12 +30,12 @@ const requiredColumn = (
 ): boolean => cell.column.required;
 
 const EditableCell = ({
-  celda: cell,
-  invalida: invalidOne,
+  cell,
+  invalid: invalidOne,
   onCellChange,
 }: {
-  celda: ENSTableCellModel;
-  invalida: boolean;
+  cell: ENSTableCellModel;
+  invalid: boolean;
   onCellChange: (value: string) => void;
 }) => {
   if (cell.column.type === 'select') {
@@ -231,8 +231,8 @@ export const TableParameterRenderer = ({
                     }}
                   >
                     <EditableCell
-                      celda={cell}
-                      invalida={
+                      cell={cell}
+                      invalid={
                         !!cell.reason ||
                         (row.overflow > 0 &&
                           cellIndex ===

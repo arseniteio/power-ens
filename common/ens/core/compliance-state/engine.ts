@@ -36,11 +36,11 @@ const createSummaryFromItems = (
 
   return {
     totalControls,
-    cumple: compliant,
-    noCumple: nonCompliant,
-    parcial: partial,
-    noEvaluable: notEvaluable,
-    noAplica: notApplicable,
+    compliant,
+    nonCompliant,
+    partial,
+    notEvaluable,
+    notApplicable,
     scoreAverage,
     measured: measuredItems.length,
   };
@@ -62,11 +62,11 @@ const createEvidenceSummary = (
 
   return {
     totalEvidences: evidences.length,
-    cumple: evidences.filter(e => e.status === 'CUMPLE').length,
-    noCumple: evidences.filter(e => e.status === 'NO_CUMPLE').length,
-    parcial: evidences.filter(e => e.status === 'PARCIAL').length,
-    noEvaluable: evidences.filter(e => e.status === 'NO_EVALUABLE').length,
-    noAplica: evidences.filter(e => e.status === 'NO_APLICA').length,
+    compliant: evidences.filter(e => e.status === 'CUMPLE').length,
+    nonCompliant: evidences.filter(e => e.status === 'NO_CUMPLE').length,
+    partial: evidences.filter(e => e.status === 'PARCIAL').length,
+    notEvaluable: evidences.filter(e => e.status === 'NO_EVALUABLE').length,
+    notApplicable: evidences.filter(e => e.status === 'NO_APLICA').length,
   };
 };
 

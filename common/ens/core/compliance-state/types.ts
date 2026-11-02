@@ -2,11 +2,11 @@ import { ENSComplianceResult } from '../evaluation/types';
 
 export interface ENSComplianceSummary {
   totalControls: number;
-  cumple: number;
-  noCumple: number;
-  parcial: number;
-  noEvaluable: number;
-  noAplica: number;
+  compliant: number;
+  nonCompliant: number;
+  partial: number;
+  notEvaluable: number;
+  notApplicable: number;
 
   scoreAverage: number;
   measured: number;
@@ -20,11 +20,11 @@ export interface ENSAgentSummary {
 
 export interface ENSEvidenceSummary {
   totalEvidences: number;
-  cumple: number;
-  noCumple: number;
-  parcial: number;
-  noEvaluable: number;
-  noAplica: number;
+  compliant: number;
+  nonCompliant: number;
+  partial: number;
+  notEvaluable: number;
+  notApplicable: number;
 }
 
 export interface ENSAgentComplianceState {

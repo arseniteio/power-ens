@@ -57,7 +57,7 @@ const sortMotives = (
 interface MotiveSummary {
   visibles: ENSObservationGroup[];
 
-  ocultos: number;
+  hidden: number;
 }
 
 export const summarizeMotives = (
@@ -68,7 +68,7 @@ export const summarizeMotives = (
 
   return {
     visibles: visibleItems,
-    ocultos: sorted.length - visibleItems.length,
+    hidden: sorted.length - visibleItems.length,
   };
 };
 
