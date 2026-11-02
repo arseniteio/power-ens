@@ -37,6 +37,8 @@ import {
   ParameterBadges,
   statusBadgeColor,
 } from './motive-view';
+import { GuideCode } from './control-guide';
+import type { GuideTarget } from './control-guide';
 import { ENS_THEME } from '../../theme-colors';
 import { statusLabel } from '../../../../common/ens/core/status-label';
 
@@ -66,6 +68,7 @@ interface NonConformityCardProps {
   ocultos?: number;
   conocidos?: KnownReasonParts[];
   handlers?: MotiveViewHandlers;
+  onGuide?: (target: GuideTarget) => void;
 }
 
 const QUESTION_PREFIX = 'Pregunta de auditoría:';
@@ -174,6 +177,7 @@ export const NonConformityCard = ({
   ocultos: hidden = 0,
   conocidos: known = [],
   handlers = {},
+  onGuide,
 }: NonConformityCardProps) => {
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -191,8 +195,6 @@ export const NonConformityCard = ({
   const action = describeAction(item.requiredAction, culprit);
 
   const context = [
-    item.requirement,
-    involvedEvidences.length > 0 ? involvedEvidences.join(', ') : '',
     scopeText ? `${scopeLabel.toLowerCase()} ${scopeText}` : '',
   ].filter(Boolean);
 
@@ -230,7 +232,7 @@ export const NonConformityCard = ({
                 <LinkBadge
                   color='hollow'
                   onClick={handlers.onEvidence ? () => handlers.onEvidence!(culprit.evidenceId!) : undefined}
-                  label={`Ver ${culprit.evidenceId} en Evidencias`}
+                  label={`Ver la explicación de ${culprit.evidenceId}`}
                 >
                   <strong>{culprit.evidenceId}</strong>
                 </LinkBadge>{' '}
@@ -244,6 +246,20 @@ export const NonConformityCard = ({
         <EuiSpacer size='xs' />
 
         <EuiText size='xs' color='subdued'>
+          {onGuide ? (
+            <>
+              <GuideCode target={{ kind: 'requirement', id: item.requirement }} onOpen={onGuide} />
+              {involvedEvidences.map(id => (
+                <React.Fragment key={id}>
+                  {', '}
+                  <GuideCode target={{ kind: 'evidence', id }} onOpen={onGuide} />
+                </React.Fragment>
+              ))}
+              {context.length > 0 && ' · '}
+            </>
+          ) : (
+            [item.requirement, ...involvedEvidences].join(', ') + (context.length > 0 ? ' · ' : '')
+          )}
           {context.join(' · ')}
         </EuiText>
 
@@ -280,7 +296,7 @@ export const NonConformityCard = ({
                   <LinkBadge
                     color='hollow'
                     onClick={handlers.onEvidence && part.evidenceId ? () => handlers.onEvidence!(part.evidenceId!) : undefined}
-                    label={`Ver ${part.evidenceId} en Evidencias`}
+                    label={`Ver la explicación de ${part.evidenceId}`}
                   >
                     {part.evidenceId}
                   </LinkBadge>{' '}

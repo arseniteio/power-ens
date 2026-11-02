@@ -1,0 +1,240 @@
+{
+  "op.acc.1": {
+    "summary": "Cada persona o entidad que accede al sistema tiene un identificador único, ligado a sus privilegios, y las cuentas se dan de alta, se deshabilitan y se retiran conforme a la política.",
+    "regulates": "La identificación de quien accede: identificadores singulares, gestión del ciclo de vida de las cuentas y, desde nivel MEDIO, una lista actualizada de usuarios autorizados.",
+    "wazuh": "Wazuh aporta los inicios de sesión de cada máquina, necesarios para ver cuentas genéricas o de servicio usadas de forma interactiva. Las cuentas y grupos los recoge el agente OSCompliance.",
+    "powerEns": "Contrasta las cuentas reales y su uso con lo que declara la organización: bajas, cuentas de servicio, cuentas administrativas, periodo de retención y lista de autorizados.",
+    "outside": "Quién debe tener cuenta y cuándo causa baja lo decide la organización. Sin esa declaración no se puede saber si una cuenta activa está justificada."
+  },
+  "op.acc.2": {
+    "summary": "Los recursos del sistema están protegidos por controles de acceso que reflejan las decisiones de su responsable, con especial cuidado en los componentes del sistema operativo.",
+    "regulates": "Que todo recurso tenga un control de acceso, que ese control responda a lo que decidió el responsable del recurso y que los ficheros y componentes del sistema operativo estén especialmente protegidos.",
+    "wazuh": "Wazuh aporta SCA para los permisos, FIM para los cambios en ficheros críticos, rootcheck para las debilidades del sistema y las alertas de accesos denegados y escaladas de privilegio.",
+    "powerEns": "Compara los permisos y privilegios efectivos con la política declarada y señala accesos fuera del tipo autorizado y configuraciones que debilitan el control de acceso.",
+    "outside": "La decisión sobre quién debe acceder a cada recurso es del responsable del recurso. Wazuh comprueba que se aplica, no que sea la decisión correcta."
+  },
+  "op.acc.3": {
+    "summary": "Las funciones críticas no recaen en la misma persona: desarrollo y operación, autorización y control, y las tareas críticas exigen la concurrencia de varias personas.",
+    "regulates": "Una medida fundamentalmente organizativa: el reparto de funciones entre personas para que nadie pueda abusar en solitario de sus derechos.",
+    "wazuh": "Wazuh aporta la actividad registrada de cada cuenta. Permite ver qué ha hecho cada una, pero no conoce por sí mismo la función que tiene asignada.",
+    "powerEns": "Clasifica las acciones de cada cuenta según las funciones declaradas y detecta las que aúnan funciones incompatibles, las tareas críticas sin concurrencia y las cuentas de auditoría que hacen otra cosa.",
+    "outside": "La definición de funciones y su asignación a personas es organizativa. La comprobación ve cuentas, no personas: una misma persona con dos cuentas requiere revisión del auditor."
+  },
+  "op.acc.4": {
+    "summary": "Los derechos de acceso se conceden por denegación por defecto, mínimo privilegio y necesidad de conocer, solo los autoriza quien tiene competencia y el acceso remoto sigue una política propia.",
+    "regulates": "Los principios con los que se asignan los derechos de acceso y quién puede autorizarlos, incluido el acceso remoto.",
+    "wazuh": "Wazuh aporta los cambios en grupos y permisos, las conexiones remotas y los accesos a recursos vigilados, además de las comprobaciones de configuración de SCA.",
+    "powerEns": "Contrasta los privilegios reales con la matriz autorizada, identifica cambios hechos por cuentas no competentes y vigila que la revisión periódica de permisos no caduque.",
+    "outside": "La matriz de privilegios y los criterios de necesidad de conocer los define la organización. Sin ellos no hay referencia con la que comparar."
+  },
+  "op.acc.5": {
+    "summary": "Los usuarios ajenos a la organización se autentican con el mecanismo que exige el nivel, con credenciales bajo su control, límite de intentos, inhabilitación ante compromiso y registro de accesos.",
+    "regulates": "La autenticación de ciudadanos, empresas y terceros. Los refuerzos R1 a R4 son una elección entre mecanismos, no una acumulación, y la contraseña sola deja de valer desde nivel MEDIO.",
+    "wazuh": "Wazuh aporta los eventos de autenticación de los servicios externos: accesos con éxito y fallidos, bloqueos y ataques de fuerza bruta o de relleno de credenciales.",
+    "powerEns": "Comprueba que se usa de verdad el mecanismo declarado, que el límite de intentos se aplica, que las credenciales no superan su antigüedad, que hay reacción ante un compromiso y que el registro no tiene lagunas.",
+    "outside": "El registro fidedigno previo, el acuse de recibo y la información de derechos son procedimientos de la organización. Se acreditan documentalmente."
+  },
+  "op.acc.6": {
+    "summary": "El personal de la organización se autentica con un mecanismo adecuado a la zona desde la que accede, con doble factor desde zona no controlada y acceso remoto autorizado, cifrado y auditado.",
+    "regulates": "La autenticación del personal propio o contratado. La contraseña sola solo vale desde zona controlada, y el doble factor y el acceso remoto seguro se exigen desde nivel BAJO.",
+    "wazuh": "Wazuh aporta los accesos con éxito y fallidos, los bloqueos y los ataques contra las credenciales. El agente OSCompliance lee las políticas de autenticación de cada máquina.",
+    "powerEns": "Verifica el doble factor en accesos desde zona no controlada, el bloqueo efectivo, la antigüedad de las credenciales, los canales remotos y, en nivel ALTO, la reautenticación y la suspensión por no uso.",
+    "outside": "La aceptación de la política de seguridad, el acuse de recibo y la información de derechos dependen de la organización y se acreditan documentalmente."
+  },
+  "op.exp.1": {
+    "summary": "Existe un inventario actualizado de todos los elementos del sistema, con su naturaleza y su responsable, que cubre también los activos sin agente.",
+    "regulates": "Que se conozca qué compone el sistema y quién responde de cada elemento.",
+    "wazuh": "Syscollector aporta de forma continua el hardware, el software, los puertos, los procesos y las interfaces de cada máquina, y el estado del agente muestra cuáles dejan de reportar.",
+    "powerEns": "Cruza ese inventario técnico con los activos declarados, señala máquinas sin responsable, vecinos de red no inventariados y revisiones formales caducadas.",
+    "outside": "La naturaleza del activo, su responsable y el etiquetado físico no están en ningún log: los declara la organización."
+  },
+  "op.exp.2": {
+    "summary": "Los equipos entran en operación configurados de forma segura: sin cuentas ni contraseñas estándar, con la funcionalidad mínima y con seguridad por defecto, también en máquinas virtuales.",
+    "regulates": "El bastionado de los sistemas en el momento de ponerlos en operación.",
+    "wazuh": "La evaluación SCA de Wazuh es la línea base de configuración segura y da la puntuación de cada política en cada máquina.",
+    "powerEns": "Juzga la puntuación SCA frente al mínimo declarado y añade lo que observa el agente OSCompliance: cuentas por defecto, servicios no justificados, valores inseguros y máquinas virtuales.",
+    "outside": "op.exp.3 exige mantener esta configuración en el tiempo. Las evidencias son parecidas: aquí importa el estado de partida, allí la continuidad."
+  },
+  "op.exp.3": {
+    "summary": "La configuración segura se mantiene en todo momento: solo la edita personal autorizado, los cambios se autorizan antes, se copia y se verifica de forma periódica frente a su línea base.",
+    "regulates": "La continuidad de la configuración de seguridad. Se apoya en op.exp.2, op.acc.4, op.exp.4 y op.exp.7, y añade la exigencia de que la configuración siga siendo correcta con el paso del tiempo.",
+    "wazuh": "Wazuh aporta la evolución de SCA, los cambios que ve FIM y las vulnerabilidades detectadas. El agente OSCompliance añade quién edita, qué servicios corren y las copias de configuración.",
+    "powerEns": "Detecta regresiones de la línea base, ediciones por cuentas no autorizadas, cambios sin petición aprobada y elementos no autorizados, y reutiliza los registros de cambios e incidentes de otros controles.",
+    "outside": "Aprobar la línea base y decidir qué cambios se autorizan es del proceso de la organización."
+  },
+  "op.exp.4": {
+    "summary": "Los sistemas se mantienen actualizados según el riesgo: se vigilan los anuncios del fabricante, se aplican los parches en plazo y lo hace personal autorizado, con prueba previa y reversión cuando el nivel lo exige.",
+    "regulates": "La gestión de vulnerabilidades y del parcheado durante toda la vida del sistema.",
+    "wazuh": "La detección de vulnerabilidades de Wazuh cruza el inventario de paquetes con los boletines y aporta de forma continua las vulnerabilidades abiertas de cada máquina.",
+    "powerEns": "Juzga la antigüedad de cada vulnerabilidad frente al plazo de su criticidad, el parcheado pendiente, quién actualiza y cuándo, el software sin soporte, el paso por preproducción y el punto de reversión.",
+    "outside": "Valorar el riesgo y fijar los plazos es de la organización. La integridad del firmware no se ve desde el agente."
+  },
+  "op.exp.5": {
+    "summary": "Todo cambio en el sistema sigue un ciclo controlado: petición registrada, análisis de riesgos, aprobación, pruebas de aceptación y actualización de la documentación.",
+    "regulates": "El ciclo de vida de la petición de cambio. Es un control de proceso, y ese proceso vive en la gestión de cambios de la organización.",
+    "wazuh": "Wazuh aporta la otra mitad: FIM detecta los cambios que de verdad se han producido en cada máquina, y el agente OSCompliance añade las transacciones de paquetes.",
+    "powerEns": "Contrasta los cambios reales con el registro de peticiones que la organización mantiene en Configuración. Lo más relevante que aporta es detectar cambios no registrados.",
+    "outside": "El análisis de riesgos, la aprobación del Responsable de la Seguridad y las pruebas son actos de la organización: aquí se comprueba que constan, no que sean adecuados."
+  },
+  "op.exp.6": {
+    "summary": "Todos los equipos están protegidos frente a código dañino con software instalado, activo y actualizado y, en categoría ALTA, con capacidad de detectar, investigar y resolver actividad sospechosa.",
+    "regulates": "La protección frente a código dañino en puestos y servidores, desde el antimalware base hasta las herramientas EDR de R4.",
+    "wazuh": "Wazuh no es un antivirus ni sustituye al software que exige el control. Actúa como verificador del antimalware y como capa EDR con FIM, rootcheck, YARA, MITRE ATT&CK y Active Response.",
+    "powerEns": "Acredita que el antimalware existe, funciona, tiene las firmas al día y está bien configurado. En Linux lee ClamAV, y en categoría ALTA evalúa la capa EDR.",
+    "outside": "Si la organización no tiene antimalware, Wazuh no suple esa carencia: el control señala la ausencia."
+  },
+  "op.exp.7": {
+    "summary": "La organización dispone de un proceso integral para los incidentes: los clasifica, los escala, los contiene, los resuelve, los notifica a quien corresponde y aprende de ellos.",
+    "regulates": "El proceso de gestión de incidentes: criterios de clasificación, escalado, asignación de recursos, notificación a responsables y al CCN-CERT y medidas de mejora posteriores. Ese proceso es organizativo y vive en el procedimiento y en la herramienta de tickets de la organización.",
+    "wazuh": "Wazuh aporta la detección que alimenta el proceso, la evidencia que el proceso debe conservar (op.exp.7.r2.1 exige recoger evidencias y proteger los registros) y, con Active Response, parte de la respuesta automática de R3 y R4.",
+    "powerEns": "Mide la conexión entre ambos mundos: cuántas alertas se convirtieron en incidente gestionado, en cuánto tiempo y si la evidencia se conservó. Lo hace cruzando las alertas con el registro de incidentes de Configuración.",
+    "outside": "Un SIEM que detecta y un proceso que no recoge lo detectado es el hallazgo más común de este control. Sin criterios de clasificación ni matriz de escalado no se puede demostrar el proceso, y eso consta como no conformidad."
+  },
+  "op.exp.8": {
+    "summary": "El sistema registra la actividad con los campos mínimos, sin huecos, con el reloj sincronizado, conservando los registros el tiempo declarado y limitando quién puede leerlos.",
+    "regulates": "El registro de actividad. Es la única medida de op.exp que se aplica por el nivel de Trazabilidad y no por la categoría del sistema.",
+    "wazuh": "Aquí Wazuh es el propio control: R5 pide un sistema automático de recolección de registros, correlación de eventos y respuesta, que es la definición de un SIEM con respuesta.",
+    "powerEns": "Comprueba que cada máquina registra y entrega sin huecos, que el reloj está sincronizado, que la retención y las copias del indexer son las declaradas y que solo accede el personal autorizado.",
+    "outside": "Como Wazuh es el control, su propia integridad se audita: lagunas de ingesta, relojes desincronizados o acceso indiscriminado a los índices se convierten en el hallazgo más grave del informe."
+  },
+  "op.exp.9": {
+    "summary": "Queda constancia de cómo se gestionó cada incidente: sus reportes, sus actuaciones, los cambios que provocó y las evidencias con posible valor jurisdiccional.",
+    "regulates": "El registro de la gestión de incidentes. op.exp.9.2 remite a asesoramiento legal para determinar la composición de las evidencias, y op.exp.9.3 obliga a revisar qué se audita a la luz de lo ocurrido.",
+    "wazuh": "Wazuh conserva las alertas que originaron cada incidente y sella sus logs de alertas, de modo que los registros del periodo sigan disponibles e íntegros.",
+    "powerEns": "Juzga el registro de incidentes de op.exp.7 P-13: fases completas, actuaciones de emergencia, cambios con su petición, días sellados y revisión de los eventos auditables tras cada cierre.",
+    "outside": "El valor probatorio de una evidencia es una cuestión jurídico-técnica: la cadena de custodia y su validez en sede judicial no las determina esta herramienta."
+  },
+  "op.exp.10": {
+    "summary": "Las claves criptográficas se protegen durante todo su ciclo de vida, desde su generación hasta su retirada, y solo se usan algoritmos autorizados.",
+    "regulates": "El ciclo de vida de las claves: generación, transporte, custodia, explotación, retirada y destrucción. Buena parte ocurre donde un SIEM no llega.",
+    "wazuh": "La cobertura de Wazuh es limitada: FIM vigila la integridad de los almacenes de claves y SCA los algoritmos configurados. Para auditar lecturas hacen falta auditd o las SACL de Windows.",
+    "powerEns": "Mide lo que vive en las máquinas: quién accede a los almacenes, dónde están las claves privadas y cómo se protegen, dónde se generan, qué algoritmos se aceptan y la vigencia de los certificados.",
+    "outside": "La generación en un HSM, la custodia física y la destrucción certificada son documentales y de proceso, y el informe lo declara así."
+  },
+  "op.nub.1": {
+    "summary": "Los servicios en la nube cumplen el ENS: el proveedor acredita su conformidad y la organización configura de forma segura lo que le corresponde.",
+    "regulates": "Las garantías exigibles a los servicios en la nube. Es un control mayoritariamente contractual: certificación del proveedor, transparencia, jurisdicción de los datos y pruebas de seguridad.",
+    "wazuh": "Wazuh no ve los contratos, pero puede ingerir los registros de AWS, Azure, Google Cloud y Microsoft 365, lo que da visibilidad sobre el lado del cliente de esos servicios.",
+    "powerEns": "Se apoya en el inventario y el expediente de cada servicio, sus registros en Wazuh y quién lo administra, separando lo documental de lo técnico.",
+    "outside": "Las certificaciones y cláusulas del proveedor se acreditan con documentos. Que estén registradas no prueba su contenido."
+  },
+  "op.cont.2": {
+    "summary": "Existe un plan de continuidad, solo exigible con disponibilidad ALTA, con funciones definidas, medios alternativos contratados y personal formado.",
+    "regulates": "Un plan: identificar funciones y responsabilidades, prever medios alternativos, formalizar contratos, formar a las personas e integrarlo con los demás planes de la organización.",
+    "wazuh": "Casi nada de esto es observable desde un SIEM. Lo que Wazuh aporta de forma directa es FIM, que comprueba la integridad del sistema tras una caída (R2), y los datos de las interrupciones reales.",
+    "powerEns": "Juzga la aprobación del plan, los contratos y la formación registrados en Configuración, y la comprobación de integridad de cada máquina al arrancar.",
+    "outside": "La calidad del plan y su viabilidad no se pueden medir con eventos. Es esencialmente documental, y el informe lo dice."
+  },
+  "op.cont.3": {
+    "summary": "El plan de continuidad se prueba periódicamente y se corrige lo que revelan las pruebas. Solo es exigible con disponibilidad ALTA y depende de op.cont.2.",
+    "regulates": "Dos obligaciones encadenadas: hacer pruebas con periodicidad y corregir lo que revelen. Una prueba anual cuyos fallos no se corrigen no cumple.",
+    "wazuh": "Una prueba de conmutación genera eventos: caída de servicios, arranque en el emplazamiento secundario y restablecimiento. Wazuh los registra, y con ellos se mide lo que ocurrió de verdad.",
+    "powerEns": "Juzga el registro de pruebas y de deficiencias y compara la caída que midió la monitorización en cada máquina probada con el RTO comprometido.",
+    "outside": "El diseño de la prueba y la decisión de corregir son de la organización."
+  },
+  "op.mon.1": {
+    "summary": "El sistema dispone de herramientas de detección o prevención de intrusiones basadas en reglas y, según el nivel, de procedimientos de respuesta a sus alertas.",
+    "regulates": "La detección de intrusiones y las acciones predeterminadas ante las situaciones de compromiso que figuran en el análisis de riesgos.",
+    "wazuh": "Wazuh es un HIDS con motor de reglas, de modo que cubre por definición el requisito base y R1. Con Active Response cubre R3. Es detección en host: la inspección de tráfico necesita un NIDS como Suricata, Snort o Zeek, cuyos eventos Wazuh ingiere y correlaciona.",
+    "powerEns": "Evalúa el manager de Wazuh (procesos, reglas, exclusiones y respuesta activa, leídos por su API) y las alertas de cada máquina, contrastándolos con lo declarado en el análisis de riesgos.",
+    "outside": "R2 no es tecnología: son procedimientos de respuesta que la organización debe tener por escrito."
+  },
+  "op.mon.2": {
+    "summary": "Se recopilan los datos que miden la implantación de la seguridad, el comportamiento de la gestión de incidentes y, según la categoría, los recursos consumidos.",
+    "regulates": "El sistema de métricas, incluidos los datos del informe anual del artículo 32 del ENS.",
+    "wazuh": "Wazuh aporta los datos de base: el estado de cada agente, que da fiabilidad a la medición, y las alertas que alimentan los indicadores de incidentes.",
+    "powerEns": "Juzga el registro de ciclos de métricas, el registro de incidentes de op.exp.7 y que la medición de cada máquina esté al día.",
+    "outside": "Las horas y el presupuesto de R2 están en la contabilidad y en el control de dedicación de la organización, no en un log: son entrada manual."
+  },
+  "op.mon.3": {
+    "summary": "Los eventos de seguridad se recogen y correlacionan de forma automática y se vigila la superficie de exposición, con refuerzos crecientes hasta las inspecciones periódicas en categoría ALTA.",
+    "regulates": "La vigilancia del sistema. Es el control que más refuerzos acumula en categoría ALTA.",
+    "wazuh": "Wazuh cubre la recolección y correlación de eventos, la superficie de exposición con vulnerabilidades y SCA, los comportamientos anómalos y las alertas por volumen de consultas.",
+    "powerEns": "Evalúa el manager de Wazuh, las fuentes que envía cada máquina y el registro de inspecciones de seguridad.",
+    "outside": "Tres piezas quedan fuera de Wazuh: la detección de APT por tráfico de red necesita una sonda, la cibervigilancia de contenidos digitales es un servicio externo y las pruebas de penetración son un servicio profesional. Aquí solo se registran."
+  },
+  "mp.eq.2": {
+    "summary": "El puesto de trabajo se bloquea tras un tiempo de inactividad con nueva autenticación y, en nivel ALTO, las sesiones se cancelan pasado un tiempo mayor.",
+    "regulates": "Dos ajustes: el tiempo hasta el bloqueo con reautenticación y el tiempo, superior, hasta cancelar las sesiones abiertas. Un salvapantallas sin contraseña no cumple.",
+    "wazuh": "Es verificable con SCA y con los eventos de bloqueo y desbloqueo. Eso permite distinguir una política bien configurada de otra configurada pero que no se aplica.",
+    "powerEns": "Juzga la configuración de bloqueo y los tiempos de inactividad que informa el agente OSCompliance, y los procesos que impiden el bloqueo en cada puesto.",
+    "outside": "El ENS no fija los tiempos: vienen de la normativa interna o de la guía CCN-STIC aplicable."
+  },
+  "mp.eq.3": {
+    "summary": "Los dispositivos portátiles están inventariados y bajo control de su responsable, se reacciona a su pérdida y se protegen con cifrado cuando la información lo exige.",
+    "regulates": "La protección de los equipos que salen de las instalaciones: inventario, custodia, procedimiento de pérdida, autorización de accesos remotos y cifrado de disco desde confidencialidad MEDIA.",
+    "wazuh": "Wazuh cubre bien el inventario con Syscollector, el cifrado de disco con SCA y la detección de claves de acceso remoto almacenadas en el dispositivo.",
+    "powerEns": "Evalúa los portátiles del inventario y los que el agente identifica por su chasis, junto con su custodia, las pérdidas registradas y las claves que no deberían estar en el equipo.",
+    "outside": "El procedimiento de pérdida, la autorización previa y el uso en entornos protegidos son organizativos. Wazuh aporta la señal de vida, pero la custodia la confirma el responsable."
+  },
+  "mp.eq.4": {
+    "summary": "Los dispositivos conectados a la red que no admiten agente (multifunción, multimedia, IoT, BYOD) tienen una configuración segura y sus flujos están controlados.",
+    "regulates": "Los equipos que suelen quedar fuera de todo despliegue de seguridad precisamente porque no admiten agente.",
+    "wazuh": "Wazuh trabaja aquí de forma indirecta: descubre dispositivos por los registros de red e ingiere por syslog los que lo permiten. No puede evaluar con SCA la configuración de una impresora, porque no hay agente donde ejecutarlo.",
+    "powerEns": "Juzga los vecinos de red que ve cada máquina, el inventario de dispositivos, sus flujos y sus registros en Wazuh, y señala los no inventariados.",
+    "outside": "La cobertura automática es parcial por la naturaleza del activo, no por una limitación de la herramienta. La configuración de cada dispositivo se acredita aparte."
+  },
+  "mp.com.1": {
+    "summary": "Todo el tráfico atraviesa el sistema de protección perimetral y solo circulan los flujos previamente autorizados.",
+    "regulates": "El perímetro. No basta con tener cortafuegos: cualquier vía alternativa es un incumplimiento directo, y la autorización previa de los flujos presupone un registro de flujos autorizados.",
+    "wazuh": "Wazuh no es el cortafuegos, pero puede demostrar ambas cosas: ingiere los registros del perímetro para ver qué pasa, y detecta interfaces no previstas y túneles salientes para ver lo que elude el perímetro.",
+    "powerEns": "Juzga los registros de los elementos perimetrales en Wazuh frente a los flujos autorizados y, en cada máquina, sus interfaces, pasarelas, túneles y accesos desde internet.",
+    "outside": "El diseño del perímetro y los requisitos de la Instrucción Técnica de interconexión no se miden aquí."
+  },
+  "mp.com.3": {
+    "summary": "Las comunicaciones aseguran la autenticidad del otro extremo y previenen los ataques activos, y al detectarlos se activa el tratamiento del incidente.",
+    "regulates": "La integridad y la autenticidad en las comunicaciones. Los refuerzos son sobre todo de producto y arquitectura (VPN cifrada, algoritmos del CCN, productos certificados).",
+    "wazuh": "mp.com.3.2 es terreno de Wazuh: alteración en tránsito, inyección de información espuria y secuestro de sesión se traducen en reglas de detección que se pueden correlacionar con la apertura del incidente.",
+    "powerEns": "Juzga la configuración SSH, las reglas que detectan ataques activos y sus incidentes, los túneles de cada máquina, los algoritmos usados y los cambios en sus configuraciones.",
+    "outside": "Los dispositivos hardware y los productos certificados se acreditan con documentación."
+  },
+  "mp.com.4": {
+    "summary": "El tráfico se separa en segmentos para acotar el acceso a la información y encapsular los incidentes en el segmento donde ocurren.",
+    "regulates": "La segmentación de la red. Los refuerzos son alternativas, no acumulación, y en categoría ALTA la VLAN deja de ser opción admisible y el punto de interconexión hereda las exigencias del perímetro.",
+    "wazuh": "Wazuh no comprueba si existe una VLAN: comprueba si el tráfico entre segmentos se comporta como si la hubiera, correlacionando los flujos observados con la matriz de segmentos permitidos.",
+    "powerEns": "Juzga el mapa de segmentos, el inventario de red de cada máquina, las conexiones de los puntos de interconexión y si los incidentes se contuvieron en su segmento.",
+    "outside": "Pasar de VLAN a una separación válida en categoría ALTA es un problema de arquitectura de la organización, no de configuración de esta herramienta."
+  },
+  "mp.sw.2": {
+    "summary": "Antes de poner una aplicación en servicio se comprueban los criterios de aceptación y que no deteriora la seguridad de los demás componentes.",
+    "regulates": "La aceptación de aplicaciones. Lo más exigente es demostrar que la aplicación nueva no deteriora la seguridad del entorno, y eso no se verifica leyendo un acta.",
+    "wazuh": "Wazuh permite comparar el estado antes y después del despliegue: SCA, puertos abiertos, servicios en ejecución y vulnerabilidades detectadas.",
+    "powerEns": "Juzga los despliegues que ve Wazuh en las máquinas de cada aplicación frente a las actas de aceptación, las regresiones de SCA, los puertos previstos y el paso por preproducción.",
+    "outside": "Los criterios de aceptación tienen que existir por escrito. Sin ellos el requisito no es verificable por falta de referencia."
+  },
+  "mp.info.6": {
+    "summary": "Se hacen copias de seguridad que permiten recuperar los datos, con procedimiento documentado, acceso controlado y, según el nivel, pruebas de restauración y una copia separada.",
+    "regulates": "Las copias de seguridad y su recuperación. Una copia que nunca se ha restaurado no demuestra que se pueda recuperar nada, por eso R1 exige probarlas.",
+    "wazuh": "Wazuh recoge los hechos de ejecución de las copias que informan los recolectores, de modo que se ven las fallidas y la antigüedad de la última copia.",
+    "powerEns": "Juzga las copias que cada máquina declara en P-04: fecha, retención, acceso, ubicación y pruebas de restauración registradas.",
+    "outside": "Que los datos sean recuperables solo lo demuestra una restauración. El control de acceso y la separación de las copias deciden si hay recuperación posible frente a un ransomware."
+  },
+  "mp.s.1": {
+    "summary": "El correo electrónico se protege frente al spam, el código dañino y el contenido activo, se asegura su tránsito y se acompaña de normas de uso y concienciación.",
+    "regulates": "Tres naturalezas distintas: protección de la información (cuerpo, anexos y encaminamiento), defensa frente a amenazas y requisitos normativos (uso y concienciación).",
+    "wazuh": "Ingiriendo los registros de la pasarela de correo, Wazuh verifica que el filtro antispam, el análisis de código dañino y el bloqueo de contenido activo operan.",
+    "powerEns": "Evalúa las máquinas de la plataforma de correo: registros, filtros, TLS, registros DNS de los dominios propios, cambios de configuración y concienciación registrada.",
+    "outside": "Las limitaciones de uso y la concienciación no se verifican con un SIEM. SPF, DKIM y DMARC no se citan en el ENS: son el mecanismo habitual para cumplir, no una exigencia literal."
+  },
+  "mp.s.2": {
+    "summary": "Los servicios y aplicaciones web se protegen frente al acceso sin autenticación, la manipulación de URL y cookies, la inyección, el escalado y el XSS, y se auditan según el nivel.",
+    "regulates": "La protección de las aplicaciones web y su auditoría. En categoría ALTA la auditoría de caja negra deja de bastar: hace falta caja blanca y resolver lo encontrado.",
+    "wazuh": "Los ataques enumerados dejan rastro en los registros del servidor web. Wazuh tiene reglas para esos patrones y permite distinguir el intento del ataque que funcionó. No sustituye a un WAF, pero ingiere sus registros.",
+    "powerEns": "Evalúa las máquinas que sirven las aplicaciones: sus registros, las reglas que detectan cada ataque, sus vulnerabilidades y las auditorías registradas con el seguimiento de sus hallazgos.",
+    "outside": "Prevenir los ataques es responsabilidad de la aplicación y del WAF. Lo que más incumplimientos produce son auditorías hechas cuyos hallazgos no se cierran."
+  },
+  "mp.s.3": {
+    "summary": "La navegación web de los usuarios se protege con filtrado, resolución de nombres segura, protección del puesto y concienciación y, en categoría ALTA, con registro de su uso.",
+    "regulates": "La protección de la navegación. R1 pide registrar el uso e inspeccionar canales cifrados, lo que tiene implicaciones de protección de datos y laborales: hay que declarar qué se analiza, qué se registra, cuánto se retiene y con qué uso.",
+    "wazuh": "Wazuh ingiere los registros del filtrado y aplica reglas sobre ellos. El agente OSCompliance aporta los servidores DNS y el antimalware de cada máquina.",
+    "powerEns": "Juzga los registros y reglas del filtrado, los resolutores autorizados, la protección del puesto, las listas de destinos y la concienciación registrada.",
+    "outside": "Las declaraciones de proporcionalidad y las exclusiones de inspección (banca, salud, asesoramiento jurídico) son de la organización y exceden el ámbito técnico."
+  },
+  "mp.s.4": {
+    "summary": "Los servicios se protegen frente a la denegación de servicio con capacidad holgada, medidas preventivas y, en nivel ALTO, detección y reacción.",
+    "regulates": "Las medidas frente a DoS y DDoS y la comunicación con el proveedor durante un ataque.",
+    "wazuh": "La mitigación no es de Wazuh: un DDoS volumétrico se absorbe en la red del proveedor. Wazuh aporta la detección temprana desde el servicio, la medición del impacto y la evidencia del ataque.",
+    "powerEns": "Evalúa las máquinas de los servicios expuestos: carga, SYN cookies, cortafuegos, servicios amplificadores, reglas y respuestas de Wazuh y registro de episodios. No mitiga: detecta y documenta.",
+    "outside": "La capacidad contratada y la mitigación en red dependen del proveedor y de la arquitectura de la organización."
+  }
+}

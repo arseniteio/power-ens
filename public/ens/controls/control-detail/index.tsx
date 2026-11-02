@@ -48,15 +48,11 @@ import { detailConfigurationChanges } from '../../../routing/configuration-link'
 import { AddControlWithDefaultsButton } from '../add-control-button';
 import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
 import { getENSCatalogControl } from '../../../../common/ens/catalog';
-import {
-  ENS_PROPOSAL_TEXT_PROVENANCE,
-  describeAnnexSection,
-  describeControlSource,
-} from '../../../../common/ens/catalog/support/provenance';
-import {
-  describeApplicableLevelLabel,
-  describeControlAxis,
-} from '../../../../common/ens/core/control-level';
+import { ENS_PROPOSAL_TEXT_PROVENANCE } from '../../../../common/ens/catalog/support/provenance';
+import { getControlRelation } from '../../../../common/ens/catalog/guide';
+import { describeApplicableLevelLabel } from '../../../../common/ens/core/control-level';
+import { ControlGuideFlyout, ControlRelationPanel, GuideCode } from './control-guide';
+import type { GuideTarget } from './control-guide';
 import { ProvenanceLabel, RequirementTextsPanel, TemplateCorrespondencePanel } from './requirement-texts';
 import { describeNotMeasuredOnAgent } from '../../../../common/ens/core/scope/measurement-planes';
 import {
@@ -111,6 +107,7 @@ export const ControlDetailENS = ({
   const [tracePageSize, setTracePageSize] = useState(10);
   const [expandedTraceIds, setExpandedTraceIds] = useState<string[]>([]);
   const [detailTab, setDetailTab] = useState('evidencias');
+  const [guideTarget, setGuideTarget] = useState<GuideTarget | undefined>();
 
   const scopeAgents = useActiveENSScopeAgents();
 
@@ -148,6 +145,7 @@ export const ControlDetailENS = ({
 
   useEffect(() => {
     setTracePageIndex(0);
+    setGuideTarget(undefined);
   }, [control.id, agentId]);
 
   const newestVerdict = data?.meta?.verdicts?.newest;
@@ -282,8 +280,7 @@ export const ControlDetailENS = ({
           parameterIsAgentLevel: isAgentLevelParameter(control.id, parameterId),
         })
       ),
-    // Own parameter: the detail's `control=` does not filter Evidencias.
-    onEvidence: () => updateUrl({ tabView: 'evidences', evidenceControl: control.id }),
+    onEvidence: evidenceId => setGuideTarget({ kind: 'evidence', id: evidenceId }),
     parameterInfo: parameterId => {
       const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, displayedAgent, parameterId);
       return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
@@ -611,7 +608,17 @@ export const ControlDetailENS = ({
       name: 'Evidencia',
       width: '100px',
       render: (value?: string) =>
-        value ? <EuiBadge color='default'>{value}</EuiBadge> : '-',
+        value ? (
+          <EuiBadge
+            color='default'
+            onClick={() => setGuideTarget({ kind: 'evidence', id: value })}
+            onClickAriaLabel={`Ver la explicación de ${value}`}
+          >
+            {value}
+          </EuiBadge>
+        ) : (
+          '-'
+        ),
     },
     {
       field: 'eventType',
@@ -688,6 +695,7 @@ export const ControlDetailENS = ({
     );
 
   const headerCatalog = getENSCatalogControl(control.id);
+  const relation = getControlRelation(control.id);
 
   const header = (
     <div className='power-ens-control-header' style={{ padding: '4px 8px 12px' }}>
@@ -711,11 +719,9 @@ export const ControlDetailENS = ({
           <EuiTitle size='l'>
             <h2>{control.title}</h2>
           </EuiTitle>
-          {headerCatalog && (
-            <EuiText size='xs' color='subdued'>
-              {[describeAnnexSection(headerCatalog), describeControlAxis(headerCatalog), describeControlSource(headerCatalog)]
-                .filter(Boolean)
-                .join(' · ')}
+          {relation && (
+            <EuiText size='s' color='subdued'>
+              {relation.summary}
             </EuiText>
           )}
           <EuiSpacer size='s' />
@@ -847,6 +853,8 @@ export const ControlDetailENS = ({
           {validityNotice}
           {unconfiguredNotice}
           {pendingMeasurementNotice}
+          <ControlRelationPanel controlId={control.id} />
+          <EuiSpacer size='m' />
           <EuiCallOut
             color='primary'
             iconType='iInCircle'
@@ -925,6 +933,10 @@ export const ControlDetailENS = ({
         {unconfiguredNotice}
         {pendingMeasurementNotice}
 
+        <ControlRelationPanel controlId={control.id} />
+
+        <EuiSpacer size='m' />
+
         <EuiText size='xs' color='subdued'>
           <p>
             {[agentName, `${describeApplicableLevelLabel(headerCatalog || {})}: ${levelsText}`, `Último hecho: ${latestEvaluationDate}`].join(' · ')}
@@ -998,7 +1010,9 @@ export const ControlDetailENS = ({
 
                         <EuiFlexItem grow={false} style={{ minWidth: 96 }}>
                           <EuiText size='xs'>
-                            <strong>{requirement.id}</strong>
+                            <strong>
+                              <GuideCode target={{ kind: 'requirement', id: requirement.id }} onOpen={setGuideTarget} />
+                            </strong>
                           </EuiText>
                         </EuiFlexItem>
 
@@ -1018,6 +1032,8 @@ export const ControlDetailENS = ({
                                   <EuiBadge
                                     color={getBadgeColor(culprit.status)}
                                     iconType={getStatusIcon(culprit.status)}
+                                    onClick={() => setGuideTarget({ kind: 'evidence', id: culprit.id })}
+                                    onClickAriaLabel={`Ver la explicación de ${culprit.id}`}
                                   >
                                     {culprit.id}
                                   </EuiBadge>
@@ -1113,7 +1129,11 @@ export const ControlDetailENS = ({
               field: 'id',
               name: 'Evidencia',
               width: '90px',
-              render: (id: string) => <strong>{id}</strong>,
+              render: (id: string) => (
+                <strong>
+                  <GuideCode target={{ kind: 'evidence', id }} onOpen={setGuideTarget} />
+                </strong>
+              ),
             },
             {
               field: 'title',
@@ -1156,7 +1176,14 @@ export const ControlDetailENS = ({
               name: 'Requisito ENS',
               width: '150px',
               render: (req: string) => (
-                <EuiText size='xs' color='subdued'>{req}</EuiText>
+                <EuiText size='xs'>
+                  {req.split(', ').filter(Boolean).map((id, index) => (
+                    <React.Fragment key={id}>
+                      {index > 0 && ', '}
+                      <GuideCode target={{ kind: 'requirement', id }} onOpen={setGuideTarget} />
+                    </React.Fragment>
+                  ))}
+                </EuiText>
               ),
             },
             {
@@ -1381,6 +1408,7 @@ export const ControlDetailENS = ({
                         controlId={control.id}
                         conocidos={knownParts}
                         handlers={handlers}
+                        onGuide={setGuideTarget}
                       />
                     </EuiFlexItem>
                   );
@@ -1470,6 +1498,21 @@ export const ControlDetailENS = ({
           <RequirementTextsPanel controlId={control.id} />
           <TemplateCorrespondencePanel controlId={control.id} />
           </>
+        )}
+
+        {guideTarget && (
+          <ControlGuideFlyout
+            controlId={control.id}
+            target={guideTarget}
+            status={
+              guideTarget.kind === 'requirement'
+                ? (complianceResult?.requirements || []).find((item: any) => item.id === guideTarget.id)?.status
+                : findEvidence(guideTarget.id)?.status
+            }
+            onOpen={setGuideTarget}
+            onClose={() => setGuideTarget(undefined)}
+            onShowFacts={() => updateUrl({ tabView: 'evidences', evidenceControl: control.id })}
+          />
         )}
       </EuiPanel>
     </EuiPage>
