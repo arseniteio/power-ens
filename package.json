@@ -1,6 +1,6 @@
 {
   "name": "powerEns",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Power ENS: cumplimiento del Esquema Nacional de Seguridad sobre los datos de Wazuh",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
