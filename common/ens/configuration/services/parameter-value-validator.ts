@@ -256,6 +256,17 @@ const validateBoolean = (
   );
 };
 
+// The dropdown option of a stored boolean, whatever its spelling; empty when unset or unrecognised, so the validator's error stays visible.
+export const resolveBooleanFieldModel = (value: ENSControlParameter['value']): '' | 'sí' | 'no' => {
+  const text = asTrimmedString(value).toLowerCase();
+
+  if (value === true || TRUE_BOOLEANS.includes(text)) {
+    return 'sí';
+  }
+
+  return value === false || FALSE_BOOLEANS.includes(text) ? 'no' : '';
+};
+
 // `path`: absolute path (POSIX, Windows drive, UNC or URI with scheme). Rejects relative paths, `~/...` and bare
 // names.
 const validatePath = (

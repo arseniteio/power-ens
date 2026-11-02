@@ -2,6 +2,7 @@ import React from 'react';
 
 import { ENSFormFieldProps } from '../types';
 import {
+  BooleanParameterRenderer,
   ListParameterRenderer,
   NumberParameterRenderer,
   PatternParameterRenderer,
@@ -28,7 +29,7 @@ const applicableLevelOf = (controlId: string) => {
   return resolveControlLevel(getENSCatalogControl(controlId) || {}, global.ensLevel, global);
 };
 
-// `boolean`, `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
+// `path` and `url` fall to the text renderer (edited as strings). `list`, `select` and `table` need
 // their own renderer.
 // A `table` without declared columns falls to the list renderer, and a `select` without options to the text
 // renderer (blocks seeded earlier); their validation degrades the same way (`validateTable`,
@@ -52,6 +53,16 @@ export const ParameterRendererFactory = ({
         value={value}
         onChange={onChange}
         onMatchModeChange={onMatchModeChange}
+      />
+    );
+  }
+
+  if (parameter.type === 'boolean') {
+    return (
+      <BooleanParameterRenderer
+        parameter={parameter}
+        value={value}
+        onChange={onChange}
       />
     );
   }

@@ -1,3 +1,4 @@
+import { resolveBooleanFieldModel } from '../../common/ens/configuration/services/parameter-value-validator';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultENSConfigurationTemplate } from '../../common/ens/configuration/data/default-configuration';
@@ -99,5 +100,13 @@ describe('a saved configuration', () => {
     const leftover = { ...configuration.controls[0], controlId: 'mp.v1.9' };
     const saved = withCatalogControls({ ...configuration, controls: [...configuration.controls, leftover] });
     assert.deepEqual(saved.controls.map(c => c.controlId), configuration.controls.map(c => c.controlId));
+  });
+});
+
+describe('boolean parameter dropdown', () => {
+  test('every stored spelling lands on its option', () => {
+    for (const value of [true, 'sí', 'si', 'SI', 'true']) assert.equal(resolveBooleanFieldModel(value as any), 'sí');
+    for (const value of [false, 'no', 'NO', 'false']) assert.equal(resolveBooleanFieldModel(value as any), 'no');
+    for (const value of [undefined, '', 'quizá']) assert.equal(resolveBooleanFieldModel(value as any), '');
   });
 });
