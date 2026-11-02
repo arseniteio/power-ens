@@ -8,6 +8,7 @@ import {
 import ensLogo from './assets/ens-logo.png';
 import { registerHomeCard } from './home-card';
 import { setServices } from './services';
+import { mountOnWazuhPages } from './wazuh-pages/mount-on-wazuh-pages';
 import type { PowerEnsSetupDeps, PowerEnsStartDeps } from './types';
 
 export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEnsStartDeps> {
@@ -33,6 +34,7 @@ export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEn
 
   public start(core: CoreStart, deps: PowerEnsStartDeps): {} {
     setServices(core, deps);
+    mountOnWazuhPages(core);
 
     return {};
   }
