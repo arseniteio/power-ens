@@ -12,6 +12,13 @@ docker run --rm -v "$PWD:/src:ro" -v "$PWD/dist:/dist" power-ens-osd-builder:2.1
 
 Result: `dist/powerEns-2.19.5.zip`, for Wazuh Dashboard 4.14.7 (OpenSearch Dashboards 2.19.5).
 
+## Install
+
+```bash
+sudo bash config/deploy-plugin.sh dist/powerEns-2.19.5.zip
+sudo bash config/create-admin-role.sh --map <dashboard_user>
+```
+
 ## Test
 
 ```bash
