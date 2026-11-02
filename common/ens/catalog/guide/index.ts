@@ -27,6 +27,7 @@ export interface ENSRequirementGuide {
   normText: string;
   interpretation?: string;
   conditions: ENSNonComplianceCondition[];
+  controlConditions: ENSNonComplianceCondition[];
   evidences: ENSLinkedItem[];
   parameters: ENSLinkedItem[];
 }
@@ -66,7 +67,8 @@ export const describeRequirementGuide = (controlId: string, requirementId: strin
     title: requirement.title,
     normText: requirement.description,
     interpretation: requirement.interpretation,
-    conditions: [...(control?.requirements[requirementId] || []), ...(control?.general || [])],
+    conditions: control?.requirements[requirementId] || [],
+    controlConditions: control?.general || [],
     evidences: (requirement.evidence_ids || []).map((id: string) => ({
       id,
       title: entry.evidences.find((evidence: any) => evidence.id === id)?.title || '',

@@ -20,7 +20,7 @@ import {
   describeRequirementGuide,
   getControlRelation,
 } from '../../../../common/ens/catalog/guide';
-import type { ENSLinkedItem } from '../../../../common/ens/catalog/guide';
+import type { ENSLinkedItem, ENSNonComplianceCondition } from '../../../../common/ens/catalog/guide';
 import { statusLabel } from '../../../../common/ens/core/status-label';
 import { statusBadgeColor } from '../../status-colors';
 
@@ -82,6 +82,22 @@ export const ControlRelationPanel = ({ controlId }: { controlId: string }) => {
   );
 };
 
+const Conditions = ({ title, conditions }: { title: string; conditions: ENSNonComplianceCondition[] }) =>
+  conditions.length > 0 ? (
+    <Section title={title}>
+      {conditions.map(condition => (
+        <div key={condition.text} style={{ marginBottom: 12 }}>
+          <p style={{ marginBottom: 4 }}>
+            <EuiBadge color='hollow'>Severidad {condition.severity.toLowerCase()}</EuiBadge> {condition.text}
+          </p>
+          <EuiText size='xs' color='subdued'>
+            {condition.detection}
+          </EuiText>
+        </div>
+      ))}
+    </Section>
+  ) : null;
+
 const LinkedItems = ({
   kind,
   items,
@@ -125,20 +141,8 @@ const RequirementBody = ({
           <p>{guide.interpretation}</p>
         </Section>
       )}
-      {guide.conditions.length > 0 && (
-        <Section title='Cuándo se considera incumplido, según el auditor'>
-          {guide.conditions.map(condition => (
-            <div key={condition.text} style={{ marginBottom: 12 }}>
-              <p style={{ marginBottom: 4 }}>
-                <EuiBadge color='hollow'>Severidad {condition.severity.toLowerCase()}</EuiBadge> {condition.text}
-              </p>
-              <EuiText size='xs' color='subdued'>
-                {condition.detection}
-              </EuiText>
-            </div>
-          ))}
-        </Section>
-      )}
+      <Conditions title='Cuándo se considera incumplido, según el auditor' conditions={guide.conditions} />
+      <Conditions title='Condiciones del control en su conjunto, según el auditor' conditions={guide.controlConditions} />
       {guide.evidences.length > 0 && (
         <Section title='Evidencias que lo demuestran'>
           <LinkedItems kind='evidence' items={guide.evidences} onOpen={onOpen} />

@@ -40,6 +40,12 @@ describe('control guide', () => {
     }
   });
 
+  test('conditions of the whole control stay apart from those of the requirement', () => {
+    const guide = describeRequirementGuide('op.acc.5', 'op.acc.5.8');
+    assert.ok(guide?.controlConditions.some(condition => /R1 \(contraseña sola\)/.test(condition.text)));
+    assert.ok(guide?.conditions.every(condition => !/R1 \(contraseña sola\)/.test(condition.text)));
+  });
+
   test('no text carries the third-party trademark', () => {
     assert.doesNotMatch(JSON.stringify(relations), THIRD_PARTY_MARK);
     assert.doesNotMatch(JSON.stringify(criteria), THIRD_PARTY_MARK);
