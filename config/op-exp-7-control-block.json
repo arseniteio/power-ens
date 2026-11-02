@@ -159,10 +159,12 @@
       "example": "Configuración de Power ENS | P-13 | Responsable de Seguridad",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: el registro que se juzga es P-13. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-02 no se da por demostrada hasta que se declara. El registro que se juzga es P-13.",
+      "evidenceIds": [
+        "EV-02"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-02 queda sin demostrar: no hay sistema que recoja lo que Wazuh detecta.",
       "columns": [
         {
           "name": "herramienta",
@@ -174,7 +176,7 @@
           "name": "ubicacion",
           "label": "Dónde se consulta",
           "type": "string",
-          "required": false
+          "required": true
         },
         {
           "name": "responsable",
@@ -296,10 +298,12 @@
       "example": "LUCIA | Subdirección General de Sistemas de Información",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: EV-08 lee la fecha de notificación del registro. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-08 no se da por demostrada hasta que se declara; la fecha de notificación se lee del registro.",
+      "evidenceIds": [
+        "EV-08"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-08 queda sin demostrar: falta el mecanismo de notificación exigido desde nivel MEDIO.",
       "columns": [
         {
           "name": "plataforma",
@@ -320,7 +324,7 @@
       "controlId": "op.exp.7",
       "name": "criterios_incidente_datos_personales",
       "label": "Sistemas con datos personales",
-      "description": "Sistemas que tratan datos personales (nombre del agente o *) y sus tratamientos.",
+      "description": "Sistemas que tratan datos personales (nombre del agente o *) y sus tratamientos. Si ninguno los trata, se declara expresamente con la fila «ninguno».",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -338,7 +342,7 @@
         "EV-07"
       ],
       "ruleIds": [],
-      "ifNotConfigured": "Ningún sistema trata datos personales: EV-07 se cumple sin incidentes que valorar.",
+      "ifNotConfigured": "EV-07 queda sin demostrar: sin esta declaración no se puede activar el régimen del RGPD.",
       "columns": [
         {
           "name": "sistema",
@@ -350,7 +354,7 @@
           "name": "tratamientos",
           "label": "Tratamientos",
           "type": "string",
-          "required": false
+          "required": true
         }
       ]
     },
@@ -455,10 +459,12 @@
       "example": "fw-perimetral | reglas | vía Active Response + RSI",
       "required": true,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: EV-09 lee las respuestas automáticas ejecutadas. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-09 no se da por demostrada hasta que se declara; lee las respuestas automáticas ejecutadas.",
+      "evidenceIds": [
+        "EV-09"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-09 queda sin demostrar: falta la capacidad de reconfiguración exigida en nivel ALTO.",
       "columns": [
         {
           "name": "elemento",

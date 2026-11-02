@@ -47,6 +47,7 @@
         "EV-04"
       ],
       "parameter_ids": [
+        "P-03",
         "P-01",
         "P-02",
         "P-12",
@@ -85,6 +86,7 @@
         "EV-08"
       ],
       "parameter_ids": [
+        "P-06",
         "P-01",
         "P-02",
         "P-13"
@@ -176,6 +178,7 @@
         "EV-09"
       ],
       "parameter_ids": [
+        "P-10",
         "P-13"
       ]
     },
@@ -550,7 +553,7 @@
           "name": "ubicacion",
           "label": "Dónde se consulta",
           "type": "string",
-          "required": false
+          "required": true
         },
         {
           "name": "responsable",
@@ -561,8 +564,11 @@
       ],
       "required": false,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: el registro que se juzga es P-13. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-02 no se da por demostrada hasta que se declara. El registro que se juzga es P-13.",
+      "evidence_ids": [
+        "EV-02"
+      ],
+      "if_not_configured": "EV-02 queda sin demostrar: no hay sistema que recoja lo que Wazuh detecta."
     },
     "P-04": {
       "class": "organisation",
@@ -685,14 +691,17 @@
       ],
       "required": true,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: EV-08 lee la fecha de notificación del registro. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-08 no se da por demostrada hasta que se declara; la fecha de notificación se lee del registro.",
+      "evidence_ids": [
+        "EV-08"
+      ],
+      "if_not_configured": "EV-08 queda sin demostrar: falta el mecanismo de notificación exigido desde nivel MEDIO."
     },
     "P-07": {
       "class": "organisation",
       "name": "criterios_incidente_datos_personales",
       "label": "Sistemas con datos personales",
-      "description": "Sistemas que tratan datos personales (nombre del agente o *) y sus tratamientos.",
+      "description": "Sistemas que tratan datos personales (nombre del agente o *) y sus tratamientos. Si ninguno los trata, se declara expresamente con la fila «ninguno».",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -714,7 +723,7 @@
           "name": "tratamientos",
           "label": "Tratamientos",
           "type": "string",
-          "required": false
+          "required": true
         }
       ],
       "required": false,
@@ -723,7 +732,7 @@
       "evidence_ids": [
         "EV-07"
       ],
-      "if_not_configured": "Ningún sistema trata datos personales: EV-07 se cumple sin incidentes que valorar."
+      "if_not_configured": "EV-07 queda sin demostrar: sin esta declaración no se puede activar el régimen del RGPD."
     },
     "P-08": {
       "class": "organisation",
@@ -839,8 +848,11 @@
       ],
       "required": true,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: EV-09 lee las respuestas automáticas ejecutadas. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-09 no se da por demostrada hasta que se declara; lee las respuestas automáticas ejecutadas.",
+      "evidence_ids": [
+        "EV-09"
+      ],
+      "if_not_configured": "EV-09 queda sin demostrar: falta la capacidad de reconfiguración exigida en nivel ALTO."
     },
     "P-11": {
       "class": "organisation",
