@@ -1,4 +1,5 @@
 // Replaces Wazuh's 'Explore agent': picks a machine of the ENS scope, or all. It only touches `agentId` in the URL, which the screens read.
+import { ENS_OUT_OF_GROUP_LABEL } from '../../common/ens/core/scope/evaluable-groups';
 import React from 'react';
 import { EuiButton, EuiCallOut, EuiFormRow, EuiSpacer, EuiSuperSelect, EuiHealth } from '@elastic/eui';
 import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
@@ -27,7 +28,7 @@ export const MachineSelector = () => {
       ? [
           {
             value: agentId as string,
-            inputDisplay: <EuiHealth color='danger'>{`${agentId} · fuera del alcance`}</EuiHealth>,
+            inputDisplay: <EuiHealth color='danger'>{`${agentId} · ${ENS_OUT_OF_GROUP_LABEL}`}</EuiHealth>,
           },
         ]
       : []),
@@ -46,7 +47,7 @@ export const MachineSelector = () => {
       {outside && (
         <>
           <EuiSpacer size="s" />
-          <EuiCallOut size="s" color="warning" iconType="alert" title={`${agentId} no está en el alcance ENS`}>
+          <EuiCallOut size="s" color="warning" iconType="alert" title={`${agentId} no está en un grupo ENS evaluable`}>
             <p>{describeAgentOutOfScope(agentId as string)}</p>
             <EuiButton size="s" onClick={() => changes({ agentId: undefined })}>
               Quitar la máquina y ver todas

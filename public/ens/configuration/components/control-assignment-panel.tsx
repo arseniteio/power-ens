@@ -12,6 +12,7 @@ import {
   EuiText,
   EuiTitle,
 } from '@elastic/eui';
+import { ENS_OUT_OF_GROUP_LABEL } from '../../../../common/ens/core/scope/evaluable-groups';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
@@ -169,7 +170,7 @@ export const ControlAssignmentPanel = ({
             <p>
               {own ? `${own} personalizado(s)` : 'Ninguno'}
               {required.length ? ` · ${required.length} obligatorio(s) sin valor` : ''}
-              {!row.inScope ? ' · fuera del alcance' : ''}
+              {!row.inScope ? ` · ${ENS_OUT_OF_GROUP_LABEL}` : ''}
             </p>
           </EuiText>
         );

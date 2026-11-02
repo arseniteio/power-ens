@@ -10,4 +10,4 @@ export const isAgentInScope = (agentId: string | undefined, scope: { id: string 
   !agentId || scope.some(agent => agent.id === normalizeAgentIdForScope(agentId));
 
 export const describeAgentOutOfScope = (agentId: string): string =>
-  `La máquina ${agentId} no está en el alcance ENS.`;
+  `La máquina ${agentId} no está en un grupo ENS evaluable.`;

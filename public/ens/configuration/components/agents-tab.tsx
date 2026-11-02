@@ -18,10 +18,12 @@ import {
   EuiSpacer,
   EuiText,
   EuiTitle,
+  EuiToolTip,
 } from '@elastic/eui';
 import type { EuiBasicTableColumn } from '@elastic/eui';
 
 import type { ENSConfigurationVersion, ENSLevel } from '../../../../common/ens/configuration/types';
+import { ENS_OUT_OF_GROUP_LABEL, describeEvaluableGroups } from '../../../../common/ens/core/scope/evaluable-groups';
 import { ENS_NO_TEMPLATE, normalizeAgentId } from '../../../../common/agent-configuration';
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { detectAgentSystem, effectiveSystemType } from '../../../../common/ens/configuration/agents/system-detection';
@@ -202,9 +204,9 @@ export const AgentsTab = ({ configuration: stored, target, getActiveLevel, onNav
     {
       field: 'agent',
       name: 'Estado',
-      width: '140px',
+      width: '210px',
       render: (agent: ENSAgentRow['agent'], row: ENSAgentRow) =>
-        row.inScope ? <EuiText size='xs'><span>{agentStatusLabel(agent.status)}</span></EuiText> : <EuiBadge color='default'>Fuera del alcance</EuiBadge>,
+        row.inScope ? <EuiText size='xs'><span>{agentStatusLabel(agent.status)}</span></EuiText> : <EuiToolTip content={describeEvaluableGroups(configuration.scope)}><EuiBadge color='default'>{ENS_OUT_OF_GROUP_LABEL}</EuiBadge></EuiToolTip>,
     },
   ];
 

@@ -16,6 +16,7 @@ import {
   EuiTitle,
 } from '@elastic/eui';
 
+import { ENS_OUT_OF_GROUP_LABEL } from '../../../../common/ens/core/scope/evaluable-groups';
 import type {
   ENSAgentParameterValue,
   ENSConfigurationVersion,
@@ -238,7 +239,7 @@ export const AgentConfigurationPage = ({
       <EuiText size='s' color='subdued'>
         <p>
           {[
-            row.inScope ? 'En el alcance' : 'Fuera del alcance',
+            row.inScope ? 'En un grupo evaluable' : ENS_OUT_OF_GROUP_LABEL,
             row.agent.os?.name ? `${row.agent.os.name}${row.agent.os.version ? ` ${row.agent.os.version}` : ''}` : '',
             `${completeness.withValue} de ${completeness.total} parámetros con valor`,
             completeness.ownValues ? `${completeness.ownValues} personalizados` : '',

@@ -1,3 +1,4 @@
+import { describeEvaluableGroups, withEvaluableGroups } from '../../common/ens/core/scope/evaluable-groups';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inventoryFromMonitoring } from '../../common/agents/agent-inventory';
@@ -55,5 +56,18 @@ describe('the system type of a machine', () => {
     assert.equal(configuration.agents['001'].detectedType, 'linux');
     assert.equal(configuration.agents['002'].typeOverride, 'windows');
     assert.equal((configuration.agents as any)['003'].detectedType, 'linux');
+  });
+});
+
+describe('evaluable groups', () => {
+  const configuration: any = { scope: { mode: 'global', agentIds: [], groupIds: [] } };
+
+  test('saving groups moves the scope to group mode and keeps them clean', () => {
+    const next = withEvaluableGroups(configuration, [' ens ', 'ens', 'dmz', '']);
+    assert.deepEqual(next.scope, { mode: 'group', agentIds: [], groupIds: ['ens', 'dmz'] });
+  });
+
+  test('the tooltip lists the groups', () => {
+    assert.match(describeEvaluableGroups({ mode: 'group', agentIds: [], groupIds: ['ens', 'dmz'] }), /ens, dmz/);
   });
 });

@@ -14,9 +14,9 @@ export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
   changeReason: 'Configuración inicial Power ENS',
   global: defaultENSGlobalConfiguration,
   scope: {
-    mode: 'global',
+    mode: 'group',
     agentIds: [],
-    groupIds: [],
+    groupIds: ['ens'],
   },
   controls: ENSConfigurationRegistry,
   // New documents are born 1.3.0: no 1.2.0 templates to convert.

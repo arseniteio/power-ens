@@ -313,7 +313,7 @@ export const createEvaluationService = ({
     const updatedAt = stored.updatedAt;
     const scope = resolveENSScopeAgents(inventory.agents, configuration.scope);
     if (query.agentId && !scope.some(agent => agent.id === query.agentId)) {
-      throw new ENSBadRequestError(`La máquina ${query.agentId} no está en el alcance ENS.`);
+      throw new ENSBadRequestError(`La máquina ${query.agentId} no está en un grupo ENS evaluable.`);
     }
     const window = resolveEvaluationWindow(configuration.global.evaluationPeriod, now);
     const verdicts = await loadVerdictsProbe(clients, userKey, window.from);
