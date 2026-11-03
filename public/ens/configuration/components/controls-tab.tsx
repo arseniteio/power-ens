@@ -226,7 +226,7 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
 
   return (
     <>
-      {target.controlId && (
+      {target.controlId && !configuration.controls.some(control => control.controlId === target.controlId) && (
         <>
           <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no está en la configuración`}>
             <p>
