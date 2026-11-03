@@ -22,7 +22,7 @@
   },
   "op.acc.4": {
     "summary": "Los accesos se conceden por denegación por defecto, mínimo privilegio y necesidad de conocer, y solo los autoriza quien tiene competencia.",
-    "regulates": "Cómo se asignan los derechos de acceso, quién los autoriza y la política de acceso remoto.",
+    "regulates": "Asignación y autorización de derechos de acceso, y política de acceso remoto.",
     "wazuh": "Da los cambios en grupos y permisos, las conexiones remotas y los accesos a recursos vigilados. SCA revisa la configuración.",
     "powerEns": "Compara privilegios reales con la matriz autorizada, detecta cambios hechos por cuentas no competentes y vigila la revisión periódica.",
     "outside": "La matriz y los criterios los define la organización. Sin ellos no hay con qué comparar."

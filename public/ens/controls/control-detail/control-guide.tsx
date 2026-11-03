@@ -193,11 +193,6 @@ const EvidenceBody = ({
 
   return (
     <>
-      {guide.question && (
-        <Section title='Pregunta de auditoría'>
-          <p>{guide.question}</p>
-        </Section>
-      )}
       <Section title='Juicio de Power ENS'>
         <p>{guide.measurement}</p>
       </Section>

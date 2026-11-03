@@ -35,7 +35,6 @@ export interface ENSRequirementGuide {
 export interface ENSEvidenceGuide {
   id: string;
   title: string;
-  question?: string;
   measurement: string;
   module?: string;
   proof?: string;
@@ -90,7 +89,6 @@ export const describeEvidenceGuide = (controlId: string, evidenceId: string): EN
   return {
     id: evidence.id,
     title: evidence.title,
-    question: evidence.audit_question,
     measurement: evidence.description,
     module: auditor?.module,
     proof: auditor?.proof,
