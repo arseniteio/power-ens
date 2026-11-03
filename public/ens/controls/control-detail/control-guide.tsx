@@ -51,10 +51,10 @@ export const ControlRelationPanel = ({ controlId }: { controlId: string }) => {
   }
 
   const rows = [
-    { title: 'Qué regula', text: relation.regulates },
-    { title: 'Qué aporta Wazuh', text: relation.wazuh },
-    { title: 'Qué mide Power ENS', text: relation.powerEns },
-    ...(relation.outside ? [{ title: 'Importante', text: relation.outside }] : []),
+    { title: 'Objeto', text: relation.regulates },
+    { title: 'Wazuh', text: relation.wazuh },
+    { title: 'Power ENS', text: relation.powerEns },
+    ...(relation.outside ? [{ title: 'Límites', text: relation.outside }] : []),
   ];
 
   return (
@@ -63,7 +63,7 @@ export const ControlRelationPanel = ({ controlId }: { controlId: string }) => {
         id={`control-relation-${controlId}`}
         initialIsOpen
         paddingSize='s'
-        buttonContent={<strong>{`Cómo se relaciona ${controlId} con Wazuh`}</strong>}
+        buttonContent={<strong>{`Relación de ${controlId} con Wazuh`}</strong>}
       >
         {rows.map(row => (
           <EuiFlexGroup key={row.title} gutterSize='m' responsive={false} wrap style={{ padding: '4px 0' }}>
@@ -143,23 +143,23 @@ const RequirementBody = ({
 
   return (
     <>
-      <Section title='Qué exige la norma'>
+      <Section title='Norma'>
         <p>{guide.normText}</p>
       </Section>
       {guide.interpretation && (
-        <Section title='Cómo lo aplica Power ENS'>
+        <Section title='Criterio de Power ENS'>
           <p>{guide.interpretation}</p>
         </Section>
       )}
-      <Conditions title='Se incumple si' conditions={guide.conditions} onOpen={onOpen} />
-      <Conditions title='Se incumple el control si' conditions={guide.controlConditions} onOpen={onOpen} />
+      <Conditions title='Incumplimientos' conditions={guide.conditions} onOpen={onOpen} />
+      <Conditions title='Incumplimientos del control' conditions={guide.controlConditions} onOpen={onOpen} />
       {guide.evidences.length > 0 && (
-        <Section title='Evidencias que lo demuestran'>
+        <Section title='Evidencias'>
           <LinkedItems kind='evidence' items={guide.evidences} onOpen={onOpen} />
         </Section>
       )}
       {guide.parameters.length > 0 && (
-        <Section title='Parámetros que utiliza'>
+        <Section title='Parámetros'>
           <ul>
             {guide.parameters.map(parameter => (
               <li key={parameter.id}>
@@ -194,34 +194,34 @@ const EvidenceBody = ({
   return (
     <>
       {guide.question && (
-        <Section title='Qué responde'>
+        <Section title='Pregunta de auditoría'>
           <p>{guide.question}</p>
         </Section>
       )}
-      <Section title='Qué juzga Power ENS'>
+      <Section title='Juicio de Power ENS'>
         <p>{guide.measurement}</p>
       </Section>
       {guide.proof ? (
-        <Section title='Qué pide el auditor'>
+        <Section title='Criterio del auditor'>
           <p>{guide.proof}</p>
         </Section>
       ) : (
-        <Section title='Qué pide el auditor'>
+        <Section title='Criterio del auditor'>
           <p>Evidencia propia de Power ENS. No está en la plantilla del auditor.</p>
         </Section>
       )}
       {guide.setup && (
-        <Section title={`Cómo se obtiene${guide.module ? ` (${guide.module})` : ''}`}>
+        <Section title={`Obtención${guide.module ? ` (${guide.module})` : ''}`}>
           <p>{guide.setup}</p>
         </Section>
       )}
       {guide.requirements.length > 0 && (
-        <Section title='Requisitos que cubre'>
+        <Section title='Requisitos'>
           <LinkedItems kind='requirement' items={guide.requirements} onOpen={onOpen} />
         </Section>
       )}
       <EuiText size='xs' color='subdued'>
-        Lo del auditor es una propuesta sin valor normativo. Se evalúa lo indicado en «Qué juzga Power ENS».
+        Lo del auditor es una propuesta sin valor normativo. Se evalúa lo indicado en «Juicio de Power ENS».
       </EuiText>
     </>
   );
