@@ -392,7 +392,7 @@
     {
       "id": "EV-01",
       "title": "Registro de accesos con éxito y fallidos",
-      "description": "Ingesta y conservación de todos los eventos de autenticación de los servicios de P-02, tanto exitosos como fallidos. Es la evidencia central del Refuerzo R5, obligatorio en MEDIO y ALTO, y la base sobre la que se construyen el resto de detecciones del control.",
+      "description": "Ingesta y conservación de todos los eventos de autenticación de los servicios de P-02, tanto exitosos como fallidos.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -424,7 +424,7 @@
     {
       "id": "EV-03",
       "title": "Ataques de fuerza bruta y credential stuffing contra el servicio externo",
-      "description": "Fallos de autenticación agregados por origen: cuántos intentos y contra cuántas cuentas llegan desde una misma dirección. Un origen por encima de P-03 es un ataque que el mecanismo de bloqueo no ha contenido. Es el riesgo que op.acc.5.8 pretende mitigar.",
+      "description": "Fallos de autenticación agregados por origen: cuántos intentos y contra cuántas cuentas llegan desde una misma dirección. Un origen por encima de P-03 es un ataque que el mecanismo de bloqueo no ha contenido.",
       "levels": [
         "BAJO",
         "MEDIO",

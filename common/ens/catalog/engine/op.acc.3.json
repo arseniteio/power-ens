@@ -207,7 +207,7 @@
     {
       "id": "EV-06",
       "title": "Inventario de acciones por cuenta y función",
-      "description": "Registro agregado de qué acciones ha ejecutado cada cuenta en el período, clasificadas por función según P-03. Es la evidencia documental de soporte para acreditar la segregación ante un auditor, incluso cuando no hay alertas.",
+      "description": "Registro agregado de qué acciones ha ejecutado cada cuenta en el período, clasificadas por función según P-03.",
       "levels": [
         "MEDIO",
         "ALTO"

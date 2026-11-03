@@ -13,7 +13,7 @@ export interface ENSControlRelation {
 export interface ENSNonComplianceCondition {
   text: string;
   severity: string;
-  detection: string;
+  evidences: string[];
 }
 
 export interface ENSLinkedItem {

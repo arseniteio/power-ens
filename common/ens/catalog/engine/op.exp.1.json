@@ -210,7 +210,7 @@
     {
       "id": "EV-07",
       "title": "Cobertura del inventario frente a activos declarados",
-      "description": "La máquina tiene que figurar en P-01 por su nombre de agente, con responsable y con una naturaleza de la taxonomía de P-03. Es la parte organizativa de op.exp.1.1 que Wazuh no puede ver.",
+      "description": "La máquina tiene que figurar en P-01 por su nombre de agente, con responsable y con una naturaleza de la taxonomía de P-03.",
       "levels": [
         "BAJO",
         "MEDIO",

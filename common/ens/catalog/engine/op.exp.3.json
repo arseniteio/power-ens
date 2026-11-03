@@ -391,7 +391,7 @@
     {
       "id": "EV-10",
       "title": "Regresiones del estado de seguridad de la configuración",
-      "description": "Comprobaciones SCA que han pasado de superadas a fallidas en los últimos P-12 días. Es el indicador más directo de que la gestión de la configuración falla.",
+      "description": "Comprobaciones SCA que han pasado de superadas a fallidas en los últimos P-12 días.",
       "levels": [
         "BAJO",
         "MEDIO",

@@ -216,7 +216,7 @@
     {
       "id": "EV-01",
       "title": "Detección de eventos de seguridad e incidentes",
-      "description": "Horas del periodo con alertas de la máquina desde el nivel mínimo de P-01, por severidad. Es la detección que alimenta la gestión de incidentes.",
+      "description": "Horas del periodo con alertas de la máquina desde el nivel mínimo de P-01, por severidad.",
       "levels": [
         "BAJO",
         "MEDIO",

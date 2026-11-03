@@ -51,10 +51,10 @@ export const ControlRelationPanel = ({ controlId }: { controlId: string }) => {
   }
 
   const rows = [
-    { title: 'Qué regula el control', text: relation.regulates },
+    { title: 'Qué regula', text: relation.regulates },
     { title: 'Qué aporta Wazuh', text: relation.wazuh },
     { title: 'Qué mide Power ENS', text: relation.powerEns },
-    ...(relation.outside ? [{ title: 'A tener en cuenta', text: relation.outside }] : []),
+    ...(relation.outside ? [{ title: 'Importante', text: relation.outside }] : []),
   ];
 
   return (
@@ -82,17 +82,27 @@ export const ControlRelationPanel = ({ controlId }: { controlId: string }) => {
   );
 };
 
-const Conditions = ({ title, conditions }: { title: string; conditions: ENSNonComplianceCondition[] }) =>
+const Conditions = ({
+  title,
+  conditions,
+  onOpen,
+}: {
+  title: string;
+  conditions: ENSNonComplianceCondition[];
+  onOpen: (target: GuideTarget) => void;
+}) =>
   conditions.length > 0 ? (
     <Section title={title}>
       {conditions.map(condition => (
         <div key={condition.text} style={{ marginBottom: 12 }}>
           <p style={{ marginBottom: 4 }}>
-            <EuiBadge color='hollow'>Severidad {condition.severity.toLowerCase()}</EuiBadge> {condition.text}
+            <EuiBadge color='hollow'>Severidad {condition.severity.toLowerCase()}</EuiBadge> {condition.text}{' '}
+            {condition.evidences.map(id => (
+              <React.Fragment key={id}>
+                <GuideCode target={{ kind: 'evidence', id }} onOpen={onOpen} />{' '}
+              </React.Fragment>
+            ))}
           </p>
-          <EuiText size='xs' color='subdued'>
-            {condition.detection}
-          </EuiText>
         </div>
       ))}
     </Section>
@@ -137,12 +147,12 @@ const RequirementBody = ({
         <p>{guide.normText}</p>
       </Section>
       {guide.interpretation && (
-        <Section title='Cómo lo lee Power ENS'>
+        <Section title='Cómo lo aplica Power ENS'>
           <p>{guide.interpretation}</p>
         </Section>
       )}
-      <Conditions title='Cuándo se considera incumplido, según el auditor' conditions={guide.conditions} />
-      <Conditions title='Condiciones del control en su conjunto, según el auditor' conditions={guide.controlConditions} />
+      <Conditions title='Se incumple si' conditions={guide.conditions} onOpen={onOpen} />
+      <Conditions title='Se incumple el control si' conditions={guide.controlConditions} onOpen={onOpen} />
       {guide.evidences.length > 0 && (
         <Section title='Evidencias que lo demuestran'>
           <LinkedItems kind='evidence' items={guide.evidences} onOpen={onOpen} />
@@ -160,7 +170,7 @@ const RequirementBody = ({
         </Section>
       )}
       <EuiText size='xs' color='subdued'>
-        El texto de la norma es literal del RD 311/2022. Las condiciones de incumplimiento son criterio del auditor, sin valor normativo.
+        Norma: literal del RD 311/2022. Incumplimientos: criterio del auditor, sin valor normativo.
       </EuiText>
     </>
   );
@@ -188,7 +198,7 @@ const EvidenceBody = ({
           <p>{guide.question}</p>
         </Section>
       )}
-      <Section title='Cómo la juzga Power ENS'>
+      <Section title='Qué juzga Power ENS'>
         <p>{guide.measurement}</p>
       </Section>
       {guide.proof ? (
@@ -197,11 +207,11 @@ const EvidenceBody = ({
         </Section>
       ) : (
         <Section title='Qué pide el auditor'>
-          <p>Esta evidencia es propia de Power ENS: no tiene equivalente en la plantilla del auditor.</p>
+          <p>Evidencia propia de Power ENS. No está en la plantilla del auditor.</p>
         </Section>
       )}
       {guide.setup && (
-        <Section title={`Cómo se obtiene, según el auditor${guide.module ? ` (${guide.module})` : ''}`}>
+        <Section title={`Cómo se obtiene${guide.module ? ` (${guide.module})` : ''}`}>
           <p>{guide.setup}</p>
         </Section>
       )}
@@ -211,7 +221,7 @@ const EvidenceBody = ({
         </Section>
       )}
       <EuiText size='xs' color='subdued'>
-        Lo que indica el auditor es una propuesta técnica, sin valor normativo. Lo que se evalúa hoy es lo que describe «Cómo la juzga Power ENS».
+        Lo del auditor es una propuesta sin valor normativo. Se evalúa lo indicado en «Qué juzga Power ENS».
       </EuiText>
     </>
   );

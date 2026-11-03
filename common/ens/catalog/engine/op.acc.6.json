@@ -406,7 +406,7 @@
     {
       "id": "EV-01",
       "title": "Registro de accesos con éxito y fallidos",
-      "description": "Barrido de las fuentes de autenticación declaradas en P-03 buscando huecos de registro: una fuente que no existe, que nunca ha registrado nada o cuya configuración no registra los accesos con éxito o los fallidos (LogLevel de sshd, olcLogLevel de slapd, journald sin almacenamiento). Los propios accesos (110101, 110102) son el registro que se acredita. Es la evidencia central del Refuerzo R5, obligatorio desde MEDIO.",
+      "description": "Barrido de las fuentes de autenticación declaradas en P-03 buscando huecos de registro: una fuente que no existe, que nunca ha registrado nada o cuya configuración no registra los accesos con éxito o los fallidos (LogLevel de sshd, olcLogLevel de slapd, journald sin almacenamiento). Los propios accesos (110101, 110102) son el registro que se acredita.",
       "levels": [
         "MEDIO",
         "ALTO"
@@ -421,7 +421,7 @@
     {
       "id": "EV-02",
       "title": "Verificación del doble factor en accesos desde zona no controlada",
-      "description": "Cada acceso con éxito con su origen y los factores que el servidor verificó, y cada canal de autenticación en escucha con las direcciones en que escucha y el mínimo de factores que exige. El motor clasifica origen y direcciones contra las zonas controladas de P-02. Es la evidencia del Refuerzo R8, obligatorio desde nivel BAJO, y la de R1 (contraseña solo desde zona controlada) y R2 (segundo factor).",
+      "description": "Cada acceso con éxito con su origen y los factores que el servidor verificó, y cada canal de autenticación en escucha con las direcciones en que escucha y el mínimo de factores que exige. El motor clasifica origen y direcciones contra las zonas controladas de P-02.",
       "levels": [
         "BAJO",
         "MEDIO",

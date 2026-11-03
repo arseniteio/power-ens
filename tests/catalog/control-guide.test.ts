@@ -42,8 +42,20 @@ describe('control guide', () => {
 
   test('conditions of the whole control stay apart from those of the requirement', () => {
     const guide = describeRequirementGuide('op.acc.5', 'op.acc.5.8');
-    assert.ok(guide?.controlConditions.some(condition => /R1 \(contraseña sola\)/.test(condition.text)));
-    assert.ok(guide?.conditions.every(condition => !/R1 \(contraseña sola\)/.test(condition.text)));
+    assert.ok(guide?.controlConditions.some(condition => /solo contraseña/.test(condition.text)));
+    assert.ok(guide?.conditions.every(condition => !/solo contraseña/.test(condition.text)));
+  });
+
+  test('conditions only link evidences of their control', () => {
+    for (const control of ENSCatalog) {
+      const ids = engineCatalogEntry(control.id).evidences.map((evidence: any) => evidence.id);
+      for (const requirement of control.requirements) {
+        const guide = describeRequirementGuide(control.id, requirement.id);
+        [...(guide?.conditions || []), ...(guide?.controlConditions || [])].forEach(condition =>
+          condition.evidences.forEach(id => assert.ok(ids.includes(id), `${requirement.id} ${id}`))
+        );
+      }
+    }
   });
 
   test('no text carries the third-party trademark', () => {
