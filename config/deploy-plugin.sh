@@ -17,6 +17,8 @@ fi
 case "$1" in -*) usage ;; esac
 [ -f "$1" ] || { echo "the zip does not exist: $1" >&2; usage; }
 
+command -v unzip >/dev/null || { echo "unzip is not installed: install it and run this again." >&2; exit 2; }
+
 ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 OSD="${OSD:-/usr/share/wazuh-dashboard}"
 
