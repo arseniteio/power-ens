@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { EuiComboBox, EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
@@ -7,19 +7,26 @@ import {
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import {
+  hasParameterSeparator,
   parseParameterInput,
   splitsParameterOnSpaces,
 } from '../../../../../common/ens/configuration/services/parameter-input';
-
-
 
 export const ListParameterRenderer = ({
   parameter,
   value,
   onChange,
 }: ENSFormFieldProps) => {
-  const [search, setSearch] = useState('');
+  const comboBox = useRef<EuiComboBox<string>>(null);
+  const [searchClears, setSearchClears] = useState(0);
   const items = toParameterListItems(value);
+
+  // EUI 1.19 owns the search text and overwrites a clear made during onSearchChange, so it waits for the commit.
+  useLayoutEffect(() => {
+    if (searchClears) comboBox.current?.clearSearchValue();
+  }, [searchClears]);
+
+  const clearSearch = () => setSearchClears(count => count + 1);
 
   const verdict = validateParameterValue(parameter, value);
 
@@ -55,36 +62,24 @@ export const ListParameterRenderer = ({
             event.preventDefault();
             event.stopPropagation();
             publish([...items, ...pasted]);
-            setSearch('');
+            clearSearch();
           }
         }}
       >
         <EuiComboBox
           fullWidth
           noSuggestions
-          searchValue={search}
-          onBlur={() => {
-            const pending = parseParameterInput(parameter, search);
-            if (pending.length) publish([...items, ...pending]);
-            setSearch('');
-          }}
+          ref={comboBox}
           onSearchChange={text => {
-            const separator = splitsParameterOnSpaces(parameter) ? /[\s,;]/g : /[\n,;]/g;
-            let last = -1;
-            let match: RegExpExecArray | null;
-            while ((match = separator.exec(text)) !== null) last = match.index;
-            if (last >= 0) {
-              publish([...items, ...parseParameterInput(parameter, text.slice(0, last))]);
-              setSearch(text.slice(last + 1));
-            } else {
-              setSearch(text);
-            }
+            if (!hasParameterSeparator(parameter, text)) return;
+            publish([...items, ...parseParameterInput(parameter, text)]);
+            clearSearch();
           }}
           isInvalid={!verdict.valid}
           placeholder={parameter.example}
           selectedOptions={items.map(label => ({ label }))}
-          onCreateOption={searchValue => {
-            const additions = parseParameterInput(parameter, String(searchValue));
+          onCreateOption={text => {
+            const additions = parseParameterInput(parameter, String(text));
             if (!additions.length) {
               return;
             }
