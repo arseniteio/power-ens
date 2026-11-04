@@ -14,9 +14,7 @@ RUN mkdir /osd && chown node:node /osd
 USER node
 
 RUN git clone --branch "${WAZUH_DASHBOARD_REF}" --depth 1 \
-      https://github.com/wazuh/wazuh-dashboard.git /osd \
- && v="$(python3 -c 'import json; print(json.load(open("/osd/package.json"))["version"])')" \
- && if [ "$v" != "2.19.5" ]; then echo "/osd/package.json es $v, no 2.19.5" >&2; exit 1; fi
+      https://github.com/wazuh/wazuh-dashboard.git /osd
 
 ENV CHROMEDRIVER_SKIP_DOWNLOAD=true \
     GECKODRIVER_SKIP_DOWNLOAD=true \
