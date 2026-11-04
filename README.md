@@ -1,26 +1,32 @@
 # Power ENS
 
-Wazuh dashboard plugin for the Spanish National Security Framework (ENS, RD 311/2022). It holds the policy parameters of each control and shows compliance per control and machine. It judges nothing: every result is a verdict of the OSCompliance engine, read from `oscompliance-verdicts`.
+[Versión en español](README.es.md)
 
-## Build
+Power ENS is the Wazuh dashboard plugin of OSCompliance ENS, for the Spanish National Security Framework (ENS, Real Decreto 311/2022). It holds the policy parameters of each control and shows compliance per control and machine.
+
+It judges nothing. Every result is a verdict of the OSCompliance engine, read from the `oscompliance-verdicts` index, so the plugin needs [oscompliance-ens](https://github.com/arseniteio/oscompliance-ens) to show results.
+
+It runs on Wazuh 4.14.7, 4.14.8 and 4.14.9. The screens are in Spanish.
+
+## Documentation
+
+- [Installation](docs/en/install.md): build the zip, install it, grant access, upgrade and remove it.
+- [Usage](docs/en/usage.md): what each screen shows and how to configure a control.
+
+## Build and test
+
+Build the zip for the OpenSearch Dashboards version of your Wazuh: 2.19.5 for 4.14.7, 2.19.6 for 4.14.8 and 4.14.9.
 
 ```bash
-docker build -f ci/osd-builder.Dockerfile -t power-ens-osd-builder:2.19.5 ci/
-docker run --rm -v "$PWD:/src:ro" -v "$PWD/dist:/dist" power-ens-osd-builder:2.19.5 \
-  bash -c 'bash /src/config/build-plugin.sh /osd && cp /osd/plugins/powerEns/build/powerEns-2.19.5.zip /dist/'
+ci/build-zip.sh 2.19.6
 ```
 
-Result: `dist/powerEns-2.19.5.zip`, for Wazuh Dashboard 4.14.7 (OpenSearch Dashboards 2.19.5).
-
-## Install
-
-```bash
-sudo bash config/deploy-plugin.sh dist/powerEns-2.19.5.zip
-sudo bash config/create-admin-role.sh --map <dashboard_user>
-```
-
-## Test
+Run the tests.
 
 ```bash
 ci/run-tests.sh
 ```
+
+## License
+
+See [LICENSE](LICENSE).
