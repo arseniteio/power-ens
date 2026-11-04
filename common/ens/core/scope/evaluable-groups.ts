@@ -4,8 +4,8 @@ export const ENS_OUT_OF_GROUP_LABEL = 'Fuera de grupo ENS (No Evaluable)';
 
 export const describeEvaluableGroups = (scope: ENSConfigurationScope): string =>
   scope.groupIds.length
-    ? `Grupos evaluables: ${scope.groupIds.join(', ')}. Se cambian en Configuración, pestaña General.`
-    : 'No hay grupos evaluables definidos. Se definen en Configuración, pestaña General.';
+    ? `Grupos evaluables: ${scope.groupIds.join(', ')}. Se cambian en Configuración, pestaña Organización.`
+    : 'No hay grupos evaluables definidos. Se definen en Configuración, pestaña Organización.';
 
 export const withEvaluableGroups = (configuration: ENSConfigurationVersion, groups: string[]): ENSConfigurationVersion => ({
   ...configuration,
