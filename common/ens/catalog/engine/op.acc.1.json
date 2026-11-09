@@ -667,8 +667,8 @@
     "P-12": {
       "class": "organisation",
       "name": "sufijo_admin",
-      "label": "Sufijo del identificador administrativo",
-      "description": "Sufijo que distingue la cuenta administrativa de la ordinaria de la misma persona, como jgomez y jgomez.adm.",
+      "label": "Prefijo o sufijo del identificador administrativo",
+      "description": "Texto que distingue la cuenta administrativa de la ordinaria de la misma persona, como jgomez.adm o adm_jgomez. Una fila por convención; se aplican todas. Sin posición, el texto es un sufijo.",
       "levels": [
         "BAJO",
         "MEDIO",
@@ -677,10 +677,28 @@
       "requirements": [
         "op.acc.1.2"
       ],
-      "type": "string",
-      "example": ".adm",
+      "type": "table",
+      "example": "adm_ | prefijo",
+      "columns": [
+        {
+          "name": "texto",
+          "label": "Texto",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "posicion",
+          "label": "Posición",
+          "type": "select",
+          "options": [
+            "sufijo",
+            "prefijo"
+          ],
+          "required": false
+        }
+      ],
       "required": false,
-      "agent_usage": "Excluye del hallazgo de acumulación de roles a las cuentas administrativas diferenciadas por este sufijo.",
+      "agent_usage": "Excluye del hallazgo de acumulación de roles a las cuentas administrativas diferenciadas por estas convenciones.",
       "engine_usage": "Permite acreditar el requisito op.acc.1.2 cuando la organización separa la identidad administrativa de la ordinaria y limita el hallazgo a quien no la separa.",
       "evidence_ids": [
         "EV-06"

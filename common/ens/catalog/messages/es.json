@@ -216,6 +216,8 @@
   "mpsw2.undeclared_ports": "puertos abiertos fuera de loopback sin declarar en P-05: {list}",
   "mpsw2.vulnerable": "vulnerabilidades críticas o altas en los paquetes de las aplicaciones: {list}",
   "opacc1.account_days": "{account} ({days} días)",
+  "opacc1.admin_affix_empty": "fila sin texto: «{value}»",
+  "opacc1.admin_affix_position": "posición «{value}» desconocida, se esperaba sufijo o prefijo",
   "opacc1.ev01.shared_uids": "UID compartidos por más de una cuenta: {uids}",
   "opacc1.ev01.unique": "{accounts} cuentas, {people} con UID >= {uid_min} (P-10), todos los UID únicos",
   "opacc1.ev02.baseline": "referencia: primera pasada completa, {accounts} cuentas",
