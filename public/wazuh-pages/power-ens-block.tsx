@@ -1,27 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { EuiFlexGroup, EuiFlexItem, EuiLink, EuiPanel, EuiSpacer, EuiStat, EuiText } from '@elastic/eui';
 
 import { POWER_ENS_APP_TITLE, POWER_ENS_PLUGIN_ID } from '../../common/constants';
 import { ENS_OUT_OF_GROUP_LABEL } from '../../common/ens/core/scope/evaluable-groups';
-import { fetchEvaluation } from '../evaluation/evaluation-client';
 import { getCore } from '../services';
+import { useControlSummary, type ControlSummary } from './use-control-summary';
 import { powerEnsPathOf, type WazuhPage } from './wazuh-page';
 
-interface Summary {
-  scoreAverage: number;
-  measured: number;
-  nonCompliant: number;
-  partial: number;
-}
-
-type BlockState = { kind: 'loading' } | { kind: 'ready'; summary: Summary } | { kind: 'outOfGroup' } | { kind: 'unavailable' };
-
-const OUT_OF_GROUP = 'grupo ENS evaluable';
-
-const stateOfError = (error: unknown): BlockState =>
-  error instanceof Error && error.message.includes(OUT_OF_GROUP) ? { kind: 'outOfGroup' } : { kind: 'unavailable' };
-
-const Figures = ({ summary }: { summary: Summary }) =>
+const Figures = ({ summary }: { summary: ControlSummary }) =>
   summary.measured === 0 ? (
     <EuiText size='s' color='subdued'>Ningún control aplica todavía.</EuiText>
   ) : (
@@ -39,19 +25,7 @@ const Figures = ({ summary }: { summary: Summary }) =>
   );
 
 export const PowerEnsBlock = ({ page }: { page: WazuhPage }) => {
-  const agentId = page.kind === 'agent' ? page.agentId : undefined;
-  const [state, setState] = useState<BlockState>({ kind: 'loading' });
-
-  useEffect(() => {
-    let alive = true;
-    setState({ kind: 'loading' });
-    fetchEvaluation<{ controlSummary: Summary }>({ include: 'summary', agentId })
-      .then(data => alive && setState({ kind: 'ready', summary: data.controlSummary }))
-      .catch(error => alive && setState(stateOfError(error)));
-    return () => {
-      alive = false;
-    };
-  }, [agentId]);
+  const state = useControlSummary(page.kind === 'agent' ? page.agentId : undefined);
 
   const open = () => getCore().application.navigateToApp(POWER_ENS_PLUGIN_ID, { path: powerEnsPathOf(page) });
 
