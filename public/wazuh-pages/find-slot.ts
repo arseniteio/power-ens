@@ -13,3 +13,9 @@ const homeSlot = (root: ParentNode): Element | null | undefined =>
 
 export const findSlot = (page: WazuhPage, root: ParentNode): Element | undefined =>
   (page.kind === 'agent' ? agentComplianceSlot(root) : homeSlot(root)) || undefined;
+
+export const findSecurityOperationsGrid = (root: ParentNode): Element | undefined =>
+  findByText(root, '.euiBetaBadge', 'Security operations')?.closest('.euiCard')?.querySelector('.euiFlexGrid') || undefined;
+
+export const findComplianceSelect = (root: ParentNode): HTMLSelectElement | undefined =>
+  agentComplianceSlot(root)?.querySelector('select') || undefined;
