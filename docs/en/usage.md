@@ -12,6 +12,8 @@ Plantillas holds the values of each control. Open a control and press Completar 
 
 Agentes holds what belongs to one machine. Open the machine and the control, and edit a parameter with the pencil.
 
+After the first save, Plantillas and Agentes can also be filled in from a JSON file with `config/set-parameters.py`, which validates every value and shows the plan before writing. See [parameters from a file](https://github.com/arseniteio/oscompliance-ens/blob/main/docs/en/configuration.md#parameters-from-a-file).
+
 A parameter nobody has set is never replaced by an assumption: the evidences that need it show as not evaluable, and the reason names the parameter. What each parameter means is on the [control pages](https://github.com/arseniteio/oscompliance-ens/tree/main/docs/en/controls).
 
 With Grupos por control on, the engine creates one Wazuh group per control, `ens-excluir-<control>`. A machine added to one of those groups is left out of that control.

@@ -12,6 +12,8 @@ Plantillas guarda los valores de cada control. Abre un control y pulsa Completar
 
 Agentes guarda lo que corresponde a una máquina. Abre la máquina y el control, y edita el parámetro con el lápiz.
 
+Después del primer guardado, Plantillas y Agentes también se pueden rellenar desde un fichero JSON con `config/set-parameters.py`, que valida cada valor y muestra el plan antes de escribir. Consulta [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
+
 Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens/tree/main/docs/es/controls).
 
 Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `ens-excluir-<control>`. Una máquina añadida a uno de esos grupos queda fuera de ese control.
