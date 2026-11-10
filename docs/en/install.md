@@ -5,8 +5,8 @@ This page covers the plugin only. The full installation, with the rules, the eng
 ## Requirements
 
 - Wazuh 4.14.7, 4.14.8 or 4.14.9.
-- Docker on the machine that builds the zip. It can be any machine.
-- `unzip` on the dashboard server, for an installation from packages.
+- Docker on the machine that builds the zip, with access to GitHub and Docker Hub. It can be any machine.
+- `unzip` on the dashboard server, for an installation from packages, and `curl` and `python3` on the indexer host to grant access.
 
 ## Build the zip
 
@@ -35,10 +35,11 @@ bash deploy-plugin.sh powerEns-2.19.6.zip
 The plugin goes into its own image, because anything installed in a running container is lost when the container is recreated. Copy the zip and `ci/dashboard.Dockerfile` to the Docker host, and set your Wazuh version.
 
 ```bash
-docker build -f dashboard.Dockerfile --build-arg WAZUH_VERSION=4.14.8 --build-arg PLUGIN_ZIP=powerEns-2.19.6.zip -t power-ens/wazuh-dashboard:1.8.0 .
+docker build -f dashboard.Dockerfile --build-arg WAZUH_VERSION=4.14.8 \
+  --build-arg PLUGIN_ZIP=powerEns-2.19.6.zip -t power-ens/wazuh-dashboard:local .
 ```
 
-Set that image in the `wazuh.dashboard` service of your `docker-compose.yml`, and recreate the service.
+The image is set in `docker-compose.override.yml`, next to your `docker-compose.yml`, which stays untouched. The full installation copies that file from the oscompliance-ens package. With the file in place, recreate the service from the compose folder.
 
 ```bash
 docker compose up -d wazuh.dashboard
@@ -52,11 +53,11 @@ Everyone with access to the dashboard can see Power ENS. Changing the configurat
 bash config/create-admin-role.sh --map <dashboard_user>
 ```
 
-It reads the indexer's admin certificates from `/etc/wazuh-indexer/certs`. Use `OS_CERT`, `OS_KEY`, `OS_CA` and `OS_URL` for other locations, and `--dry-run` to see what it would do.
+It reads the indexer's admin certificates from `/etc/wazuh-indexer/certs`. Use `OS_CERT`, `OS_KEY`, `OS_CA` and `OS_URL` for other locations, `OS_RESOLVE` when the indexer certificate carries another name (on Docker, `wazuh.indexer:9200:127.0.0.1`), and `--dry-run` to see what it would do. It adds the user and keeps the ones that already have the role.
 
 ## Upgrade
 
-Build the zip from the commit you want and install it the same way. The script replaces the previous version and keeps its copy. On Docker, build the image with a new tag and set it in the compose file. If a browser shows a blank page afterwards, close the tab and log in again.
+Build the zip from the commit you want and install it the same way. The script replaces the previous version and keeps its copy. On Docker, keep the current image with `docker tag power-ens/wazuh-dashboard:local power-ens/wazuh-dashboard:previous`, build the new one with the `local` tag and recreate the service. If a browser shows a blank page afterwards, close the tab and log in again.
 
 ## Remove
 
@@ -67,6 +68,6 @@ sudo -u wazuh-dashboard /usr/share/wazuh-dashboard/bin/opensearch-dashboards-plu
 systemctl restart wazuh-dashboard
 ```
 
-On Docker, set the official image again in the compose file and run `docker compose up -d wazuh.dashboard`.
+On Docker, remove the `wazuh.dashboard` service from `docker-compose.override.yml` and run `docker compose up -d wazuh.dashboard`.
 
 The configuration stays in the `wazuh-ens-configuration` index, so a later installation finds it.
