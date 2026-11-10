@@ -10,6 +10,7 @@ interface Placement {
   name: string;
   hostClass?: string;
   hostMarginTop?: string;
+  placeFirst?: boolean;
   slotOf(page: WazuhPage, root: ParentNode): Element | undefined;
   load(page: WazuhPage): Promise<React.ReactElement>;
 }
@@ -24,6 +25,7 @@ const SUMMARY_BLOCK: Placement = {
 const SECURITY_OPERATIONS_CARD: Placement = {
   name: 'security-operations-card',
   hostClass: 'euiFlexItem',
+  placeFirst: true,
   slotOf: (page, root) => (page.kind === 'home' ? findSecurityOperationsGrid(root) : undefined),
   load: () => import('./security-operations-card').then(({ SecurityOperationsCard }) => <SecurityOperationsCard />),
 };
@@ -67,7 +69,7 @@ const createPlacementSync = (core: CoreStart, placement: Placement) => {
     const target = createHost();
     host = target;
     hostPage = page;
-    slot.appendChild(target);
+    slot.insertBefore(target, placement.placeFirst ? slot.firstChild : null);
     placement.load(page).then(element => {
       if (target !== host) return;
       ReactDOM.render(<core.i18n.Context>{element}</core.i18n.Context>, target);
