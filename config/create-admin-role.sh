@@ -12,6 +12,7 @@ OS_KEY="${OS_KEY:-/etc/wazuh-indexer/certs/admin-key.pem}"
 OS_CA="${OS_CA:-/etc/wazuh-indexer/certs/root-ca.pem}"
 OS_URL="${OS_URL:-${ENS_OS_URL:-https://127.0.0.1:9200}}"
 OS_URL="${OS_URL%/}"
+OS_RESOLVE="${OS_RESOLVE:-}"
 
 usage() {
   echo "usage: sudo bash create-admin-role.sh [--dry-run] [--map <user>]..." >&2
@@ -64,6 +65,7 @@ CODE=
 request_to_indexer() {
   local method="$1" path="$2" body="${3:-}" output
   local args=(-sS --cacert "$OS_CA" --cert "$OS_CERT" --key "$OS_KEY" -X "$method" -w '\n%{http_code}')
+  [ -z "$OS_RESOLVE" ] || args+=(--resolve "$OS_RESOLVE")
   if [ -n "$body" ]; then
     args+=(-H 'Content-Type: application/json' --data-binary "$body")
   fi
