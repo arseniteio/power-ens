@@ -29,4 +29,8 @@ ci/run-tests.sh
 
 ## License
 
-See [LICENSE](LICENSE).
+Copyright (c) 2026 Quersystem.
+
+Power ENS is licensed under the GNU Affero General Public License version 3 (AGPL-3.0-only). See [LICENSE](LICENSE).
+
+Quersystem also offers Power ENS under a commercial license, for organisations that cannot meet the obligations of the AGPL, such as keeping changes private in a product or a network service. Contact Quersystem for terms.
