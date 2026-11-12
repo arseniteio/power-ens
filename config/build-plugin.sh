@@ -67,4 +67,8 @@ else
 fi
 node ../../scripts/plugin_helpers build --allow-root --opensearch-dashboards-version="$VERSION_OSD"
 
+for zip in "$DEST"/build/*.zip; do
+  python3 "$REPO/config/add-license-notices.py" "$zip" "$REPO/LICENSE" "$REPO/config/apache-2.0.txt"
+done
+
 ls -1 "$DEST"/build/*.zip
