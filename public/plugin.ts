@@ -5,7 +5,7 @@ import {
   POWER_ENS_APP_TITLE,
   POWER_ENS_PLUGIN_ID,
 } from '../common/constants';
-import ensLogo from './assets/ens-logo.png';
+import logo from './assets/power-ens-logo.png';
 import { registerHomeCard } from './home-card';
 import { setServices } from './services';
 import { mountOnWazuhPages } from './wazuh-pages/mount-on-wazuh-pages';
@@ -18,7 +18,7 @@ export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEn
       title: POWER_ENS_APP_TITLE,
       order: POWER_ENS_APP_ORDER,
       category: POWER_ENS_APP_CATEGORY,
-      icon: ensLogo,
+      icon: logo,
       mount: async (params: AppMountParameters) => {
         const { renderApp } = await import('./application');
         const [coreStart, depsStart] = await core.getStartServices();
@@ -27,7 +27,7 @@ export class PowerEnsPlugin implements Plugin<{}, {}, PowerEnsSetupDeps, PowerEn
       },
     });
 
-    registerHomeCard(deps?.home, ensLogo);
+    registerHomeCard(deps?.home, logo);
 
     return {};
   }
