@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: the tag matches the plugin version
+        run: test "${GITHUB_REF_NAME#v}" = "$(jq -r .version opensearch_dashboards.json)"
+      - name: install dependencies
+        run: yarn install --frozen-lockfile
+      - name: tests
+        run: bash ci/run-tests.sh
+
+  zip:
+    needs: test
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        osd: ["2.19.5", "2.19.6"]
+    steps:
+      - name: free disk space for the builder image
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - uses: actions/checkout@v4
+      - name: build the zip
+        run: bash ci/build-zip.sh "${{ matrix.osd }}"
+      - name: name the zip after the release
+        run: mv "dist/powerEns-${{ matrix.osd }}.zip" "dist/power-ens-${GITHUB_REF_NAME#v}-osd-${{ matrix.osd }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-${{ matrix.osd }}
+          path: dist/power-ens-*.zip
+
+  release:
+    needs: zip
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: checksums
+        run: cd dist && sha256sum power-ens-*.zip > SHA256SUMS
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/power-ens-*.zip dist/SHA256SUMS \
+            config/deploy-plugin.sh config/create-admin-role.sh ci/dashboard.Dockerfile \
+            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
