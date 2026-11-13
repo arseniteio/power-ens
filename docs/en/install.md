@@ -22,6 +22,8 @@ Build the zip for that version in this repository. The first build for a version
 ci/build-zip.sh 2.19.6
 ```
 
+The v1.0.0 release holds both zips, `power-ens-1.0.0-osd-2.19.5.zip` and `power-ens-1.0.0-osd-2.19.6.zip`, with the scripts and `ci/dashboard.Dockerfile`. Download them instead of building with `gh release download v1.0.0 -R arseniteio/power-ens`.
+
 ## Install from packages
 
 Copy the zip and `config/deploy-plugin.sh` to the dashboard server, and run this as root. The script validates the zip, keeps a copy of any previous version in `/var/backups/power-ens`, installs the plugin and restarts the dashboard. If a step fails, it stops and prints how to go back.

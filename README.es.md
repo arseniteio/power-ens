@@ -8,6 +8,15 @@ No juzga nada. Cada resultado es un veredicto del motor de OSCompliance, leído 
 
 Funciona en Wazuh 4.14.7, 4.14.8 y 4.14.9. Las pantallas están en español.
 
+## Instalar
+
+Descarga la versión e instala en el servidor de Wazuh el zip de tu dashboard: `osd-2.19.5` para Wazuh 4.14.7, `osd-2.19.6` para 4.14.8 y 4.14.9. El procedimiento completo, con el motor y el agente, es la [instalación rápida de OSCompliance ENS](https://github.com/arseniteio/oscompliance-ens/blob/main/README.es.md#instalación-rápida).
+
+```bash
+gh release download v1.0.0 -R arseniteio/power-ens
+sudo bash deploy-plugin.sh power-ens-1.0.0-osd-2.19.6.zip
+```
+
 ## Documentación
 
 - [Instalación](docs/es/install.md): compilar el zip, instalarlo, dar acceso, actualizarlo y retirarlo.
