@@ -1,4 +1,4 @@
-# Dependencias y artefactos de build
+# Dependencies and build output
 node_modules/
 build/
 target/
@@ -8,7 +8,7 @@ dist/
 __pycache__/
 *.pyc
 
-# Backups y temporales
+# Backups and temporary files
 *.bak
 *.bak-*
 *.before-*
@@ -16,17 +16,22 @@ __pycache__/
 *.swp
 *~
 
-# Logs y datos locales
+# Logs and local data
 *.log
 /var/
 .DS_Store
 
-# Credenciales (nunca subir)
+# Credentials
 .env
+.env.*
 *.pem
 *.key
 secrets*
 
-# Ficheros locales
+# Local files
 CLAUDE.md
 .claude/
+
+# Editors
+.idea/
+.vscode/
