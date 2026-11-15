@@ -13,10 +13,12 @@ export const POWER_ENS_APP_CATEGORY = {
 const POWER_ENS_API_BASE = '/api/powerEns';
 export const POWER_ENS_CONFIGURATION_PATH = `${POWER_ENS_API_BASE}/configuration`;
 export const POWER_ENS_EVALUATION_PATH = `${POWER_ENS_API_BASE}/evaluation`;
+export const POWER_ENS_EXCLUSIONS_PATH = `${POWER_ENS_API_BASE}/exclusions`;
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';
 export const ENS_CONFIGURATION_INDEX = 'wazuh-ens-configuration';
 export const ENS_VERDICTS_INDEX = 'oscompliance-verdicts';
+export const ENS_EXCLUSIONS_INDEX = 'wazuh-ens-exclusions';
 
 export const POWER_ENS_ADMIN_ROLES = ['power_ens_admin', 'all_access'];

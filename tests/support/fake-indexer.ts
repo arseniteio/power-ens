@@ -325,6 +325,10 @@ export const createFakeIndexer = (
     docs,
     log,
     search,
+    index: async ({ index, body }: any) => {
+      docs.push({ _id: `doc-${docs.length + 1}`, _index: index, _source: body });
+      return { body: { result: 'created' } };
+    },
     indices: { exists: async () => ({ body: true }), create: async () => ({ body: {} }) },
     transport: {
       request: async ({ path }: any) => {
