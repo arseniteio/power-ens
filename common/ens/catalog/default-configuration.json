@@ -1,0 +1,7 @@
+{
+  "ensLevel": "MEDIO",
+  "scope": {
+    "mode": "group",
+    "groupIds": ["ens"]
+  }
+}

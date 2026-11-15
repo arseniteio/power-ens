@@ -1,6 +1,7 @@
 import { ENSConfigurationVersion } from '../types';
 import { defaultENSGlobalConfiguration } from './global-configuration';
 import { ENSConfigurationRegistry } from '../registry';
+import catalogDefault from '../../catalog/default-configuration.json';
 
 export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
   id: 'power-ens-default-configuration',
@@ -14,9 +15,9 @@ export const defaultENSConfigurationTemplate: ENSConfigurationVersion = {
   changeReason: 'Configuración inicial Power ENS',
   global: defaultENSGlobalConfiguration,
   scope: {
-    mode: 'group',
+    mode: catalogDefault.scope.mode as ENSConfigurationVersion['scope']['mode'],
     agentIds: [],
-    groupIds: ['ens'],
+    groupIds: [...catalogDefault.scope.groupIds],
   },
   controls: ENSConfigurationRegistry,
   templates: [],

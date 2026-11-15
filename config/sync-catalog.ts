@@ -14,6 +14,7 @@ for (const name of readdirSync(vendored).filter(file => file.endsWith('.json')))
 const catalog = join(source, '..', '..');
 copyFileSync(join(catalog, 'messages', 'es.json'), join(plugin, 'common', 'ens', 'catalog', 'messages', 'es.json'));
 copyFileSync(join(catalog, 'system-types.json'), join(plugin, 'common', 'ens', 'catalog', 'system-types.json'));
+copyFileSync(join(catalog, 'default-configuration.json'), join(plugin, 'common', 'ens', 'catalog', 'default-configuration.json'));
 const templates = join(plugin, 'common', 'ens', 'catalog', 'templates');
 mkdirSync(templates, { recursive: true });
 for (const name of readdirSync(join(catalog, 'templates'))) {
