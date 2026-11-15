@@ -20,9 +20,9 @@ const exclusionDoc = (date: string, action: string, reason: string): FakeDoc => 
   _source: { agentId: '001', controlId: 'op.acc.1', action, reason, user: 'dioni', date },
 });
 
-const setUp = (user: any, docs: FakeDoc[] = []) => {
+const setUp = (user: any, docs: FakeDoc[] = [], currentUser?: any) => {
   const indexer = createFakeIndexer(docs, { user });
-  const client = { asInternalUser: indexer, asCurrentUser: indexer };
+  const client = { asInternalUser: indexer, asCurrentUser: currentUser || indexer };
   const context = { core: { opensearch: { client } } };
   const handlers = createExclusionHandlers({ logger: silentLogger, securityEnabled: true });
   return { indexer, context, handlers };
@@ -120,5 +120,35 @@ describe('the exclusion status of a machine in a control', () => {
     const result = await handlers.status(context, { query: { agentId: '001', controlId: 'op.acc.1' } }, response);
 
     assert.equal(result.data.canChange, false);
+  });
+
+  test('is refused when the user cannot read the exclusions index', async () => {
+    const indexer = createFakeIndexer([], { user: READER });
+    const forbidden = {
+      ...indexer,
+      search: async () => {
+        throw Object.assign(new Error('no permissions for [indices:data/read/search]'), { statusCode: 403 });
+      },
+    };
+    const { context, handlers } = setUp(READER, [], forbidden);
+
+    const result = await handlers.status(context, { query: { agentId: '001', controlId: 'op.acc.1' } }, response);
+
+    assert.equal(result.status, 403);
+  });
+
+  test('is empty before the exclusions index exists', async () => {
+    const indexer = createFakeIndexer([], { user: READER });
+    const missing = {
+      ...indexer,
+      search: async () => {
+        throw Object.assign(new Error('no such index'), { statusCode: 404, body: { error: { type: 'index_not_found_exception' } } });
+      },
+    };
+    const { context, handlers } = setUp(READER, [], missing);
+
+    const result = await handlers.status(context, { query: { agentId: '001', controlId: 'op.acc.1' } }, response);
+
+    assert.equal(result.data.latest, null);
   });
 });

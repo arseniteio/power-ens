@@ -32,17 +32,24 @@ const ensureExclusionsIndex = async (client: any): Promise<void> => {
   }
 };
 
-export const readLatestExclusion = async (client: any, agentId: string, controlId: string): Promise<ENSExclusionRecord | null> => {
-  await ensureExclusionsIndex(client);
+const isMissingIndex = (error: any): boolean =>
+  (error?.body?.error?.type || error?.meta?.body?.error?.type) === 'index_not_found_exception';
 
-  const result = await client.search({
-    index: ENS_EXCLUSIONS_INDEX,
-    body: {
-      size: 1,
-      query: { bool: { filter: [{ term: { agentId } }, { term: { controlId } }] } },
-      sort: [{ date: { order: 'desc' } }],
-    },
-  });
+export const readLatestExclusion = async (client: any, agentId: string, controlId: string): Promise<ENSExclusionRecord | null> => {
+  let result: any;
+  try {
+    result = await client.search({
+      index: ENS_EXCLUSIONS_INDEX,
+      body: {
+        size: 1,
+        query: { bool: { filter: [{ term: { agentId } }, { term: { controlId } }] } },
+        sort: [{ date: { order: 'desc' } }],
+      },
+    });
+  } catch (error) {
+    if (isMissingIndex(error)) return null;
+    throw error;
+  }
 
   assertCompleteResponse(result.body, 'las exclusiones');
   return (result.body?.hits?.hits?.[0]?._source as ENSExclusionRecord | undefined) ?? null;

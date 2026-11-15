@@ -16,7 +16,8 @@ const statusOf = (error: any): number => Number(error?.statusCode || error?.meta
 
 export const createExclusionHandlers = ({ logger, securityEnabled }: Options) => {
   const internal = (context: any) => context.core.opensearch.client.asInternalUser;
-  const currentUser = (context: any) => resolveCurrentUser(context.core.opensearch.client.asCurrentUser, securityEnabled);
+  const actual = (context: any) => context.core.opensearch.client.asCurrentUser;
+  const currentUser = (context: any) => resolveCurrentUser(actual(context), securityEnabled);
 
   const canChange = async (context: any): Promise<boolean> => {
     try {
@@ -33,9 +34,11 @@ export const createExclusionHandlers = ({ logger, securityEnabled }: Options) =>
     if (typeof target === 'string') return failure(response, 400, target);
 
     try {
-      const latest = await readLatestExclusion(internal(context), target.agentId, target.controlId);
+      const latest = await readLatestExclusion(actual(context), target.agentId, target.controlId);
       return correct(response, { latest, canChange: await canChange(context) });
     } catch (error: any) {
+      const status = statusOf(error);
+      if (status === 401 || status === 403) return failure(response, status, 'No tienes permiso para leer los motivos de exclusión.');
       logger.error(`Could not read the exclusions of ${target.agentId} in ${target.controlId}: ${error?.message || error}`);
       return failure(response, 500, 'No se pudo leer el motivo de exclusión; el detalle está en el log del dashboard.');
     }
