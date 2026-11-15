@@ -4,6 +4,13 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-15
+
+### Added
+
+- Detalle del control has Excluir de este control and Volver a incluir for users with `power_ens_admin` or `all_access` when Grupos por control is on. The button moves the machine to or from the `ens-excluir-<control>` group and requires a reason.
+- Every exclusion and inclusion is recorded with the machine, control, reason, user and date in the add-only index `wazuh-ens-exclusions`, through `/api/powerEns/exclusions`. If the record fails, the group change is undone.
+
 ### Changed
 
 - `SHA256SUMS` in the release also covers `deploy-plugin.sh`, `create-admin-role.sh` and `dashboard.Dockerfile`.
@@ -22,5 +29,6 @@ First release.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
 - Plugin builds for OpenSearch Dashboards 2.19.5 (Wazuh 4.14.7) and 2.19.6 (Wazuh 4.14.8 and 4.14.9), and `dashboard.Dockerfile` for Wazuh on Docker.
 
-[Unreleased]: https://github.com/arseniteio/power-ens/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/arseniteio/power-ens/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/arseniteio/power-ens/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/arseniteio/power-ens/releases/tag/v1.0.0
