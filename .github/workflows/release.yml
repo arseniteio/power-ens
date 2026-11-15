@@ -59,11 +59,13 @@ jobs:
       - name: release notes from the changelog
         run: bash ci/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
       - name: checksums
-        run: cd dist && sha256sum power-ens-*.zip > SHA256SUMS
+        run: |
+          cp config/deploy-plugin.sh config/create-admin-role.sh ci/dashboard.Dockerfile dist/
+          cd dist && sha256sum power-ens-*.zip deploy-plugin.sh create-admin-role.sh dashboard.Dockerfile > SHA256SUMS
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/power-ens-*.zip dist/SHA256SUMS \
-            config/deploy-plugin.sh config/create-admin-role.sh ci/dashboard.Dockerfile \
+            dist/deploy-plugin.sh dist/create-admin-role.sh dist/dashboard.Dockerfile \
             --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
