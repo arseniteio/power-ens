@@ -70,6 +70,7 @@ import {
 } from './detail-view-state';
 import { statusLabel } from '../../../../common/ens/core/status-label';
 import { dateLabel, dateTimeLabel } from '../../../../common/ens/core/date-label';
+import { ExclusionButton, ExclusionNotice, useExclusion } from '../../exclusions/exclusion-controls';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -687,6 +688,9 @@ export const ControlDetailENS = ({
   const headerCatalog = getENSCatalogControl(control.id);
   const relation = getControlRelation(control.id);
 
+  const exclusionTarget = { agentId, agentLabel: labelOf(agentId), controlId: control.id };
+  const exclusion = useExclusion(exclusionTarget);
+
   const header = (
     <div className='power-ens-control-header' style={{ padding: '4px 8px 12px' }}>
       <EuiButtonEmpty iconType='arrowLeft' size='s' flush='left' onClick={onBack}>
@@ -727,11 +731,19 @@ export const ControlDetailENS = ({
           </EuiFlexGroup>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          <EuiButton iconType='gear' onClick={configureControl}>
-            Configurar este control
-          </EuiButton>
+          <EuiFlexGroup gutterSize='s' responsive={false} wrap>
+            <EuiFlexItem grow={false}>
+              <ExclusionButton target={exclusionTarget} exclusion={exclusion} />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiButton iconType='gear' onClick={configureControl}>
+                Configurar este control
+              </EuiButton>
+            </EuiFlexItem>
+          </EuiFlexGroup>
         </EuiFlexItem>
       </EuiFlexGroup>
+      <ExclusionNotice exclusion={exclusion} verdictStatus={view.kind === 'shown' && view.agentId === agentId ? data?.result?.status : undefined} />
     </div>
   );
 
