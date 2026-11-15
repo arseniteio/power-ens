@@ -16,7 +16,7 @@ Después del primer guardado, Plantillas y Agentes también se pueden rellenar d
 
 Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens/tree/main/docs/es/controls).
 
-Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `ens-excluir-<control>`. Una máquina añadida a uno de esos grupos queda fuera de ese control.
+Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `ens-excluir-<control>`. Una máquina añadida a uno de esos grupos queda fuera de ese control. En Detalle del control, un usuario con `power_ens_admin` o `all_access` pulsa Excluir de este control para mover la máquina a ese grupo, y debe escribir un motivo. Power ENS registra la máquina, el control, el motivo, el usuario y la fecha en el índice `wazuh-ens-exclusions`. Volver a incluir lo revierte, también con motivo. El manager no pertenece a ningún grupo y no se puede excluir.
 
 ## Resultados
 
