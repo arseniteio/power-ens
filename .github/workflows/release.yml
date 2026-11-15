@@ -21,6 +21,8 @@ jobs:
           python-version: "3.12"
       - name: the tag matches the plugin version
         run: test "${GITHUB_REF_NAME#v}" = "$(jq -r .version opensearch_dashboards.json)"
+      - name: the changelog has an entry for the tag
+        run: bash ci/release-notes.sh "${GITHUB_REF_NAME#v}" > /dev/null
       - name: install dependencies
         run: yarn install --frozen-lockfile
       - name: tests
@@ -54,6 +56,8 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: release notes from the changelog
+        run: bash ci/release-notes.sh "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
       - name: checksums
         run: cd dist && sha256sum power-ens-*.zip > SHA256SUMS
       - name: GitHub release
@@ -62,4 +66,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/power-ens-*.zip dist/SHA256SUMS \
             config/deploy-plugin.sh config/create-admin-role.sh ci/dashboard.Dockerfile \
-            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+            --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
