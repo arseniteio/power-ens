@@ -4,6 +4,11 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `SHA256SUMS` in the release also covers `deploy-plugin.sh`, `create-admin-role.sh` and `dashboard.Dockerfile`.
+- The installation guide downloads the release with `curl` and `sha256sum`.
+
 ## [1.0.0] - 2026-11-13
 
 First release.

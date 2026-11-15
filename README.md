@@ -10,16 +10,21 @@ It runs on Wazuh 4.14.7, 4.14.8 and 4.14.9. The screens are in Spanish.
 
 ## Install
 
-Download the release and install the zip of your dashboard on the Wazuh server: `osd-2.19.5` for Wazuh 4.14.7, `osd-2.19.6` for 4.14.8 and 4.14.9. The complete procedure, with the engine and the agent, is the [quick install of OSCompliance ENS](https://github.com/arseniteio/oscompliance-ens#quick-install).
+The OSCompliance ENS install script installs the plugin with the engine and the agent: see [Get started](https://github.com/arseniteio/oscompliance-ens#get-started).
+
+To install only the plugin, download the zip of your dashboard on the Wazuh server, `osd-2.19.5` for Wazuh 4.14.7 and `osd-2.19.6` for 4.14.8 and 4.14.9, check it and install it.
 
 ```bash
-gh release download v1.0.0 -R arseniteio/power-ens
-sudo bash deploy-plugin.sh power-ens-1.0.0-osd-2.19.6.zip
+v=1.1.0
+url=https://github.com/arseniteio/power-ens/releases/download/v$v
+curl -fLO "$url/power-ens-$v-osd-2.19.6.zip" -O "$url/deploy-plugin.sh" -O "$url/SHA256SUMS"
+sha256sum -c --ignore-missing SHA256SUMS
+sudo bash deploy-plugin.sh "power-ens-$v-osd-2.19.6.zip"
 ```
 
 ## Documentation
 
-- [Installation](docs/en/install.md): build the zip, install it, grant access, upgrade and remove it.
+- [Installation](docs/en/install.md): get the zip, install it, grant access, upgrade and remove it.
 - [Usage](docs/en/usage.md): what each screen shows and how to configure a control.
 
 ## Build and test
