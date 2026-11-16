@@ -4,12 +4,13 @@ import {
   EuiButtonEmpty,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiHorizontalRule,
+  EuiNotificationBadge,
   EuiPage,
   EuiPanel,
   EuiSpacer,
   EuiTab,
   EuiTabs,
+  EuiText,
   EuiTitle,
 } from '@elastic/eui';
 
@@ -20,6 +21,7 @@ import { resolveControlLevel } from '../../../../common/ens/core/control-level';
 import { useRouterSearch, useSetRouterSearch } from '../../../routing/use-router-search';
 import {
   ENSConfigurationTarget,
+  ENSConfigurationView,
   configurationBackChanges,
   configurationSearchChanges,
   parseConfigurationBack,
@@ -28,52 +30,86 @@ import {
 
 import { lifecycleLabel } from './labels';
 import { ControlsTab } from './controls-tab';
-import { AgentsTab } from './agents-tab';
 import { GeneralTab } from './general-tab';
-import { OrganizationDataNotice } from './organization-data-panel';
+import { AgentValuesFlyout } from './agent-values-flyout';
+import { OrganizationDataNotice, OrganizationDataPanel } from './organization-data-panel';
 import { SaveWarningNotice } from './save-warning-notice';
+import { ProfileChangesProvider, useProfileChanges } from '../profiles/profile-changes';
+import { ProfileSaveBar } from '../profiles/save-bar';
+import { useHostSummary } from '../profiles/use-host-summary';
+import { StatusTab } from '../profiles/status-tab';
+import { MachinesTab } from '../profiles/machines-tab';
+import { ProfilesTab } from '../profiles/profiles-tab';
+import { PendingTab } from '../profiles/pending-tab';
 
-export const ConfigurationShell = () => {
+type TabId = 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general';
+
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: 'status', label: 'Estado' },
+  { id: 'machines', label: 'Máquinas' },
+  { id: 'profiles', label: 'Perfiles' },
+  { id: 'pending', label: 'Pendiente' },
+  { id: 'organization', label: 'Organización' },
+  { id: 'general', label: 'General' },
+];
+
+const tabOf = (view: ENSConfigurationView): TabId => {
+  if (view === 'controls') return 'organization';
+  if (view === 'agents') return 'machines';
+  return view;
+};
+
+const scopeText = (groupIds: string[], mode: string): string => {
+  if (mode !== 'group') return 'todas las máquinas';
+  return groupIds.length ? `${groupIds.length === 1 ? 'grupo' : 'grupos'} ${groupIds.join(', ')}` : 'ningún grupo';
+};
+
+const ShellTabs = ({ tab, onSelect, pendingCount }: { tab: TabId; onSelect: (tab: TabId) => void; pendingCount?: number }) => {
+  const { working } = useProfileChanges();
+  const profileCount = working.filter(entry => entry.staged !== 'deleted' && entry.errors.length === 0).length;
+  return (
+    <EuiTabs>
+      {TABS.map(item => (
+        <EuiTab key={item.id} isSelected={tab === item.id} onClick={() => onSelect(item.id)}>
+          {item.label}
+          {item.id === 'profiles' && profileCount > 0 && (
+            <>
+              {' '}
+              <EuiNotificationBadge color='subdued'>{profileCount}</EuiNotificationBadge>
+            </>
+          )}
+          {item.id === 'pending' && pendingCount !== undefined && pendingCount > 0 && (
+            <>
+              {' '}
+              <EuiNotificationBadge color='subdued'>{pendingCount}</EuiNotificationBadge>
+            </>
+          )}
+        </EuiTab>
+      ))}
+    </EuiTabs>
+  );
+};
+
+const ConfigurationContent = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
   const turn = parseConfigurationBack(search);
   const setSearch = useSetRouterSearch();
+  const { savedAt } = useProfileChanges();
 
-  const [
-    configurationRevision,
-    setConfigurationRevision,
-  ] = useState(0);
+  const [configurationRevision, setConfigurationRevision] = useState(0);
+  const handleConfigurationSaved = useCallback(() => setConfigurationRevision(revision => revision + 1), []);
+  const activeConfiguration = useMemo(() => getActiveENSConfiguration(), [configurationRevision]);
+  const summary = useHostSummary(`${savedAt || 0}-${configurationRevision}`);
 
-  const handleConfigurationSaved =
-    useCallback(() => {
-      setConfigurationRevision(
-        currentRevision =>
-          currentRevision + 1
-      );
-    }, []);
-
-  const activeConfiguration =
-    useMemo(
-      () =>
-        getActiveENSConfiguration(),
-      [configurationRevision]
-    );
-
-  const getControlActiveLevel =
-    useCallback(
-      (controlId: string): ENSLevel =>
-        resolveControlLevel(
-          getENSCatalogControl(controlId) || {},
-          activeConfiguration.global.ensLevel,
-          activeConfiguration.global
-        ),
-      [activeConfiguration]
-    );
-
-  const navigate = useCallback(
-    (next: Partial<ENSConfigurationTarget>) => setSearch(configurationSearchChanges(next)),
-    [setSearch]
+  const getControlActiveLevel = useCallback(
+    (controlId: string): ENSLevel => resolveControlLevel(getENSCatalogControl(controlId) || {}, activeConfiguration.global.ensLevel, activeConfiguration.global),
+    [activeConfiguration]
   );
+
+  const navigate = useCallback((next: Partial<ENSConfigurationTarget>) => setSearch(configurationSearchChanges(next)), [setSearch]);
+  const tab = tabOf(target.view);
+  const pendingCount = summary.data ? (summary.data.pending?.parameters.length || 0) + (summary.data.withoutProfile ? 1 : 0) : undefined;
 
   return (
     <EuiPage paddingSize='m'>
@@ -96,31 +132,46 @@ export const ConfigurationShell = () => {
             <EuiBadge color='hollow'>{lifecycleLabel(activeConfiguration.status)}</EuiBadge>
           </EuiFlexItem>
         </EuiFlexGroup>
+        <EuiSpacer size='xs' />
+        <EuiText size='s' color='subdued'>
+          <p>
+            {`Nivel ${activeConfiguration.global.ensLevel} · Alcance: ${scopeText(activeConfiguration.scope.groupIds, activeConfiguration.scope.mode)}`}
+          </p>
+        </EuiText>
 
         <EuiSpacer size='m' />
 
         <SaveWarningNotice />
 
-        {target.view !== 'general' && (
-          <OrganizationDataNotice configuration={activeConfiguration} onOpen={() => navigate({ view: 'general' })} />
+        {tab !== 'organization' && (
+          <OrganizationDataNotice configuration={activeConfiguration} onOpen={() => navigate({ view: 'organization' })} />
         )}
 
-        <EuiTabs>
-          <EuiTab isSelected={target.view === 'general'} onClick={() => navigate({ view: 'general' })}>
-            Organización
-          </EuiTab>
-          <EuiTab isSelected={target.view === 'controls'} onClick={() => navigate({ view: 'controls' })}>
-            Plantillas
-          </EuiTab>
-          <EuiTab isSelected={target.view === 'agents'} onClick={() => navigate({ view: 'agents' })}>
-            Agentes
-          </EuiTab>
-        </EuiTabs>
+        <ShellTabs tab={tab} onSelect={next => navigate({ view: next })} pendingCount={pendingCount} />
 
-        <EuiHorizontalRule />
+        <EuiSpacer size='l' />
 
-        {target.view === 'controls' && (
-          <ControlsTab
+        {tab === 'status' && <StatusTab summary={summary} configuration={activeConfiguration} onNavigate={navigate} />}
+        {tab === 'machines' && <MachinesTab target={target} onNavigate={navigate} />}
+        {tab === 'profiles' && <ProfilesTab target={target} onNavigate={navigate} />}
+        {tab === 'pending' && <PendingTab summary={summary} onNavigate={navigate} />}
+        {tab === 'organization' && (
+          <>
+            <OrganizationDataPanel configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
+            <EuiSpacer size='l' />
+            <ControlsTab
+              configuration={activeConfiguration}
+              target={target}
+              getActiveLevel={getControlActiveLevel}
+              onNavigate={navigate}
+              onConfigurationSaved={handleConfigurationSaved}
+            />
+          </>
+        )}
+        {tab === 'general' && <GeneralTab configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />}
+
+        {target.view === 'agents' && target.agentId && (
+          <AgentValuesFlyout
             configuration={activeConfiguration}
             target={target}
             getActiveLevel={getControlActiveLevel}
@@ -128,19 +179,15 @@ export const ConfigurationShell = () => {
             onConfigurationSaved={handleConfigurationSaved}
           />
         )}
-        {target.view === 'agents' && (
-          <AgentsTab
-            configuration={activeConfiguration}
-            target={target}
-            getActiveLevel={getControlActiveLevel}
-            onNavigate={navigate}
-            onConfigurationSaved={handleConfigurationSaved}
-          />
-        )}
-        {target.view === 'general' && (
-          <GeneralTab configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
-        )}
+
+        <ProfileSaveBar />
       </EuiPanel>
     </EuiPage>
   );
 };
+
+export const ConfigurationShell = () => (
+  <ProfileChangesProvider>
+    <ConfigurationContent />
+  </ProfileChangesProvider>
+);

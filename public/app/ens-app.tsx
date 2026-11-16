@@ -60,7 +60,7 @@ export const EnsApp = () => {
         <EuiTabs>
           {ENS_TABS.map(t => (
             <EuiTab key={t.id} isSelected={t.id === tab.id} onClick={() =>
-                changes({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configBack: undefined, evidenceControl: undefined })
+                changes({ tabView: t.id, configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined, configItem: undefined, configProfile: undefined, configHost: undefined, configFilter: undefined, configBack: undefined, evidenceControl: undefined })
               }>
               {t.name}
             </EuiTab>

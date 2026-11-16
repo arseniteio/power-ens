@@ -101,7 +101,7 @@ export const ControlsENS = () => {
             <EuiText size='s' color='subdued'>
               <p>
                 <EuiIcon type='iInCircle' /> {outOfLevel.text}: no rige ningún requisito en este nivel.{' '}
-                <EuiLink onClick={() => updateUrl({ tabView: 'configuration', configView: undefined, configAgent: undefined, configControl: undefined, configParam: undefined })}>
+                <EuiLink onClick={() => updateUrl({ tabView: 'configuration', configView: 'general', configAgent: undefined, configControl: undefined, configParam: undefined })}>
                   Cambiar el nivel en Configuración
                 </EuiLink>
               </p>

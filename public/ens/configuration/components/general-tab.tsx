@@ -3,7 +3,6 @@ import { EuiSpacer } from '@elastic/eui';
 
 import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import { GlobalConfigurationPanel } from './global-configuration-panel';
-import { OrganizationDataPanel } from './organization-data-panel';
 import { EvaluableGroupsPanel } from './evaluable-groups-panel';
 import { ControlGroupsPanel } from './control-groups-panel';
 
@@ -16,10 +15,6 @@ export const GeneralTab = ({ configuration, onConfigurationSaved }: GeneralTabPr
   return (
     <>
       <GlobalConfigurationPanel configuration={configuration.global} onConfigurationSaved={onConfigurationSaved} />
-
-      <EuiSpacer size='l' />
-
-      <OrganizationDataPanel configuration={configuration} onConfigurationSaved={onConfigurationSaved} />
 
       <EuiSpacer size='l' />
 

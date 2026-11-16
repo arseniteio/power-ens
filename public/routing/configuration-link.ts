@@ -2,7 +2,7 @@ import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
 const CONFIGURATION_TAB_ID = 'configuration';
 
-export type ENSConfigurationView = 'controls' | 'agents' | 'general';
+export type ENSConfigurationView = 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general' | 'controls' | 'agents';
 
 export interface ENSConfigurationTarget {
   view: ENSConfigurationView;
@@ -10,6 +10,9 @@ export interface ENSConfigurationTarget {
   agentId?: string;
   parameterId?: string;
   itemId?: string;
+  profileId?: string;
+  hostId?: string;
+  machineFilter?: string;
 }
 
 const clean = (value?: string): string | undefined => {
@@ -17,31 +20,72 @@ const clean = (value?: string): string | undefined => {
   return text ? text : undefined;
 };
 
-const viewOf = (agentId: string | undefined, configView: string | undefined): ENSConfigurationView => {
-  if (agentId || configView === 'agentes' || configView === 'sistemas') return 'agents';
-  return configView === 'general' ? 'general' : 'controls';
+const VIEW_PARAMS: Record<string, ENSConfigurationView> = {
+  estado: 'status',
+  maquinas: 'machines',
+  perfiles: 'profiles',
+  pendiente: 'pending',
+  organizacion: 'organization',
+  general: 'general',
+  plantillas: 'controls',
+  agentes: 'machines',
+  sistemas: 'machines',
+};
+
+const viewOf = (agentId: string | undefined, controlId: string | undefined, configView: string | undefined): ENSConfigurationView => {
+  if (agentId) return 'agents';
+  if (configView && VIEW_PARAMS[configView]) return VIEW_PARAMS[configView];
+  return controlId ? 'controls' : 'status';
 };
 
 export const parseConfigurationTarget = (params: Record<string, string | undefined>): ENSConfigurationTarget => {
   const agentId = clean(params.configAgent);
+  const controlId = clean(params.configControl);
   return {
-    view: viewOf(agentId, clean(params.configView)),
-    controlId: clean(params.configControl),
+    view: viewOf(agentId, controlId, clean(params.configView)),
+    controlId,
     agentId,
     parameterId: clean(params.configParam),
     itemId: clean(params.configItem),
+    profileId: clean(params.configProfile),
+    hostId: clean(params.configHost),
+    machineFilter: clean(params.configFilter),
   };
+};
+
+const viewParam = (target: Partial<ENSConfigurationTarget>): string | undefined => {
+  switch (target.view) {
+    case 'machines':
+      return 'maquinas';
+    case 'profiles':
+      return 'perfiles';
+    case 'pending':
+      return 'pendiente';
+    case 'organization':
+      return 'organizacion';
+    case 'general':
+      return 'general';
+    case 'controls':
+      return target.controlId ? undefined : 'plantillas';
+    case 'agents':
+      return target.agentId ? undefined : 'maquinas';
+    default:
+      return undefined;
+  }
 };
 
 export const configurationSearchChanges = (
   target: Partial<ENSConfigurationTarget>
 ): Record<string, string | undefined> => ({
   tabView: CONFIGURATION_TAB_ID,
-  configView: target.view === 'general' ? 'general' : target.view === 'agents' && !target.agentId ? 'agentes' : undefined,
+  configView: viewParam(target),
   configAgent: clean(target.agentId),
   configControl: clean(target.controlId),
   configParam: clean(target.parameterId),
-  configItem: target.view === 'general' ? clean(target.itemId) : undefined,
+  configItem: target.view === 'organization' ? clean(target.itemId) : undefined,
+  configProfile: target.view === 'profiles' ? clean(target.profileId) : undefined,
+  configHost: target.view === 'machines' ? clean(target.hostId) : undefined,
+  configFilter: target.view === 'machines' ? clean(target.machineFilter) : undefined,
 });
 
 const CONFIGURATION_BACK_PARAM = 'configBack';
@@ -84,5 +128,8 @@ export const configurationBackChanges = (back: { tabView: string }): Record<stri
   configControl: undefined,
   configParam: undefined,
   configItem: undefined,
+  configProfile: undefined,
+  configHost: undefined,
+  configFilter: undefined,
   [CONFIGURATION_BACK_PARAM]: undefined,
 });

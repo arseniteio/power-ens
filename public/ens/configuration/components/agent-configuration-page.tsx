@@ -501,7 +501,7 @@ export const AgentConfigurationPage = ({
       {target.controlId && !controls.some(control => control.controlId === target.controlId) && (
         <EuiCallOut color='warning' iconType='iInCircle' size='s' title={`${target.controlId} no tiene parámetros por agente`}>
           <EuiButtonEmpty size='xs' onClick={() => onNavigate({ view: 'controls', controlId: target.controlId, parameterId: target.parameterId })}>
-            Abrir en Plantillas
+            Abrir en Organización
           </EuiButtonEmpty>
         </EuiCallOut>
       )}
