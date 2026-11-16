@@ -4,6 +4,10 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The repository is now `arseniteio/power-ens-wazuh`, to leave room for other SIEMs. The release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
+
 ## [1.2.0] - 2026-11-16
 
 ### Changed
@@ -40,7 +44,7 @@ First release.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
 - Plugin builds for OpenSearch Dashboards 2.19.5 (Wazuh 4.14.7) and 2.19.6 (Wazuh 4.14.8 and 4.14.9), and `dashboard.Dockerfile` for Wazuh on Docker.
 
-[Unreleased]: https://github.com/arseniteio/power-ens/compare/v1.2.0...HEAD
-[1.2.0]: https://github.com/arseniteio/power-ens/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/arseniteio/power-ens/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/arseniteio/power-ens/releases/tag/v1.0.0
+[Unreleased]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/arseniteio/power-ens-wazuh/releases/tag/v1.0.0
