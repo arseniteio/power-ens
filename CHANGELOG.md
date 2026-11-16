@@ -4,6 +4,8 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
 ### Changed
 
 - The default ENS level and scope come from `default-configuration.json` of the OSCompliance ENS catalog, which the engine also uses: level MEDIO and the `ens` group.
@@ -38,6 +40,7 @@ First release.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
 - Plugin builds for OpenSearch Dashboards 2.19.5 (Wazuh 4.14.7) and 2.19.6 (Wazuh 4.14.8 and 4.14.9), and `dashboard.Dockerfile` for Wazuh on Docker.
 
-[Unreleased]: https://github.com/arseniteio/power-ens/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/arseniteio/power-ens/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/arseniteio/power-ens/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arseniteio/power-ens/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/arseniteio/power-ens/releases/tag/v1.0.0
