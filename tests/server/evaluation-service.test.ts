@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ENS_VERDICTS_INDEX } from '../../common/constants';
+import { ENS_CONFIGURATION_INDEX, ENS_VERDICTS_INDEX } from '../../common/constants';
 import { ENGINE_CATALOG } from '../../common/ens/catalog/engine-catalog';
 import { normalizeQuery } from '../../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse } from '../../server/lib/evaluation/responses';
@@ -156,5 +156,15 @@ describe('a request', () => {
     assert.throws(() => normalizeQuery({ timeZone: 'Mars/Olympus' }), { statusCode: 400 });
     assert.throws(() => normalizeQuery({ include: 'overview', controlId: 'op.acc.1' }), { statusCode: 400 });
     assert.throws(() => normalizeQuery({ timelineDays: '1000' }), { statusCode: 400 });
+  });
+});
+
+describe('a deployment where nobody saved the configuration yet', () => {
+  test('is judged with the default configuration', async () => {
+    const clock = createClock();
+    const docs = [inventoryDoc(AGENT, clock), ...enginePass({ at: clock.hoursAgo(2), status: 'COMPLIANT', score: 100 })];
+    const { clients, service } = createLab(docs, clock, {}, 0, [ENS_CONFIGURATION_INDEX]);
+    const run = await service.run(clients, { ...control('op.acc.1'), agentId: AGENT.id });
+    assert.equal(run.views.get('op.acc.1')?.result?.status, 'CUMPLE');
   });
 });

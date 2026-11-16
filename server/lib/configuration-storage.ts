@@ -83,6 +83,7 @@ export async function readActiveENSConfigurationWithVersion(
 
   const result = await client.search({
     index: ENS_CONFIGURATION_INDEX,
+    ignore_unavailable: true,
     body: {
       size: 1,
       seq_no_primary_term: true,

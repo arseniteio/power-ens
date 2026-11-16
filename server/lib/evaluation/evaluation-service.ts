@@ -170,6 +170,7 @@ const readConfigurationStamp = async (client: any): Promise<string | undefined> 
     client,
     {
       index: ENS_CONFIGURATION_INDEX,
+      ignore_unavailable: true,
       body: { size: 1, seq_no_primary_term: true, query: { ids: { values: ['active'] } }, _source: ['updatedAt', 'configuration.updatedAt'] },
     },
     'la configuración ENS'

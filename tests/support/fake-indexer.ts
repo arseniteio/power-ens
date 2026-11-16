@@ -251,7 +251,7 @@ const aggregate = (docs: FakeDoc[], aggs: any): any => {
 
 export const createFakeIndexer = (
   initial: FakeDoc[],
-  options: { user?: any; clock?: () => number; failShards?: (body: any, index?: string) => number; latencyMs?: number } = {}
+  options: { user?: any; clock?: () => number; failShards?: (body: any, index?: string) => number; latencyMs?: number; missingIndices?: string[] } = {}
 ) => {
   if (options.clock) indexNow = options.clock;
   const docs = [...initial];
@@ -282,6 +282,12 @@ export const createFakeIndexer = (
     const { index, body } = params;
     if (options.latencyMs) await new Promise(resolve => setTimeout(resolve, options.latencyMs));
     if (options.clock) indexNow = options.clock;
+    if (options.missingIndices?.includes(index) && !params.ignore_unavailable) {
+      throw Object.assign(new Error(`index_not_found_exception: no such index [${index}]`), {
+        statusCode: 404,
+        meta: { statusCode: 404, body: { error: { type: 'index_not_found_exception', index }, status: 404 } },
+      });
+    }
     checkOrder(index, body?.sort || []);
     let candidates = docs.filter(d => matchingIndex(index, d._index) && matches(d, body?.query));
     const sort = body?.sort || [];

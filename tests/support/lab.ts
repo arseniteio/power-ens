@@ -75,8 +75,8 @@ export const activeConfiguration = (change: (configuration: any) => void = () =>
 
 const silentLogger: any = { info() {}, warn() {}, debug() {}, error() {} };
 
-export const createLab = (docs: FakeDoc[], clock: Clock, options: Partial<ENSEvaluationServiceOptions> = {}, latencyMs = 0) => {
-  const index = createFakeIndexer(docs, { clock: () => clock.now().getTime(), user: { user_name: 'ana', roles: ['all_access'] }, latencyMs });
+export const createLab = (docs: FakeDoc[], clock: Clock, options: Partial<ENSEvaluationServiceOptions> = {}, latencyMs = 0, missingIndices: string[] = []) => {
+  const index = createFakeIndexer(docs, { clock: () => clock.now().getTime(), user: { user_name: 'ana', roles: ['all_access'] }, latencyMs, missingIndices });
   const clients = { asCurrentUser: index, asInternalUser: index };
   const service = createEvaluationService({ logger: silentLogger, securityEnabled: true, clock: clock.now, firstResponseMs: 60000, ...options });
   return { index, clients, service };
