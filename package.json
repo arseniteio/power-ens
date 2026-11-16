@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "pdfmake": "0.2.7",
-    "re2js": "2.8.6"
+    "re2js": "2.8.6",
+    "yaml": "2.6.1"
   }
 }
