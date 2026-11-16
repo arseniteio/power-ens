@@ -4,11 +4,16 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The default ENS level and scope come from `default-configuration.json` of the OSCompliance ENS catalog, which the engine also uses: level MEDIO and the `ens` group.
+- Until a configuration is saved, the engine judges with that default, so "Guardar configuración global" (save global configuration) is no longer required before the first verdicts.
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
 
-- Detalle del control has Excluir de este control and Volver a incluir for users with `power_ens_admin` or `all_access` when Grupos por control is on. The button moves the machine to or from the `ens-excluir-<control>` group and requires a reason.
+- The "Detalle del control" (control detail) page has the "Excluir de este control" (exclude from this control) and "Volver a incluir" (include again) buttons for users with `power_ens_admin` or `all_access` when "Grupos por control" (per-control groups) is on. The first button moves the machine to the `ens-excluir-<control>` group, the second moves it back, and both require a reason.
 - Every exclusion and inclusion is recorded with the machine, control, reason, user and date in the add-only index `wazuh-ens-exclusions`, through `/api/powerEns/exclusions`. If the record fails, the group change is undone.
 
 ### Changed
@@ -22,8 +27,8 @@ First release.
 
 ### Added
 
-- Configuration screens Organización, Plantillas and Agentes, stored in the `wazuh-ens-configuration` index, with built-in templates per system type.
-- Result screens Panel, Vista general, Detalle del control, Evidencias, Eventos and Informes, read from the `oscompliance-verdicts` index. Informes exports each control report to PDF.
+- Configuration screens "Organización" (organisation), "Plantillas" (templates) and "Agentes" (agents), stored in the `wazuh-ens-configuration` index, with built-in templates per system type.
+- Result screens "Panel" (dashboard), "Vista general" (overview), "Detalle del control" (control detail), "Evidencias" (evidences), "Eventos" (events) and "Informes" (reports), read from the `oscompliance-verdicts` index. "Informes" exports each control report to PDF.
 - Role `power_ens_admin` and `create-admin-role.sh`, which creates it and maps users to it.
 - `deploy-plugin.sh`, which validates the zip, keeps a copy of the previous version and installs the plugin.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
