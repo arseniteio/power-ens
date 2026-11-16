@@ -4,15 +4,25 @@ Power ENS aparece en el menú del dashboard de Wazuh. Todos los resultados viene
 
 ## Configuración
 
-Configuración guarda lo que declara la organización. Para guardar hace falta el rol `power_ens_admin` o `all_access`. Tiene tres partes.
+Configuración guarda lo que declara la organización. Cualquiera con acceso al dashboard puede verla; para guardar hace falta el rol `power_ens_admin` o `all_access`. Tiene seis pestañas.
 
-Organización guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alcance (Grupos evaluables) y los datos que comparten varios controles, como los plazos de retención. Hasta que se pulsa Guardar configuración global por primera vez, el motor y el plugin usan la configuración por defecto del catálogo, `common/ens/catalog/default-configuration.json`: nivel MEDIO y el grupo `ens` en alcance. Guarda para cambiarlos.
+Estado resume el despliegue: cuántas máquinas ha descrito el motor, cuántas no reciben ningún perfil, cuántas tienen evidencias sin evaluar por la configuración y qué parámetros sin valor lo causan. También muestra las máquinas por función, distribución y perfil, y los últimos cambios.
 
-Plantillas guarda los valores de cada control. Abre un control y pulsa Completar configuración para rellenar lo que falta. Hay una plantilla por tipo de sistema con valores para los parámetros que dependen de la plataforma: revísalos con tus máquinas.
+Máquinas lista cada máquina que el motor describe en `oscompliance-host-profile`, página a página, con filtros por perfil, función, distribución, servicio y grupo de Wazuh, y una búsqueda por nombre, hostname o número de agente. La lista se lee del indexer de página en página, así que funciona igual con 15.000 máquinas. Al abrir una máquina se ve lo que el motor ha deducido (distribución, función, servicios y la señal del inventario que lo justifica), los perfiles que recibe y el valor de cada parámetro por máquina con su origen. Dar valores propios edita los valores de esa máquina sola.
 
-Agentes guarda lo que corresponde a una máquina. Abre la máquina y el control, y edita el parámetro con el lápiz.
+Perfiles es donde los valores se fijan una vez por tipo de máquina. Cada perfil tiene una capa (distribución, función, servicio o sitio), condiciones sobre lo que deduce el motor y valores para los parámetros por máquina. Mientras se edita, Vista previa cuenta las máquinas que cumplen las condiciones y nombra algunas. Nuevo perfil empieza en blanco, desde una copia de otro o desde un fichero. Importar lee ficheros YAML o JSON con uno o varios perfiles y muestra, por perfil, si es nuevo, si cambia o si queda igual, y sus errores, antes de aplicar nada. Exportar escribe los perfiles guardados en YAML, un documento por perfil. Los perfiles incluidos vienen del catálogo de OSCompliance; guardar una copia modificada sustituye al incluido y borrar esa copia lo recupera.
 
-Después del primer guardado, Plantillas y Agentes también se pueden rellenar desde un fichero JSON con `config/set-parameters.py`, que valida cada valor y muestra el plan antes de escribir. Consulta [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
+Los cambios en perfiles se acumulan en la barra inferior de la página. Revisar los lista, Descartar los quita y Guardar los escribe todos. El motor los aplica en su siguiente pasada.
+
+Pendiente lista lo que necesita una decisión: las máquinas que no cumplen ningún perfil y los parámetros sin valor que dejan evidencias sin evaluar, según los últimos veredictos. Cada parámetro enlaza con donde se fija: un perfil para los parámetros por máquina y Organización para el resto.
+
+Organización guarda los datos que comparten varios controles, como los plazos de retención, y los valores de cada control que valen para toda la organización. Abre un control y pulsa Completar configuración para rellenar lo que falta. Desde un control también se puede asignar una plantilla a algunas máquinas.
+
+General guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alcance (Grupos evaluables) y Grupos por control. Hasta que se pulsa Guardar configuración global por primera vez, el motor y el plugin usan la configuración por defecto del catálogo, `common/ens/catalog/default-configuration.json`: nivel MEDIO y el grupo `ens` en alcance. Guarda para cambiarlos.
+
+El valor de una máquina sale del primero de: su valor propio, la plantilla asignada en el control, sus perfiles, la plantilla de serie de su tipo de sistema y el valor de la organización. Las listas se suman entre perfiles; el resto de valores salen de la capa más específica. El orden se describe en [política ENS](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#política-ens).
+
+Para automatizar, `oscompliance-policy` lee y escribe los mismos perfiles desde ficheros YAML en el manager, y `config/set-parameters.py` rellena valores de la organización y de máquinas desde un fichero JSON después del primer guardado. Consulta [perfiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#perfiles) y [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
 
 Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens-wazuh/tree/main/docs/es/controls).
 

@@ -66,6 +66,8 @@ bash create-admin-role.sh --map <dashboard_user>
 
 It reads the indexer's admin certificates from `/etc/wazuh-indexer/certs`. Use `OS_CERT`, `OS_KEY`, `OS_CA` and `OS_URL` for other locations, `OS_RESOLVE` when the indexer certificate carries another name (on Docker, `wazuh.indexer:9200:127.0.0.1`), and `--dry-run` to see what it would do. It adds the user and keeps the ones that already have the role.
 
+The Máquinas, Estado and Pendiente tabs read `oscompliance-host-profile` and `oscompliance-verdicts` with the permissions of the user who opens them, like the result screens. A role that reads the Wazuh indices but not `oscompliance-*` needs `read` on those two indices. The dashboard server writes the profiles to `wazuh-ens-configuration`, as it writes the rest of the configuration.
+
 ## Upgrade
 
 Get the zip of the new release and install it the same way. The script replaces the previous version and keeps its copy. On Docker, keep the current image with `docker tag power-ens/wazuh-dashboard:local power-ens/wazuh-dashboard:previous`, build the new one with the `local` tag and recreate the service. If a browser shows a blank page afterwards, close the tab and log in again.
