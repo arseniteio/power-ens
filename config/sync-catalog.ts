@@ -20,6 +20,11 @@ mkdirSync(templates, { recursive: true });
 for (const name of readdirSync(join(catalog, 'templates'))) {
   copyFileSync(join(catalog, 'templates', name), join(templates, name));
 }
+const profiles = join(plugin, 'common', 'ens', 'catalog', 'profiles');
+mkdirSync(profiles, { recursive: true });
+for (const name of readdirSync(join(catalog, 'profiles'))) {
+  copyFileSync(join(catalog, 'profiles', name), join(profiles, name));
+}
 
 const { ENGINE_CATALOG, controlBlockOf } = require('../common/ens/catalog/engine-catalog');
 declare const require: any;
