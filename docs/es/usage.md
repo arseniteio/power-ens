@@ -6,7 +6,7 @@ Power ENS aparece en el menú del dashboard de Wazuh. Todos los resultados viene
 
 Configuración guarda lo que declara la organización. Para guardar hace falta el rol `power_ens_admin` o `all_access`. Tiene tres partes.
 
-Organización guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alcance (Grupos evaluables) y los datos que comparten varios controles, como los plazos de retención. Pulsa Guardar configuración global la primera vez, porque el motor no juzga nada hasta que existe una configuración.
+Organización guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alcance (Grupos evaluables) y los datos que comparten varios controles, como los plazos de retención. Hasta que se pulsa Guardar configuración global por primera vez, el motor y el plugin usan la configuración por defecto del catálogo, `common/ens/catalog/default-configuration.json`: nivel MEDIO y el grupo `ens` en alcance. Guarda para cambiarlos.
 
 Plantillas guarda los valores de cada control. Abre un control y pulsa Completar configuración para rellenar lo que falta. Hay una plantilla por tipo de sistema con valores para los parámetros que dependen de la plataforma: revísalos con tus máquinas.
 

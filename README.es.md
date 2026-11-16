@@ -10,12 +10,12 @@ Funciona en Wazuh 4.14.7, 4.14.8 y 4.14.9. Las pantallas están en español.
 
 ## Instalar
 
-El script de instalación de OSCompliance ENS instala el plugin junto con el motor y el agente: consulta los [primeros pasos](https://github.com/arseniteio/oscompliance-ens/blob/main/README.es.md#primeros-pasos).
+El script de instalación de OSCompliance ENS instala el plugin en cada nodo de dashboard, y el motor en el manager maestro: consulta los [primeros pasos](https://github.com/arseniteio/oscompliance-ens/blob/main/README.es.md#primeros-pasos).
 
-Para instalar solo el plugin, descarga en el servidor de Wazuh el zip de tu dashboard, `osd-2.19.5` para Wazuh 4.14.7 y `osd-2.19.6` para 4.14.8 y 4.14.9, compruébalo e instálalo.
+Para instalar solo el plugin, descarga en cada nodo de dashboard el zip de tu dashboard, `osd-2.19.5` para Wazuh 4.14.7 y `osd-2.19.6` para 4.14.8 y 4.14.9, compruébalo e instálalo.
 
 ```bash
-v=1.1.0
+v=1.2.0
 url=https://github.com/arseniteio/power-ens/releases/download/v$v
 curl -fLO "$url/power-ens-$v-osd-2.19.6.zip" -O "$url/deploy-plugin.sh" -O "$url/SHA256SUMS"
 sha256sum -c --ignore-missing SHA256SUMS

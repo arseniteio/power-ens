@@ -6,7 +6,7 @@ Power ENS appears in the Wazuh dashboard menu. The screens are in Spanish, so th
 
 Configuración holds what the organisation declares. Saving it needs the `power_ens_admin` or `all_access` role. It has three parts.
 
-Organización holds the client, the ENS level (BAJO, MEDIO or ALTO), the groups in scope (Grupos evaluables) and the data that several controls share, such as retention periods. Press Guardar configuración global the first time, because the engine judges nothing until a configuration exists.
+Organización holds the client, the ENS level (BAJO, MEDIO or ALTO), the groups in scope (Grupos evaluables) and the data that several controls share, such as retention periods. Until Guardar configuración global is pressed for the first time, the engine and the plugin use the default of the catalog, `common/ens/catalog/default-configuration.json`: level MEDIO and the `ens` group in scope. Save to change them.
 
 Plantillas holds the values of each control. Open a control and press Completar configuración to fill in what is missing. A built-in template per system type brings values for the parameters that depend on the platform: review them against your machines.
 
