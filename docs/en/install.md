@@ -5,6 +5,7 @@ This page covers the plugin only. The full installation, with the rules, the eng
 ## Requirements
 
 - Wazuh 4.14.7, 4.14.8 or 4.14.9.
+- 40 MB of disk on each dashboard node for the plugin, plus a copy of the previous version that `deploy-plugin.sh` keeps in `/var/backups/power-ens`. It adds no service and no background work to the dashboard; the result screens read from the indexer when they are opened.
 - Docker on the machine that builds the zip, only to build it from source.
 - `unzip` on the dashboard server, for an installation from packages, and `curl` and `python3` on the indexer host to grant access.
 
