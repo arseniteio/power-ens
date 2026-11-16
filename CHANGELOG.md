@@ -7,6 +7,8 @@ All notable changes to Power ENS are documented in this file. The format follows
 ### Changed
 
 - The repository is now `arseniteio/power-ens-wazuh`, to leave room for other SIEMs. The release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
+- The installation guide lists the disk the plugin needs on each dashboard node.
+- `CONTRIBUTING.md` and `CONTRIBUTING.es.md` explain how to propose a change and the contributor license agreement.
 
 ## [1.2.0] - 2026-11-16
 
