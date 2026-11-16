@@ -2,6 +2,8 @@ import type { CoreSetup, Logger, Plugin, PluginInitializerContext } from '../../
 import { registerConfigurationRoutes } from './routes/configuration';
 import { registerEvaluationRoutes } from './routes/evaluation';
 import { registerExclusionRoutes } from './routes/exclusions';
+import { registerHostRoutes } from './routes/hosts';
+import { registerProfileRoutes } from './routes/profiles';
 
 interface PowerEnsServerSetupDeps {
   securityDashboards?: unknown;
@@ -21,6 +23,8 @@ export class PowerEnsServerPlugin implements Plugin<{}, {}, PowerEnsServerSetupD
     registerConfigurationRoutes(router, { logger: this.logger, securityEnabled });
     registerEvaluationRoutes(router, { logger: this.logger, securityEnabled });
     registerExclusionRoutes(router, { logger: this.logger, securityEnabled });
+    registerProfileRoutes(router, { logger: this.logger, securityEnabled });
+    registerHostRoutes(router, { logger: this.logger });
 
     return {};
   }

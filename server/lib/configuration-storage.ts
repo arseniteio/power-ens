@@ -25,7 +25,7 @@ const isIndexAlreadyCreatedError = (error: any): boolean => {
   );
 };
 
-async function ensureENSConfigurationIndex(client: any, logger: Logger): Promise<void> {
+export async function ensureENSConfigurationIndex(client: any, logger: Logger): Promise<void> {
   const exists = await client.indices.exists({ index: ENS_CONFIGURATION_INDEX });
 
   if (exists.body) {
