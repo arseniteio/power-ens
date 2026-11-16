@@ -41,11 +41,11 @@ jobs:
       - name: build the zip
         run: bash ci/build-zip.sh "${{ matrix.osd }}"
       - name: name the zip after the release
-        run: mv "dist/powerEns-${{ matrix.osd }}.zip" "dist/power-ens-${GITHUB_REF_NAME#v}-osd-${{ matrix.osd }}.zip"
+        run: mv "dist/powerEns-${{ matrix.osd }}.zip" "dist/power-ens-wazuh-${GITHUB_REF_NAME#v}-osd-${{ matrix.osd }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: zip-${{ matrix.osd }}
-          path: dist/power-ens-*.zip
+          path: dist/power-ens-wazuh-*.zip
 
   release:
     needs: zip
@@ -61,11 +61,11 @@ jobs:
       - name: checksums
         run: |
           cp config/deploy-plugin.sh config/create-admin-role.sh ci/dashboard.Dockerfile dist/
-          cd dist && sha256sum power-ens-*.zip deploy-plugin.sh create-admin-role.sh dashboard.Dockerfile > SHA256SUMS
+          cd dist && sha256sum power-ens-wazuh-*.zip deploy-plugin.sh create-admin-role.sh dashboard.Dockerfile > SHA256SUMS
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/power-ens-*.zip dist/SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" dist/power-ens-wazuh-*.zip dist/SHA256SUMS \
             dist/deploy-plugin.sh dist/create-admin-role.sh dist/dashboard.Dockerfile \
             --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag

@@ -6,7 +6,7 @@ declare const process: { env: Record<string, string | undefined> };
 
 const plugin = join(__dirname, '..');
 const vendored = join(plugin, 'common', 'ens', 'catalog', 'engine');
-const source = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens'), 'catalog', 'controls', 'ens');
+const source = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens-wazuh'), 'catalog', 'controls', 'ens');
 
 for (const name of readdirSync(vendored).filter(file => file.endsWith('.json'))) {
   copyFileSync(join(source, name), join(vendored, name));

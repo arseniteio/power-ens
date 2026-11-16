@@ -8,7 +8,7 @@ import { getEvidenceDefinitions } from '../../common/ens/core/evidence/registry'
 
 const plugin = join(__dirname, '..', '..');
 const vendored = join(plugin, 'common', 'ens', 'catalog', 'engine');
-const monorepo = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens'), 'catalog');
+const monorepo = join(process.env.CORE_SRC || join(plugin, '..', 'oscompliance-ens-wazuh'), 'catalog');
 
 describe('engine catalog', () => {
   test('has one entry per control of the plugin catalog', () => {
@@ -31,7 +31,7 @@ describe('engine catalog', () => {
     }
   });
 
-  test('is a byte-for-byte copy of the oscompliance-ens catalog', { skip: !existsSync(monorepo) && 'oscompliance-ens is not checked out' }, () => {
+  test('is a byte-for-byte copy of the oscompliance-ens-wazuh catalog', { skip: !existsSync(monorepo) && 'oscompliance-ens-wazuh is not checked out' }, () => {
     for (const file of readdirSync(vendored).filter(name => name.endsWith('.json'))) {
       assert.equal(readFileSync(join(vendored, file), 'utf8'), readFileSync(join(monorepo, 'controls', 'ens', file), 'utf8'), file);
     }

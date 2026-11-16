@@ -12,9 +12,9 @@ Plantillas guarda los valores de cada control. Abre un control y pulsa Completar
 
 Agentes guarda lo que corresponde a una máquina. Abre la máquina y el control, y edita el parámetro con el lápiz.
 
-Después del primer guardado, Plantillas y Agentes también se pueden rellenar desde un fichero JSON con `config/set-parameters.py`, que valida cada valor y muestra el plan antes de escribir. Consulta [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
+Después del primer guardado, Plantillas y Agentes también se pueden rellenar desde un fichero JSON con `config/set-parameters.py`, que valida cada valor y muestra el plan antes de escribir. Consulta [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
 
-Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens/tree/main/docs/es/controls).
+Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens-wazuh/tree/main/docs/es/controls).
 
 Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `ens-excluir-<control>`. Una máquina añadida a uno de esos grupos queda fuera de ese control. En Detalle del control, un usuario con `power_ens_admin` o `all_access` pulsa Excluir de este control para mover la máquina a ese grupo, y debe escribir un motivo. Power ENS registra la máquina, el control, el motivo, el usuario y la fecha en el índice `wazuh-ens-exclusions`. Volver a incluir lo revierte, también con motivo. El manager no pertenece a ningún grupo y no se puede excluir.
 
@@ -36,4 +36,4 @@ Informes genera el informe de cada control para un auditor, con sus requisitos, 
 
 Cumple significa medido y correcto. No cumple significa medido e incorrecto, y el motivo nombra lo que falla. No evaluable significa que no se ha podido medir: falta un parámetro o no ha llegado una fuente. No aplica significa que queda fuera del nivel ENS, o que el control o la máquina están fuera de alcance.
 
-Un requisito con una evidencia no evaluable no cumple. Lo que no se puede demostrar no cuenta como cumplido. Las reglas completas están en [Veredictos](https://github.com/arseniteio/oscompliance-ens/blob/main/docs/es/verdicts.md).
+Un requisito con una evidencia no evaluable no cumple. Lo que no se puede demostrar no cuenta como cumplido. Las reglas completas están en [Veredictos](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/verdicts.md).

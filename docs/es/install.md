@@ -1,6 +1,6 @@
 # Instalación
 
-Esta página cubre solo el plugin. La instalación completa, con las reglas, el motor y el agente, está en la [guía de oscompliance-ens](https://github.com/arseniteio/oscompliance-ens/blob/main/docs/es/install.md).
+Esta página cubre solo el plugin. La instalación completa, con las reglas, el motor y el agente, está en la [guía de oscompliance-ens-wazuh](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/install.md).
 
 ## Requisitos
 
@@ -20,7 +20,7 @@ Descarga de la versión publicada el zip para esa versión, los scripts y las su
 
 ```bash
 v=1.2.0
-url=https://github.com/arseniteio/power-ens/releases/download/v$v
+url=https://github.com/arseniteio/power-ens-wazuh/releases/download/v$v
 curl -fLO "$url/power-ens-$v-osd-2.19.6.zip" -O "$url/SHA256SUMS"
 curl -fLO "$url/deploy-plugin.sh" -O "$url/create-admin-role.sh" -O "$url/dashboard.Dockerfile"
 sha256sum -c --ignore-missing SHA256SUMS
@@ -37,7 +37,7 @@ ci/build-zip.sh 2.19.6
 Copia el zip y `deploy-plugin.sh` al servidor del dashboard y ejecuta esto como root. El script valida el zip, guarda una copia de la versión anterior en `/var/backups/power-ens`, instala el plugin y reinicia el dashboard. Si un paso falla, se detiene e indica cómo volver atrás.
 
 ```bash
-bash deploy-plugin.sh "power-ens-$v-osd-2.19.6.zip"
+bash deploy-plugin.sh "power-ens-wazuh-$v-osd-2.19.6.zip"
 ```
 
 ## Instalar en Docker
@@ -46,10 +46,10 @@ El plugin va en una imagen propia, porque lo que se instala en un contenedor en 
 
 ```bash
 docker build -f dashboard.Dockerfile --build-arg WAZUH_VERSION=4.14.8 \
-  --build-arg PLUGIN_ZIP="power-ens-$v-osd-2.19.6.zip" -t power-ens/wazuh-dashboard:local .
+  --build-arg PLUGIN_ZIP="power-ens-wazuh-$v-osd-2.19.6.zip" -t power-ens/wazuh-dashboard:local .
 ```
 
-La imagen se indica en `docker-compose.override.yml`, junto a tu `docker-compose.yml`, sin tocar este. La instalación completa copia ese fichero desde el paquete de oscompliance-ens. Con el fichero en su sitio, recrea el servicio desde la carpeta del compose.
+La imagen se indica en `docker-compose.override.yml`, junto a tu `docker-compose.yml`, sin tocar este. La instalación completa copia ese fichero desde el paquete de oscompliance-ens-wazuh. Con el fichero en su sitio, recrea el servicio desde la carpeta del compose.
 
 ```bash
 docker compose up -d wazuh.dashboard
