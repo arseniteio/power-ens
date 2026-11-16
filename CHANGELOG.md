@@ -9,6 +9,10 @@ All notable changes to Power ENS are documented in this file. The format follows
 - The default ENS level and scope come from `default-configuration.json` of the OSCompliance ENS catalog, which the engine also uses: level MEDIO and the `ens` group.
 - Until a configuration is saved, the engine judges with that default, so "Guardar configuración global" (save global configuration) is no longer required before the first verdicts.
 
+### Fixed
+
+- The result screens load on a deployment where no configuration was ever saved, instead of failing because the `wazuh-ens-configuration` index does not exist.
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
