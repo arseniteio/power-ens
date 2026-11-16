@@ -4,11 +4,29 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Configuración has the tabs Estado, Máquinas, Perfiles, Pendiente, Organización and General. Estado summarises machines without a profile, unset parameters that leave evidences not evaluable, coverage per role, distribution and profile, and the latest changes.
+- Máquinas lists the machines in `oscompliance-host-profile` with server-side paging, search and filters by profile, role, distribution, service and Wazuh group. Each machine opens a panel with what the engine deduced, its profiles and the value and origin of every per-machine parameter.
+- Perfiles lists the built-in and stored profiles by layer, and edits them with a condition builder, a live preview of the machines that match and the values of the per-machine parameters. New profiles start blank, from a copy or from a file. Importar reads YAML or JSON with one or several profiles and shows new, changed, unchanged and invalid profiles before applying; Exportar writes YAML in the `oscompliance-policy` format.
+- Profile edits are collected in one save bar (Descartar, Revisar, Guardar) and written together, with a version check against concurrent changes.
+- Pendiente lists machines without a profile and the unset parameters of the last verdicts, with a link to where each one is set.
+- `/api/powerEns/profiles` lists, reads, writes, deletes, imports and exports profiles, and `/api/powerEns/hosts` searches the machines and returns a machine with its profiles and values.
+- The plugin ships the built-in profiles of the OSCompliance catalog in `common/ens/catalog/profiles`, and `config/sync-catalog.ts` copies them.
+- New runtime dependency `yaml` 2.6.1 (ISC), used by the server to read and write profile files.
+
 ### Changed
 
+- The organisation data and the values of each control are in the Organización tab; the client, level, groups in scope and per-control groups are in General.
+- The per-machine values of the old Agentes tab open from the machine panel in Máquinas.
+- The usage guide describes the new tabs and the order in which a machine's value is chosen; the installation guide lists the index permissions they need.
 - The repository is now `arseniteio/power-ens-wazuh`, to leave room for other SIEMs. The release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
 - The installation guide lists the disk the plugin needs on each dashboard node.
 - `CONTRIBUTING.md` and `CONTRIBUTING.es.md` explain how to propose a change and the contributor license agreement.
+
+### Fixed
+
+- The result screens no longer fail with "Maximum call stack size exceeded" on a deployment with thousands of machines.
 
 ## [1.2.0] - 2026-11-16
 
