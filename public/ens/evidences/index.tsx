@@ -21,6 +21,7 @@ import {
   EuiSpacer,
   EuiText,
   EuiTitle,
+  EuiLink,
 } from '@elastic/eui';
 import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { compareENSControlIdsByAnnex, getENSCatalogControl } from '../../../common/ens/catalog';
@@ -37,6 +38,7 @@ import { machinesLabel, summarizeMotives } from '../controls/control-detail/gene
 import { statusLabel } from '../../../common/ens/core/status-label';
 import { ENS_STATUS_COLORS } from '../status-colors';
 import { ENS_THEME } from '../theme-colors';
+import { useOpenControl } from '../open-control';
 
 interface EvidenceRow {
   evidenceId: string;
@@ -400,6 +402,7 @@ const EvidenceBar = ({ group }: { group: ControlEvidenceGroup }) => {
 };
 
 export const EvidencesENS = () => {
+  const openControl = useOpenControl();
   const { agentId, evidenceControl } = useRouterSearch();
   const updateUrl = useSetRouterSearch();
 
@@ -755,7 +758,17 @@ export const EvidencesENS = () => {
               field: 'controlId',
               name: 'Control',
               width: '110px',
-              render: (id: string) => <strong>{id}</strong>,
+              render: (id: string) => (
+                <EuiLink
+                  onClick={(event: React.MouseEvent) => {
+                    event.stopPropagation();
+                    openControl(id);
+                  }}
+                  title={`Ver ${id} en Detalle del control`}
+                >
+                  <strong>{id}</strong>
+                </EuiLink>
+              ),
             },
             { field: 'title', name: 'Título' },
             {

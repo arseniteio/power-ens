@@ -72,6 +72,7 @@ import { useOrganizationMaturity } from '../maturity/maturity-client';
 import { maturityPdf, maturityReportRows } from '../maturity/maturity-report';
 import { assessmentOf } from '../../../common/ens/maturity/assessments';
 import { ENS_MATURITY_NOTE } from '../../../common/ens/maturity/types';
+import { useOpenControl } from '../open-control';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -101,6 +102,7 @@ const ControlReport = ({
   definition: ENSReportModelDefinition;
 }) => {
   const { agentId } = useRouterSearch();
+  const openControl = useOpenControl();
   const hostParameter = useHostParameters(agentId);
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
 
@@ -787,6 +789,9 @@ const ControlReport = ({
 
   return (
     <>
+      <EuiButtonEmpty size='s' flush='left' iconType='arrowRight' iconSide='right' onClick={() => openControl(controlId)}>
+        {`Ver ${controlId} en Detalle del control`}
+      </EuiButtonEmpty>
       <EvaluationStatusLine meta={evaluation.data?.meta} refreshing={evaluation.isRefreshing} onRetry={evaluation.retry} />
       <EuiFlexGroup justifyContent='spaceBetween' alignItems='center'>
         <EuiFlexItem>

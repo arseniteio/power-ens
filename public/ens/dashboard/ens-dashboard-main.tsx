@@ -99,12 +99,13 @@ const ControlsTable = ({
     pagination={rows.length > PAGE_SIZE ? { initialPageSize: PAGE_SIZE, hidePerPageOptions: true } : false}
     sorting={!pending}
     message='Ningún control coincide.'
+    rowProps={(row: AttentionRow) => ({ onClick: () => onOpen(row.controlId), style: { cursor: 'pointer' }, title: `Abrir ${row.controlId}` })}
     columns={[
       {
         field: 'controlId',
         name: 'Control',
         width: '110px',
-        render: (controlId: string) => <EuiLink onClick={() => onOpen(controlId)}>{controlId}</EuiLink>,
+        render: (controlId: string) => <EuiLink>{controlId}</EuiLink>,
       },
       { field: 'title', name: 'Título', truncateText: true },
       {
