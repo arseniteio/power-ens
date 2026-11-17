@@ -4260,6 +4260,11 @@
  },
  "op.mon.2": {
   "evidences": {
+   "EV-01": {
+    "module": "Motor Power ENS",
+    "proof": "Calcula el porcentaje de implantación de cada medida aplicable según P-01 y lo agrega por marco, categoría y total.",
+    "setup": "Lo produce la puntuación de cada control, consolidada contra la declaración de aplicabilidad."
+   },
    "EV-02": {
     "module": "Motor Power ENS",
     "proof": "Sigue la evolución de la implantación según P-02 y señala retrocesos.",
@@ -4274,6 +4279,11 @@
     "module": "Motor Power ENS",
     "proof": "Mide la fiabilidad de la medición: agentes activos, continuidad y parámetros rellenos.",
     "setup": "Agrega estado de agentes y cobertura de ingesta."
+   },
+   "EV-05": {
+    "module": "Motor Power ENS",
+    "proof": "Cuenta los controles sin evaluar por falta de parámetros del cliente y dice qué parámetro falta en cada uno.",
+    "setup": "Agrega los estados sin evaluar por configuración de todos los controles."
    },
    "EV-06": {
     "module": "Entrada manual Power ENS",
