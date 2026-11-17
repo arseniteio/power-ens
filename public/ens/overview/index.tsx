@@ -85,13 +85,15 @@ const ControlBar = ({ row, total, onPick }: { row: MatrixRow; total: number; onP
   return (
     <div style={{ display: 'flex', height: 18, borderRadius: 3, overflow: 'hidden', background: ENS_NO_RESULT_PATTERN }}>
       {CONTROL_BAR_STATUSES.filter(s => bar[s].length).map(s => (
-        <EuiToolTip key={s} content={`${statusLabel(s)}: ${bar[s].length}`}>
-          <div
-            role='button'
-            onClick={() => onPick(s, bar[s])}
-            style={{ width: `${(bar[s].length / Math.max(total, measured)) * 100}%`, height: 18, background: ENS_STATUS_COLORS[s], cursor: 'pointer' }}
-          />
-        </EuiToolTip>
+        // A tooltip anchor would wrap the segment in an inline box and leave its percentage width at zero.
+        <button
+          key={s}
+          type='button'
+          title={`${statusLabel(s)}: ${bar[s].length}`}
+          aria-label={`${statusLabel(s)}: ${bar[s].length} máquinas`}
+          onClick={() => onPick(s, bar[s])}
+          style={{ width: `${(bar[s].length / Math.max(total, measured)) * 100}%`, height: 18, background: ENS_STATUS_COLORS[s], border: 0, padding: 0, cursor: 'pointer' }}
+        />
       ))}
     </div>
   );
