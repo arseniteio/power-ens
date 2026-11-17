@@ -27,9 +27,9 @@ interface ENSTemplateCorrespondence {
 
 const mpInfo6Correspondence: ENSTemplateCorrespondence = {
   controlId: 'mp.info.6',
-  title: 'Correspondencia con la plantilla del auditor',
+  title: 'Correspondencia con la plantilla',
   summary:
-    'mp.info.6 no se construyó con la plantilla del auditor (v2.0, 15/10/2026). Se conservan los parámetros, las evidencias y los requisitos desplegados, porque son los que informan los recolectores del PBS y de Zimbra; esta tabla indica qué parte de la plantilla cubre cada uno y qué no se mide todavía.',
+    'mp.info.6 no se construyó con la plantilla (v2.0, 15/10/2026). Se conservan los parámetros, las evidencias y los requisitos desplegados, porque son los que informan los recolectores del PBS y de Zimbra; esta tabla indica qué parte de la plantilla cubre cada uno y qué no se mide todavía.',
   requirements: [
     { template: 'mp.info.6.1', templateName: 'Copias de seguridad', ours: ['mp.info.6.1'], coverage: 'EQUIVALENT', note: 'Mismo requisito.' },
     {

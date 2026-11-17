@@ -170,7 +170,7 @@ const RequirementBody = ({
         </Section>
       )}
       <EuiText size='xs' color='subdued'>
-        Norma: literal del RD 311/2022. Incumplimientos: criterio del auditor, sin valor normativo.
+        Norma: literal del RD 311/2022. Incumplimientos: propuesta de la plantilla, sin valor normativo.
       </EuiText>
     </>
   );
@@ -197,12 +197,12 @@ const EvidenceBody = ({
         <p>{guide.measurement}</p>
       </Section>
       {guide.proof ? (
-        <Section title='Criterio del auditor'>
+        <Section title='Propuesta de la plantilla'>
           <p>{guide.proof}</p>
         </Section>
       ) : (
-        <Section title='Criterio del auditor'>
-          <p>Evidencia propia de Power ENS. No está en la plantilla del auditor.</p>
+        <Section title='Propuesta de la plantilla'>
+          <p>Evidencia propia de Power ENS. No está en la plantilla.</p>
         </Section>
       )}
       {guide.setup && (
@@ -216,7 +216,7 @@ const EvidenceBody = ({
         </Section>
       )}
       <EuiText size='xs' color='subdued'>
-        Lo del auditor es una propuesta sin valor normativo. Se evalúa lo indicado en «Juicio de Power ENS».
+        La propuesta de la plantilla no tiene valor normativo ni vincula a un auditor. Se evalúa lo indicado en «Juicio de Power ENS».
       </EuiText>
     </>
   );

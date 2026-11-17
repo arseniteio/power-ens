@@ -39,5 +39,5 @@ export const describeAnnexSection = (control: Pick<ENSControlDefinition, 'annexS
 
 export const describeControlSource = (control: Pick<ENSControlDefinition, 'source'>): string =>
   control.source
-    ? `Plantilla del auditor v${control.source.version}${control.source.date ? ` (${formatISODate(control.source.date)})` : ''}`
+    ? `Plantilla v${control.source.version}${control.source.date ? ` (${formatISODate(control.source.date)})` : ''}`
     : '';

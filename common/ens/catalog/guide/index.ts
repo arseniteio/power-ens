@@ -1,4 +1,4 @@
-import criteria from './auditor-criteria.json';
+import criteria from './template-criteria.json';
 import relations from './control-relations.json';
 import { engineCatalogEntry } from '../engine-catalog';
 
@@ -84,15 +84,15 @@ export const describeEvidenceGuide = (controlId: string, evidenceId: string): EN
   const evidence = entry?.evidences.find((item: any) => item.id === evidenceId);
   if (!evidence) return undefined;
 
-  const auditor = criteriaOf(controlId)?.evidences[evidenceId];
+  const proposal = criteriaOf(controlId)?.evidences[evidenceId];
 
   return {
     id: evidence.id,
     title: evidence.title,
     measurement: evidence.description,
-    module: auditor?.module,
-    proof: auditor?.proof,
-    setup: auditor?.setup,
+    module: proposal?.module,
+    proof: proposal?.proof,
+    setup: proposal?.setup,
     requirements: (evidence.requirements || []).map((id: string) => ({
       id,
       title: entry.requirements.find((requirement: any) => requirement.id === id)?.title || '',

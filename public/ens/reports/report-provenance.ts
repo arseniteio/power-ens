@@ -64,7 +64,7 @@ export const pdfRowLabel = (provenance: ENSTextProvenance = ENS_PROPOSAL_TEXT_PR
   color: provenance === 'BOE' ? NORM_COLOR : CRITERION_COLOR,
 });
 
-export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla del auditor o por Power ENS, sin valor normativo.`;
+export const REPORT_CRITERION_NOTE = `${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: campos, parámetros y umbrales propuestos por la plantilla o por Power ENS, sin valor normativo.`;
 
 const correspondenceTable = (title: string, rows: ENSTemplateCorrespondenceRow[]): object[] => [
   { text: title, bold: true, fontSize: 9, margin: [0, 8, 0, 4] },

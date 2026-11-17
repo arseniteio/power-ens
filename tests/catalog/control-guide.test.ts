@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ENSCatalog } from '../../common/ens/catalog';
 import { describeEvidenceGuide, describeRequirementGuide, getControlRelation } from '../../common/ens/catalog/guide';
-import criteria from '../../common/ens/catalog/guide/auditor-criteria.json';
+import criteria from '../../common/ens/catalog/guide/template-criteria.json';
 import relations from '../../common/ens/catalog/guide/control-relations.json';
 import { engineCatalogEntry } from '../../common/ens/catalog/engine-catalog';
 
@@ -32,7 +32,7 @@ describe('control guide', () => {
     }
   });
 
-  test('auditor criteria only name evidences and requirements of the catalog', () => {
+  test('template criteria only name evidences and requirements of the catalog', () => {
     for (const [controlId, control] of Object.entries(criteria as Record<string, any>)) {
       const entry = engineCatalogEntry(controlId);
       Object.keys(control.evidences).forEach(id => assert.ok(entry.evidences.some((e: any) => e.id === id), `${controlId} ${id}`));
@@ -63,7 +63,7 @@ describe('control guide', () => {
     assert.doesNotMatch(JSON.stringify(criteria), THIRD_PARTY_MARK);
   });
 
-  test('an evidence the auditor does not have is reported as own', () => {
+  test('an evidence the template does not have is reported as own', () => {
     const guide = describeEvidenceGuide('op.exp.3', 'EV-11');
     assert.ok(guide?.measurement);
     assert.equal(guide?.proof, undefined);
