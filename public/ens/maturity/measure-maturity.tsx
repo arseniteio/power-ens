@@ -14,7 +14,6 @@ import {
   EuiModalHeader,
   EuiModalHeaderTitle,
   EuiPanel,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTextArea,
@@ -32,6 +31,7 @@ import {
   maturityLabel,
 } from '../../../common/ens/maturity/types';
 import { dateTimeLabel } from '../../../common/ens/core/date-label';
+import { Choice } from '../ui/choice';
 
 const LEVEL_OPTIONS = [
   { value: '', text: 'Sin valorar' },
@@ -89,10 +89,22 @@ export const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string
         </EuiText>
         <EuiSpacer size='m' />
         <EuiFormRow label='Nivel valorado' fullWidth>
-          <EuiSelect options={LEVEL_OPTIONS} value={level} onChange={event => setLevel(event.target.value)} fullWidth />
+          <Choice
+            legend='Nivel valorado'
+            options={LEVEL_OPTIONS}
+            value={level}
+            onChange={(value: string) => setLevel(value)}
+            fullWidth
+          />
         </EuiFormRow>
         <EuiFormRow label='Nivel objetivo' fullWidth>
-          <EuiSelect options={LEVEL_OPTIONS.map(o => (o.value === '' ? { ...o, text: 'Sin objetivo' } : o))} value={target} onChange={event => setTarget(event.target.value)} fullWidth />
+          <Choice
+            legend='Nivel objetivo'
+            options={LEVEL_OPTIONS.map(o => (o.value === '' ? { ...o, text: 'Sin objetivo' } : o))}
+            value={target}
+            onChange={(value: string) => setTarget(value)}
+            fullWidth
+          />
         </EuiFormRow>
         <EuiFormRow label='Documentos que lo acreditan' helpText='Procedimiento, registro de revisiones o informe de mejora, con su referencia y versión.' fullWidth>
           <EuiFieldText value={references} onChange={event => setReferences(event.target.value)} fullWidth />

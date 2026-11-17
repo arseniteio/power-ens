@@ -10,7 +10,6 @@ import {
   EuiHorizontalRule,
   EuiLoadingSpinner,
   EuiPanel,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -26,6 +25,7 @@ import { hostLabel } from '../profiles/profile-labels';
 import { ENSHostDetail, profilesClient } from '../profiles/profiles-client';
 import { TYPE_TEMPLATE_OPTIONS } from './bulk-actions';
 import { OsIcon, osKindOf } from './os-icon';
+import { Choice } from '../../ui/choice';
 
 interface MachineDetailProps {
   agentId: string;
@@ -143,7 +143,13 @@ export const MachineDetail = ({ agentId, groupName, revision, onBack, onNavigate
       <EuiFlexGroup gutterSize='l' wrap>
         <EuiFlexItem style={{ minWidth: 280 }}>
           <EuiFormRow label='Plantilla' helpText={`En uso: ${templateText(stored?.typeOverride, detected)}. Da los valores de partida; los de sus grupos y los propios mandan.`}>
-            <EuiSelect options={TYPE_TEMPLATE_OPTIONS} value={stored?.typeOverride || ''} disabled={saving} onChange={event => changeTemplate(event.target.value)} />
+            <Choice
+              legend='Plantilla'
+              options={TYPE_TEMPLATE_OPTIONS}
+              value={stored?.typeOverride || ''}
+              onChange={(value: string) => changeTemplate(value)}
+              disabled={saving}
+            />
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem style={{ minWidth: 280 }}>

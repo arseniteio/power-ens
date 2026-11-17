@@ -7,7 +7,6 @@ import {
   EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -37,6 +36,7 @@ import { ChangePreviewModal } from './change-preview-modal';
 import { errorMessage } from './confirm-modal';
 import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
+import { Choice } from '../../ui/choice';
 
 interface ControlAssignmentPanelProps {
   configuration: ENSConfigurationVersion;
@@ -195,9 +195,8 @@ export const ControlAssignmentPanel = ({
 
       <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
         <EuiFlexItem grow={false}>
-          <EuiSelect
-            compressed
-            aria-label='Plantilla que se asigna'
+          <Choice
+            legend='Plantilla que se asigna'
             options={[
               { value: '', text: 'Elegir plantilla…' },
               { value: BY_TYPE, text: 'La de serie de su tipo' },
@@ -205,7 +204,7 @@ export const ControlAssignmentPanel = ({
               { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
             ]}
             value={choice}
-            onChange={event => setChoice(event.target.value)}
+            onChange={(value: string) => setChoice(value)}
           />
         </EuiFlexItem>
         <EuiFlexItem grow={false}>

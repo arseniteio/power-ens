@@ -6,7 +6,6 @@ import {
   EuiButtonEmpty,
   EuiButtonGroup,
   EuiCallOut,
-  EuiComboBox,
   EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
@@ -27,6 +26,7 @@ import { controlTitle } from './parameter-titles';
 import { useProfileChanges } from './profile-changes';
 import { LAYER_HELP, LAYER_LABELS, hostLabel, machines } from './profile-labels';
 import { ENSHostPreview, profilesClient } from './profiles-client';
+import { Choice } from '../../ui/choice';
 
 interface ProfileEditorProps {
   profileId: string;
@@ -355,20 +355,16 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
             ))}
 
             {!readOnly && (
-              <EuiComboBox
-                fullWidth
-                placeholder='Añadir un parámetro: busca por nombre o por control'
-                singleSelection={{ asPlainText: true }}
-                options={addOptions}
-                selectedOptions={[]}
-                onChange={choice => {
-                  const value = String(choice[0]?.value || '');
+              <Choice
+                legend='Añadir un parámetro'
+                options={addOptions.flatMap(group => group.options.map(option => ({ value: String(option.value), text: option.label })))}
+                value=''
+                onChange={value => {
                   if (!value) return;
                   const [controlId, parameterId, type] = value.split('|');
                   setEdit(controlId, parameterId, { value: emptyValueFor(type), replace: false });
                   setOpened(controlId);
                 }}
-                aria-label='Añadir un parámetro'
               />
             )}
           </EuiPanel>

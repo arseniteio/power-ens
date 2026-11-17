@@ -14,7 +14,6 @@ import {
   EuiModalHeader,
   EuiModalHeaderTitle,
   EuiPanel,
-  EuiSelect,
   EuiSpacer,
   EuiText,
 } from '@elastic/eui';
@@ -37,6 +36,7 @@ import { isEmptyParameterValue } from '../../../../common/ens/configuration/serv
 import { withMatchMode } from '../../../../common/ens/configuration/services/parameter-pattern';
 import { ParameterRendererFactory } from '../form-engine';
 import { valueRows } from './agent-parameter-row';
+import { Choice } from '../../ui/choice';
 
 export type ENSTemplateEditorMode = 'view' | 'create' | 'edit';
 
@@ -126,10 +126,11 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
               <EuiFieldText value={description} fullWidth onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDescription(event.target.value)} />
             </EuiFormRow>
             <EuiFormRow label='Tipo de sistema' helpText='Informativo: avisa al asignarla a un agente de otro tipo.'>
-              <EuiSelect
+              <Choice
+                legend='Tipo de sistema'
                 options={[{ value: '', text: 'Cualquiera' }, ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] }))]}
                 value={systemType}
-                onChange={event => setSystemType(event.target.value)}
+                onChange={(value: string) => setSystemType(value)}
               />
             </EuiFormRow>
           </>

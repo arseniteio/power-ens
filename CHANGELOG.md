@@ -6,6 +6,7 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ### Added
 
+- Choices show every option at once: buttons side by side for a few, a list with a search box for many. Dropdown menus are gone from the configuration, except the fields where a list of values is typed. Máquina opens a side panel with a search and every machine in view.
 - Configuración is organised by groups: Grupos y máquinas replaces Estado, Máquinas and Perfiles. Each group lists its controls and its machines; Cargar plantilla copies a built-in template into a group; selected machines can be added to a hand-picked group, given a plantilla or given a value at once. A machine shows its groups, its plantilla (including Sin plantilla) and a Configurar button per control. Machines show their operating system with Power ENS's own glyphs.
 - Madurez de la organización at the top of Panel: CMM levels accredited by the engine and assessed by people, distribution, global levels and measures below target. Detalle del control shows the maturity of the control with Valorar, and Informes adds it to the screen and the PDF. Assessments are stored in `configuration.maturity`; the server signs each changed one with the user and the date.
 - Organización holds twelve shared data instead of six: authorised personnel now feeds op.exp.3, op.exp.4, op.exp.8, op.exp.10, mp.info.6 and op.nub.1; retention feeds op.exp.8, op.exp.9, mp.info.6 and mp.s.3; the statement of applicability feeds op.mon.2; and preproduction environment, change and incident tools, CCN-authorised algorithms, certified products, staff training and awareness activities are new. Existing control values move in when they agree, and are flagged when they differ.
@@ -34,6 +35,7 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ### Fixed
 
+- A whole control row in Panel opens its detail, and Informes and Evidencias link to Detalle del control.
 - The result screens no longer fail with "Maximum call stack size exceeded" on a deployment with thousands of machines.
 
 ## [1.2.0] - 2026-11-16

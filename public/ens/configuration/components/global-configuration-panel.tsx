@@ -5,7 +5,6 @@ import {
   EuiFieldText,
   EuiFormRow,
   EuiPanel,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -22,6 +21,7 @@ import {
   describeDimensionsAboveENSLevel,
   listControlDimensions,
 } from '../../../../common/ens/core/control-level';
+import { Choice } from '../../ui/choice';
 
 interface GlobalConfigurationPanelProps {
   configuration: ENSGlobalConfiguration;
@@ -290,15 +290,14 @@ export const GlobalConfigurationPanel = ({
         helpText='Categoría del sistema: el nivel más alto de sus dimensiones.'
         fullWidth
       >
-        <EuiSelect
+        <Choice
+          legend='Nivel ENS'
           options={ensLevelOptions}
           value={draftConfiguration.ensLevel}
-          onChange={event =>
-            updateField(
+          onChange={(value: string) => updateField(
               'ensLevel',
-              event.target.value
-            )
-          }
+              value
+            )}
           fullWidth
         />
       </EuiFormRow>
@@ -313,10 +312,11 @@ export const GlobalConfigurationPanel = ({
             helpText={describeDimensionUse(dimension)}
             fullWidth
           >
-            <EuiSelect
+            <Choice
+              legend={`Nivel de ${ENS_DIMENSION_NAMES[dimension]}`}
               options={dimensionLevelOptions}
               value={draftConfiguration[key] || ''}
-              onChange={event => updateField(key, event.target.value)}
+              onChange={(value: string) => updateField(key, value)}
               fullWidth
             />
           </EuiFormRow>
@@ -377,17 +377,16 @@ export const GlobalConfigurationPanel = ({
         helpText='Ventana temporal usada para calcular cumplimiento y evidencias.'
         fullWidth
       >
-        <EuiSelect
+        <Choice
+          legend='Periodo de evaluación'
           options={evaluationPeriodOptions}
           value={
             draftConfiguration.evaluationPeriod
           }
-          onChange={event =>
-            updateField(
+          onChange={(value: string) => updateField(
               'evaluationPeriod',
-              event.target.value
-            )
-          }
+              value
+            )}
           fullWidth
         />
       </EuiFormRow>
@@ -414,17 +413,16 @@ export const GlobalConfigurationPanel = ({
         helpText='Idioma utilizado en los informes Power ENS.'
         fullWidth
       >
-        <EuiSelect
+        <Choice
+          legend='Idioma de informes'
           options={reportLanguageOptions}
           value={
             draftConfiguration.reportLanguage
           }
-          onChange={event =>
-            updateField(
+          onChange={(value: string) => updateField(
               'reportLanguage',
-              event.target.value
-            )
-          }
+              value
+            )}
           fullWidth
         />
       </EuiFormRow>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { EuiFormRow, EuiSelect } from '@elastic/eui';
+import { EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
 import { resolveBooleanFieldModel, validateParameterValue } from '../../../../../common/ens/configuration/services/parameter-value-validator';
+import { Choice } from '../../../ui/choice';
 
 export const BooleanParameterRenderer = ({ parameter, value, onChange }: ENSFormFieldProps) => {
   const model = resolveBooleanFieldModel(value);
@@ -16,16 +17,16 @@ export const BooleanParameterRenderer = ({ parameter, value, onChange }: ENSForm
       error={verdict.reason ? [verdict.reason] : undefined}
       fullWidth
     >
-      <EuiSelect
-        fullWidth
-        isInvalid={!verdict.valid}
+      <Choice
+        legend={parameter.label}
         options={[
           { value: '', text: 'Sin seleccionar' },
           { value: 'sí', text: 'Sí' },
           { value: 'no', text: 'No' },
         ]}
         value={model}
-        onChange={event => onChange(parameter.name, event.target.value === '' ? undefined : event.target.value)}
+        onChange={(value: string) => onChange(parameter.name, value === '' ? undefined : value)}
+        fullWidth
       />
     </EuiFormRow>
   );

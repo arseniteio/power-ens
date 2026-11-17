@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EuiFieldText, EuiFormRow, EuiSelect, EuiSpacer, EuiText } from '@elastic/eui';
+import { EuiFieldText, EuiFormRow, EuiSpacer, EuiText } from '@elastic/eui';
 
 import type { ENSMatchMode } from '../../../../../common/agent-configuration';
 import type { ENSFormFieldProps } from '../types';
@@ -13,6 +13,7 @@ import {
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
 import { ListParameterRenderer } from './list-parameter-renderer';
 import { TextParameterRenderer } from './text-parameter-renderer';
+import { Choice } from '../../../ui/choice';
 
 export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchModeChange }: ENSFormFieldProps) => {
   const mode: ENSMatchMode = parameter.matchMode === 'regex' ? 'regex' : 'exact';
@@ -43,15 +44,16 @@ export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchMo
   return (
     <>
       <EuiFormRow label={`Modo de ${parameter.label}`} fullWidth>
-        <EuiSelect
-          fullWidth
-          value={mode}
-          disabled={!onMatchModeChange}
+        <Choice
+          legend={`Modo de ${parameter.label}`}
           options={[
             { value: 'exact', text: 'Texto exacto' },
             { value: 'regex', text: 'Expresión regular' },
           ]}
-          onChange={event => switchMode(event.target.value as ENSMatchMode)}
+          value={mode}
+          onChange={(value: string) => switchMode(value as ENSMatchMode)}
+          disabled={!onMatchModeChange}
+          fullWidth
         />
       </EuiFormRow>
       <EuiSpacer size='s' />

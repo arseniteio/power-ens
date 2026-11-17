@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   EuiButton,
   EuiButtonEmpty,
-  EuiComboBox,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHorizontalRule,
@@ -16,6 +15,7 @@ import {
 } from '@elastic/eui';
 import { useProfileChanges } from './profile-changes';
 import { layerLabel } from './profile-labels';
+import { Choice as VisibleChoice } from '../../ui/choice';
 
 interface NewProfileModalProps {
   onClose: () => void;
@@ -48,7 +48,6 @@ export const NewProfileModal = ({ onClose, onBlank, onDuplicate, onImport }: New
   const options = working
     .filter(entry => entry.errors.length === 0 && entry.staged !== 'deleted')
     .map(entry => ({ label: entry.profile.name, value: entry.profile.id, append: <EuiText size='xs' color='subdued'>{layerLabel(entry.profile.layer)}</EuiText> }));
-  const selected = options.filter(option => option.value === source);
 
   return (
     <EuiModal onClose={onClose} style={{ width: 620 }}>
@@ -69,15 +68,11 @@ export const NewProfileModal = ({ onClose, onBlank, onDuplicate, onImport }: New
           }
         >
           <EuiSpacer size='s' />
-          <EuiComboBox
-            compressed
-            fullWidth
-            placeholder='Escribe para buscar un perfil'
-            singleSelection={{ asPlainText: true }}
-            options={options}
-            selectedOptions={selected}
-            onChange={choice => setSource(choice[0]?.value)}
-            aria-label='Perfil que copiar'
+          <VisibleChoice
+            legend='Perfil que copiar'
+            options={options.map(option => ({ value: String(option.value), text: option.label }))}
+            value={source || ''}
+            onChange={setSource}
           />
         </Choice>
         <Choice

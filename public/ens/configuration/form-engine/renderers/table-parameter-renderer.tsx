@@ -7,7 +7,6 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
-  EuiSelect,
   EuiSpacer,
   EuiText,
 } from '@elastic/eui';
@@ -21,6 +20,7 @@ import {
   setTableCell,
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
+import { Choice } from '../../../ui/choice';
 
 
 const MIN_CELL = 140;
@@ -40,25 +40,11 @@ const EditableCell = ({
 }) => {
   if (cell.column.type === 'select') {
     return (
-      <EuiSelect
-        fullWidth
-        compressed
-        isInvalid={invalidOne}
-        aria-label={cell.column.label}
-        options={[
-          {
-            value: '',
-            text: 'Sin seleccionar',
-          },
-          ...cell.options.map(option => ({
-            value: option.value,
-            text: option.label,
-          })),
-        ]}
+      <Choice
+        legend={cell.column.label}
+        options={[{ value: '', text: 'Sin seleccionar' }, ...cell.options.map(option => ({ value: option.value, text: option.label }))]}
         value={cell.value}
-        onChange={event =>
-          onCellChange(event.target.value)
-        }
+        onChange={onCellChange}
       />
     );
   }

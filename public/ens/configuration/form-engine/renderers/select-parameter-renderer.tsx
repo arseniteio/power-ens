@@ -1,11 +1,12 @@
 import React from 'react';
-import { EuiFormRow, EuiSelect } from '@elastic/eui';
+import { EuiFormRow } from '@elastic/eui';
 
 import { ENSFormFieldProps } from '../types';
 import {
   resolveSelectFieldModel,
   validateParameterValue,
 } from '../../../../../common/ens/configuration/services/parameter-value-validator';
+import { Choice } from '../../../ui/choice';
 
 
 export const SelectParameterRenderer = ({
@@ -50,14 +51,13 @@ export const SelectParameterRenderer = ({
       }
       fullWidth
     >
-      <EuiSelect
-        fullWidth
-        isInvalid={!verdict.valid}
+      <Choice
+        legend={parameter.label || parameter.name}
         options={options}
         value={model.selected}
-        onChange={event => {
+        onChange={(value: string) => {
           const selected =
-            event.target.value;
+            value;
 
           onChange(
             parameter.name,
@@ -66,6 +66,7 @@ export const SelectParameterRenderer = ({
               : selected
           );
         }}
+        fullWidth
       />
     </EuiFormRow>
   );

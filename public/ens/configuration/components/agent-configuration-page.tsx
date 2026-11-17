@@ -10,7 +10,6 @@ import {
   EuiFlexItem,
   EuiFormRow,
   EuiLoadingSpinner,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -63,6 +62,7 @@ import { ConfirmModal, errorMessage } from './confirm-modal';
 import { ENSEntryRemoval, RemoveEntryModal } from './remove-entry-modal';
 import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
+import { Choice } from '../../ui/choice';
 
 interface AgentConfigurationPageProps {
   configuration: ENSConfigurationVersion;
@@ -308,11 +308,12 @@ export const AgentConfigurationPage = ({
       <EuiFlexGroup gutterSize='l' wrap>
         <EuiFlexItem style={{ minWidth: 280 }}>
           <EuiFormRow label='Tipo de sistema' helpText={loading && !effective.manual ? 'Detectando…' : effective.description}>
-            <EuiSelect
+            <Choice
+              legend='Tipo de sistema'
               options={typeOptions}
               value={profile?.typeOverride || ''}
+              onChange={(value: string) => changeType((value || undefined) as ENSSystemType | typeof ENS_NO_TEMPLATE | undefined)}
               disabled={saving}
-              onChange={event => changeType((event.target.value || undefined) as ENSSystemType | typeof ENS_NO_TEMPLATE | undefined)}
             />
           </EuiFormRow>
         </EuiFlexItem>
@@ -429,8 +430,8 @@ export const AgentConfigurationPage = ({
               <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
                 <EuiFlexItem grow={false}>
                   <EuiFormRow label='Plantilla' display='rowCompressed'>
-                    <EuiSelect
-                      compressed
+                    <Choice
+                      legend='Plantilla'
                       options={[
                         { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
                         ...templates.map(template => ({
@@ -443,8 +444,8 @@ export const AgentConfigurationPage = ({
                           : []),
                       ]}
                       value={value}
+                      onChange={(value: string) => setChoices(previous => ({ ...previous, [control.controlId]: value }))}
                       disabled={saving}
-                      onChange={event => setChoices(previous => ({ ...previous, [control.controlId]: event.target.value }))}
                     />
                   </EuiFormRow>
                 </EuiFlexItem>

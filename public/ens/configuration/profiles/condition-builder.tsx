@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { EuiButtonEmpty, EuiButtonGroup, EuiButtonIcon, EuiComboBox, EuiFlexGroup, EuiFlexItem, EuiSelect, EuiSpacer, EuiText } from '@elastic/eui';
+import { EuiButtonEmpty, EuiButtonGroup, EuiButtonIcon, EuiComboBox, EuiFlexGroup, EuiFlexItem, EuiSpacer, EuiText } from '@elastic/eui';
 import {
   ENSProfileCondition,
   ENS_PROFILE_GROUP_PREFIX,
@@ -10,6 +10,7 @@ import {
 } from '../../../../common/ens/profiles/types';
 import { FIELD_LABELS, OP_LABELS, roleLabel } from './profile-labels';
 import { profilesClient } from './profiles-client';
+import { Choice } from '../../ui/choice';
 
 export type ENSConditionSuggestions = Record<string, string[]>;
 
@@ -69,16 +70,15 @@ const ConditionRow = ({
   return (
     <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
       <EuiFlexItem grow={false} style={{ width: 190 }}>
-        <EuiSelect
-          compressed
+        <Choice
+          legend='Campo'
           options={FIELDS.map(field => ({ value: field, text: FIELD_LABELS[field] }))}
           value={condition.field}
-          disabled={readOnly}
-          onChange={event => {
-            const field = event.target.value;
+          onChange={(value: string) => {
+            const field = value;
             onChange({ field, op: isListField(field) ? 'has' : 'is', value: '' });
           }}
-          aria-label='Campo'
+          disabled={readOnly}
         />
       </EuiFlexItem>
       <EuiFlexItem grow={false}>

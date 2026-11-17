@@ -10,7 +10,6 @@ import {
   EuiModalFooter,
   EuiModalHeader,
   EuiModalHeaderTitle,
-  EuiSelect,
   EuiSpacer,
   EuiText,
 } from '@elastic/eui';
@@ -23,6 +22,7 @@ import { PARAMETER_GROUPS } from '../profiles/parameter-groups';
 import { ENSParameterEdit, ParameterValueEditor, emptyValueFor } from '../profiles/parameter-value-editor';
 import { controlTitle } from '../profiles/parameter-titles';
 import type { ENSHostRow } from '../profiles/profiles-client';
+import { Choice } from '../../ui/choice';
 
 export const hostnameOf = (host: Pick<ENSHostRow, 'hostname' | 'name'>): string => host.hostname || host.name;
 
@@ -129,11 +129,12 @@ export const AddToGroupModal = ({
       </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Grupo' fullWidth>
-        <EuiSelect
-          fullWidth
+        <Choice
+          legend='Grupo'
           options={[...manual.map(group => ({ value: group.id, text: `${group.name} (${handPickedHosts(group).length})` })), { value: '', text: 'Un grupo nuevo…' }]}
           value={choice}
-          onChange={event => setChoice(event.target.value)}
+          onChange={(value: string) => setChoice(value)}
+          fullWidth
         />
       </EuiFormRow>
       {!choice && (
@@ -184,7 +185,13 @@ export const TypeTemplateModal = ({
       </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Plantilla' fullWidth>
-        <EuiSelect fullWidth options={TYPE_TEMPLATE_OPTIONS} value={choice} onChange={event => setChoice(event.target.value)} />
+        <Choice
+          legend='Plantilla'
+          options={TYPE_TEMPLATE_OPTIONS}
+          value={choice}
+          onChange={(value: string) => setChoice(value)}
+          fullWidth
+        />
       </EuiFormRow>
     </Frame>
   );
@@ -249,16 +256,17 @@ export const BulkValueModal = ({
       </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Parámetro' fullWidth>
-        <EuiSelect
-          fullWidth
+        <Choice
+          legend='Parámetro'
           options={options}
           value={key}
-          onChange={event => {
-            const [nextControl, nextParameter] = event.target.value.split('|');
+          onChange={(value: string) => {
+            const [nextControl, nextParameter] = value.split('|');
             const type = PARAMETER_GROUPS.find(group => group.controlId === nextControl)?.parameters.find(item => item.parameterId === nextParameter)?.type;
-            setKey(event.target.value);
+            setKey(value);
             setEdit(type ? { value: emptyValueFor(type), replace: false } : undefined);
           }}
+          fullWidth
         />
       </EuiFormRow>
       {parameter && edit && (

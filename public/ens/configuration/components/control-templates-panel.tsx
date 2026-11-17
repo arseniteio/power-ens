@@ -6,7 +6,6 @@ import {
   EuiButtonEmpty,
   EuiCallOut,
   EuiFormRow,
-  EuiSelect,
   EuiSpacer,
   EuiText,
   EuiTitle,
@@ -33,6 +32,7 @@ import { ConfirmModal, errorMessage } from './confirm-modal';
 import { plural } from './labels';
 import { ENSTemplateEditorMode, TemplateEditorModal, templateParameters } from './template-editor-modal';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
+import { Choice } from '../../ui/choice';
 
 interface ControlTemplatesPanelProps {
   configuration: ENSConfigurationVersion;
@@ -252,14 +252,15 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
           </EuiText>
           {removalUsers.length > 0 && (
             <EuiFormRow label='Reasignar sus agentes a'>
-              <EuiSelect
+              <Choice
+                legend='Reasignar sus agentes a'
                 options={[
                   { value: TYPE_DEFAULT, text: 'La de serie de su tipo' },
                   ...templates.filter(item => item.id !== removal.id).map(item => ({ value: item.id, text: item.name })),
                   { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
                 ]}
                 value={reassignTo}
-                onChange={event => setReassignTo(event.target.value)}
+                onChange={(value: string) => setReassignTo(value)}
               />
             </EuiFormRow>
           )}
