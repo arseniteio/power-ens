@@ -610,8 +610,8 @@ export const describeAgentValueSave = (
   parameterId: string,
   value: ENSAgentParameterValue | undefined,
   matchMode?: ENSMatchMode
-): 'quitar' | 'igual' | 'propio' => {
-  if (value === undefined || isEmptyParameterValue(value)) return 'quitar';
+): 'remove' | 'same' | 'propio' => {
+  if (value === undefined || isEmptyParameterValue(value)) return 'remove';
   const inherited = getInheritedSetting(configuration, agentId, controlId, parameterId);
-  return sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode) ? 'igual' : 'propio';
+  return sameValue(value, inherited.value) && sameMode(matchMode, inherited.matchMode) ? 'same' : 'propio';
 };
