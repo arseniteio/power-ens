@@ -1,3 +1,4 @@
+import type { ENSMaturityConfiguration } from '../../maturity/types';
 import type {
   ENSAgentParameterValue,
   ENSAgentsConfiguration,
@@ -162,6 +163,7 @@ export interface ENSConfigurationVersion {
   agents?: ENSAgentsConfiguration;
   templates?: ENSCustomTemplate[];
   organizationData?: ENSOrganizationData;
+  maturity?: ENSMaturityConfiguration;
 }
 
 export interface ENSOrganizationData {

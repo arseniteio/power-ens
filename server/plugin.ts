@@ -3,6 +3,7 @@ import { registerConfigurationRoutes } from './routes/configuration';
 import { registerEvaluationRoutes } from './routes/evaluation';
 import { registerExclusionRoutes } from './routes/exclusions';
 import { registerHostRoutes } from './routes/hosts';
+import { registerMaturityRoutes } from './routes/maturity';
 import { registerProfileRoutes } from './routes/profiles';
 
 interface PowerEnsServerSetupDeps {
@@ -25,6 +26,7 @@ export class PowerEnsServerPlugin implements Plugin<{}, {}, PowerEnsServerSetupD
     registerExclusionRoutes(router, { logger: this.logger, securityEnabled });
     registerProfileRoutes(router, { logger: this.logger, securityEnabled });
     registerHostRoutes(router, { logger: this.logger });
+    registerMaturityRoutes(router, { logger: this.logger });
 
     return {};
   }

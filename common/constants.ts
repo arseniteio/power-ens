@@ -16,6 +16,7 @@ export const POWER_ENS_EVALUATION_PATH = `${POWER_ENS_API_BASE}/evaluation`;
 export const POWER_ENS_EXCLUSIONS_PATH = `${POWER_ENS_API_BASE}/exclusions`;
 export const POWER_ENS_PROFILES_PATH = `${POWER_ENS_API_BASE}/profiles`;
 export const POWER_ENS_HOSTS_PATH = `${POWER_ENS_API_BASE}/hosts`;
+export const POWER_ENS_MATURITY_PATH = `${POWER_ENS_API_BASE}/maturity`;
 
 export const ENS_ALERTS_INDEX = 'wazuh-alerts-*';
 export const ENS_MONITORING_INDEX = 'wazuh-monitoring-*';

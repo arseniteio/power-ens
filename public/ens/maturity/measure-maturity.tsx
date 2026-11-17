@@ -1,0 +1,171 @@
+import React, { useState } from 'react';
+import {
+  EuiBadge,
+  EuiButton,
+  EuiButtonEmpty,
+  EuiCallOut,
+  EuiFieldText,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFormRow,
+  EuiModal,
+  EuiModalBody,
+  EuiModalFooter,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiPanel,
+  EuiSelect,
+  EuiSpacer,
+  EuiText,
+  EuiTextArea,
+  EuiTitle,
+} from '@elastic/eui';
+import { getActiveENSConfiguration, saveFromLatestConfiguration } from '../../../common/ens/configuration/services/configuration-state-service';
+import { assessmentOf, setAssessment } from '../../../common/ens/maturity/assessments';
+import {
+  ENS_MATURITY_LABELS,
+  ENS_MATURITY_MAX,
+  ENS_MATURITY_NOTE,
+  ENSEngineMaturity,
+  ENSMaturityAssessment,
+  maturityLabel,
+} from '../../../common/ens/maturity/types';
+import { dateTimeLabel } from '../../../common/ens/core/date-label';
+
+const LEVEL_OPTIONS = [
+  { value: '', text: 'Sin valorar' },
+  ...Array.from({ length: ENS_MATURITY_MAX + 1 }, (_, level) => ({ value: String(level), text: `L${level} ${ENS_MATURITY_LABELS[level]}` })),
+];
+
+const levelOf = (value: string): number | undefined => (value === '' ? undefined : Number(value));
+
+const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string; onClose: () => void; onSaved: () => void }) => {
+  const current: ENSMaturityAssessment = assessmentOf(getActiveENSConfiguration(), measureId) || { measureId };
+  const [level, setLevel] = useState(current.level === undefined ? '' : String(current.level));
+  const [target, setTarget] = useState(current.target === undefined ? '' : String(current.target));
+  const [references, setReferences] = useState(current.references || '');
+  const [note, setNote] = useState(current.note || '');
+  const [error, setError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    setError(undefined);
+    const next: ENSMaturityAssessment = {
+      measureId,
+      level: levelOf(level),
+      target: levelOf(target),
+      references: references.trim() || undefined,
+      note: note.trim() || undefined,
+    };
+    try {
+      await saveFromLatestConfiguration(latest => ({
+        configuration: setAssessment(latest, next),
+        reason: `Madurez de ${measureId}: ${next.level === undefined ? 'sin valorar' : `L${next.level}`}${next.target === undefined ? '' : `, objetivo L${next.target}`}.`,
+      }));
+      onSaved();
+      onClose();
+    } catch (failure: any) {
+      setError(failure?.message || String(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <EuiModal onClose={onClose} style={{ width: 560 }}>
+      <EuiModalHeader>
+        <EuiModalHeaderTitle>
+          <h1>{`Valorar la madurez de ${measureId}`}</h1>
+        </EuiModalHeaderTitle>
+      </EuiModalHeader>
+      <EuiModalBody>
+        <EuiText size='s' color='subdued'>
+          <p>
+            Valora la medida como proceso. L3 exige un procedimiento escrito y difundido; L4, que se mida y se actúe sobre sus desviaciones; L5,
+            que se mejore a partir de su medición. Indica los documentos que lo acreditan.
+          </p>
+        </EuiText>
+        <EuiSpacer size='m' />
+        <EuiFormRow label='Nivel valorado' fullWidth>
+          <EuiSelect options={LEVEL_OPTIONS} value={level} onChange={event => setLevel(event.target.value)} fullWidth />
+        </EuiFormRow>
+        <EuiFormRow label='Nivel objetivo' fullWidth>
+          <EuiSelect options={LEVEL_OPTIONS.map(o => (o.value === '' ? { ...o, text: 'Sin objetivo' } : o))} value={target} onChange={event => setTarget(event.target.value)} fullWidth />
+        </EuiFormRow>
+        <EuiFormRow label='Documentos que lo acreditan' helpText='Procedimiento, registro de revisiones o informe de mejora, con su referencia y versión.' fullWidth>
+          <EuiFieldText value={references} onChange={event => setReferences(event.target.value)} fullWidth />
+        </EuiFormRow>
+        <EuiFormRow label='Observaciones' fullWidth>
+          <EuiTextArea value={note} onChange={event => setNote(event.target.value)} rows={3} fullWidth />
+        </EuiFormRow>
+        {error && <EuiCallOut size='s' color='danger' iconType='alert' title={error} />}
+      </EuiModalBody>
+      <EuiModalFooter>
+        <EuiButtonEmpty onClick={onClose}>Cancelar</EuiButtonEmpty>
+        <EuiButton fill onClick={save} isLoading={busy} isDisabled={busy}>
+          Guardar
+        </EuiButton>
+      </EuiModalFooter>
+    </EuiModal>
+  );
+};
+
+export const MeasureMaturity = ({
+  measureId,
+  maturity,
+  onSaved,
+}: {
+  measureId: string;
+  maturity?: ENSEngineMaturity;
+  onSaved: () => void;
+}) => {
+  const [assessing, setAssessing] = useState(false);
+  const declared = assessmentOf(getActiveENSConfiguration(), measureId);
+  const assessed = declared?.level;
+  const target = declared?.target;
+
+  return (
+    <EuiPanel hasBorder paddingSize='m'>
+      <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false}>
+        <EuiFlexItem>
+          <EuiTitle size='xxs'>
+            <h3>Madurez (Anexo II, apdo. 6)</h3>
+          </EuiTitle>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButton size='s' onClick={() => setAssessing(true)}>
+            Valorar
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiSpacer size='s' />
+      <EuiFlexGroup gutterSize='s' wrap responsive={false}>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color='hollow'>{`Acreditado: ${maturity?.accredited === undefined ? 'sin medición' : maturityLabel(maturity.accredited)}`}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color={assessed === undefined ? 'default' : 'primary'}>{`Valorado: ${assessed === undefined ? 'sin valorar' : maturityLabel(assessed)}`}</EuiBadge>
+        </EuiFlexItem>
+        {target !== undefined && (
+          <EuiFlexItem grow={false}>
+            <EuiBadge color={(assessed ?? maturity?.accredited ?? 0) < target ? 'warning' : 'success'}>{`Objetivo: L${target}`}</EuiBadge>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
+      <EuiSpacer size='s' />
+      <EuiText size='xs' color='subdued'>
+        {maturity?.machines ? <p>{`Acreditado: el nivel más bajo de ${maturity.machines} máquina${maturity.machines === 1 ? '' : 's'} en los últimos ${maturity.period_days || 30} días.`}</p> : null}
+        {declared?.assessedBy && <p>{`Valorado por ${declared.assessedBy}${declared.assessedAt ? ` el ${dateTimeLabel(declared.assessedAt)}` : ''}.${declared.references ? ` Documentos: ${declared.references}.` : ''}`}</p>}
+        <p>{ENS_MATURITY_NOTE}</p>
+      </EuiText>
+      {maturity?.incoherent && (
+        <>
+          <EuiSpacer size='s' />
+          <EuiCallOut size='s' color='warning' iconType='alert' title='Valorado en L3 o más, pero la evidencia no muestra una práctica continua (acreditado L0 o L1).' />
+        </>
+      )}
+      {assessing && <AssessModal measureId={measureId} onClose={() => setAssessing(false)} onSaved={onSaved} />}
+    </EuiPanel>
+  );
+};

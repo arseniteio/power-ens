@@ -30,7 +30,9 @@ With Grupos por control on, the engine creates one Wazuh group per control, `ens
 
 ## Results
 
-Panel shows the state of the deployment: compliance per control and family, the findings by kind, and how the score has changed over time.
+Panel shows the state of the deployment: the maturity of the organization, compliance per control and family, the findings by kind, and how the score has changed over time.
+
+Madurez de la organización is the ENS valuation (Anexo II, apdo. 6): CMM levels L0 to L5 per measure, as accredited by the evidence and as assessed by people, with a global level for each and the measures without measurement, without assessment and below their target. The evidence accredits up to L2. L3 to L5 need a written, measured and improved process: open the control and press Valorar to record the level, the target and the documents that prove it. The traffic light and the percentage are operational indicators, not the ENS valuation.
 
 Vista general shows one row per machine with its total compliance. Opening a machine shows its controls and the work pending on it, and the last 30 days.
 
@@ -40,7 +42,7 @@ Evidencias lists the evidences of all controls, with their status per machine.
 
 Eventos lists the facts the agents have sent. It shows what the engine received, and opening one shows its document.
 
-Informes builds the report of each control for an auditor, with its requirements, parameters and results. Exportar PDF downloads it.
+Informes builds the report of each control for an auditor, with its requirements, parameters, results and maturity level. Exportar PDF downloads it.
 
 ## Reading a status
 

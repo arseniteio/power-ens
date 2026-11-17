@@ -30,7 +30,9 @@ Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `e
 
 ## Resultados
 
-Panel muestra el estado del despliegue: el cumplimiento por control y familia, los hallazgos por tipo y la evolución de la puntuación.
+Panel muestra el estado del despliegue: la madurez de la organización, el cumplimiento por control y familia, los hallazgos por tipo y la evolución de la puntuación.
+
+Madurez de la organización es la valoración del ENS (Anexo II, apdo. 6): niveles CMM L0 a L5 por medida, acreditados por la evidencia y valorados por las personas, con un nivel global de cada uno y las medidas sin medición, sin valorar y por debajo de su objetivo. La evidencia acredita hasta L2. L3 a L5 exigen un proceso escrito, medido y mejorado: abre el control y pulsa Valorar para registrar el nivel, el objetivo y los documentos que lo acreditan. El semáforo y el porcentaje son indicadores operativos, no la valoración del ENS.
 
 Vista general muestra una fila por máquina con su cumplimiento total. Al abrir una máquina se ven sus controles, el trabajo pendiente y los últimos 30 días.
 
@@ -40,7 +42,7 @@ Evidencias lista las evidencias de todos los controles, con su estado por máqui
 
 Eventos lista los hechos que han enviado los agentes. Muestra lo que ha recibido el motor, y al abrir uno se ve su documento.
 
-Informes genera el informe de cada control para un auditor, con sus requisitos, parámetros y resultados. Exportar PDF lo descarga.
+Informes genera el informe de cada control para un auditor, con sus requisitos, parámetros, resultados y nivel de madurez. Exportar PDF lo descarga.
 
 ## Cómo leer un estado
 

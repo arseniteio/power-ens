@@ -72,6 +72,8 @@ import {
 import { statusLabel } from '../../../../common/ens/core/status-label';
 import { dateLabel, dateTimeLabel } from '../../../../common/ens/core/date-label';
 import { ExclusionButton, ExclusionNotice, useExclusion } from '../../exclusions/exclusion-controls';
+import { useOrganizationMaturity } from '../../maturity/maturity-client';
+import { MeasureMaturity } from '../../maturity/measure-maturity';
 
 interface ControlDetailENSProps {
   control: ENSControl;
@@ -112,6 +114,8 @@ export const ControlDetailENS = ({
   const [guideTarget, setGuideTarget] = useState<GuideTarget | undefined>();
 
   const scopeAgents = useActiveENSScopeAgents();
+  const maturity = useOrganizationMaturity();
+  const [, setAssessed] = useState(0);
 
   const evaluation = useEnsEvaluation<ENSControlEvaluationResponse>({
     include: 'control',
@@ -1099,6 +1103,17 @@ export const ControlDetailENS = ({
             </EuiPanel>
           </EuiFlexItem>
         </EuiFlexGroup>
+
+        <EuiSpacer size='m' />
+
+        <MeasureMaturity
+          measureId={control.id}
+          maturity={maturity.data?.measures[control.id]}
+          onSaved={() => {
+            setAssessed(count => count + 1);
+            maturity.reload();
+          }}
+        />
 
         <EuiSpacer size='l' />
 

@@ -68,6 +68,10 @@ import { ENSControlsInAnnexOrder as ENSControls } from '../controls-in-order';
 import { filterByENSPrefix, listENSFamilies, resolveENSSectionOpenState } from '../control-filter/prefix';
 import { statusLabel } from '../../../common/ens/core/status-label';
 import { dateTimeLabel } from '../../../common/ens/core/date-label';
+import { useOrganizationMaturity } from '../maturity/maturity-client';
+import { maturityPdf, maturityReportRows } from '../maturity/maturity-report';
+import { assessmentOf } from '../../../common/ens/maturity/assessments';
+import { ENS_MATURITY_NOTE } from '../../../common/ens/maturity/types';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -108,6 +112,8 @@ const ControlReport = ({
     );
 
   const activeConfiguration = getActiveENSConfiguration();
+  const maturity = useOrganizationMaturity();
+  const maturityRows = maturityReportRows(maturity.data?.measures[controlId], assessmentOf(activeConfiguration, controlId));
   const evaluationPeriod = activeConfiguration.global.evaluationPeriod;
   const evaluationPeriodText = evaluationPeriod || 'sin configurar';
 
@@ -593,6 +599,7 @@ const ControlReport = ({
           margin: [0, 0, 0, 4],
         },
         { text: OPERATIONAL_INDICATOR_NOTE, style: 'sub', margin: [0, 0, 0, 16] },
+        ...maturityPdf(maturityRows),
 
         { text: 'Campos del informe', style: 'h3' },
         { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },
@@ -812,6 +819,22 @@ const ControlReport = ({
           </EuiFlexItem>
         ))}
       </EuiFlexGroup>
+
+      <EuiSpacer size='s' />
+      <EuiText size='xs' color='subdued'>
+        <p>{OPERATIONAL_INDICATOR_NOTE}</p>
+      </EuiText>
+
+      <EuiSpacer size='l' />
+
+      <EuiTitle size='xs'>
+        <h3>Nivel de madurez (CMM, Anexo II, apdo. 6)</h3>
+      </EuiTitle>
+      <EuiSpacer size='s' />
+      <EuiBasicTable noItemsMessage='No hay datos.' items={maturityRows} columns={[{ field: 'label', name: 'Campo', width: '220px' }, { field: 'value', name: 'Valor' }]} tableLayout='fixed' />
+      <EuiText size='xs' color='subdued'>
+        <p>{ENS_MATURITY_NOTE}</p>
+      </EuiText>
 
       <EuiSpacer size='l' />
 

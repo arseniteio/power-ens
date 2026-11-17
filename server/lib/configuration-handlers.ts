@@ -22,6 +22,8 @@ import {
 } from '../../common/ens/configuration/organization/organization-data-migration';
 import { describeNewLevelOptionIssues } from '../../common/ens/configuration/services/level-options';
 import { withCatalogControls } from '../../common/ens/configuration/services/catalog-controls';
+import { stampAssessments, validateMaturityShape } from '../../common/ens/maturity/assessments';
+import type { ENSMaturityAssessment } from '../../common/ens/maturity/types';
 
 interface Options {
   logger: Logger;
@@ -105,6 +107,11 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
       return failure(response, 400, `configuration.organizationData no es válida: ${organizationErrors.slice(0, 5).join(' ')}`);
     }
 
+    const maturityErrors = validateMaturityShape(bodyText.configuration.maturity);
+    if (maturityErrors.length) {
+      return failure(response, 400, `configuration.maturity no es válida: ${maturityErrors.slice(0, 5).join(' ')}`);
+    }
+
     const access = await administrator(context, response, 'save the configuration');
     if (access.error) return access.error;
     const username = access.user!.username;
@@ -146,8 +153,15 @@ export const createConfigurationHandlers = ({ logger, securityEnabled }: Options
           ? { organizationData: previous2.organizationData }
           : {};
 
+      const previousAssessments: ENSMaturityAssessment[] = previous2.maturity?.assessments || [];
+      const maturity = Object.prototype.hasOwnProperty.call(bodyText.configuration, 'maturity')
+        ? { maturity: { assessments: stampAssessments(bodyText.configuration.maturity?.assessments || [], previousAssessments, username, now) } }
+        : previous2.maturity
+          ? { maturity: previous2.maturity }
+          : {};
+
       const organization = normalizeOrganizationData(
-        withCatalogControls({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData })
+        withCatalogControls({ ...bodyText.configuration, ...keepsAgents, ...keptTemplates, ...keptOrganizationData, ...maturity })
       );
       const levelIssues = describeNewLevelOptionIssues(organization.configuration, previous2);
       if (levelIssues.length) {

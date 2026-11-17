@@ -39,6 +39,8 @@ import { ControlMap } from './control-map';
 import { IndexRing, primaryShade, SectionTitle, Segment, SegmentLegend, StackedBar, statusSegments } from './dashboard-parts';
 import { AttentionRow, buildAttentionRows, buildControlMap, buildFamilyRows, CatalogEntry, countControls, FamilyRow, trendDelta } from './dashboard-model';
 import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
+import { useOrganizationMaturity } from '../maturity/maturity-client';
+import { OrganizationMaturityPanel } from '../maturity/organization-maturity-panel';
 
 interface DashboardResponse {
   dashboard: ReturnType<typeof buildENSDashboardModel>;
@@ -394,6 +396,7 @@ const Dashboard = ({
   onOpenMachine: (agentId: string) => void;
 }) => {
   const [family, setFamily] = useState<string | undefined>();
+  const maturity = useOrganizationMaturity();
   const { evolution } = data.dashboard;
   const controls = data.controls || [];
 
@@ -408,6 +411,10 @@ const Dashboard = ({
 
   return (
     <>
+      <OrganizationMaturityPanel data={maturity.data} error={maturity.error} loading={maturity.loading} onOpen={onOpen} />
+
+      <EuiSpacer size='m' />
+
       <EuiFlexGroup gutterSize='m' wrap>
         <EuiFlexItem grow={3} style={{ minWidth: 520 }}>
           <IndexPanel data={data} counts={counts} delta={trendDelta(trend)} />
