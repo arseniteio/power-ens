@@ -2,6 +2,8 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setAssessment, stampAssessments, validateMaturityShape } from '../../common/ens/maturity/assessments';
 import { organizationMaturityOf } from '../../common/ens/maturity/queries';
+import { ENS_DECLARED_MEASURES } from '../../common/ens/maturity/declared-measures';
+import { ENSCatalog } from '../../common/ens/catalog';
 import { maturityReportRows } from '../../public/ens/maturity/maturity-report';
 
 const configuration = (assessments: any[] = []) => ({ maturity: { assessments } }) as any;
@@ -34,6 +36,14 @@ describe('maturity assessments', () => {
     assert.equal(stamped[0].assessedAt, '2026-11-01T00:00:00Z');
     assert.equal(stamped[1].assessedBy, 'dioni');
     assert.equal(stamped[1].assessedAt, '2026-11-17T12:00:00Z');
+  });
+});
+
+describe('declared measures', () => {
+  test('are valid measure ids that no engine control judges', () => {
+    const assessments = ENS_DECLARED_MEASURES.map(m => ({ measureId: m.id, level: 1 }));
+    assert.deepEqual(validateMaturityShape({ assessments }), []);
+    for (const m of ENS_DECLARED_MEASURES) assert.ok(!ENSCatalog.some(control => control.id === m.id), m.id);
   });
 });
 

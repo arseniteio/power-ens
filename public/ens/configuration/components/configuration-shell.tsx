@@ -41,6 +41,7 @@ import { StatusTab } from '../profiles/status-tab';
 import { MachinesTab } from '../profiles/machines-tab';
 import { ProfilesTab } from '../profiles/profiles-tab';
 import { PendingTab } from '../profiles/pending-tab';
+import { DeclaredMeasuresPanel } from '../../maturity/declared-measures-panel';
 
 type TabId = 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general';
 
@@ -179,6 +180,8 @@ const ConfigurationContent = () => {
         {visited.has('organization') && (
           <KeptTab shown={tab === 'organization'}>
             <OrganizationDataPanel configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
+            <EuiSpacer size='l' />
+            <DeclaredMeasuresPanel configuration={activeConfiguration} onSaved={handleConfigurationSaved} />
             <EuiSpacer size='l' />
             <ControlsTab
               configuration={activeConfiguration}

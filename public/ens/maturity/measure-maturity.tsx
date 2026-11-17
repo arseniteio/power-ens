@@ -39,7 +39,7 @@ const LEVEL_OPTIONS = [
 
 const levelOf = (value: string): number | undefined => (value === '' ? undefined : Number(value));
 
-const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string; onClose: () => void; onSaved: () => void }) => {
+export const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string; onClose: () => void; onSaved: () => void }) => {
   const current: ENSMaturityAssessment = assessmentOf(getActiveENSConfiguration(), measureId) || { measureId };
   const [level, setLevel] = useState(current.level === undefined ? '' : String(current.level));
   const [target, setTarget] = useState(current.target === undefined ? '' : String(current.target));

@@ -32,7 +32,7 @@ Con Grupos por control activado, el motor crea un grupo de Wazuh por control, `e
 
 Panel muestra el estado del despliegue: la madurez de la organización, el cumplimiento por control y familia, los hallazgos por tipo y la evolución de la puntuación.
 
-Madurez de la organización es la valoración del ENS (Anexo II, apdo. 6): niveles CMM L0 a L5 por medida, acreditados por la evidencia y valorados por las personas, con un nivel global de cada uno y las medidas sin medición, sin valorar y por debajo de su objetivo. La evidencia acredita hasta L2. L3 a L5 exigen un proceso escrito, medido y mejorado: abre el control y pulsa Valorar para registrar el nivel, el objetivo y los documentos que lo acreditan. El semáforo y el porcentaje son indicadores operativos, no la valoración del ENS.
+Madurez de la organización es la valoración del ENS (Anexo II, apdo. 6): niveles CMM L0 a L5 por medida, acreditados por la evidencia y valorados por las personas, con un nivel global de cada uno y las medidas sin medición, sin valorar y por debajo de su objetivo. La evidencia acredita hasta L2. L3 a L5 exigen un proceso escrito, medido y mejorado: abre el control y pulsa Valorar para registrar el nivel, el objetivo y los documentos que lo acreditan. Las medidas que citan los controles sin motor, como org.2 o mp.per.3, se valoran en Configuración, Organización, Medidas sin motor. El semáforo y el porcentaje son indicadores operativos, no la valoración del ENS.
 
 Vista general muestra una fila por máquina con su cumplimiento total. Al abrir una máquina se ven sus controles, el trabajo pendiente y los últimos 30 días.
 

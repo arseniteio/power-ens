@@ -7,6 +7,7 @@ All notable changes to Power ENS are documented in this file. The format follows
 ### Added
 
 - Madurez de la organización at the top of Panel: CMM levels accredited by the engine and assessed by people, distribution, global levels and measures below target. Detalle del control shows the maturity of the control with Valorar, and Informes adds it to the screen and the PDF. Assessments are stored in `configuration.maturity`; the server signs each changed one with the user and the date.
+- Organización lists the measures the controls cite without an engine (org.2, op.pl.5, op.ext.3, mp.per.3, mp.per.4, mp.com.2, mp.si.5, mp.info.2, mp.sw.1) to assess their maturity.
 - `/api/powerEns/maturity/organization` returns the newest organization maturity written by the engine.
 - Configuración has the tabs Estado, Máquinas, Perfiles, Pendiente, Organización and General. Estado summarises machines without a profile, unset parameters that leave evidences not evaluable, coverage per role, distribution and profile, and the latest changes.
 - Máquinas lists the machines in `oscompliance-host-profile` with server-side paging, search and filters by profile, role, distribution, service and Wazuh group. Each machine opens a panel with what the engine deduced, its profiles and the value and origin of every per-machine parameter.
