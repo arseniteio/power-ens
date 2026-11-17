@@ -30,6 +30,7 @@ import { describeApplicableLevelLabel } from '../../../common/ens/core/control-l
 import { describeNotMeasuredOnAgent } from '../../../common/ens/core/scope/measurement-planes';
 import { canExportReport, reportViewState } from './report-view-state';
 import { describeParameterForMachine } from '../controls/parameter-origins';
+import { useHostParameters } from '../controls/use-host-parameters';
 // Import from the types file, never from the `../core` barrel: it avoids the transitive TDZ cycle of Settings.
 import type { ENSComplianceResult, ENSRequirementResult } from '../../../common/ens/core/evaluation/types';
 import pdfMake from 'pdfmake/build/pdfmake';
@@ -96,6 +97,7 @@ const ControlReport = ({
   definition: ENSReportModelDefinition;
 }) => {
   const { agentId } = useRouterSearch();
+  const hostParameter = useHostParameters(agentId);
   const [expandedReqIds, setExpandedReqIds] = useState<string[]>([]);
 
   const toggleRequirementDetail = (id: string) =>
@@ -259,8 +261,8 @@ const ControlReport = ({
   const parameterRows = parameterResults.map(parameter => ({
     parameter: `${parameter.id} · ${parameter.label}`,
     status: parameter.status,
-    value: formatParameterValue(parameter.value, describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.matchMode),
-    origin: describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin || '',
+    value: hostParameter(controlId, parameter.id)?.value ?? formatParameterValue(parameter.value, describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.matchMode),
+    origin: hostParameter(controlId, parameter.id)?.origin ?? describeParameterForMachine(activeConfiguration, controlId, agentId, parameter.id)?.origin ?? '',
     required: parameter.required ? 'Sí' : 'No',
     requirements: parameter.requirements.join(', ') || '-',
     ifNotConfigured:

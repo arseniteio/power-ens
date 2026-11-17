@@ -37,6 +37,7 @@ import { classifyNonConformity } from './nonconformity-class';
 import type { KnownReasonParts } from '../../../../common/ens/evaluation/motive-parser';
 import type { MotiveViewHandlers } from './motive-view';
 import { describeParameterForMachine } from '../parameter-origins';
+import { useHostParameters } from '../use-host-parameters';
 import { statusBadgeColor } from '../../status-colors';
 import type { MotiveLine } from './motive-cell';
 import type { ENSTraceabilityResult } from '../../../../common/ens/core/evaluation/types';
@@ -127,6 +128,7 @@ export const ControlDetailENS = ({
   retained.current = nextRetained(request, evaluation, retained.current, computedAt);
   const data = view.kind === 'shown' ? view.data : undefined;
   const displayedAgent = view.kind === 'shown' ? view.agentId : agentId;
+  const hostParameter = useHostParameters(displayedAgent);
 
   const ensLevel = data?.meta?.level || getActiveENSConfiguration().global.ensLevel;
   const complianceResult = data?.result;
@@ -278,7 +280,8 @@ export const ControlDetailENS = ({
     onEvidence: evidenceId => setGuideTarget({ kind: 'evidence', id: evidenceId }),
     parameterInfo: parameterId => {
       const info = describeParameterForMachine(getActiveENSConfiguration(), control.id, displayedAgent, parameterId);
-      return info && { id: info.id, label: info.label, value: info.value, origin: info.origin };
+      const fromHost = hostParameter(control.id, parameterId);
+      return info && { id: info.id, label: info.label, value: fromHost?.value ?? info.value, origin: fromHost?.origin ?? info.origin };
     },
   };
 
