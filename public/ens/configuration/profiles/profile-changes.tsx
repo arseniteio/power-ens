@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ENSListedProfile } from '../../../../common/ens/profiles/builtin';
 import type { ENSProfile, ENSProfileVersion } from '../../../../common/ens/profiles/types';
 import { profilesClient } from './profiles-client';
@@ -27,6 +27,7 @@ interface ProfileChangesState {
   unstage: (id: string) => void;
   discard: () => void;
   save: () => Promise<boolean>;
+  editorDrafts: Map<string, unknown>;
 }
 
 const ProfileChangesContext = createContext<ProfileChangesState | undefined>(undefined);
@@ -46,6 +47,8 @@ export const ProfileChangesProvider = ({ children }: { children: React.ReactNode
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | undefined>();
   const [savedAt, setSavedAt] = useState<number | undefined>();
+  // An open profile editor keeps its unstaged edits here, so leaving the tab does not lose them.
+  const editorDrafts = useRef(new Map<string, unknown>()).current;
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -155,6 +158,7 @@ export const ProfileChangesProvider = ({ children }: { children: React.ReactNode
     unstage,
     discard,
     save,
+    editorDrafts,
   };
 
   return <ProfileChangesContext.Provider value={value}>{children}</ProfileChangesContext.Provider>;

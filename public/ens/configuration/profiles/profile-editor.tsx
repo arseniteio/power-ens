@@ -140,7 +140,7 @@ const usePreview = (match: ENSProfileCondition[]) => {
 };
 
 export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
-  const { working, canChange, stageUpsert, stageDeletion, unstage } = useProfileChanges();
+  const { working, canChange, stageUpsert, stageDeletion, unstage, editorDrafts } = useProfileChanges();
   const suggestions = useConditionSuggestions();
 
   const copyOf = profileId.startsWith(COPY) ? profileId.slice(COPY.length) : undefined;
@@ -157,15 +157,23 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
     // Built once per opened profile; later list refreshes must not overwrite what is being edited.
   }, [profileId]);
 
-  const [draft, setDraft] = useState<Draft>(initial);
-  const [idTouched, setIdTouched] = useState(!isNew);
+  const remembered = editorDrafts.get(profileId) as { draft: Draft; idTouched: boolean } | undefined;
+  const [draft, setDraft] = useState<Draft>(remembered?.draft || initial);
+  const [idTouched, setIdTouched] = useState(remembered ? remembered.idTouched : !isNew);
+  useEffect(() => {
+    editorDrafts.set(profileId, { draft, idTouched });
+  }, [editorDrafts, profileId, draft, idTouched]);
+  const close = () => {
+    editorDrafts.delete(profileId);
+    onClose();
+  };
   const [opened, setOpened] = useState<string | undefined>();
   const { preview, error: previewError } = usePreview(draft.match);
 
   if (!isNew && !existing) {
     return (
       <EuiCallOut color='warning' iconType='iInCircle' title={`No hay ningún perfil ${profileId}`}>
-        <EuiButton size='s' onClick={onClose}>
+        <EuiButton size='s' onClick={close}>
           Volver a Perfiles
         </EuiButton>
       </EuiCallOut>
@@ -202,14 +210,14 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
 
   const stage = () => {
     stageUpsert(profile);
-    onClose();
+    close();
   };
 
   const title = isNew ? (copyOf ? `Copia de ${existing?.profile.name || copyOf}` : 'Nuevo perfil') : existing!.profile.name;
 
   return (
     <>
-      <EuiButtonEmpty iconType='arrowLeft' flush='left' size='s' onClick={onClose}>
+      <EuiButtonEmpty iconType='arrowLeft' flush='left' size='s' onClick={close}>
         Perfiles
       </EuiButtonEmpty>
       <EuiSpacer size='s' />
@@ -455,7 +463,7 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 onClick={() => {
                   if (existing.staged === 'new') unstage(existing.profile.id);
                   else stageDeletion(existing.profile.id);
-                  onClose();
+                  close();
                 }}
               >
                 {existing.origin === 'override' ? 'Eliminar mi versión y volver a la incluida' : 'Eliminar el perfil'}

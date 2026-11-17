@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   EuiBadge,
   EuiButtonEmpty,
@@ -90,6 +90,22 @@ const ShellTabs = ({ tab, onSelect, pendingCount }: { tab: TabId; onSelect: (tab
   );
 };
 
+// Organización and General keep unsaved edits in their own state: they stay mounted, only
+// hidden, once opened, so that moving to another tab does not throw the edits away.
+const KEPT_TABS: TabId[] = ['organization', 'general'];
+
+const useVisitedTabs = (tab: TabId): Set<TabId> => {
+  const [visited, setVisited] = useState<Set<TabId>>(() => new Set(KEPT_TABS.includes(tab) ? [tab] : []));
+  useEffect(() => {
+    if (KEPT_TABS.includes(tab) && !visited.has(tab)) setVisited(previous => new Set(previous).add(tab));
+  }, [tab, visited]);
+  return KEPT_TABS.includes(tab) ? new Set(visited).add(tab) : visited;
+};
+
+const KeptTab = ({ shown, children }: { shown: boolean; children: React.ReactNode }) => (
+  <div hidden={!shown}>{children}</div>
+);
+
 const ConfigurationContent = () => {
   const search = useRouterSearch();
   const target = parseConfigurationTarget(search);
@@ -109,6 +125,11 @@ const ConfigurationContent = () => {
 
   const navigate = useCallback((next: Partial<ENSConfigurationTarget>) => setSearch(configurationSearchChanges(next)), [setSearch]);
   const tab = tabOf(target.view);
+  const visited = useVisitedTabs(tab);
+  // Returning to a tab reopens what was open in it, such as a profile being edited.
+  const lastTargets = useRef<Partial<Record<TabId, Partial<ENSConfigurationTarget>>>>({});
+  lastTargets.current[tab] = target;
+  const openTab = (next: TabId) => navigate(next === tab ? { view: next } : lastTargets.current[next] || { view: next });
   const pendingCount = summary.data ? (summary.data.pending?.parameters.length || 0) + (summary.data.withoutProfile ? 1 : 0) : undefined;
 
   return (
@@ -147,7 +168,7 @@ const ConfigurationContent = () => {
           <OrganizationDataNotice configuration={activeConfiguration} onOpen={() => navigate({ view: 'organization' })} />
         )}
 
-        <ShellTabs tab={tab} onSelect={next => navigate({ view: next })} pendingCount={pendingCount} />
+        <ShellTabs tab={tab} onSelect={openTab} pendingCount={pendingCount} />
 
         <EuiSpacer size='l' />
 
@@ -155,8 +176,8 @@ const ConfigurationContent = () => {
         {tab === 'machines' && <MachinesTab target={target} onNavigate={navigate} />}
         {tab === 'profiles' && <ProfilesTab target={target} onNavigate={navigate} />}
         {tab === 'pending' && <PendingTab summary={summary} onNavigate={navigate} />}
-        {tab === 'organization' && (
-          <>
+        {visited.has('organization') && (
+          <KeptTab shown={tab === 'organization'}>
             <OrganizationDataPanel configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
             <EuiSpacer size='l' />
             <ControlsTab
@@ -166,9 +187,13 @@ const ConfigurationContent = () => {
               onNavigate={navigate}
               onConfigurationSaved={handleConfigurationSaved}
             />
-          </>
+          </KeptTab>
         )}
-        {tab === 'general' && <GeneralTab configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />}
+        {visited.has('general') && (
+          <KeptTab shown={tab === 'general'}>
+            <GeneralTab configuration={activeConfiguration} onConfigurationSaved={handleConfigurationSaved} />
+          </KeptTab>
+        )}
 
         {target.view === 'agents' && target.agentId && (
           <AgentValuesFlyout
