@@ -54,7 +54,7 @@ import {
   ProvenancedText,
   TemplateCorrespondencePanel,
 } from '../controls/control-detail/requirement-texts';
-import { ENS_PROPOSAL_TEXT_PROVENANCE } from '../../../common/ens/catalog/support/provenance';
+import { ENS_PROPOSAL_TEXT_PROVENANCE, OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
 import {
   REPORT_CRITERION_NOTE,
   buildTemplateCorrespondencePdf,
@@ -590,8 +590,9 @@ const ControlReport = ({
             ],
           },
           layout: 'lightHorizontalLines',
-          margin: [0, 0, 0, 16],
+          margin: [0, 0, 0, 4],
         },
+        { text: OPERATIONAL_INDICATOR_NOTE, style: 'sub', margin: [0, 0, 0, 16] },
 
         { text: 'Campos del informe', style: 'h3' },
         { text: REPORT_CRITERION_NOTE, style: 'sub', margin: [0, 0, 0, 6] },

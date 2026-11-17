@@ -38,6 +38,7 @@ import { ComplianceTrend } from './compliance-trend';
 import { ControlMap } from './control-map';
 import { IndexRing, primaryShade, SectionTitle, Segment, SegmentLegend, StackedBar, statusSegments } from './dashboard-parts';
 import { AttentionRow, buildAttentionRows, buildControlMap, buildFamilyRows, CatalogEntry, countControls, FamilyRow, trendDelta } from './dashboard-model';
+import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
 
 interface DashboardResponse {
   dashboard: ReturnType<typeof buildENSDashboardModel>;
@@ -289,7 +290,7 @@ const FamiliesPanel = ({ families, selected, onSelect }: { families: FamilyRow[]
     />
     <EuiSpacer size='s' />
     <EuiText size='xs' color='subdued'>
-      <p>Pulsa una familia para ver solo sus controles en la tabla de abajo.</p>
+      <p>Pulsa una familia para ver solo sus controles en la tabla de abajo. {OPERATIONAL_INDICATOR_NOTE}</p>
     </EuiText>
   </EuiPanel>
 );
