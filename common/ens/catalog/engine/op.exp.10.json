@@ -114,7 +114,7 @@
       "kind": "REFUERZO",
       "levels": [],
       "applicability_reason": "El ENS define este refuerzo pero no lo exige en ninguna categoría: se muestra como NO_APLICA en los tres niveles.",
-      "description": "Refuerzo R2 – Protección avanzada de claves criptográficas: Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
+      "description": "Se emplearán cifradores que cumplan con los requisitos establecidos en la guía CCN-STIC que sea de aplicación.",
       "evidence_ids": [],
       "parameter_ids": [
         "P-09",

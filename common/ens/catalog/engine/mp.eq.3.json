@@ -103,12 +103,13 @@
     },
     {
       "id": "mp.eq.3.r1.1",
-      "title": "Cifrado del disco con información de nivel MEDIO o superior",
+      "title": "Cifrado del disco",
       "kind": "REFUERZO",
       "levels": [
         "ALTO"
       ],
       "description": "Se protegerá el dispositivo portátil mediante cifrado del disco duro cuando el nivel de confidencialidad de la información almacenada en el mismo sea de nivel MEDIO.",
+      "interpretation": "Power ENS exige el cifrado cuando la confidencialidad de la información del dispositivo es MEDIO o ALTO, siguiendo la propuesta de la plantilla v2.0: los niveles del ENS son acumulativos y la lectura literal dejaría sin cifrar los dispositivos con la información más sensible.",
       "evidence_ids": [
         "EV-04"
       ],

@@ -350,7 +350,7 @@
     "P-03": {
       "class": "organisation",
       "name": "periodicidad_revision_permisos_dias",
-      "label": "Periodicidad revision permisos dias",
+      "label": "Periodicidad de revisión de permisos (días)",
       "description": "Cada cuántos días deben revisarse los permisos de acceso concedidos. El ENS exige revisión periódica (op.acc.4.4) y deja el plazo a la normativa de cada organización.",
       "levels": [
         "BAJO",

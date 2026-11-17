@@ -13,7 +13,7 @@
       "id": "P-01",
       "controlId": "op.acc.6",
       "name": "refuerzo_autenticacion_elegido",
-      "label": "Refuerzo autenticacion elegido",
+      "label": "Refuerzo de autenticación elegido",
       "description": "Mecanismo de autenticación del personal: R1 (contraseña, solo desde zona controlada), R2 (contraseña más otro factor), R3 (certificado cualificado) o R4 (certificado cualificado en soporte físico). El ENS exige uno en todos los niveles y solo rigen los requisitos del elegido; la complejidad de contraseña (op.acc.6.r1.2) rige con R1 y R2.",
       "levels": [
         "BAJO",
@@ -51,7 +51,7 @@
       "id": "P-02",
       "controlId": "op.acc.6",
       "name": "definicion_zonas_controladas",
-      "label": "Definicion zonas controladas",
+      "label": "Definición de zonas controladas",
       "description": "Redes que son zona controlada según el ENS (no públicas y con autenticación física previa), una por línea: rango CIDR (10.0.0.0/8, fd00::/8), dirección suelta o `local` para la consola física, con comentario opcional tras un espacio. Todo lo demás es zona no controlada y exige doble factor (R8).",
       "levels": [
         "BAJO",
@@ -116,7 +116,7 @@
       "id": "P-04",
       "controlId": "op.acc.6",
       "name": "periodicidad_cambio_credenciales_dias",
-      "label": "Periodicidad cambio credenciales dias",
+      "label": "Periodicidad de cambio de credenciales (días)",
       "description": "Cada cuántos días deben cambiarse las credenciales del personal. El ENS remite a la política de seguridad de la organización (op.acc.6.4) y no fija plazo.",
       "levels": [
         "BAJO",
@@ -256,7 +256,7 @@
       "id": "P-08",
       "controlId": "op.acc.6",
       "name": "puntos_renovacion_autenticacion",
-      "label": "Puntos renovacion autenticacion",
+      "label": "Puntos de renovación de la autenticación",
       "description": "Puntos donde se exige renovar la autenticación aunque haya sesión, uno por línea con el nombre del agente: sudo (elevación general), su, o sudo:/ruta/del/comando para un comando crítico; un NOPASSWD acotado a un comando solo cuenta si ese sudo:/ruta figura aquí. Obligatorio en nivel ALTO.",
       "levels": [
         "ALTO"
@@ -279,7 +279,7 @@
       "id": "P-09",
       "controlId": "op.acc.6",
       "name": "periodo_no_utilizacion_dias",
-      "label": "Periodo no utilizacion dias",
+      "label": "Periodo de no utilización (días)",
       "description": "Días de inactividad tras los cuales una credencial debe estar suspendida; el ENS exige «un periodo definido» sin fijarlo (op.acc.6.r7.1). Obligatorio en nivel ALTO.",
       "levels": [
         "ALTO"
@@ -303,7 +303,7 @@
       "id": "P-10",
       "controlId": "op.acc.6",
       "name": "politica_complejidad_contrasenas",
-      "label": "Politica complejidad contrasenas",
+      "label": "Política de complejidad de contraseñas",
       "description": "Mínimos de robustez de contraseña cuando P-01 es R1 o R2, uno por fila (criterio y valor mínimo): longitud_minima (caracteres), clases_de_caracteres (0 a 4), historial (contraseñas anteriores no repetibles) y lista_de_bloqueo (1 si se exige comprobar contra un diccionario de contraseñas comprometidas). Referencia: guías CCN-STIC.",
       "levels": [
         "BAJO",
@@ -348,7 +348,7 @@
       "id": "P-11",
       "controlId": "op.acc.6",
       "name": "exposiciones_autenticacion_admitidas",
-      "label": "Exposiciones autenticacion admitidas",
+      "label": "Exposiciones de la autenticación admitidas",
       "description": "Información que la organización admite que un servicio de autenticación muestre antes de validar credenciales, una por línea con el nombre del agente: sshd:version_software (el protocolo SSH obliga a enviarla), sshd:version_distribucion, sshd:version_addendum, sshd:banner_previo, slapd:rootdse_anonimo, slapd:bind_anonimo. Si no se admite ninguna, escribir ninguna.",
       "levels": [
         "BAJO",

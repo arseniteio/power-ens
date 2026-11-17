@@ -13,7 +13,7 @@
       "id": "P-01",
       "controlId": "op.acc.5",
       "name": "refuerzo_autenticacion_elegido",
-      "label": "Refuerzo autenticacion elegido",
+      "label": "Refuerzo de autenticación elegido",
       "description": "Refuerzo de autenticación para usuarios externos, a elegir (no acumulativo): R1 contraseña (solo BAJO), R2 contraseña más OTP, R3 certificado cualificado con PIN o biometría, R4 certificado en soporte físico con PIN. Solo cuentan los requisitos del refuerzo elegido; los demás salen NO_APLICA.",
       "levels": [
         "BAJO",
@@ -129,7 +129,7 @@
       "id": "P-04",
       "controlId": "op.acc.5",
       "name": "procedimiento_reactivacion",
-      "label": "Procedimiento reactivacion",
+      "label": "Procedimiento de reactivación",
       "description": "Referencia al procedimiento documentado de reactivación de cuenta tras bloqueo. El ENS exige que la intervención para reactivar «se describirá en la documentación».",
       "levels": [
         "BAJO",
@@ -155,7 +155,7 @@
       "id": "P-05",
       "controlId": "op.acc.5",
       "name": "periodicidad_cambio_credenciales_dias",
-      "label": "Periodicidad cambio credenciales dias",
+      "label": "Periodicidad de cambio de credenciales (días)",
       "description": "Cada cuántos días deben cambiarse las credenciales de usuarios externos. El ENS remite a la política de seguridad de la organización (op.acc.5.4) y no fija plazo.",
       "levels": [
         "BAJO",
@@ -252,7 +252,7 @@
       "id": "P-08",
       "controlId": "op.acc.5",
       "name": "retencion_registro_accesos_dias",
-      "label": "Retencion registro accesos dias",
+      "label": "Retención del registro de accesos (días)",
       "description": "Período de conservación del registro de accesos con éxito y fallidos exigido por R5 (obligatorio en MEDIO y ALTO). Debe ser coherente con la retención de op.acc.1.",
       "levels": [
         "MEDIO",
@@ -278,7 +278,7 @@
       "id": "P-09",
       "controlId": "op.acc.5",
       "name": "notificacion_ultimo_acceso",
-      "label": "Notificacion ultimo acceso",
+      "label": "Notificación del último acceso",
       "description": "Indica si el servicio informa al usuario de su último acceso (op.acc.5.r5.2, MEDIO y ALTO). Es una función del portal, no detectable en logs.",
       "levels": [
         "MEDIO",
