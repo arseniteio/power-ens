@@ -41,6 +41,9 @@ import { AttentionRow, buildAttentionRows, buildControlMap, buildFamilyRows, Cat
 import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
 import { useOrganizationMaturity } from '../maturity/maturity-client';
 import { OrganizationMaturityPanel } from '../maturity/organization-maturity-panel';
+import { downloadCsv } from '../download-csv';
+import { metricsCsv } from '../../../common/ens/maturity/metrics-export';
+import { assessmentsOf } from '../../../common/ens/maturity/assessments';
 
 interface DashboardResponse {
   dashboard: ReturnType<typeof buildENSDashboardModel>;
@@ -411,7 +414,24 @@ const Dashboard = ({
 
   return (
     <>
-      <OrganizationMaturityPanel data={maturity.data} error={maturity.error} loading={maturity.loading} onOpen={onOpen} />
+      <OrganizationMaturityPanel
+        data={maturity.data}
+        error={maturity.error}
+        loading={maturity.loading}
+        onOpen={onOpen}
+        onExport={() =>
+          downloadCsv(
+            `power-ens-metricas-${new Date().toISOString().slice(0, 10)}.csv`,
+            metricsCsv(
+              CATALOG.map(entry => ({ id: entry.id, name: entry.title, family: entry.family })),
+              controls,
+              maturity.data,
+              assessmentsOf(getActiveENSConfiguration()),
+              new Date().toISOString()
+            )
+          )
+        }
+      />
 
       <EuiSpacer size='m' />
 

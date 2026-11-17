@@ -60,6 +60,7 @@ import {
 import { statusLabel } from '../../../common/ens/core/status-label';
 import { dateTimeLabel } from '../../../common/ens/core/date-label';
 import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
+import { downloadCsv } from '../download-csv';
 
 const PAGE_SIZE = 25;
 
@@ -68,15 +69,6 @@ interface ControlFilter {
   status: string;
   agents: string[];
 }
-
-const downloadCsv = (name: string, content: string) => {
-  const url = URL.createObjectURL(new Blob([`﻿${content}`], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
-};
 
 const Figure = ({ title, value, active, color, onClick }: { title: string; value: number; active: boolean; color?: string; onClick: () => void }) => (
   <EuiPanel hasBorder paddingSize='s' onClick={onClick} style={active ? { borderColor: ENS_THEME.primary } : undefined}>

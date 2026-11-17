@@ -78,3 +78,22 @@ describe('organization maturity', () => {
     assert.equal(maturityReportRows(undefined, undefined)[1].value, 'sin valorar');
   });
 });
+
+describe('metrics export', () => {
+  test('marks each figure as measured or declared and quotes what needs it', async () => {
+    const { metricsCsv } = await import('../../common/ens/maturity/metrics-export');
+    const csv = metricsCsv(
+      [{ id: 'op.acc.1', name: 'Identificación', family: 'Control de acceso' }],
+      [{ controlId: 'op.acc.1', status: 'PARCIAL', score: 75, evaluated: true, requirementsNotMet: 1, requirementsNotEvidenced: 0 }],
+      { at: 'x', measures: { 'op.acc.1': { accredited: 1 } }, summary: { global_accredited: 1, global_assessed: 0 } },
+      [{ measureId: 'op.acc.1', level: 3, references: 'PR-01; v2' }, { measureId: 'org.2', level: 2, references: '=HYPERLINK("x")' }],
+      '2026-11-17'
+    );
+    const lines = csv.trim().split('\r\n');
+    assert.match(lines[0], /^"medida";"nombre";"familia";"estado_operativo";"cumplimiento_pct"/);
+    assert.equal(lines[1], '"op.acc.1";"Identificación";"Control de acceso";"PARCIAL";"75";"1";"0";"L1";"L3";"";"";"PR-01; v2";"medido y declarado"');
+    assert.equal(lines[2], '"org.2";"";"";"";"";"";"";"";"L2";"";"";"\'=HYPERLINK(""x"")";"declarado"');
+    assert.match(lines[3], /^"ENS \(global\)";.*;"L1";"L0";/);
+    assert.equal(metricsCsv([], [], undefined, [{ measureId: 'org.2', references: ' +SUM(A1)' }], 'x').split('\r\n')[1].split(';')[11], '"\' +SUM(A1)"');
+  });
+});

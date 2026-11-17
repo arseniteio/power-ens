@@ -1,5 +1,5 @@
 import React from 'react';
-import { EuiBasicTable, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLink, EuiPanel, EuiSpacer, EuiStat, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiBasicTable, EuiButtonEmpty, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiLink, EuiPanel, EuiSpacer, EuiStat, EuiText, EuiTitle } from '@elastic/eui';
 import {
   ENS_MATURITY_LABELS,
   ENS_MATURITY_MAX,
@@ -37,11 +37,13 @@ export const OrganizationMaturityPanel = ({
   error,
   loading,
   onOpen,
+  onExport,
 }: {
   data?: ENSOrganizationMaturity;
   error?: string;
   loading: boolean;
   onOpen: (controlId: string) => void;
+  onExport?: () => void;
 }) => {
   const incoherent = Object.entries(data?.measures || {})
     .filter(([, m]) => m.incoherent)
@@ -50,9 +52,20 @@ export const OrganizationMaturityPanel = ({
 
   return (
     <EuiPanel hasBorder>
-      <EuiTitle size='xs'>
-        <h3>Madurez de la organización</h3>
-      </EuiTitle>
+      <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false}>
+        <EuiFlexItem>
+          <EuiTitle size='xs'>
+            <h3>Madurez de la organización</h3>
+          </EuiTitle>
+        </EuiFlexItem>
+        {onExport && (
+          <EuiFlexItem grow={false}>
+            <EuiButtonEmpty size='s' iconType='download' onClick={onExport}>
+              Exportar métricas (CSV)
+            </EuiButtonEmpty>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
         <p>Niveles CMM del Anexo II, apdo. 6.{data?.at ? ` Pasada del motor: ${dateTimeLabel(data.at)}.` : ''}</p>
       </EuiText>
