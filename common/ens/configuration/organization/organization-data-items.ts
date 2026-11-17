@@ -194,7 +194,7 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"name": "persona", "label": "Persona", "type": "string", "required": true},
       {"name": "formacion", "label": "Formación", "type": "string", "required": true},
       {"name": "fecha", "label": "Fecha", "type": "string", "required": false},
-      {"name": "vigencia", "label": "Vigente hasta", "type": "string", "required": false}
+      {"name": "vigencia", "label": "Vigente hasta", "type": "string", "required": true}
     ],
     "views": [
       {"controlId": "op.cont.2", "parameterId": "P-05"},
