@@ -37,18 +37,14 @@ import { SaveWarningNotice } from './save-warning-notice';
 import { ProfileChangesProvider, useProfileChanges } from '../profiles/profile-changes';
 import { ProfileSaveBar } from '../profiles/save-bar';
 import { useHostSummary } from '../profiles/use-host-summary';
-import { StatusTab } from '../profiles/status-tab';
-import { MachinesTab } from '../profiles/machines-tab';
-import { ProfilesTab } from '../profiles/profiles-tab';
+import { GroupsTab } from '../groups/groups-tab';
 import { PendingTab } from '../profiles/pending-tab';
 import { DeclaredMeasuresPanel } from '../../maturity/declared-measures-panel';
 
-type TabId = 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general';
+type TabId = 'groups' | 'pending' | 'organization' | 'general';
 
 const TABS: Array<{ id: TabId; label: string }> = [
-  { id: 'status', label: 'Estado' },
-  { id: 'machines', label: 'Máquinas' },
-  { id: 'profiles', label: 'Perfiles' },
+  { id: 'groups', label: 'Grupos y máquinas' },
   { id: 'pending', label: 'Pendiente' },
   { id: 'organization', label: 'Organización' },
   { id: 'general', label: 'General' },
@@ -56,8 +52,8 @@ const TABS: Array<{ id: TabId; label: string }> = [
 
 const tabOf = (view: ENSConfigurationView): TabId => {
   if (view === 'controls') return 'organization';
-  if (view === 'agents') return 'machines';
-  return view;
+  if (view === 'pending' || view === 'organization' || view === 'general') return view;
+  return 'groups';
 };
 
 const scopeText = (groupIds: string[], mode: string): string => {
@@ -66,19 +62,11 @@ const scopeText = (groupIds: string[], mode: string): string => {
 };
 
 const ShellTabs = ({ tab, onSelect, pendingCount }: { tab: TabId; onSelect: (tab: TabId) => void; pendingCount?: number }) => {
-  const { working } = useProfileChanges();
-  const profileCount = working.filter(entry => entry.staged !== 'deleted' && entry.errors.length === 0).length;
   return (
     <EuiTabs>
       {TABS.map(item => (
         <EuiTab key={item.id} isSelected={tab === item.id} onClick={() => onSelect(item.id)}>
           {item.label}
-          {item.id === 'profiles' && profileCount > 0 && (
-            <>
-              {' '}
-              <EuiNotificationBadge color='subdued'>{profileCount}</EuiNotificationBadge>
-            </>
-          )}
           {item.id === 'pending' && pendingCount !== undefined && pendingCount > 0 && (
             <>
               {' '}
@@ -173,9 +161,15 @@ const ConfigurationContent = () => {
 
         <EuiSpacer size='l' />
 
-        {tab === 'status' && <StatusTab summary={summary} configuration={activeConfiguration} onNavigate={navigate} />}
-        {tab === 'machines' && <MachinesTab target={target} onNavigate={navigate} />}
-        {tab === 'profiles' && <ProfilesTab target={target} onNavigate={navigate} />}
+        {tab === 'groups' && (
+          <GroupsTab
+            target={target}
+            summary={summary}
+            revision={`${savedAt || 0}-${configurationRevision}`}
+            onNavigate={navigate}
+            onConfigurationSaved={handleConfigurationSaved}
+          />
+        )}
         {tab === 'pending' && <PendingTab summary={summary} onNavigate={navigate} />}
         {visited.has('organization') && (
           <KeptTab shown={tab === 'organization'}>

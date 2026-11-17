@@ -4,15 +4,18 @@ Power ENS appears in the Wazuh dashboard menu. The screens are in Spanish, so th
 
 ## Configuration
 
-Configuración holds what the organisation declares. Anyone with dashboard access can read it; saving needs the `power_ens_admin` or `all_access` role. It has six tabs.
+Configuración holds what the organisation declares. Anyone with dashboard access can read it; saving needs the `power_ens_admin` or `all_access` role. It has four tabs.
 
-Estado summarises the deployment: how many machines the engine has described, how many get no profile, how many have evidences left not evaluable by the configuration, and which unset parameters cause it. It also shows the machines per role, distribution and profile, and the latest changes.
+Grupos y máquinas is where values are set per group of machines. The list on the left shows the groups, how many machines each has and whether it has values, and Sin grupo for the machines in none. A machine enters a group because it meets its conditions (distribution, family, role, service, Wazuh group, host name) or because it was added by hand. Each group has two views:
 
-Máquinas lists every machine the engine describes in `oscompliance-host-profile`, page by page, with filters by profile, role, distribution, service and Wazuh group, and a search by name, hostname or agent number. The list is read from the indexer one page at a time, so it works the same with 15,000 machines. Opening a machine shows what the engine deduced (distribution, role, services and the inventory signal behind each), the profiles it gets, and the value of every per-machine parameter with where it comes from. Dar valores propios edits the values of that machine alone.
+- Controles del grupo lists the controls with per-machine parameters. Configurar opens the values the group gives to all its machines.
+- Máquinas lists its machines, with their operating system, page by page and with a search. Selecting several shows Añadir a un grupo, Sacar del grupo (in a group chosen by hand), Cambiar la plantilla and Cambiar un valor en todas.
 
-Perfiles is where values are set once per type of machine. Each profile has a layer (distribution, role, service or site), conditions on what the engine deduces, and values for the per-machine parameters. While editing, Vista previa counts the machines that meet the conditions and names some of them. Nuevo perfil starts from a blank profile, from a copy of another one, or from a file. Importar reads YAML or JSON files with one or several profiles and shows, per profile, whether it is new, changes or stays the same, and its errors, before anything is applied. Exportar writes the saved profiles as YAML, one document per profile. The built-in profiles come from the OSCompliance catalog; saving a changed copy replaces the built-in one, and deleting that copy brings it back.
+Cargar plantilla copies the values of a built-in template (Ubuntu, Windows, manager) into the group; values the group already had for the same parameters are replaced. Editar grupo changes its name, layer and conditions, with a preview of the machines it gets. Nuevo starts a group from scratch, from a copy or from a file; Exportar writes the groups as YAML.
 
-Edits to profiles are collected in the bar at the bottom of the page. Revisar lists them, Descartar drops them and Guardar writes them all. The engine applies them on its next pass.
+Opening a machine shows its groups, its plantilla and its controls. The plantilla gives starting values by system type: the one of its detected type, one chosen by hand, or Sin plantilla, in which case it takes only the values of its groups and its own. Configurar on a control opens its parameters with where each value comes from (the machine, a group, the plantilla or the organisation); what is changed there applies to that machine only.
+
+Edits to groups are collected in the bar at the bottom of the page. Revisar lists them, Descartar drops them and Guardar writes them all. Plantilla and per-machine values are saved at once. The engine applies everything on its next pass.
 
 Pendiente lists what needs a decision: machines that match no profile and parameters without a value that leave evidences not evaluable, according to the last verdicts. Each parameter links to where it is set: a profile for per-machine parameters, Organización for the rest.
 
@@ -20,7 +23,7 @@ Organización holds the data that several controls share, entered once: authoris
 
 General holds the client, the ENS level (BAJO, MEDIO or ALTO), the groups in scope (Grupos evaluables) and Grupos por control. Until Guardar configuración global is pressed for the first time, the engine and the plugin use the default of the catalog, `common/ens/catalog/default-configuration.json`: level MEDIO and the `ens` group in scope. Save to change them.
 
-A machine's value comes from the first of: its own value, the template assigned to it in the control, its profiles, the built-in template of its system type, and the organisation value. Lists add up across profiles; other values come from the most specific layer. The order is described in [ENS policy](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#ens-policy).
+A machine's value comes from the first of: its own value, the template assigned to it in the control, its groups, its plantilla, and the organisation value. Lists add up across groups; other values come from the most specific layer. The order is described in [ENS policy](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#ens-policy).
 
 For automation, `oscompliance-policy` reads and writes the same profiles from YAML files on the manager, and `config/set-parameters.py` fills in organisation and machine values from a JSON file after the first save. See [profiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#profiles) and [parameters from a file](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#parameters-from-a-file).
 

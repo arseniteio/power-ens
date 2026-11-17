@@ -2,7 +2,7 @@ import { ENS_CONTROL_DETAIL_TAB_ID } from '../app/tabs';
 
 const CONFIGURATION_TAB_ID = 'configuration';
 
-export type ENSConfigurationView = 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general' | 'controls' | 'agents';
+export type ENSConfigurationView = 'groups' | 'status' | 'machines' | 'profiles' | 'pending' | 'organization' | 'general' | 'controls' | 'agents';
 
 export interface ENSConfigurationTarget {
   view: ENSConfigurationView;
@@ -21,6 +21,7 @@ const clean = (value?: string): string | undefined => {
 };
 
 const VIEW_PARAMS: Record<string, ENSConfigurationView> = {
+  grupos: 'groups',
   estado: 'status',
   maquinas: 'machines',
   perfiles: 'profiles',
@@ -35,7 +36,7 @@ const VIEW_PARAMS: Record<string, ENSConfigurationView> = {
 const viewOf = (agentId: string | undefined, controlId: string | undefined, configView: string | undefined): ENSConfigurationView => {
   if (agentId) return 'agents';
   if (configView && VIEW_PARAMS[configView]) return VIEW_PARAMS[configView];
-  return controlId ? 'controls' : 'status';
+  return controlId ? 'controls' : 'groups';
 };
 
 export const parseConfigurationTarget = (params: Record<string, string | undefined>): ENSConfigurationTarget => {
@@ -55,6 +56,8 @@ export const parseConfigurationTarget = (params: Record<string, string | undefin
 
 const viewParam = (target: Partial<ENSConfigurationTarget>): string | undefined => {
   switch (target.view) {
+    case 'groups':
+      return 'grupos';
     case 'machines':
       return 'maquinas';
     case 'profiles':
@@ -83,8 +86,8 @@ export const configurationSearchChanges = (
   configControl: clean(target.controlId),
   configParam: clean(target.parameterId),
   configItem: target.view === 'organization' ? clean(target.itemId) : undefined,
-  configProfile: target.view === 'profiles' ? clean(target.profileId) : undefined,
-  configHost: target.view === 'machines' ? clean(target.hostId) : undefined,
+  configProfile: target.view === 'profiles' || target.view === 'groups' ? clean(target.profileId) : undefined,
+  configHost: target.view === 'machines' || target.view === 'groups' ? clean(target.hostId) : undefined,
   configFilter: target.view === 'machines' ? clean(target.machineFilter) : undefined,
 });
 

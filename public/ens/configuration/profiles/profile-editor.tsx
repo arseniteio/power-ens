@@ -18,8 +18,7 @@ import {
   EuiTextArea,
   EuiTitle,
 } from '@elastic/eui';
-import { ENGINE_CATALOG } from '../../../../common/ens/catalog/engine-catalog';
-import { isAgentLevelParameter } from '../../../../common/ens/configuration/agents/parameter-classes';
+import { PARAMETER_GROUPS } from './parameter-groups';
 import { ENSProfile, ENSProfileCondition, ENS_PROFILE_ID_PATTERN, ENS_PROFILE_LAYERS } from '../../../../common/ens/profiles/types';
 import { validateProfile } from '../../../../common/ens/profiles/validate';
 import { ConditionBuilder, useConditionSuggestions } from './condition-builder';
@@ -107,13 +106,6 @@ const draftOf = (profile: ENSProfile): Draft => ({
   match: (profile.match || []).map(condition => ({ ...condition })),
   edits: editsOf(profile),
 });
-
-const PARAMETER_GROUPS = ENGINE_CATALOG.map(entry => ({
-  controlId: entry.control as string,
-  parameters: Object.entries<any>(entry.parameters)
-    .filter(([parameterId]) => isAgentLevelParameter(entry.control, parameterId))
-    .map(([parameterId, parameter]) => ({ parameterId, label: (parameter.label || parameterId) as string, type: parameter.type as string })),
-})).filter(group => group.parameters.length);
 
 const usePreview = (match: ENSProfileCondition[]) => {
   const [preview, setPreview] = useState<ENSHostPreview | undefined>();
