@@ -38,7 +38,7 @@ export interface ENSAgentProfile {
   aliases?: string[];
   detectedType?: ENSSystemType;
   detectedBy?: string;
-  typeOverride?: ENSSystemType;
+  typeOverride?: ENSSystemType | typeof ENS_NO_TEMPLATE;
   templates?: string[];
   controls?: Record<string, ENSAgentControlOverrides>;
 }
@@ -280,7 +280,7 @@ export const checkAgentsConfigurationKeys = (
 
     (['detectedType', 'typeOverride'] as const).forEach(key => {
       const type = profile[key];
-      if (typeof type === 'string' && !ENS_SYSTEM_TYPES.includes(type as ENSSystemType)) {
+      if (typeof type === 'string' && !ENS_SYSTEM_TYPES.includes(type as ENSSystemType) && !(key === 'typeOverride' && type === ENS_NO_TEMPLATE)) {
         result.warnings.push(`${at}.${key}: el tipo «${type}» no es de esta versión (${ENS_SYSTEM_TYPES.join(', ')}) y se ignora.`);
       }
     });

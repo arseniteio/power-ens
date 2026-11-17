@@ -5,6 +5,13 @@ const lower = (value: unknown): string => String(value ?? '').toLowerCase();
 
 const containsFold = (list: string[], want: string): boolean => list.some(item => lower(item.trim()) === want);
 
+// A group of machines chosen by hand lists their host names, comma-separated.
+export const listOf = (value: unknown): string[] =>
+  String(value ?? '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+
 const conditionHolds = (condition: ENSProfileCondition, facts: ENSHostFacts): boolean => {
   const want = lower(String(condition.value ?? '').trim());
   switch (condition.field) {
@@ -20,6 +27,7 @@ const conditionHolds = (condition: ENSProfileCondition, facts: ENSHostFacts): bo
       if (condition.op === 'is') return got === want;
       if (condition.op === 'is_not') return got !== want;
       if (condition.op === 'matches') return globMatches(want, got);
+      if (condition.op === 'in') return listOf(want).includes(got);
       return false;
     }
     default:
@@ -73,6 +81,7 @@ const any = (...queries: Query[]): Query => ({ bool: { should: queries, minimum_
 const term = (field: string, value: string): Query => ({ term: { [field]: { value, case_insensitive: true } } });
 
 const scalarPositive = (field: string, op: string, want: string): Query => {
+  if (op === 'in') return any(...listOf(want).map(item => term(field, item)));
   if (op !== 'matches') return term(field, want);
   let source: string;
   try {
@@ -100,7 +109,8 @@ const conditionQuery = (condition: ENSProfileCondition): Query => {
     case 'family':
     case 'role':
     case 'hostname': {
-      if (!['is', 'is_not', 'matches'].includes(condition.op)) return { match_none: {} };
+      if (!['is', 'is_not', 'matches', 'in'].includes(condition.op)) return { match_none: {} };
+      if (condition.op === 'in' && !listOf(want).length) return { match_none: {} };
       const positiveOp = condition.op === 'is_not' ? 'is' : condition.op;
       const positive = condition.field === 'hostname' ? hostnamePositive(positiveOp, want) : scalarPositive(condition.field, positiveOp, want);
       return condition.op === 'is_not' ? not(positive) : positive;

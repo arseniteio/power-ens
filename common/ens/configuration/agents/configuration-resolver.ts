@@ -47,6 +47,9 @@ const hasOwn = (record: object | undefined, key: string): boolean =>
 export const toTemplateModel = <T extends ENSResolvable>(configuration: T): T =>
   needsTemplateMigration(configuration) ? planTemplateMigration(configuration).configuration : configuration;
 
+// «Sin plantilla»: the machine keeps its detected type but takes no type template.
+export const withoutTypeTemplate = (profile: ENSAgentProfile | undefined): boolean => profile?.typeOverride === ENS_NO_TEMPLATE;
+
 export const getAgentSystemType = (profile: ENSAgentProfile | undefined): ENSSystemType | undefined =>
   knownSystemType(profile?.typeOverride) || knownSystemType(profile?.detectedType);
 
@@ -66,7 +69,7 @@ const effectiveTemplateOf = (
   if (assigned) {
     return { template: assigned, via: 'assigned', assignedId };
   }
-  const byType = getTypeDefaultTemplate(controlId, getAgentSystemType(profile));
+  const byType = withoutTypeTemplate(profile) ? undefined : getTypeDefaultTemplate(controlId, getAgentSystemType(profile));
   return byType ? { template: byType, via: 'type', assignedId } : { via: 'none', assignedId };
 };
 

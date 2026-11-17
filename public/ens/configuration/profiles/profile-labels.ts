@@ -36,6 +36,7 @@ export const OP_LABELS: Record<string, string> = {
   is: 'es',
   is_not: 'no es',
   matches: 'encaja con',
+  in: 'es una de',
   has: 'tiene',
   has_not: 'no tiene',
 };

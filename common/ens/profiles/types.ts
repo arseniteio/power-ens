@@ -8,13 +8,13 @@ export type ENSProfileScalarField = 'distro' | 'family' | 'role' | 'hostname';
 export type ENSProfileListField = 'service' | 'group';
 export type ENSProfileField = ENSProfileScalarField | ENSProfileListField;
 
-export type ENSProfileScalarOp = 'is' | 'is_not' | 'matches';
+export type ENSProfileScalarOp = 'is' | 'is_not' | 'matches' | 'in';
 export type ENSProfileListOp = 'has' | 'has_not';
 export type ENSProfileOp = ENSProfileScalarOp | ENSProfileListOp;
 
 export const ENS_PROFILE_SCALAR_FIELDS: ENSProfileScalarField[] = ['distro', 'family', 'role', 'hostname'];
 export const ENS_PROFILE_LIST_FIELDS: ENSProfileListField[] = ['service', 'group'];
-export const ENS_PROFILE_SCALAR_OPS: ENSProfileScalarOp[] = ['is', 'is_not', 'matches'];
+export const ENS_PROFILE_SCALAR_OPS: ENSProfileScalarOp[] = ['is', 'is_not', 'matches', 'in'];
 export const ENS_PROFILE_LIST_OPS: ENSProfileListOp[] = ['has', 'has_not'];
 
 export const ENS_PROFILE_GROUP_PREFIX = 'ens-perfil-';

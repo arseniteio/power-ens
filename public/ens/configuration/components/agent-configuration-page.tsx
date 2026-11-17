@@ -159,13 +159,18 @@ export const AgentConfigurationPage = ({
     return failure;
   };
 
-  const changeType = (type: ENSSystemType | undefined) =>
+  const changeType = (type: ENSSystemType | typeof ENS_NO_TEMPLATE | undefined) =>
     saveWithPreview({
       title: `Cambiar el tipo de ${label}`,
       confirmLabel: 'Cambiar el tipo',
       intro: 'Los controles sin plantilla asignada pasan a la de serie del tipo nuevo.',
       build: latest => setAgentTypeOverride(latest, agentId, type, row.agent),
-      reason: type ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.` : `Tipo de ${label}: vuelve al detectado.`,
+      reason:
+        type === ENS_NO_TEMPLATE
+          ? `${label}: sin plantilla.`
+          : type
+          ? `Tipo de ${label} corregido a mano: ${ENS_SYSTEM_TYPE_LABELS[type]}.`
+          : `Tipo de ${label}: vuelve al detectado.`,
     });
 
   const assign = (controlId: string, choice: string) => {
@@ -227,6 +232,7 @@ export const AgentConfigurationPage = ({
         : 'Sin detectar (elegir uno)',
     },
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
+    { value: ENS_NO_TEMPLATE, text: 'Sin plantilla' },
   ];
 
   return (
@@ -306,7 +312,7 @@ export const AgentConfigurationPage = ({
               options={typeOptions}
               value={profile?.typeOverride || ''}
               disabled={saving}
-              onChange={event => changeType((event.target.value || undefined) as ENSSystemType | undefined)}
+              onChange={event => changeType((event.target.value || undefined) as ENSSystemType | typeof ENS_NO_TEMPLATE | undefined)}
             />
           </EuiFormRow>
         </EuiFlexItem>

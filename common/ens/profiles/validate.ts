@@ -10,6 +10,7 @@ import {
   ENS_PROFILE_SCALAR_FIELDS,
   ENS_PROFILE_SCALAR_OPS,
 } from './types';
+import { listOf } from './match';
 
 interface CatalogColumn {
   label?: string;
@@ -93,6 +94,8 @@ const validateMatch = (profile: ENSProfile, add: (message: string) => void): voi
         add(`${where}: ${condition.field} admite ${ENS_PROFILE_SCALAR_OPS.join(', ')}`);
       } else if (condition.op === 'matches' && !isValidGlob(value)) {
         add(`${where}: el patrón «${value}» no es válido`);
+      } else if (condition.op === 'in' && !listOf(value).length) {
+        add(`${where}: «una de» necesita una lista separada por comas`);
       }
     } else if ((ENS_PROFILE_LIST_FIELDS as string[]).includes(condition?.field)) {
       if (!(ENS_PROFILE_LIST_OPS as string[]).includes(condition.op)) {

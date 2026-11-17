@@ -89,6 +89,7 @@ const fromProfiles = (matched: ENSProfile[], controlId: string, parameterId: str
 
 const systemTypeOf = (configuration: Resolvable, agentId: string, inventoryType?: ENSSystemType): ENSSystemType | undefined => {
   const stored = configuration.agents?.[agentId];
+  if (stored?.typeOverride === ENS_NO_TEMPLATE) return undefined;
   return knownSystemType(stored?.typeOverride) || inventoryType || knownSystemType(stored?.detectedType);
 };
 

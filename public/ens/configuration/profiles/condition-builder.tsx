@@ -96,7 +96,7 @@ const ConditionRow = ({
           compressed
           fullWidth
           isDisabled={readOnly}
-          placeholder={condition.op === 'matches' ? 'Patrón, por ejemplo ubuntu-*' : 'Escribe o elige un valor'}
+          placeholder={condition.op === 'matches' ? 'Patrón, por ejemplo ubuntu-*' : condition.op === 'in' ? 'Lista separada por comas: web-01, web-02' : 'Escribe o elige un valor'}
           singleSelection={{ asPlainText: true }}
           options={options}
           selectedOptions={selected}
