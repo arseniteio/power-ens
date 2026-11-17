@@ -1,0 +1,99 @@
+{
+  "id": "windows",
+  "name": "Windows",
+  "description": "Windows Server y Windows 10/11 con el agente de Wazuh y el agente OSCompliance para Windows. Los grupos van con su nombre en inglés y en español porque Windows los traduce.",
+  "layer": "distro",
+  "match": [
+    {
+      "field": "family",
+      "op": "is",
+      "value": "windows"
+    }
+  ],
+  "values": {
+    "op.acc.1": {
+      "P-01": "Local",
+      "P-03": [
+        "Guest",
+        "Invitado",
+        "DefaultAccount",
+        "WDAGUtilityAccount",
+        "krbtgt"
+      ],
+      "P-10": 1000,
+      "P-11": [
+        "Administrators",
+        "Administradores",
+        "Domain Admins",
+        "Admins. del dominio",
+        "Enterprise Admins",
+        "Schema Admins",
+        "Backup Operators",
+        "Operadores de copia de seguridad",
+        "Server Operators",
+        "Account Operators"
+      ]
+    },
+    "op.acc.2": {
+      "P-02": [
+        "C:\\Windows\\System32\\drivers\\etc\\hosts",
+        "C:\\ProgramData\\ssh\\sshd_config",
+        "C:\\Program Files (x86)\\ossec-agent\\ossec.conf"
+      ],
+      "P-12": [
+        "Administrators",
+        "Administradores",
+        "Domain Admins",
+        "Admins. del dominio",
+        "Enterprise Admins",
+        "Backup Operators",
+        "Operadores de copia de seguridad"
+      ]
+    },
+    "op.acc.4": {
+      "P-04": [
+        "rdp",
+        "ssh"
+      ],
+      "P-06": [
+        "Administrators",
+        "Administradores",
+        "Domain Admins",
+        "Admins. del dominio",
+        "Remote Desktop Users",
+        "Usuarios de escritorio remoto"
+      ]
+    },
+    "op.exp.3": {
+      "P-04": [
+        "C:\\Windows\\System32\\drivers\\etc\\hosts",
+        "C:\\ProgramData\\ssh\\sshd_config",
+        "C:\\Program Files (x86)\\ossec-agent\\ossec.conf"
+      ]
+    },
+    "op.exp.6": {
+      "P-02": [
+        "windows-defender"
+      ],
+      "P-04": [
+        "proteccion_tiempo_real | si",
+        "actualizacion_automatica_firmas | si",
+        "analisis_comprimidos | si"
+      ],
+      "P-07": [
+        "C:\\Windows\\System32\\drivers\\etc"
+      ]
+    },
+    "op.exp.10": {
+      "P-02": [
+        "C:\\ProgramData\\ssh",
+        "C:\\ProgramData\\Microsoft\\Crypto\\RSA\\MachineKeys"
+      ],
+      "P-08": [
+        "SYSTEM | claves de host, TLS y del agente | lectura",
+        "LOCAL SERVICE | claves de máquina de servicios del sistema | lectura",
+        "NETWORK SERVICE | claves de máquina de servicios del sistema | lectura"
+      ]
+    }
+  }
+}
