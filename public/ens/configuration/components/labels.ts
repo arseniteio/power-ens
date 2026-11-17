@@ -46,15 +46,6 @@ const LIFECYCLE: Record<ENSConfigurationLifecycleStatus, string> = {
 
 export const lifecycleLabel = (status: ENSConfigurationLifecycleStatus): string => LIFECYCLE[status] || status;
 
-const AGENT_STATUS: Record<string, string> = {
-  active: 'Conectado',
-  disconnected: 'Desconectado',
-  pending: 'Pendiente',
-  never_connected: 'Nunca conectado',
-};
-
-export const agentStatusLabel = (status?: string): string => (status ? AGENT_STATUS[status] || status : '—');
-
 export const parameterLabel = (
   configuration: Pick<ENSConfigurationVersion, 'controls'>,
   key: string,
