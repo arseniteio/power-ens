@@ -7,6 +7,7 @@ All notable changes to Power ENS are documented in this file. The format follows
 ### Added
 
 - Madurez de la organización at the top of Panel: CMM levels accredited by the engine and assessed by people, distribution, global levels and measures below target. Detalle del control shows the maturity of the control with Valorar, and Informes adds it to the screen and the PDF. Assessments are stored in `configuration.maturity`; the server signs each changed one with the user and the date.
+- Organización holds twelve shared data instead of six: authorised personnel now feeds op.exp.3, op.exp.4, op.exp.8, op.exp.10, mp.info.6 and op.nub.1; retention feeds op.exp.8, op.exp.9, mp.info.6 and mp.s.3; the statement of applicability feeds op.mon.2; and preproduction environment, change and incident tools, CCN-authorised algorithms, certified products, staff training and awareness activities are new. Existing control values move in when they agree, and are flagged when they differ.
 - Organización lists the measures the controls cite without an engine (org.2, op.pl.5, op.ext.3, mp.per.3, mp.per.4, mp.com.2, mp.si.5, mp.info.2, mp.sw.1) to assess their maturity.
 - `/api/powerEns/maturity/organization` returns the newest organization maturity written by the engine.
 - Configuración has the tabs Estado, Máquinas, Perfiles, Pendiente, Organización and General. Estado summarises machines without a profile, unset parameters that leave evidences not evaluable, coverage per role, distribution and profile, and the latest changes.

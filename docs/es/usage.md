@@ -16,7 +16,7 @@ Los cambios en perfiles se acumulan en la barra inferior de la página. Revisar 
 
 Pendiente lista lo que necesita una decisión: las máquinas que no cumplen ningún perfil y los parámetros sin valor que dejan evidencias sin evaluar, según los últimos veredictos. Cada parámetro enlaza con donde se fija: un perfil para los parámetros por máquina y Organización para el resto.
 
-Organización guarda los datos que comparten varios controles, como los plazos de retención, y los valores de cada control que valen para toda la organización. Abre un control y pulsa Completar configuración para rellenar lo que falta. Desde un control también se puede asignar una plantilla a algunas máquinas.
+Organización guarda, una sola vez, los datos que comparten varios controles: personal autorizado, entorno de preproducción, herramientas de cambios e incidentes, algoritmos autorizados por el CCN, plazos de retención, zonas controladas, canales de acceso remoto, productos certificados, formación del personal, actividades de concienciación, grupos con privilegio y declaración de aplicabilidad. Cada control lee las filas de su uso. Guarda también los valores de cada control que valen para toda la organización. Abre un control y pulsa Completar configuración para rellenar lo que falta. Desde un control también se puede asignar una plantilla a algunas máquinas.
 
 General guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alcance (Grupos evaluables) y Grupos por control. Hasta que se pulsa Guardar configuración global por primera vez, el motor y el plugin usan la configuración por defecto del catálogo, `common/ens/catalog/default-configuration.json`: nivel MEDIO y el grupo `ens` en alcance. Guarda para cambiarlos.
 

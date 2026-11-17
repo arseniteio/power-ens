@@ -31,36 +31,102 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
   {
     "id": "personal_autorizado",
     "label": "Personal autorizado",
-    "description": "Cuentas que autorizan cambios de derechos de acceso, escritas como las emite el agente: sin espacios, comas ni «|». «Ámbito» es lo que puede autorizar cada una.",
+    "description": "Cuentas autorizadas y para qué, escritas como las emite el agente: sin espacios, comas ni «|» (en la nube, la identidad principal). Cada control lee solo las filas de su uso. «Ámbito» y «Detalle» son, según el uso: mantenimiento, ámbito y tipo; registros, alcance y permiso; claves, claves y operación; autorizaciones, ámbito; nube, servicio. Una fila con varios usos comparte ámbito y detalle: si difieren, una fila por uso.",
     "type": "table",
     "perUseColumns": ["ambito", "detalle"],
     "columns": [
       {"name": "cuenta", "label": "Cuenta", "type": "string", "required": true},
-      {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["autorizaciones"]},
+      {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["configuracion", "mantenimiento", "registros", "claves", "copias", "autorizaciones", "nube"]},
       {"name": "ambito", "label": "Ámbito", "type": "string", "required": false},
       {"name": "detalle", "label": "Detalle", "type": "string", "required": false}
     ],
     "views": [
-      {"controlId": "op.acc.4", "parameterId": "P-02", "where": {"uso": "autorizaciones"}, "columns": ["cuenta", "ambito"]}
+      {"controlId": "op.exp.3", "parameterId": "P-03", "where": {"uso": "configuracion"}, "columns": ["cuenta"]},
+      {"controlId": "op.exp.4", "parameterId": "P-02", "where": {"uso": "mantenimiento"}, "columns": ["cuenta", "ambito", "detalle"]},
+      {"controlId": "op.exp.8", "parameterId": "P-08", "where": {"uso": "registros"}, "columns": ["cuenta", "detalle", "ambito"]},
+      {"controlId": "op.exp.10", "parameterId": "P-08", "where": {"uso": "claves"}, "columns": ["cuenta", "ambito", "detalle"]},
+      {"controlId": "mp.info.6", "parameterId": "P-07", "where": {"uso": "copias"}, "columns": ["cuenta"]},
+      {"controlId": "op.acc.4", "parameterId": "P-02", "where": {"uso": "autorizaciones"}, "columns": ["cuenta", "ambito"]},
+      {"controlId": "op.nub.1", "parameterId": "P-11", "where": {"uso": "nube"}, "columns": ["ambito", "cuenta"]}
     ],
     "unmapped": [
+      {"controlId": "op.exp.5", "parameterId": "P-04", "reason": "Es el Responsable de la Seguridad que aprueba los cambios, no una cuenta que administra."},
       {"controlId": "op.acc.1", "parameterId": "P-07", "reason": "Es la lista de usuarios autorizados de cada sistema, no solo quien administra."}
+    ]
+  },
+  {
+    "id": "entorno_preproduccion",
+    "label": "Entorno de preproducción",
+    "description": "Parejas de sistema de producción y de preproducción, con la evidencia de que son equivalentes y cómo está aislada la preproducción.",
+    "type": "table",
+    "key": ["sistema_prod", "sistema_preprod"],
+    "columns": [
+      {"name": "sistema_prod", "label": "Sistema de producción", "type": "identifier", "required": true},
+      {"name": "sistema_preprod", "label": "Sistema de preproducción", "type": "identifier", "required": true},
+      {"name": "consistencia", "label": "Evidencia de consistencia", "type": "string", "required": false},
+      {"name": "aislamiento", "label": "Aislamiento de producción", "type": "string", "required": false}
+    ],
+    "views": [
+      {"controlId": "op.exp.4", "parameterId": "P-06", "columns": ["sistema_prod", "sistema_preprod", "consistencia"]},
+      {"controlId": "mp.sw.2", "parameterId": "P-03", "columns": ["sistema_prod", "sistema_preprod", "aislamiento"]}
+    ],
+    "unmapped": []
+  },
+  {
+    "id": "herramientas_gestion",
+    "label": "Herramientas de gestión de cambios e incidentes",
+    "description": "Dónde se registran los cambios y los incidentes. Cada control lee las filas de su uso. En cambios, la herramienta es power_ens, jira, glpi, servicenow u otro. «Detalle» es el prefijo de referencia en cambios y el responsable en incidentes.",
+    "type": "table",
+    "perUseColumns": ["detalle"],
+    "columns": [
+      {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["cambios", "incidentes"]},
+      {"name": "herramienta", "label": "Herramienta", "type": "string", "required": true},
+      {"name": "ubicacion", "label": "Ubicación", "type": "string", "required": false},
+      {"name": "detalle", "label": "Detalle", "type": "string", "required": false}
+    ],
+    "views": [
+      {"controlId": "op.exp.5", "parameterId": "P-01", "where": {"uso": "cambios"}, "columns": ["herramienta", "ubicacion", "detalle"]},
+      {"controlId": "op.exp.7", "parameterId": "P-03", "where": {"uso": "incidentes"}, "columns": ["herramienta", "ubicacion", "detalle"]}
+    ],
+    "unmapped": [
+      {"controlId": "op.exp.9", "parameterId": "P-01", "reason": "Es una lista cerrada que indica si Power ENS lee su registro de incidentes; una fila de texto libre no la reproduce."}
+    ]
+  },
+  {
+    "id": "algoritmos_autorizados",
+    "label": "Algoritmos y parámetros autorizados por el CCN",
+    "description": "Algoritmos y longitudes mínimas autorizados por el CCN, una fila por algoritmo y uso, escritos como la familia normalizada del agente (AES-GCM, HMAC-SHA2-256, TLS1.3…). Longitud vacía: no se exige.",
+    "type": "table",
+    "columns": [
+      {"name": "uso", "label": "Uso", "type": "select", "required": true, "options": ["protocolo", "cifrado", "mac", "intercambio", "firma", "hash", "hash_contrasenas"]},
+      {"name": "algoritmo", "label": "Algoritmo (familia)", "type": "string", "required": true},
+      {"name": "longitud_min", "label": "Longitud mínima (bits)", "type": "number", "required": false}
+    ],
+    "views": [
+      {"controlId": "op.exp.10", "parameterId": "P-03"}
+    ],
+    "unmapped": [
+      {"controlId": "mp.s.1", "parameterId": "P-04", "reason": "Son los requisitos TLS del correo, un texto y no la lista de algoritmos."}
     ]
   },
   {
     "id": "retencion",
     "label": "Plazos de retención",
-    "description": "Días de conservación de las cuentas deshabilitadas y del registro de accesos. Cada control lee la fila de su uso; cada uso admite una sola fila.",
+    "description": "Días de conservación de registros, evidencias de incidentes, cuentas deshabilitadas, registro de accesos, copias y registros de navegación. Cada control lee las filas de su uso; cuentas, accesos, copias y navegación admiten una sola fila cada uno. La retención de evidencias suele ser la más larga y condiciona al resto.",
     "type": "table",
     "perUseColumns": ["categoria"],
     "columns": [
-      {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["cuentas", "accesos"]},
+      {"name": "uso", "label": "Uso", "type": "multiselect", "required": true, "options": ["registros", "evidencias", "cuentas", "accesos", "copias", "navegacion"]},
       {"name": "categoria", "label": "Categoría", "type": "string", "required": false},
       {"name": "dias", "label": "Días", "type": "number", "required": true}
     ],
     "views": [
+      {"controlId": "op.exp.8", "parameterId": "P-07", "where": {"uso": "registros"}, "columns": ["categoria", "dias"]},
+      {"controlId": "op.exp.9", "parameterId": "P-06", "where": {"uso": "evidencias"}, "columns": ["categoria", "dias"]},
       {"controlId": "op.acc.1", "parameterId": "P-06", "where": {"uso": "cuentas"}, "columns": ["dias"]},
-      {"controlId": "op.acc.5", "parameterId": "P-08", "where": {"uso": "accesos"}, "columns": ["dias"]}
+      {"controlId": "op.acc.5", "parameterId": "P-08", "where": {"uso": "accesos"}, "columns": ["dias"]},
+      {"controlId": "mp.info.6", "parameterId": "P-03", "where": {"uso": "copias"}, "columns": ["dias"]},
+      {"controlId": "mp.s.3", "parameterId": "P-08", "where": {"uso": "navegacion"}, "columns": ["dias"]}
     ],
     "unmapped": []
   },
@@ -72,7 +138,10 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
     "views": [
       {"controlId": "op.acc.6", "parameterId": "P-02"}
     ],
-    "unmapped": []
+    "unmapped": [
+      {"controlId": "mp.com.4", "parameterId": "P-01", "reason": "Es el mapa de segmentos con su propósito y rango; la lista de zonas controladas no lo recoge. Debe ser coherente con ella."},
+      {"controlId": "mp.com.4", "parameterId": "P-02", "reason": "Es la matriz de flujos entre segmentos, otro dato."}
+    ]
   },
   {
     "id": "canales_acceso_remoto",
@@ -92,7 +161,67 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"controlId": "op.acc.6", "parameterId": "P-07", "columns": ["canal", "cifrado", "autoriza", "uso_constante"]},
       {"controlId": "op.acc.4", "parameterId": "P-04", "columns": ["canal", "puerto", "origen"]}
     ],
+    "unmapped": [
+      {"controlId": "mp.eq.3", "parameterId": "P-04", "reason": "Son los servicios accesibles desde los portátiles y su perfil, no los canales."}
+    ]
+  },
+  {
+    "id": "productos_certificados",
+    "label": "Productos y servicios certificados",
+    "description": "Productos y servicios con certificación reconocida, su metodología o certificación, su referencia y su vigencia.",
+    "type": "table",
+    "columns": [
+      {"name": "servicio", "label": "Producto o servicio", "type": "string", "required": true},
+      {"name": "metodologia", "label": "Metodología o certificación", "type": "string", "required": false},
+      {"name": "n_certificado", "label": "Referencia del certificado", "type": "string", "required": false},
+      {"name": "vigencia", "label": "Vigente hasta (AAAA-MM-DD)", "type": "string", "required": false}
+    ],
+    "views": [
+      {"controlId": "op.nub.1", "parameterId": "P-04"},
+      {"controlId": "mp.com.3", "parameterId": "P-07"}
+    ],
+    "unmapped": [
+      {"controlId": "mp.eq.4", "parameterId": "P-07", "reason": "Lleva la justificación de los dispositivos sin producto certificado, que este dato no recoge."},
+      {"controlId": "op.exp.10", "parameterId": "P-09", "reason": "Es la conformidad de los cifradores con una guía CCN-STIC, no la certificación de un producto."}
+    ]
+  },
+  {
+    "id": "formacion_personal",
+    "label": "Formación del personal",
+    "description": "Formación recibida por cada persona, con fecha y vigencia.",
+    "type": "table",
+    "columns": [
+      {"name": "persona", "label": "Persona", "type": "string", "required": true},
+      {"name": "formacion", "label": "Formación", "type": "string", "required": true},
+      {"name": "fecha", "label": "Fecha", "type": "string", "required": false},
+      {"name": "vigencia", "label": "Vigente hasta", "type": "string", "required": false}
+    ],
+    "views": [
+      {"controlId": "op.cont.2", "parameterId": "P-05"},
+      {"controlId": "mp.s.3", "parameterId": "P-07", "columns": ["fecha", "persona", "formacion"]}
+    ],
     "unmapped": []
+  },
+  {
+    "id": "concienciacion",
+    "label": "Actividades de concienciación",
+    "description": "Campañas y actividades de concienciación, con su fecha, alcance y participación. Cada control lee las filas de su tema: correo (mp.s.1) o navegación (mp.s.3).",
+    "type": "table",
+    "columns": [
+      {"name": "tema", "label": "Tema", "type": "multiselect", "required": true, "options": ["correo", "navegacion"]},
+      {"name": "fecha", "label": "Fecha", "type": "string", "required": true},
+      {"name": "actividad", "label": "Actividad", "type": "string", "required": true},
+      {"name": "alcance", "label": "Alcance", "type": "string", "required": false},
+      {"name": "participacion", "label": "Participación", "type": "string", "required": false}
+    ],
+    "views": [
+      {"controlId": "mp.s.1", "parameterId": "P-07", "where": {"tema": "correo"}, "columns": ["fecha", "actividad", "alcance", "participacion"]},
+      {"controlId": "mp.s.3", "parameterId": "P-06", "where": {"tema": "navegacion"}, "columns": ["fecha", "actividad", "alcance", "participacion"]}
+    ],
+    "unmapped": [
+      {"controlId": "mp.s.1", "parameterId": "P-06", "reason": "Es la normativa de uso del correo (documento y difusión), no una actividad."},
+      {"controlId": "mp.s.3", "parameterId": "P-01", "reason": "Es la normativa de navegación (documento y difusión), no una actividad."}
+    ]
   },
   {
     "id": "grupos_privilegiados",
@@ -127,6 +256,7 @@ export const ENS_ORGANIZATION_DATA_ITEMS: ENSOrganizationDataItem[] =
       {"name": "responsable", "label": "Responsable", "type": "string", "required": false}
     ],
     "views": [
+      {"controlId": "op.mon.2", "parameterId": "P-01", "columns": ["medida", "aplicable", "nivel", "refuerzos_exigibles"]},
       {"controlId": "op.acc.5", "parameterId": "P-DA", "where": {"medida": "op.acc.5", "aplicable": "no"}, "columns": ["motivo", "referencia", "enlace", "fecha", "responsable"]}
     ],
     "unmapped": []

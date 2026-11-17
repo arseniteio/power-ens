@@ -16,7 +16,7 @@ Edits to profiles are collected in the bar at the bottom of the page. Revisar li
 
 Pendiente lists what needs a decision: machines that match no profile and parameters without a value that leave evidences not evaluable, according to the last verdicts. Each parameter links to where it is set: a profile for per-machine parameters, Organización for the rest.
 
-Organización holds the data that several controls share, such as retention periods, and the values of each control that apply to the whole organisation. Open a control and press Completar configuración to fill in what is missing. A control also lets a template be assigned to some machines.
+Organización holds the data that several controls share, entered once: authorised personnel, preproduction environment, change and incident tools, CCN-authorised algorithms, retention periods, controlled zones, remote access channels, certified products, staff training, awareness activities, privileged groups and the statement of applicability. Each control reads the rows of its use. It also holds the values of each control that apply to the whole organisation. Open a control and press Completar configuración to fill in what is missing. A control also lets a template be assigned to some machines.
 
 General holds the client, the ENS level (BAJO, MEDIO or ALTO), the groups in scope (Grupos evaluables) and Grupos por control. Until Guardar configuración global is pressed for the first time, the engine and the plugin use the default of the catalog, `common/ens/catalog/default-configuration.json`: level MEDIO and the `ens` group in scope. Save to change them.
 
