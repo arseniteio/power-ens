@@ -19,6 +19,7 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 - The organisation data and the values of each control are in the Organización tab; the client, level, groups in scope and per-control groups are in General.
 - The per-machine values of the old Agentes tab open from the machine panel in Máquinas.
+- Detalle del control and Informes show the value and origin of a per-machine parameter with the profiles of that machine, as the engine resolves it.
 - The usage guide describes the new tabs and the order in which a machine's value is chosen; the installation guide lists the index permissions they need.
 - The repository is now `arseniteio/power-ens-wazuh`, to leave room for other SIEMs. The release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
 - The installation guide lists the disk the plugin needs on each dashboard node.
