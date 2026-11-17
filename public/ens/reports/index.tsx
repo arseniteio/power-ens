@@ -825,7 +825,7 @@ const ControlReport = ({
 
       <EuiSpacer size='s' />
 
-      <EuiBasicTable items={rows} columns={columns} tableLayout='fixed' />
+      <EuiBasicTable noItemsMessage='No hay datos.' items={rows} columns={columns} tableLayout='fixed' />
 
       <EuiSpacer size='l' />
 
@@ -835,7 +835,7 @@ const ControlReport = ({
 
       <EuiSpacer size='s' />
 
-      <EuiBasicTable
+      <EuiBasicTable noItemsMessage='No hay datos.'
         items={requirementRows}
         itemId='id'
         itemIdToExpandedRowMap={requirementExpandedRowMap}
@@ -852,7 +852,7 @@ const ControlReport = ({
 
       <EuiSpacer size='s' />
 
-      <EuiBasicTable
+      <EuiBasicTable noItemsMessage='No hay datos.'
         items={parameterRows}
         compressed={true}
         columns={parameterColumns}

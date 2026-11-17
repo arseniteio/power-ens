@@ -1124,7 +1124,7 @@ export const ControlDetailENS = ({
             </EuiText>
           </>
         )}
-        <EuiBasicTable
+        <EuiBasicTable noItemsMessage='No hay datos.'
           items={evidenceStatusItems}
           columns={[
             {

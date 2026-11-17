@@ -5,6 +5,7 @@ import type { CoreStart } from '../../../../src/core/public';
 import { createComplianceOption, OWN_ELEMENT_ATTRIBUTE, type ComplianceView } from './compliance-option';
 import { findComplianceSelect, findSecurityOperationsGrid, findSlot } from './find-slot';
 import { wazuhPageOf, type WazuhPage } from './wazuh-page';
+import { SpanishEui } from '../app/eui-spanish';
 
 interface Placement {
   name: string;
@@ -72,7 +73,12 @@ const createPlacementSync = (core: CoreStart, placement: Placement) => {
     slot.insertBefore(target, placement.placeFirst ? slot.firstChild : null);
     placement.load(page).then(element => {
       if (target !== host) return;
-      ReactDOM.render(<core.i18n.Context>{element}</core.i18n.Context>, target);
+      ReactDOM.render(
+        <core.i18n.Context>
+          <SpanishEui>{element}</SpanishEui>
+        </core.i18n.Context>,
+        target
+      );
     });
   };
 };
@@ -83,7 +89,9 @@ const createComplianceView = (core: CoreStart): ComplianceView => ({
       if (!host.isConnected) return;
       ReactDOM.render(
         <core.i18n.Context>
-          <ComplianceEnsView agentId={agentId} />
+          <SpanishEui>
+            <ComplianceEnsView agentId={agentId} />
+          </SpanishEui>
         </core.i18n.Context>,
         host
       );

@@ -4,13 +4,16 @@ import { Router } from 'react-router-dom';
 import type { AppMountParameters, CoreStart } from '../../../src/core/public';
 import type { PowerEnsStartDeps } from './types';
 import { EnsApp } from './app/ens-app';
+import { SpanishEui } from './app/eui-spanish';
 
 export const renderApp = (core: CoreStart, _deps: PowerEnsStartDeps, { element, history }: AppMountParameters) => {
   ReactDOM.render(
     <core.i18n.Context>
-      <Router history={history}>
-        <EnsApp />
-      </Router>
+      <SpanishEui>
+        <Router history={history}>
+          <EnsApp />
+        </Router>
+      </SpanishEui>
     </core.i18n.Context>,
     element
   );

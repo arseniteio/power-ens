@@ -728,7 +728,7 @@ export const EvidencesENS = () => {
           </EuiButtonEmpty>
         </EuiCallOut>
       ) : (
-        <EuiBasicTable
+        <EuiBasicTable noItemsMessage='No hay datos.'
           items={filtered.matched}
           itemId='controlId'
           isExpandable
@@ -738,7 +738,7 @@ export const EvidencesENS = () => {
               .map(group => [
                 group.controlId,
                 group.rows.length > 0 ? (
-                  <EuiBasicTable items={group.rows} columns={columns} compressed />
+                  <EuiBasicTable noItemsMessage='No hay datos.' items={group.rows} columns={columns} compressed />
                 ) : (
                   <EuiText size='xs' color='subdued'>
                     <span>Sin evidencias en el periodo</span>

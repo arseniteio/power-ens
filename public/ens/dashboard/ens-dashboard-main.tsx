@@ -256,7 +256,7 @@ const FamiliesPanel = ({ families, selected, onSelect }: { families: FamilyRow[]
   <EuiPanel hasBorder>
     <SectionTitle aside={<SegmentLegend segments={statusSegments({})} />}>Cumplimiento por familia</SectionTitle>
     <EuiSpacer size='s' />
-    <EuiBasicTable
+    <EuiBasicTable noItemsMessage='No hay datos.'
       items={families}
       itemId='family'
       rowProps={(row: FamilyRow) => ({

@@ -188,7 +188,7 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
               <p>{countText(items)}.</p>
             </EuiText>
             <EuiSpacer size='s' />
-            <EuiBasicTable items={items} columns={columns} itemId={(item: ENSImportItem) => String(items.indexOf(item))} tableLayout='auto' />
+            <EuiBasicTable noItemsMessage='No hay datos.' items={items} columns={columns} itemId={(item: ENSImportItem) => String(items.indexOf(item))} tableLayout='auto' />
           </>
         )}
       </EuiModalBody>
