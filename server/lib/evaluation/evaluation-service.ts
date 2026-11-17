@@ -70,6 +70,9 @@ const normalizeAgentId = (value: string): string => {
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 };
 
+// Math.min(...values) overflows the call stack once a deployment has some 100,000 control and machine rows.
+export const smallest = (values: number[]): number => values.reduce((least, value) => (value < least ? value : least), Infinity);
+
 const sha = (...parts: unknown[]): string => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 16);
 
 const isValidTimeZone = (timeZone?: string): boolean => {
@@ -426,7 +429,7 @@ export const createEvaluationService = ({
         .filter(([agentId]) => !query.agentId || agentId === query.agentId)
         .map(([, stamp]) => stamp)
     );
-    const first = stamps.length ? Math.min(...stamps.map(stamp => Date.parse(stamp.oldest))) : undefined;
+    const first = stamps.length ? smallest(stamps.map(stamp => Date.parse(stamp.oldest))) : undefined;
     return planENSTimelineCuts(first, stamps.reduce((n, stamp) => n + stamp.count, 0), {
       now: ctx.now,
       days: query.timelineDays,
@@ -618,7 +621,7 @@ export const createEvaluationService = ({
       pending: pending.length ? { rows: needs.filter(need => !ready.has(need.key)).length, controls: pending, total: needs.length } : undefined,
       seriesPending: Boolean(query.timelineDays) && pending.length > 0,
       refreshError,
-      computedAt: new Date(refreshing && used.length ? Math.min(...used.map(u => u.storedAt)) : ctx.now.getTime()).toISOString(),
+      computedAt: new Date(refreshing && used.length ? smallest(used.map(u => u.storedAt)) : ctx.now.getTime()).toISOString(),
       evaluatedAt: ctx.now.toISOString(),
       configurationUpdatedAt: ctx.configurationUpdatedAt,
       level: ctx.configuration.global.ensLevel,

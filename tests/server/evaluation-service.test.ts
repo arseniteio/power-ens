@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ENS_CONFIGURATION_INDEX, ENS_VERDICTS_INDEX } from '../../common/constants';
 import { ENGINE_CATALOG } from '../../common/ens/catalog/engine-catalog';
-import { normalizeQuery } from '../../server/lib/evaluation/evaluation-service';
+import { normalizeQuery, smallest } from '../../server/lib/evaluation/evaluation-service';
 import { buildEvaluationResponse } from '../../server/lib/evaluation/responses';
 import { activeConfiguration, AGENT, createClock, createLab, enginePass, inventoryDoc, MANAGER, waitUntil } from '../support/lab';
 
@@ -166,5 +166,12 @@ describe('a deployment where nobody saved the configuration yet', () => {
     const { clients, service } = createLab(docs, clock, {}, 0, [ENS_CONFIGURATION_INDEX]);
     const run = await service.run(clients, { ...control('op.acc.1'), agentId: AGENT.id });
     assert.equal(run.views.get('op.acc.1')?.result?.status, 'CUMPLE');
+  });
+});
+
+describe('a large deployment', () => {
+  test('finds the oldest stamp among hundreds of thousands of rows', () => {
+    const stamps = Array.from({ length: 300000 }, (_value, index) => 1_800_000_000_000 - index);
+    assert.equal(smallest(stamps), 1_800_000_000_000 - 299999);
   });
 });
