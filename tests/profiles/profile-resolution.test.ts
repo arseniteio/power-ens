@@ -58,6 +58,15 @@ describe('resolving one machine', () => {
     const params = resolveHostParameters({ configuration: empty, agentId: '001', matched: [], inventoryType: 'linux' });
     assert.equal(valueOf(params, LIST).sources[0]?.kind, 'type-template');
   });
+
+  test('«Sin plantilla» skips the type template but keeps the groups', () => {
+    const withoutTemplate = { ...empty, agents: { '001': { typeOverride: 'none' } } };
+    const alone = resolveHostParameters({ configuration: withoutTemplate, agentId: '001', matched: [], inventoryType: 'linux' });
+    assert.notEqual(valueOf(alone, LIST).sources[0]?.kind, 'type-template');
+    const matched = [profile('distro', 'distro', { 'op.acc.1': { 'P-03': ['root'] } })];
+    const grouped = resolveHostParameters({ configuration: withoutTemplate, agentId: '001', matched, inventoryType: 'linux' });
+    assert.equal(valueOf(grouped, LIST).sources[0]?.kind, 'profile');
+  });
 });
 
 describe('planning an import', () => {
