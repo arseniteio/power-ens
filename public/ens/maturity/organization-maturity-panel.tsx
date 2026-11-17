@@ -7,7 +7,6 @@ import {
   ENSOrganizationMaturity,
   maturityLabel,
 } from '../../../common/ens/maturity/types';
-import { dateTimeLabel } from '../../../common/ens/core/date-label';
 
 interface LevelRow {
   level: number;
@@ -66,9 +65,6 @@ export const OrganizationMaturityPanel = ({
           </EuiFlexItem>
         )}
       </EuiFlexGroup>
-      <EuiText size='xs' color='subdued'>
-        <p>Niveles CMM del Anexo II, apdo. 6.{data?.at ? ` Pasada del motor: ${dateTimeLabel(data.at)}.` : ''}</p>
-      </EuiText>
       <EuiSpacer size='s' />
       {error && <EuiCallOut size='s' color='danger' iconType='alert' title={error} />}
       {!error && !loading && !data?.summary && (
@@ -117,7 +113,11 @@ export const OrganizationMaturityPanel = ({
           {incoherent.length > 0 && (
             <>
               <EuiSpacer size='s' />
-              <EuiCallOut size='s' color='warning' iconType='alert' title={`Valorado en L3 o más sin evidencia continua: ${incoherent.join(', ')}`} />
+              <EuiCallOut size='s' color='warning' iconType='alert' title={`Valoración por encima de lo que Wazuh acredita: ${incoherent.join(', ')}`}>
+                <EuiText size='xs'>
+                  <p>Valorados en L3 o más, pero Wazuh no ve la práctica funcionando 27 de los últimos 30 días. Abre el control para revisarlo.</p>
+                </EuiText>
+              </EuiCallOut>
             </>
           )}
           <EuiSpacer size='s' />

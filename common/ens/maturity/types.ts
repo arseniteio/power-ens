@@ -11,7 +11,10 @@ export const ENS_MATURITY_LABELS: Record<number, string> = {
 };
 
 export const ENS_MATURITY_NOTE =
-  'La valoración del ENS es el nivel de madurez (Anexo II, apdo. 6). La evidencia de Wazuh acredita hasta L2; de L3 a L5 hace falta un proceso escrito, medido y mejorado, que se valora en Power ENS.';
+  'Acreditado: lo que Wazuh demuestra, hasta L2. Valorado: el nivel que declara la organización con sus documentos, de L0 a L5.';
+
+export const incoherenceText = (assessed?: number, accredited?: number): string =>
+  `Valorado en L${assessed ?? '?'}, pero Wazuh solo acredita L${accredited ?? 0}: no ve la práctica funcionando 27 de los últimos 30 días. Revisa la valoración o la configuración del control.`;
 
 export const maturityLabel = (level?: number): string =>
   level === undefined || level === null ? '—' : `L${level} ${ENS_MATURITY_LABELS[level] || ''}`.trim();

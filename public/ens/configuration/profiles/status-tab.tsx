@@ -179,7 +179,7 @@ export const StatusTab = ({ summary, configuration, onNavigate }: StatusTabProps
 
       <EuiFlexGroup gutterSize='m' alignItems='flexStart'>
         <EuiFlexItem grow={2}>
-          <Section title='Lo más urgente'>
+          <Section title='Pendiente de configurar'>
             {data.withoutProfile > 0 && (
               <Row
                 title={`${machines(data.withoutProfile)} sin ningún perfil`}
@@ -207,7 +207,7 @@ export const StatusTab = ({ summary, configuration, onNavigate }: StatusTabProps
               <EuiText size='s' color='subdued'>
                 <p>
                   {pending
-                    ? 'Nada urgente: todas las máquinas tienen algún perfil y ningún parámetro sin valor deja evidencias sin evaluar.'
+                    ? 'Todas las máquinas tienen perfil y ningún parámetro sin valor deja evidencias sin evaluar.'
                     : 'Todas las máquinas tienen algún perfil. No se pudieron leer los veredictos para saber si falta algún parámetro.'}
                 </p>
               </EuiText>

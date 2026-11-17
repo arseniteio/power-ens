@@ -27,6 +27,7 @@ import {
   ENS_MATURITY_MAX,
   ENS_MATURITY_NOTE,
   ENSEngineMaturity,
+  incoherenceText,
   ENSMaturityAssessment,
   maturityLabel,
 } from '../../../common/ens/maturity/types';
@@ -82,8 +83,8 @@ export const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string
       <EuiModalBody>
         <EuiText size='s' color='subdued'>
           <p>
-            Valora la medida como proceso. L3 exige un procedimiento escrito y difundido; L4, que se mida y se actúe sobre sus desviaciones; L5,
-            que se mejore a partir de su medición. Indica los documentos que lo acreditan.
+            L3: hay un procedimiento escrito y se aplica. L4: además se mide y se corrigen las desviaciones. L5: además se mejora con lo
+            medido. Indica los documentos que lo prueban.
           </p>
         </EuiText>
         <EuiSpacer size='m' />
@@ -162,7 +163,7 @@ export const MeasureMaturity = ({
       {maturity?.incoherent && (
         <>
           <EuiSpacer size='s' />
-          <EuiCallOut size='s' color='warning' iconType='alert' title='Valorado en L3 o más, pero la evidencia no muestra una práctica continua (acreditado L0 o L1).' />
+          <EuiCallOut size='s' color='warning' iconType='alert' title={incoherenceText(assessed, maturity.accredited)} />
         </>
       )}
       {assessing && <AssessModal measureId={measureId} onClose={() => setAssessing(false)} onSaved={onSaved} />}
