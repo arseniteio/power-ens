@@ -12,9 +12,6 @@ import {
   EuiButtonEmpty,
   EuiButtonIcon,
   EuiCallOut,
-  EuiFieldSearch,
-  EuiFilterButton,
-  EuiFilterGroup,
   EuiFlexGroup,
   EuiFlexItem,
   EuiPanel,
@@ -39,6 +36,7 @@ import { statusLabel } from '../../../common/ens/core/status-label';
 import { ENS_STATUS_COLORS } from '../status-colors';
 import { ENS_THEME } from '../theme-colors';
 import { useOpenControl } from '../open-control';
+import { FilterBar } from '../ui/filter-bar';
 
 interface EvidenceRow {
   evidenceId: string;
@@ -600,41 +598,16 @@ export const EvidencesENS = () => {
 
       <EuiSpacer size='m' />
 
-      <EuiFlexGroup gutterSize='m' alignItems='center' wrap>
-        <EuiFlexItem grow={false}>
-          <EuiFilterGroup>
-            <EuiFilterButton
-              hasActiveFilters={!filtered.isActive}
-              onClick={() => applyPrefix('')}
-            >
-              Todos
-            </EuiFilterButton>
-            {families.map(family => (
-              <EuiFilterButton
-                key={family}
-                hasActiveFilters={filtered.query === family}
-                onClick={() => applyPrefix(family)}
-              >
-                {family}
-              </EuiFilterButton>
-            ))}
-          </EuiFilterGroup>
-        </EuiFlexItem>
-
-        <EuiFlexItem>
-          <EuiFieldSearch
-            fullWidth
-            incremental
-            isClearable
-            placeholder='Filtrar: op.acc, op.acc.1…'
-            aria-label='Filtrar controles por prefijo del identificador ENS'
-            value={prefix}
-            onChange={(event: { target: { value: string } }) =>
-              applyPrefix(event.target.value)
-            }
-          />
-        </EuiFlexItem>
-      </EuiFlexGroup>
+      <FilterBar
+        allLabel='Todos'
+        options={families.map(family => ({ value: family, label: family }))}
+        active={families.includes(filtered.query) ? filtered.query : ''}
+        onFilter={applyPrefix}
+        query={prefix}
+        onQuery={applyPrefix}
+        placeholder='Filtrar: op.acc, op.acc.1…'
+        ariaLabel='Filtrar controles por prefijo del identificador ENS'
+      />
 
       <EuiSpacer size='s' />
 

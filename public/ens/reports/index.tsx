@@ -15,9 +15,6 @@ import {
   EuiAccordion,
   EuiButtonEmpty,
   EuiCallOut,
-  EuiFieldSearch,
-  EuiFilterGroup,
-  EuiFilterButton,
   EuiStat,
 } from '@elastic/eui';
 import { useRouterSearch } from '../../routing/use-router-search';
@@ -73,6 +70,7 @@ import { maturityPdf, maturityReportRows } from '../maturity/maturity-report';
 import { assessmentOf } from '../../../common/ens/maturity/assessments';
 import { ENS_MATURITY_NOTE } from '../../../common/ens/maturity/types';
 import { useOpenControl } from '../open-control';
+import { FilterBar } from '../ui/filter-bar';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -1044,41 +1042,16 @@ export const ReportsENS = () => {
 
         <EuiSpacer size='s' />
 
-        <EuiFlexGroup gutterSize='m' alignItems='center' wrap>
-          <EuiFlexItem grow={false}>
-            <EuiFilterGroup>
-              <EuiFilterButton
-                hasActiveFilters={!filtered.isActive}
-                onClick={() => applyPrefix('')}
-              >
-                Todos
-              </EuiFilterButton>
-              {families.map(family => (
-                <EuiFilterButton
-                  key={family}
-                  hasActiveFilters={filtered.query === family}
-                  onClick={() => applyPrefix(family)}
-                >
-                  {family}
-                </EuiFilterButton>
-              ))}
-            </EuiFilterGroup>
-          </EuiFlexItem>
-
-          <EuiFlexItem>
-            <EuiFieldSearch
-              fullWidth
-              incremental
-              isClearable
-              placeholder='Filtrar por prefijo: op.acc, op.acc.1, op.acc.1.2…'
-              aria-label='Filtrar controles por prefijo del identificador ENS'
-              value={prefix}
-              onChange={(event: { target: { value: string } }) =>
-                applyPrefix(event.target.value)
-              }
-            />
-          </EuiFlexItem>
-        </EuiFlexGroup>
+        <FilterBar
+          allLabel='Todos'
+          options={families.map(family => ({ value: family, label: family }))}
+          active={families.includes(filtered.query) ? filtered.query : ''}
+          onFilter={applyPrefix}
+          query={prefix}
+          onQuery={applyPrefix}
+          placeholder='Filtrar por prefijo: op.acc, op.acc.1, op.acc.1.2…'
+          ariaLabel='Filtrar controles por prefijo del identificador ENS'
+        />
 
         <EuiSpacer size='s' />
 

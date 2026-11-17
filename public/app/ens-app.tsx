@@ -1,5 +1,5 @@
 import React from 'react';
-import { EuiFlexGroup, EuiFlexItem, EuiPage, EuiPageBody, EuiSpacer, EuiTab, EuiTabs, EuiText } from '@elastic/eui';
+import { EuiPage, EuiPageBody, EuiSpacer, EuiTab, EuiTabs, EuiText } from '@elastic/eui';
 import { ENSConfigurationBootstrap, ConfigurationENS } from '../ens/configuration';
 import { LoadingSpinner } from '../platform/loading-spinner';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
@@ -37,11 +37,8 @@ export const EnsApp = () => {
 
   const content = tab.withBootstrap ? (
     <ENSConfigurationBootstrap>
-      <EuiFlexGroup justifyContent="flexEnd">
-        <EuiFlexItem grow={false} style={{ minWidth: 320 }}>
-          <MachineSelector />
-        </EuiFlexItem>
-      </EuiFlexGroup>
+      <MachineSelector />
+      <EuiSpacer size="m" />
       <TabErrorBoundary key={tab.id} tabName={tab.name} resetKey={retry}>
         <OnlyInScope>
           <ActiveView />
