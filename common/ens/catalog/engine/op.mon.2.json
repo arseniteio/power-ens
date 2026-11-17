@@ -42,8 +42,10 @@
       ],
       "description": "Atendiendo a la categoría de seguridad del sistema, se recopilarán los datos necesarios para conocer el grado de implantación de las medidas de seguridad que resulten aplicables y, en su caso, para proveer el informe anual requerido por el artículo 32.",
       "evidence_ids": [
+        "EV-01",
         "EV-02",
-        "EV-04"
+        "EV-04",
+        "EV-05"
       ],
       "parameter_ids": [
         "P-01",
@@ -90,6 +92,22 @@
   ],
   "evidences": [
     {
+      "id": "EV-01",
+      "title": "Grado de implantación de las medidas",
+      "description": "La máquina tiene veredictos de control en la ventana: su grado de implantación es la media de la puntuación de sus controles aplicables, contra la declaración de aplicabilidad de P-01.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "HIGH",
+      "audit_question": "¿Se conoce el grado de implantación de las medidas aplicables?"
+    },
+    {
       "id": "EV-02",
       "title": "Serie de ciclos de métricas",
       "description": "El último ciclo de P-06 validado por un responsable de métricas de P-05 está dentro de la periodicidad de P-02 más el margen de P-03.",
@@ -135,6 +153,22 @@
       "category": "MONITORING",
       "criticality": "HIGH",
       "audit_question": "¿La medición de la máquina es fiable?"
+    },
+    {
+      "id": "EV-05",
+      "title": "Controles no evaluables por falta de parámetros",
+      "description": "Relación de los controles con evidencias no evaluables por configuración en la máquina, para seguir la deuda de configuración.",
+      "levels": [
+        "BAJO",
+        "MEDIO",
+        "ALTO"
+      ],
+      "requirements": [
+        "op.mon.2.1"
+      ],
+      "category": "MONITORING",
+      "criticality": "MEDIUM",
+      "audit_question": "¿Se conoce qué controles no se pueden evaluar y por qué parámetro?"
     },
     {
       "id": "EV-06",
@@ -200,8 +234,11 @@
       ],
       "required": false,
       "agent_usage": "Ningún agente lo lee.",
-      "engine_usage": "Documental: el grado de implantación es el de los veredictos del motor. Sale en el informe.",
-      "if_not_configured": "Sin efecto en el veredicto."
+      "engine_usage": "EV-01 cuenta las medidas que aplican y lo da junto al grado de implantación de los veredictos del motor.",
+      "evidence_ids": [
+        "EV-01"
+      ],
+      "if_not_configured": "EV-01 queda sin demostrar: sin declaración de aplicabilidad no hay contra qué medir."
     },
     "P-02": {
       "class": "organisation",
@@ -501,6 +538,18 @@
     }
   },
   "report": [
+    {
+      "id": "implantacion",
+      "title": "Grado de implantación",
+      "description": "Grado de implantación de las medidas y controles no evaluables por configuración.",
+      "evidences": [
+        "EV-01",
+        "EV-05"
+      ],
+      "parameters": [
+        "P-01"
+      ]
+    },
     {
       "id": "ciclos",
       "title": "Ciclos de métricas",

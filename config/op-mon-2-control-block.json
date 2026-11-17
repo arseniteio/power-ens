@@ -27,10 +27,12 @@
       "example": "op.acc.1 | sí | MEDIO | R1",
       "required": false,
       "wazuhUsage": "Ningún agente lo lee.",
-      "powerEnsUsage": "Documental: el grado de implantación es el de los veredictos del motor. Sale en el informe.",
-      "evidenceIds": [],
+      "powerEnsUsage": "EV-01 cuenta las medidas que aplican y lo da junto al grado de implantación de los veredictos del motor.",
+      "evidenceIds": [
+        "EV-01"
+      ],
       "ruleIds": [],
-      "ifNotConfigured": "Sin efecto en el veredicto.",
+      "ifNotConfigured": "EV-01 queda sin demostrar: sin declaración de aplicabilidad no hay contra qué medir.",
       "columns": [
         {
           "name": "medida",
