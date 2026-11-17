@@ -1,9 +1,10 @@
 import managerWazuh from '../catalog/profiles/manager-wazuh.json';
 import ubuntu from '../catalog/profiles/ubuntu.json';
+import windows from '../catalog/profiles/windows.json';
 import type { ENSProfile, ENSProfileEntry } from './types';
 import { validateProfile } from './validate';
 
-export const ENS_BUILTIN_PROFILES: ENSProfile[] = [managerWazuh, ubuntu] as ENSProfile[];
+export const ENS_BUILTIN_PROFILES: ENSProfile[] = [managerWazuh, ubuntu, windows] as ENSProfile[];
 
 export const isBuiltinProfileId = (id: string): boolean => ENS_BUILTIN_PROFILES.some(profile => profile.id === id);
 
