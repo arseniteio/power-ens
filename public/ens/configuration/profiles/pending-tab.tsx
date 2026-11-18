@@ -58,7 +58,7 @@ export const PendingTab = ({ summary, onNavigate }: PendingTabProps) => {
       render: (_c: string, row: ENSPendingParameter) =>
         isAgentLevelParameter(row.controlId, row.parameterId) ? (
           <EuiButtonEmpty size='s' flush='left' onClick={() => onNavigate({ view: 'profiles' })}>
-            Por máquina: en un perfil
+            Por máquina: grupo
           </EuiButtonEmpty>
         ) : (
           <EuiButtonEmpty size='s' flush='left' onClick={() => onNavigate({ view: 'controls', controlId: row.controlId, parameterId: row.parameterId })}>
@@ -70,25 +70,19 @@ export const PendingTab = ({ summary, onNavigate }: PendingTabProps) => {
 
   return (
     <>
-      <EuiText size='s' color='subdued'>
-        <p>
-          Lo que necesita una decisión. Power ENS no supone ningún valor: un parámetro sin valor deja sin evaluar las evidencias que lo usan, y el motor lo
-          dice en cada veredicto.
-        </p>
-      </EuiText>
       <EuiSpacer size='m' />
 
       <EuiPanel paddingSize='m' hasBorder>
         <EuiFlexGroup alignItems='center' gutterSize='m' responsive={false}>
           <EuiFlexItem>
             <EuiTitle size='xs'>
-              <h3>{data.withoutProfile ? `${machines(data.withoutProfile)} sin ningún perfil` : 'Todas las máquinas tienen algún perfil'}</h3>
+              <h3>{data.withoutProfile ? `Máquinas sin grupo: ${data.withoutProfile}` : 'Máquinas sin grupo: 0'}</h3>
             </EuiTitle>
             <EuiText size='s' color='subdued'>
               <p>
                 {data.withoutProfile
-                  ? 'Solo reciben los valores de la plantilla de su tipo, si la hay, y los comunes de la organización.'
-                  : 'Cada máquina descrita por el motor cumple las condiciones de al menos un perfil.'}
+                  ? ''
+                  : 'Todas las máquinas tienen grupo'}
               </p>
             </EuiText>
           </EuiFlexItem>
@@ -101,7 +95,7 @@ export const PendingTab = ({ summary, onNavigate }: PendingTabProps) => {
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiButton size='s' fill onClick={() => onNavigate({ view: 'profiles', profileId: 'nuevo' })}>
-                  Crear un perfil
+                  Nuevo grupo
                 </EuiButton>
               </EuiFlexItem>
             </>
@@ -113,15 +107,15 @@ export const PendingTab = ({ summary, onNavigate }: PendingTabProps) => {
 
       <EuiPanel paddingSize='m' hasBorder>
         <EuiTitle size='xs'>
-          <h3>Parámetros sin valor que dejan evidencias sin evaluar</h3>
+          <h3>Parámetros sin valor</h3>
         </EuiTitle>
         <EuiText size='xs' color='subdued'>
           <p>
             {data.pending?.newest
-              ? `Según los veredictos de la última pasada del motor, ${ageLabel(data.pending.newest)}.`
+              ? `Última pasada del motor: ${ageLabel(data.pending.newest)}`
               : data.pending
-              ? 'El motor todavía no ha escrito veredictos.'
-              : 'No se pudieron leer los veredictos.'}
+              ? 'Sin veredictos'
+              : 'Veredictos no disponibles'}
           </p>
         </EuiText>
         <EuiSpacer size='s' />
@@ -129,7 +123,7 @@ export const PendingTab = ({ summary, onNavigate }: PendingTabProps) => {
           items={parameters}
           itemId={(row: ENSPendingParameter) => `${row.controlId}-${row.parameterId}`}
           columns={columns}
-          noItemsMessage='Ningún parámetro sin valor deja evidencias sin evaluar.'
+          noItemsMessage='Sin parámetros pendientes'
         />
       </EuiPanel>
     </>

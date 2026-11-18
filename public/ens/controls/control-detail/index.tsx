@@ -815,10 +815,7 @@ export const ControlDetailENS = ({
 
   const unconfiguredNotice = !getActiveControlConfiguration(control.id) ? (
     <>
-      <EuiCallOut color='warning' iconType='gear' title={`${control.id} no está en la configuración activa`}>
-        <p>
-          Añádelo y declara sus parámetros obligatorios: hasta entonces sus requisitos no se evidencian.
-        </p>
+      <EuiCallOut color='warning' iconType='gear' title={`${control.id} fuera de la configuración activa`}>
         <AddControlWithDefaultsButton controlId={control.id} onAdded={() => evaluation.retry()} />
       </EuiCallOut>
       <EuiSpacer size='m' />
@@ -828,12 +825,8 @@ export const ControlDetailENS = ({
   const pendingMeasurement = isPendingMeasurement(headerCatalog);
   const pendingMeasurementNotice = pendingMeasurement && headerCatalog ? (
     <>
-      <EuiCallOut color='primary' iconType='clock' title={`${ENS_PENDING_MEASUREMENT_LABEL}: ${control.id} es documental de momento`}>
+      <EuiCallOut color='primary' iconType='clock' title={`${ENS_PENDING_MEASUREMENT_LABEL}: ${control.id}`}>
         <p>{describePendingMeasurement(headerCatalog)}</p>
-        <p>
-          Se puede configurar y declarar en la Declaración de Aplicabilidad. Cada evidencia indica la fuente de datos que
-          necesitará («Fuente necesaria»).
-        </p>
       </EuiCallOut>
       <EuiSpacer size='m' />
     </>
@@ -867,15 +860,15 @@ export const ControlDetailENS = ({
             iconType='iInCircle'
             title={
               displayedAgent
-                ? `${control.id} no se mide en ${labelOf(displayedAgent)}`
-                : `${control.id} no tiene resultado en ninguna máquina`
+                ? `${control.id}: sin medición en ${labelOf(displayedAgent)}`
+                : `${control.id}: sin resultado`
             }
           >
             <p>
               {motive?.text ||
                 (displayedAgent
-                  ? `${control.id} no se mide en esta máquina.`
-                  : `Ninguna máquina mide ${control.id}.`)}
+                  ? 'Sin medición en esta máquina'
+                  : 'Sin medición')}
             </p>
                         <EuiFlexGroup gutterSize='s' responsive={false} wrap>
               {displayedAgent && (
@@ -1133,10 +1126,6 @@ export const ControlDetailENS = ({
           <>
             <EuiSpacer size='xs' />
 
-            <EuiText size='xs' color='subdued'>
-              Vista general de {totalMachines} máquinas: el mismo motivo
-              observado en varias se escribe una vez, con el recuento delante.
-            </EuiText>
           </>
         )}
         <EuiBasicTable noItemsMessage='No hay datos.'
@@ -1261,7 +1250,7 @@ export const ControlDetailENS = ({
           <>
             {pendingMeasurement ? (
               <EuiCallOut
-                title={`${ENS_PENDING_MEASUREMENT_LABEL}: nada que remediar hasta que exista el recolector`}
+                title={ENS_PENDING_MEASUREMENT_LABEL}
                 color='primary'
                 iconType='clock'
               />
@@ -1321,7 +1310,7 @@ export const ControlDetailENS = ({
           <EuiText size='s' color='subdued'>
             <p>
               {pendingMeasurement
-                ? `${control.id} no tiene medición todavía: no hay no conformidades que medir.`
+                ? 'Sin medición'
                 : complianceResult.status === 'NO_APLICA'
                 ? `${control.id} no aplica en el nivel ${levelsText}: no hay no conformidades que medir.`
                 : 'Todo lo aplicable en este control se ha demostrado conforme.'}
@@ -1477,7 +1466,7 @@ export const ControlDetailENS = ({
           {traceabilityTotal === 0 ? (
             <EuiText size='s' color='subdued'>
               <p>
-                No hay información de trazabilidad disponible para este control.
+                Sin trazabilidad
               </p>
             </EuiText>
           ) : (

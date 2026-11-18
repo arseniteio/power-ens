@@ -8,10 +8,10 @@ export const LAYER_LABELS: Record<ENSProfileLayer, string> = {
 };
 
 export const LAYER_HELP: Record<ENSProfileLayer, string> = {
-  distro: 'Línea base por distribución y versión.',
-  role: 'Según la función que el motor deduce de cada máquina.',
-  service: 'Una máquina puede tener varios a la vez.',
-  site: 'Por grupo de Wazuh o por nombre de máquina. Es la capa más específica.',
+  distro: 'línea base por distribución y versión.',
+  role: 'función deducida de cada máquina.',
+  service: 'admite varios por máquina.',
+  site: 'grupo de Wazuh o nombre de máquina; capa más específica.',
 };
 
 export const LAYER_COLORS: Record<ENSProfileLayer, string> = {
@@ -57,7 +57,7 @@ export const conditionText = (condition: ENSProfileCondition): string => {
 };
 
 export const matchText = (match: ENSProfileCondition[]): string =>
-  match.length ? match.map(conditionText).join(' y ') : 'Sin condiciones: no se aplica a ninguna máquina';
+  match.length ? match.map(conditionText).join(' y ') : 'Sin condiciones';
 
 export const machines = (count: number): string => `${count.toLocaleString('es-ES')} ${count === 1 ? 'máquina' : 'máquinas'}`;
 

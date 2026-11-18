@@ -142,7 +142,7 @@ export const MachineDetail = ({ agentId, groupName, revision, onBack, onNavigate
       <EuiSpacer size='m' />
       <EuiFlexGroup gutterSize='l' wrap>
         <EuiFlexItem style={{ minWidth: 280 }}>
-          <EuiFormRow label='Plantilla' helpText={`En uso: ${templateText(stored?.typeOverride, detected)}. Da los valores de partida; los de sus grupos y los propios mandan.`}>
+          <EuiFormRow label='Plantilla' helpText={`En uso: ${templateText(stored?.typeOverride, detected)}`}>
             <Choice
               legend='Plantilla'
               options={TYPE_TEMPLATE_OPTIONS}
@@ -175,9 +175,6 @@ export const MachineDetail = ({ agentId, groupName, revision, onBack, onNavigate
       {saveError && <EuiCallOut size='s' color='danger' iconType='alert' title={saveError} />}
 
       <EuiHorizontalRule margin='m' />
-      <EuiText size='s' color='subdued'>
-        <p>Cada control usa los valores de los grupos de la máquina y de su plantilla. Lo que cambies aquí vale solo para esta máquina.</p>
-      </EuiText>
       <EuiSpacer size='s' />
       {rows.map(row => {
         const state = stateOf(row);

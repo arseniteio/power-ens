@@ -61,6 +61,7 @@ import { statusLabel } from '../../../common/ens/core/status-label';
 import { dateTimeLabel } from '../../../common/ens/core/date-label';
 import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
 import { downloadCsv } from '../download-csv';
+import { InfoTip } from '../ui/info-tip';
 
 const PAGE_SIZE = 25;
 
@@ -347,14 +348,12 @@ export const OverviewENS = () => {
               <EuiFlexItem><Figure title='Con incumplimientos' value={figures.failing} color='danger' active={fleetFilter === 'failing'} onClick={() => pickFleet('failing')} /></EuiFlexItem>
               <EuiFlexItem><Figure title='Sin datos en 24 h' value={figures.stale} color='subdued' active={fleetFilter === 'stale'} onClick={() => pickFleet('stale')} /></EuiFlexItem>
             </EuiFlexGroup>
-            <EuiSpacer size='xs' />
-            <EuiText size='xs' color='subdued'>
-              <p>{OPERATIONAL_INDICATOR_NOTE}</p>
-            </EuiText>
 
             <EuiSpacer size='l' />
             <EuiTitle size='s'>
-              <h3>Estado por control</h3>
+              <h3>
+                Estado por control <InfoTip content={OPERATIONAL_INDICATOR_NOTE} />
+              </h3>
             </EuiTitle>
             <EuiSpacer size='s' />
             <EuiFlexGroup gutterSize='s' wrap responsive={false}>

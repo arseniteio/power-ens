@@ -53,7 +53,6 @@ export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchMo
           value={mode}
           onChange={(value: string) => switchMode(value as ENSMatchMode)}
           disabled={!onMatchModeChange}
-          fullWidth
         />
       </EuiFormRow>
       <EuiSpacer size='s' />
@@ -62,7 +61,7 @@ export const PatternParameterRenderer = ({ parameter, value, onChange, onMatchMo
           <EuiFormRow
             label={`${parameter.id} · ${parameter.label}`}
             fullWidth
-            helpText='Valor completo, distingue mayúsculas, sin barras. Ej.: ^svc_.*$'
+            helpText='Ej.: ^svc_.*$'
             isInvalid={!verdict.valid}
             error={verdict.reason}
           >

@@ -124,9 +124,6 @@ export const AddToGroupModal = ({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <EuiText size='s' color='subdued'>
-        <p>Los grupos de máquinas elegidas a mano se suman a los grupos por condiciones. Si dos grupos dan valor al mismo parámetro, manda el más específico.</p>
-      </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Grupo' fullWidth>
         <Choice
@@ -134,7 +131,6 @@ export const AddToGroupModal = ({
           options={[...manual.map(group => ({ value: group.id, text: `${group.name} (${handPickedHosts(group).length})` })), { value: '', text: 'Un grupo nuevo…' }]}
           value={choice}
           onChange={(value: string) => setChoice(value)}
-          fullWidth
         />
       </EuiFormRow>
       {!choice && (
@@ -180,9 +176,6 @@ export const TypeTemplateModal = ({
 
   return (
     <Frame title={`Plantilla de ${machinesText(hosts.length)}`} busy={busy} error={error} confirm='Aplicar' onConfirm={confirm} onClose={onClose}>
-      <EuiText size='s' color='subdued'>
-        <p>La plantilla da valores de partida a las máquinas. Los valores de sus grupos y los propios de cada máquina mandan sobre ella.</p>
-      </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Plantilla' fullWidth>
         <Choice
@@ -190,7 +183,6 @@ export const TypeTemplateModal = ({
           options={TYPE_TEMPLATE_OPTIONS}
           value={choice}
           onChange={(value: string) => setChoice(value)}
-          fullWidth
         />
       </EuiFormRow>
     </Frame>
@@ -214,7 +206,7 @@ export const BulkValueModal = ({
   const parameter = PARAMETER_GROUPS.find(group => group.controlId === controlId)?.parameters.find(item => item.parameterId === parameterId);
 
   const options = [
-    { value: '', text: 'Elige un parámetro' },
+    { value: '', text: 'Ninguno' },
     ...PARAMETER_GROUPS.flatMap(group =>
       group.parameters.map(item => ({ value: `${group.controlId}|${item.parameterId}`, text: `${group.controlId} · ${item.label}` }))
     ),
@@ -251,9 +243,6 @@ export const BulkValueModal = ({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <EuiText size='s' color='subdued'>
-        <p>Se guarda como valor propio de cada máquina elegida y manda sobre el de sus grupos.</p>
-      </EuiText>
       <EuiSpacer size='m' />
       <EuiFormRow label='Parámetro' fullWidth>
         <Choice
@@ -266,7 +255,6 @@ export const BulkValueModal = ({
             setKey(value);
             setEdit(type ? { value: emptyValueFor(type), replace: false } : undefined);
           }}
-          fullWidth
         />
       </EuiFormRow>
       {parameter && edit && (

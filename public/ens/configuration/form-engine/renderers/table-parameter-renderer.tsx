@@ -143,7 +143,7 @@ export const TableParameterRenderer = ({
     requiredColumns
       ? `Columnas obligatorias: ${requiredColumns}.`
       : '',
-    'Una fila por entrada. Las columnas que no se declaren se dejan vacías.',
+    '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -193,8 +193,7 @@ export const TableParameterRenderer = ({
         {model.rows.length === 0 && (
           <EuiText size="s" color="subdued">
             <p>
-              Sin filas: esta política no está
-              declarada todavía.
+              Sin filas
             </p>
           </EuiText>
         )}

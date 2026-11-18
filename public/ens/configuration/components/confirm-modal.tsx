@@ -54,7 +54,7 @@ export const ConfirmModal = ({
           <EuiSpacer size='m' />
           <EuiFormRow
             label={`Escribir «${typedWord}» para confirmar`}
-            helpText='Tener que teclearlo es deliberado: obliga a leer lo que se va a escribir.'
+            
           >
             <EuiFieldText
               value={typed}

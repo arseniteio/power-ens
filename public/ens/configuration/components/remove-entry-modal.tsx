@@ -23,7 +23,7 @@ export const RemoveEntryModal = ({ configuration, removal, onCancel, onConfirm }
 
   return (
     <ConfirmModal
-      title={whole ? `Quitar el perfil «${removal.agentKey}»` : `Quitar ${removal.controlId} del perfil «${removal.agentKey}»`}
+      title={whole ? `Quitar configuración de «${removal.agentKey}»` : `Quitar ${removal.controlId} de «${removal.agentKey}»`}
       confirmLabel='Quitar'
       typedWord={whole ? 'quitar' : undefined}
       danger

@@ -182,7 +182,7 @@ export const ControlAssignmentPanel = ({
         <h3>Asignación</h3>
       </EuiTitle>
       <EuiText size='s' color='subdued'>
-        <p>Plantilla de cada agente en este control.</p>
+        <p>Plantilla por agente</p>
       </EuiText>
       <EuiSpacer size='s' />
 

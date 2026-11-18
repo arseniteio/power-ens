@@ -40,9 +40,6 @@ const Tile = ({ cell, onOpen }: { cell: ControlMapCell; onOpen: (controlId: stri
 export const ControlMap = ({ rows, onOpen }: { rows: ControlMapRow[]; onOpen: (controlId: string) => void }) => (
   <EuiPanel hasBorder>
     <SectionTitle>Mapa de controles</SectionTitle>
-    <EuiText size='xs' color='subdued'>
-      <p>Cada casilla es un control. Pulsa para abrir su detalle.</p>
-    </EuiText>
     <EuiSpacer size='m' />
     {rows.map(row => (
       <EuiFlexGroup key={row.family} gutterSize='s' alignItems='center' responsive={false} style={{ marginBottom: 6 }}>

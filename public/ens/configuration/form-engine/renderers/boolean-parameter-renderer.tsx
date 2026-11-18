@@ -26,7 +26,6 @@ export const BooleanParameterRenderer = ({ parameter, value, onChange }: ENSForm
         ]}
         value={model}
         onChange={(value: string) => onChange(parameter.name, value === '' ? undefined : value)}
-        fullWidth
       />
     </EuiFormRow>
   );

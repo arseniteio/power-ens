@@ -418,7 +418,7 @@ export const NonConformityCard = ({
             {hidden > 0 && (
               <EuiText size='xs' color='subdued'>
                 <p>
-                  y {hidden} motivo{hidden === 1 ? '' : 's'} más · seleccione un agente para verlos todos
+                  +{hidden} motivo{hidden === 1 ? '' : 's'}
                 </p>
               </EuiText>
             )}

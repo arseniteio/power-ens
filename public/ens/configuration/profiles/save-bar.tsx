@@ -22,7 +22,7 @@ import {
 import { ENSStagedChange, useProfileChanges } from './profile-changes';
 import { layerLabel, matchText } from './profile-labels';
 
-const changesText = (count: number): string => (count === 1 ? '1 cambio sin guardar en los perfiles' : `${count} cambios sin guardar en los perfiles`);
+const changesText = (count: number): string => (count === 1 ? '1 cambio pendiente en grupos' : `${count} cambios pendientes en grupos`);
 
 const ChangeRow = ({ change, onUndo }: { change: ENSStagedChange; onUndo: () => void }) => {
   const isUpsert = change.kind === 'upsert';
@@ -99,9 +99,6 @@ export const ProfileSaveBar = () => {
             </EuiModalHeaderTitle>
           </EuiModalHeader>
           <EuiModalBody>
-            <EuiText size='s' color='subdued'>
-              <p>El motor los aplica en su siguiente pasada, como mucho 15 minutos después de guardar.</p>
-            </EuiText>
             <EuiSpacer size='m' />
             {!canChange && (
               <>

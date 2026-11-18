@@ -69,25 +69,19 @@ export const ExportModal = ({ onClose }: { onClose: () => void }) => {
     <EuiModal onClose={onClose} style={{ width: 760 }}>
       <EuiModalHeader>
         <EuiModalHeaderTitle>
-          <h1>Exportar perfiles</h1>
+          <h1>Exportar grupos</h1>
         </EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
-        <EuiText size='s' color='subdued'>
-          <p>
-            YAML con un documento por perfil, el mismo formato que lee Importar y que usa oscompliance-policy. Sirve para copiar perfiles a otra instalación o
-            guardarlos en un repositorio.
-          </p>
-        </EuiText>
         {changes.length > 0 && (
           <>
             <EuiSpacer size='s' />
-            <EuiCallOut size='s' color='warning' iconType='iInCircle' title='Se exporta lo guardado. Los cambios pendientes de la barra inferior no se incluyen.' />
+            <EuiCallOut size='s' color='warning' iconType='iInCircle' title='Solo lo guardado' />
           </>
         )}
         <EuiSpacer size='m' />
         <EuiButtonGroup
-          legend='Qué perfiles exportar'
+          legend='Grupos a exportar'
           options={[
             { id: 'all', label: 'Todos' },
             { id: 'some', label: 'Elegir' },
@@ -101,11 +95,11 @@ export const ExportModal = ({ onClose }: { onClose: () => void }) => {
             <EuiSpacer size='s' />
             <EuiComboBox
               fullWidth
-              placeholder='Escribe para buscar perfiles'
+              placeholder='Buscar grupo'
               options={options}
               selectedOptions={options.filter(option => ids.includes(option.value))}
               onChange={selected => setIds(selected.map(option => option.value as string))}
-              aria-label='Perfiles que exportar'
+              aria-label='Grupos a exportar'
             />
           </>
         )}
@@ -118,7 +112,7 @@ export const ExportModal = ({ onClose }: { onClose: () => void }) => {
         )}
         {!error && scope === 'some' && !ids.length && (
           <EuiText size='s' color='subdued'>
-            <p>Elige al menos un perfil.</p>
+            <p>Ningún grupo elegido</p>
           </EuiText>
         )}
       </EuiModalBody>

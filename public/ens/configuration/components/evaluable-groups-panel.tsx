@@ -6,7 +6,6 @@ import {
   EuiFormRow,
   EuiPanel,
   EuiSpacer,
-  EuiText,
   EuiTitle,
 } from '@elastic/eui';
 
@@ -77,9 +76,6 @@ export const EvaluableGroupsPanel = ({ configuration, onConfigurationSaved }: Ev
       <EuiTitle size='s'>
         <h3>Grupos evaluables</h3>
       </EuiTitle>
-      <EuiText size='s' color='subdued'>
-        <p>Solo se evalúan las máquinas de estos grupos de Wazuh. Las demás aparecen como «Fuera de grupo ENS (No Evaluable)».</p>
-      </EuiText>
       <EuiSpacer size='s' />
       {scope.mode !== 'group' && (
         <>
@@ -89,7 +85,7 @@ export const EvaluableGroupsPanel = ({ configuration, onConfigurationSaved }: Ev
           <EuiSpacer size='s' />
         </>
       )}
-      <EuiFormRow label='Grupos de Wazuh' helpText='Elige un grupo existente o escribe su nombre y pulsa Intro.' fullWidth>
+      <EuiFormRow label='Grupos de Wazuh'  fullWidth>
         <EuiComboBox
           fullWidth
           aria-label='Grupos evaluables'

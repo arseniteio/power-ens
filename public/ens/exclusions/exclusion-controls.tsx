@@ -105,7 +105,7 @@ export const ExclusionNotice = ({ exclusion, verdictStatus }: { exclusion: Exclu
     return (
       <>
         <EuiSpacer size='m' />
-        <EuiCallOut size='s' color='warning' iconType='alert' title='No se pudo comprobar si la máquina está excluida de este control'>
+        <EuiCallOut size='s' color='warning' iconType='alert' title='Estado de exclusión no disponible'>
           <p>{loadError}</p>
         </EuiCallOut>
       </>
@@ -174,7 +174,7 @@ const ExclusionModal = ({ target, excluding, onClose, onDone }: ExclusionModalPr
           <p>{describeExclusionEffect(target.agentLabel, target.controlId, excluding)}</p>
         </EuiText>
         <EuiSpacer size='m' />
-        <EuiFormRow label='Motivo' helpText='Queda registrado con tu usuario y la fecha como evidencia para la auditoría.' fullWidth>
+        <EuiFormRow label='Motivo' helpText='Se registra con usuario y fecha' fullWidth>
           <EuiTextArea
             value={reason}
             rows={3}

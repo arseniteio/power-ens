@@ -106,8 +106,7 @@ export const MotiveCell = ({
 
         {hidden > 0 && (
           <p style={{ color: ENS_THEME.subduedText, marginBottom: 6 }}>
-            y {hidden} motivo{hidden === 1 ? '' : 's'} más · seleccione un
-            agente para verlos todos
+            +{hidden} motivo{hidden === 1 ? '' : 's'}
           </p>
         )}
 

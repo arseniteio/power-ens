@@ -31,7 +31,7 @@ export const OrganizationParameterRenderer = ({ parameter, value, item }: Organi
           <p>Sin valor</p>
         )}
         <p>
-          {'Se edita en Datos de la organización. '}
+          {'Ámbito organización · '}
           <EuiLink onClick={() => setSearch(configurationSearchChanges({ view: 'organization', itemId: item.id }))}>
             {`Ir a «${item.label}»`}
           </EuiLink>

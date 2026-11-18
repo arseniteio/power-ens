@@ -229,9 +229,9 @@ export const isPendingMeasurement = (control?: Pick<ENSControlDefinition, 'statu
 
 export const describePendingMeasurement = (control: Pick<ENSControlDefinition, 'id' | 'status'>): string => {
   const plan = getPlannedMeasurement(control.id);
-  const base = `${control.id} está en el catálogo pero ningún recolector emite todavía sus evidencias: no entra en el índice y no se juzga como incumplimiento.`;
+  const base = `${control.id}: sin recolector; fuera del índice y sin juicio de incumplimiento.`;
 
   return plan
-    ? `${base} Medición prevista en la ${ENS_MEASUREMENT_WAVE_TEXTS[plan.wave]}; necesita ${plan.needs}.`
+    ? `${base} Medición prevista: ${ENS_MEASUREMENT_WAVE_TEXTS[plan.wave]}. Requiere ${plan.needs}.`
     : base;
 };

@@ -35,7 +35,7 @@ const formatISODate = (date: string): string => {
 };
 
 export const OPERATIONAL_INDICATOR_NOTE =
-  'El semáforo y el porcentaje son indicadores operativos de Power ENS. La valoración del ENS es el nivel de madurez (Anexo II, apdo. 6).';
+  'Semáforo y porcentaje: indicadores operativos. Valoración ENS: nivel de madurez (Anexo II, apdo. 6).';
 
 export const describeAnnexSection = (control: Pick<ENSControlDefinition, 'annexSection'>): string =>
   control.annexSection ? `Anexo II, apdo. ${control.annexSection}` : '';

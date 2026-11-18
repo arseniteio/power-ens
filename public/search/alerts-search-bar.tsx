@@ -104,7 +104,7 @@ export const AlertsSearchFrame = ({ barra: bar, children }: { barra: AlertsSearc
       <EuiCallOut
         color="danger"
         iconType="alert"
-        title={`No se pudo leer el patrón de índice ${ENS_ALERTS_INDEX}: esta vista no puede buscar`}
+        title={`Patrón de índice ${ENS_ALERTS_INDEX} no disponible`}
       >
         <p>{bar.patternError}</p>
         <EuiButton size="s" color="danger" onClick={bar.retry}>
@@ -119,7 +119,7 @@ export const AlertsSearchFrame = ({ barra: bar, children }: { barra: AlertsSearc
       <EuiCallOut
         color="warning"
         iconType="alert"
-        title={`No existe el patrón de índice ${ENS_ALERTS_INDEX}: créalo desde Wazuh (o Dashboards Management) para usar esta vista`}
+        title={`Patrón de índice ${ENS_ALERTS_INDEX} inexistente`}
       />
     );
   }

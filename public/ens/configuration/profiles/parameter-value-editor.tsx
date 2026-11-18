@@ -64,7 +64,7 @@ export const ParameterValueEditor = ({ controlId, parameterId, edit, readOnly, o
   const isRegex = edit.matchMode === 'regex';
   const columns = parameter.columns;
   const problem = isRegex ? patternProblem(edit.value) : checkProfileValue(parameter, edit.value, edit.matchMode);
-  const help = parameter.type === 'table' && columns?.length ? `Una fila por línea, columnas separadas por |: ${columns.map(c => c.label).join(' | ')}` : isList ? 'Un valor por línea. Se puede pegar desde una hoja de cálculo.' : undefined;
+  const help = parameter.type === 'table' && columns?.length ? `Formato: ${columns.map(c => c.label).join(' | ')}` : isList ? 'Un valor por línea' : undefined;
 
   const setList = (next: string) => {
     setText(next);
@@ -153,7 +153,7 @@ export const ParameterValueEditor = ({ controlId, parameterId, edit, readOnly, o
         </EuiFlexItem>
         {!readOnly && (
           <EuiFlexItem grow={false} style={{ paddingTop: 22 }}>
-            <EuiButtonIcon iconType='cross' color='danger' aria-label={`Quitar ${parameter.label || parameterId} del perfil`} onClick={onRemove} />
+            <EuiButtonIcon iconType='cross' color='danger' aria-label={`Quitar ${parameter.label || parameterId} del grupo`} onClick={onRemove} />
           </EuiFlexItem>
         )}
       </EuiFlexGroup>
@@ -186,7 +186,7 @@ export const ParameterValueEditor = ({ controlId, parameterId, edit, readOnly, o
               <EuiFlexItem grow={false}>
                 <EuiSwitch
                   compressed
-                  label='Sustituir la lista de las capas menos específicas en lugar de sumarse'
+                  label='Sustituir en lugar de sumar'
                   checked={edit.replace}
                   disabled={readOnly}
                   onChange={event => onChange({ ...edit, replace: event.target.checked })}

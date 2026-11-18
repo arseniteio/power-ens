@@ -159,7 +159,7 @@ const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refre
         {isLoading && <EuiProgress size="xs" color="accent" />}
         <EuiCallOut color="danger" iconType="alert" title="No se pudieron leer los hechos con los filtros y las fechas de ahora">
           <p>{String((error as any)?.message || error)}</p>
-          <p>Pulsa «Actualizar» en la barra para volver a intentarlo.</p>
+          <p>Reintentar con «Actualizar».</p>
         </EuiCallOut>
         {isOpen && <EventDocument hit={isOpen} onClose={() => setIsOpen(undefined)} />}
       </>
@@ -200,7 +200,7 @@ const EventsScreen = ({ barFilters, refreshKey }: { barFilters: unknown[]; refre
         <>
           <EuiSpacer size="s" />
           <EuiText size="s" color="subdued">
-            <p>Ningún hecho ENS con los filtros y las fechas de la barra.</p>
+            <p>Sin hechos ENS</p>
           </EuiText>
         </>
       )}

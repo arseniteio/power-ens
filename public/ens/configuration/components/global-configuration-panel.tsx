@@ -253,7 +253,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Cliente'
-        helpText='Nombre del cliente o entidad evaluada.'
+        
         fullWidth
       >
         <EuiFieldText
@@ -270,7 +270,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Organización'
-        helpText='Unidad, departamento u organización incluida en el alcance.'
+        
         fullWidth
       >
         <EuiFieldText
@@ -287,7 +287,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Nivel ENS'
-        helpText='Categoría del sistema: el nivel más alto de sus dimensiones.'
+        
         fullWidth
       >
         <Choice
@@ -298,7 +298,6 @@ export const GlobalConfigurationPanel = ({
               'ensLevel',
               value
             )}
-          fullWidth
         />
       </EuiFormRow>
 
@@ -317,7 +316,6 @@ export const GlobalConfigurationPanel = ({
               options={dimensionLevelOptions}
               value={draftConfiguration[key] || ''}
               onChange={(value: string) => updateField(key, value)}
-              fullWidth
             />
           </EuiFormRow>
         );
@@ -340,7 +338,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Versión ENS'
-        helpText='Marco normativo utilizado para la evaluación.'
+        
         fullWidth
       >
         <EuiFieldText
@@ -357,7 +355,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Descripción del alcance (informes)'
-        helpText='Texto que describe en los informes los sistemas, servicios o activos evaluados.'
+        
         fullWidth
       >
         <EuiFieldText
@@ -374,7 +372,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Periodo de evaluación'
-        helpText='Ventana temporal usada para calcular cumplimiento y evidencias.'
+        
         fullWidth
       >
         <Choice
@@ -387,13 +385,12 @@ export const GlobalConfigurationPanel = ({
               'evaluationPeriod',
               value
             )}
-          fullWidth
         />
       </EuiFormRow>
 
       <EuiFormRow
         label='Zona horaria'
-        helpText='Zona utilizada para interpretar eventos y fechas.'
+        
         fullWidth
       >
         <EuiFieldText
@@ -410,7 +407,7 @@ export const GlobalConfigurationPanel = ({
 
       <EuiFormRow
         label='Idioma de informes'
-        helpText='Idioma utilizado en los informes Power ENS.'
+        
         fullWidth
       >
         <Choice
@@ -423,13 +420,12 @@ export const GlobalConfigurationPanel = ({
               'reportLanguage',
               value
             )}
-          fullWidth
         />
       </EuiFormRow>
 
       <EuiFormRow
         label='Política aplicada'
-        helpText='Política ENS o política interna activa.'
+        
         fullWidth
       >
         <EuiFieldText

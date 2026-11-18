@@ -84,7 +84,7 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
     { field: 'status', name: 'Resultado', width: '120px', render: (status: ENSImportStatus) => <EuiBadge color={STATUS[status].color}>{STATUS[status].text}</EuiBadge> },
     {
       field: 'name',
-      name: 'Perfil',
+      name: 'Grupo',
       render: (_name: string, item: ENSImportItem) => (
         <EuiText size='s'>
           <strong>{item.name || 'Sin nombre'}</strong>
@@ -111,8 +111,8 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
           );
         }
         if (item.status === 'changed') return <EuiText size='xs'>{`Cambia: ${item.changes.join(', ')}`}</EuiText>;
-        if (item.status === 'new') return <EuiText size='xs'>{item.replacesBuiltin ? `Sustituirá al perfil incluido con el mismo identificador. Cambia: ${item.changes.join(', ')}` : 'Se creará'}</EuiText>;
-        return <EuiText size='xs' color='subdued'>Ya está así; no se toca</EuiText>;
+        if (item.status === 'new') return <EuiText size='xs'>{item.replacesBuiltin ? `Sustituye al incluido · ${item.changes.join(', ')}` : 'Nuevo'}</EuiText>;
+        return <EuiText size='xs' color='subdued'>Sin cambios</EuiText>;
       },
     },
   ];
@@ -123,19 +123,13 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
     <EuiModal onClose={onClose} style={{ width: 820 }}>
       <EuiModalHeader>
         <EuiModalHeaderTitle>
-          <h1>Importar perfiles</h1>
+          <h1>Importar grupos</h1>
         </EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
-        <EuiText size='s' color='subdued'>
-          <p>
-            YAML o JSON con uno o varios perfiles, en el formato que exporta esta pantalla y que lee oscompliance-policy. Nada se escribe hasta que pulsas
-            Guardar en la barra inferior.
-          </p>
-        </EuiText>
         <EuiSpacer size='m' />
         <EuiButtonGroup
-          legend='Origen de los perfiles'
+          legend='Origen'
           options={[
             { id: 'file', label: 'Desde ficheros' },
             { id: 'text', label: 'Pegar texto' },
@@ -153,7 +147,7 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
             multiple
             fullWidth
             accept='.yaml,.yml,.json'
-            initialPromptText='Arrastra aquí los ficheros .yaml, .yml o .json, o pulsa para elegirlos'
+            initialPromptText='Ficheros .yaml, .yml o .json'
             onChange={list => {
               setFiles(list ? Array.from(list) : []);
               setItems(undefined);
@@ -171,7 +165,7 @@ export const ImportModal = ({ onClose }: { onClose: () => void }) => {
               setItems(undefined);
             }}
             style={{ fontFamily: 'Roboto Mono, Menlo, monospace', fontSize: 12 }}
-            aria-label='Perfiles en YAML o JSON'
+            aria-label='Grupos en YAML o JSON'
           />
         )}
         <EuiSpacer size='m' />

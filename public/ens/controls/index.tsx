@@ -100,9 +100,9 @@ export const ControlsENS = () => {
           <>
             <EuiText size='s' color='subdued'>
               <p>
-                <EuiIcon type='iInCircle' /> {outOfLevel.text}: no rige ningún requisito en este nivel.{' '}
+                <EuiIcon type='iInCircle' /> {outOfLevel.text}: sin requisitos en este nivel.{' '}
                 <EuiLink onClick={() => updateUrl({ tabView: 'configuration', configView: 'general', configAgent: undefined, configControl: undefined, configParam: undefined })}>
-                  Cambiar el nivel en Configuración
+                  Nivel ENS
                 </EuiLink>
               </p>
             </EuiText>
@@ -113,10 +113,8 @@ export const ControlsENS = () => {
           <>
             <EuiText size='s' color='subdued'>
               <p>
-                {`${unmeasured} ${unmeasured === 1 ? 'control no se mide' : 'controles no se miden'} en ${agentId}${
-                  agentName ? ` · ${agentName}` : ''
-                }: ${unmeasured === 1 ? 'sale' : 'salen'} al final, en gris, con el motivo.`}{' '}
-                <EuiLink onClick={() => updateUrl({ agentId: undefined })}>Ver todas las máquinas</EuiLink>
+                {`Controles sin medición en ${agentName || agentId}: ${unmeasured}`}{' '}
+                <EuiLink onClick={() => updateUrl({ agentId: undefined })}>Todas las máquinas</EuiLink>
               </p>
             </EuiText>
             <EuiSpacer size='s' />

@@ -7,6 +7,7 @@ import {
   ENSOrganizationMaturity,
   maturityLabel,
 } from '../../../common/ens/maturity/types';
+import { InfoTip } from '../ui/info-tip';
 
 interface LevelRow {
   level: number;
@@ -54,7 +55,9 @@ export const OrganizationMaturityPanel = ({
       <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false}>
         <EuiFlexItem>
           <EuiTitle size='xs'>
-            <h3>Madurez de la organización</h3>
+            <h3>
+              Madurez de la organización <InfoTip content={ENS_MATURITY_NOTE} />
+            </h3>
           </EuiTitle>
         </EuiFlexItem>
         {onExport && (
@@ -69,7 +72,7 @@ export const OrganizationMaturityPanel = ({
       {error && <EuiCallOut size='s' color='danger' iconType='alert' title={error} />}
       {!error && !loading && !data?.summary && (
         <EuiText size='s' color='subdued'>
-          <p>El motor todavía no ha escrito la madurez. Aparece tras su siguiente pasada.</p>
+          <p>Sin datos de madurez</p>
         </EuiText>
       )}
       {data?.summary && (
@@ -113,17 +116,10 @@ export const OrganizationMaturityPanel = ({
           {incoherent.length > 0 && (
             <>
               <EuiSpacer size='s' />
-              <EuiCallOut size='s' color='warning' iconType='alert' title={`Valoración por encima de lo que Wazuh acredita: ${incoherent.join(', ')}`}>
-                <EuiText size='xs'>
-                  <p>Valorados en L3 o más, pero Wazuh no ve la práctica funcionando 27 de los últimos 30 días. Abre el control para revisarlo.</p>
-                </EuiText>
+              <EuiCallOut size='s' color='warning' iconType='alert' title={`Valoración superior a la acreditada: ${incoherent.join(', ')}`}>
               </EuiCallOut>
             </>
           )}
-          <EuiSpacer size='s' />
-          <EuiText size='xs' color='subdued'>
-            <p>{ENS_MATURITY_NOTE}</p>
-          </EuiText>
         </>
       )}
     </EuiPanel>

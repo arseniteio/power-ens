@@ -11,10 +11,10 @@ export const ENS_MATURITY_LABELS: Record<number, string> = {
 };
 
 export const ENS_MATURITY_NOTE =
-  'Acreditado: lo que Wazuh demuestra, hasta L2. Valorado: el nivel que declara la organización con sus documentos, de L0 a L5.';
+  'Acreditado: evidencia de Wazuh, L0 a L2. Valorado: declaración documentada, L0 a L5.';
 
 export const incoherenceText = (assessed?: number, accredited?: number): string =>
-  `Valorado en L${assessed ?? '?'}, pero Wazuh solo acredita L${accredited ?? 0}: no ve la práctica funcionando 27 de los últimos 30 días. Revisa la valoración o la configuración del control.`;
+  `Valorado L${assessed ?? '?'} · acreditado L${accredited ?? 0}: evidencia discontinua en los últimos 30 días`;
 
 export const maturityLabel = (level?: number): string =>
   level === undefined || level === null ? '—' : `L${level} ${ENS_MATURITY_LABELS[level] || ''}`.trim();

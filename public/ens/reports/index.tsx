@@ -71,6 +71,7 @@ import { assessmentOf } from '../../../common/ens/maturity/assessments';
 import { ENS_MATURITY_NOTE } from '../../../common/ens/maturity/types';
 import { useOpenControl } from '../open-control';
 import { FilterBar } from '../ui/filter-bar';
+import { InfoTip } from '../ui/info-tip';
 
 (pdfMake as any).vfs = (pdfFonts as any).pdfMake ? (pdfFonts as any).pdfMake.vfs : (pdfFonts as any).vfs;
 
@@ -763,7 +764,7 @@ const ControlReport = ({
         <EuiCallOut size='s' color='primary' iconType='iInCircle' title={view.title}>
           <EuiText size='xs'>
             <p>{view.text}</p>
-            <p>Sin resultado en esta selección no hay informe que exportar.</p>
+            <p>Sin informe</p>
           </EuiText>
         </EuiCallOut>
         <EuiSpacer size='m' />
@@ -823,21 +824,15 @@ const ControlReport = ({
         ))}
       </EuiFlexGroup>
 
-      <EuiSpacer size='s' />
-      <EuiText size='xs' color='subdued'>
-        <p>{OPERATIONAL_INDICATOR_NOTE}</p>
-      </EuiText>
-
       <EuiSpacer size='l' />
 
       <EuiTitle size='xs'>
-        <h3>Nivel de madurez (CMM, Anexo II, apdo. 6)</h3>
+        <h3>
+          Nivel de madurez <InfoTip content={ENS_MATURITY_NOTE} />
+        </h3>
       </EuiTitle>
       <EuiSpacer size='s' />
       <EuiBasicTable noItemsMessage='No hay datos.' items={maturityRows} columns={[{ field: 'label', name: 'Campo', width: '220px' }, { field: 'value', name: 'Valor' }]} tableLayout='fixed' />
-      <EuiText size='xs' color='subdued'>
-        <p>{ENS_MATURITY_NOTE}</p>
-      </EuiText>
 
       <EuiSpacer size='l' />
 

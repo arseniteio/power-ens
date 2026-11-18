@@ -24,6 +24,7 @@ import type {
   ENSTemplateCorrespondenceRow,
   ENSTemplateCoverage,
 } from '../../../../common/ens/catalog/support/template-correspondence';
+import { InfoTip } from '../../ui/info-tip';
 
 export const ProvenanceLabel = ({ provenance }: { provenance: ENSTextProvenance }) => (
   <EuiBadge color={provenance === 'BOE' ? 'primary' : 'hollow'}>
@@ -49,15 +50,14 @@ export const RequirementTextsPanel = ({ controlId }: { controlId: string }) => {
   return (
     <EuiAccordion
       id={`requirement-texts-${controlId}`}
-      buttonContent={`Texto de los requisitos (${control.requirements.length})`}
+      buttonContent={
+        <span>
+          {`Texto de los requisitos (${control.requirements.length})`}{' '}
+          <InfoTip content={`${ENS_TEXT_PROVENANCE_LABELS.BOE}: literal del BOE. ${ENS_TEXT_PROVENANCE_LABELS.CRITERION}: criterio de medición de Power ENS, sin valor normativo.`} />
+        </span>
+      }
       paddingSize='s'
     >
-      <EuiText size='xs' color='subdued'>
-        <p>
-          «{ENS_TEXT_PROVENANCE_LABELS.BOE}»: literal del BOE. «{ENS_TEXT_PROVENANCE_LABELS.CRITERION}»: cómo lo mide Power ENS, sin valor normativo.
-        </p>
-      </EuiText>
-      <EuiSpacer size='s' />
       {control.requirements.map(requirement => (
         <EuiFlexGroup key={requirement.id} gutterSize='s' responsive={false} style={{ padding: '6px 0' }}>
           <EuiFlexItem grow={false} style={{ minWidth: 110 }}>

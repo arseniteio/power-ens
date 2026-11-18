@@ -36,10 +36,7 @@ export const ControlConfigurationReset = ({
   if (summary.clearedParameters === 0) {
     return (
       <EuiText size='s' color='subdued'>
-        <p>
-          {control.controlId} no tiene ningún parámetro con valor declarado:
-          no hay configuración que borrar.
-        </p>
+        <p>Sin parámetros declarados</p>
       </EuiText>
     );
   }
@@ -85,23 +82,15 @@ export const ControlConfigurationReset = ({
 
   return (
     <EuiCallOut
-      title={`Vas a borrar la configuración de ${control.controlId}`}
+      title={`Borrar configuración de ${control.controlId}`}
       color='danger'
       iconType='trash'
     >
       <EuiText size='s'>
         <p>
-          Se borrarán los <strong>{summary.clearedParameters}</strong>{' '}
-          parámetro(s) con valor declarado:{' '}
-          {summary.parameterIds.join(', ')}.
+          Parámetros afectados ({summary.clearedParameters}): {summary.parameterIds.join(', ')}
         </p>
-        <p>Los datos de la organización no se borran.</p>
-        <p>
-          No se puede deshacer.
-        </p>
-        <p>
-          Mientras esté sin configurar, sus requisitos no cumplirán.
-        </p>
+        <p>Datos de la organización: sin cambios. Acción irreversible.</p>
       </EuiText>
 
       <EuiSpacer size='m' />

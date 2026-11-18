@@ -230,7 +230,7 @@ const ControlsList = ({ configuration, target, getActiveLevel, onNavigate, onCon
         <>
           <EuiCallOut color='warning' iconType='iInCircle' title={`${target.controlId} no está en la configuración`}>
             <p>
-              {getENSControlConfiguration(target.controlId) ? 'Añádelo desde la lista.' : `${target.controlId} no está en el catálogo.`}
+              {getENSControlConfiguration(target.controlId) ? 'Fuera de la configuración' : `${target.controlId} no está en el catálogo.`}
             </p>
           </EuiCallOut>
           <EuiSpacer size='m' />

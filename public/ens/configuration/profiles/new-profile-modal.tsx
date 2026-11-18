@@ -53,14 +53,14 @@ export const NewProfileModal = ({ onClose, onBlank, onDuplicate, onImport }: New
     <EuiModal onClose={onClose} style={{ width: 620 }}>
       <EuiModalHeader>
         <EuiModalHeaderTitle>
-          <h1>Nuevo perfil</h1>
+          <h1>Nuevo grupo</h1>
         </EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
-        <Choice title='En blanco' text='Eliges las condiciones y los valores desde cero.' action={<EuiButton onClick={onBlank}>Empezar</EuiButton>} />
+        <Choice title='En blanco' text='Sin condiciones ni valores' action={<EuiButton onClick={onBlank}>Empezar</EuiButton>} />
         <Choice
           title='A partir de uno existente'
-          text='Copia sus condiciones y sus valores; después cambias lo que haga falta.'
+          text='Copia de condiciones y valores'
           action={
             <EuiButton isDisabled={!source} onClick={() => source && onDuplicate(source)}>
               Copiar
@@ -69,7 +69,7 @@ export const NewProfileModal = ({ onClose, onBlank, onDuplicate, onImport }: New
         >
           <EuiSpacer size='s' />
           <VisibleChoice
-            legend='Perfil que copiar'
+            legend='Grupo de origen'
             options={options.map(option => ({ value: String(option.value), text: option.label }))}
             value={source || ''}
             onChange={setSource}
@@ -77,7 +77,7 @@ export const NewProfileModal = ({ onClose, onBlank, onDuplicate, onImport }: New
         </Choice>
         <Choice
           title='Importar desde un fichero'
-          text='YAML o JSON, con uno o varios perfiles. Antes de aplicar nada ves qué se crea, qué cambia y qué errores hay.'
+          text='YAML o JSON'
           action={<EuiButton onClick={onImport}>Importar</EuiButton>}
           last
         />

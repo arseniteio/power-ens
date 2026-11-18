@@ -125,7 +125,7 @@ export const TemplateEditorModal = ({ mode, control, template, usage, onCancel, 
             <EuiFormRow label='Descripción' fullWidth>
               <EuiFieldText value={description} fullWidth onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDescription(event.target.value)} />
             </EuiFormRow>
-            <EuiFormRow label='Tipo de sistema' helpText='Informativo: avisa al asignarla a un agente de otro tipo.'>
+            <EuiFormRow label='Tipo de sistema' >
               <Choice
                 legend='Tipo de sistema'
                 options={[{ value: '', text: 'Cualquiera' }, ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] }))]}

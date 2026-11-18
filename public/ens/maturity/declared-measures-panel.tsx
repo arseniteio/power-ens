@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { EuiBasicTable, EuiButtonEmpty, EuiPanel, EuiSpacer, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiBasicTable, EuiButtonEmpty, EuiFlexGroup, EuiFlexItem, EuiPanel, EuiSpacer, EuiTitle } from '@elastic/eui';
+import { InfoTip } from '../ui/info-tip';
 import type { ENSConfigurationVersion } from '../../../common/ens/configuration/types';
 import { assessmentOf } from '../../../common/ens/maturity/assessments';
 import { ENS_DECLARED_MEASURES } from '../../../common/ens/maturity/declared-measures';
@@ -13,15 +14,16 @@ export const DeclaredMeasuresPanel = ({ configuration, onSaved }: { configuratio
 
   return (
     <EuiPanel hasBorder>
-      <EuiTitle size='xs'>
-        <h3>Medidas sin motor</h3>
-      </EuiTitle>
-      <EuiText size='xs' color='subdued'>
-        <p>
-          Medidas que citan los controles y que Power ENS no mide. Su madurez solo se valora: entra en la madurez de la organización con el nivel
-          declarado y sin nivel acreditado.
-        </p>
-      </EuiText>
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+        <EuiFlexItem grow={false}>
+          <EuiTitle size='xs'>
+            <h3>Medidas sin motor</h3>
+          </EuiTitle>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <InfoTip content='Medidas citadas por los controles sin medición de Power ENS. Solo nivel valorado; computan en la madurez de la organización sin nivel acreditado.' />
+        </EuiFlexItem>
+      </EuiFlexGroup>
       <EuiSpacer size='s' />
       <EuiBasicTable<Row>
         compressed

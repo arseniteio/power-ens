@@ -32,6 +32,7 @@ import {
 } from '../../../common/ens/maturity/types';
 import { dateTimeLabel } from '../../../common/ens/core/date-label';
 import { Choice } from '../ui/choice';
+import { InfoTip } from '../ui/info-tip';
 
 const LEVEL_OPTIONS = [
   { value: '', text: 'Sin valorar' },
@@ -81,20 +82,13 @@ export const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string
         </EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
-        <EuiText size='s' color='subdued'>
-          <p>
-            L3: hay un procedimiento escrito y se aplica. L4: además se mide y se corrigen las desviaciones. L5: además se mejora con lo
-            medido. Indica los documentos que lo prueban.
-          </p>
-        </EuiText>
         <EuiSpacer size='m' />
-        <EuiFormRow label='Nivel valorado' fullWidth>
+        <EuiFormRow label='Nivel valorado' fullWidth labelAppend={<InfoTip content='L3: procedimiento escrito y aplicado. L4: medido, con corrección de desviaciones. L5: mejora continua basada en la medición.' />}>
           <Choice
             legend='Nivel valorado'
             options={LEVEL_OPTIONS}
             value={level}
             onChange={(value: string) => setLevel(value)}
-            fullWidth
           />
         </EuiFormRow>
         <EuiFormRow label='Nivel objetivo' fullWidth>
@@ -103,10 +97,9 @@ export const AssessModal = ({ measureId, onClose, onSaved }: { measureId: string
             options={LEVEL_OPTIONS.map(o => (o.value === '' ? { ...o, text: 'Sin objetivo' } : o))}
             value={target}
             onChange={(value: string) => setTarget(value)}
-            fullWidth
           />
         </EuiFormRow>
-        <EuiFormRow label='Documentos que lo acreditan' helpText='Procedimiento, registro de revisiones o informe de mejora, con su referencia y versión.' fullWidth>
+        <EuiFormRow label='Documentos que lo acreditan'  fullWidth>
           <EuiFieldText value={references} onChange={event => setReferences(event.target.value)} fullWidth />
         </EuiFormRow>
         <EuiFormRow label='Observaciones' fullWidth>
@@ -143,7 +136,9 @@ export const MeasureMaturity = ({
       <EuiFlexGroup alignItems='center' gutterSize='s' responsive={false}>
         <EuiFlexItem>
           <EuiTitle size='xxs'>
-            <h3>Madurez (Anexo II, apdo. 6)</h3>
+            <h3>
+              Madurez <InfoTip content={ENS_MATURITY_NOTE} />
+            </h3>
           </EuiTitle>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
@@ -168,9 +163,8 @@ export const MeasureMaturity = ({
       </EuiFlexGroup>
       <EuiSpacer size='s' />
       <EuiText size='xs' color='subdued'>
-        {maturity?.machines ? <p>{`Acreditado: el nivel más bajo de ${maturity.machines} máquina${maturity.machines === 1 ? '' : 's'} en los últimos ${maturity.period_days || 30} días.`}</p> : null}
-        {declared?.assessedBy && <p>{`Valorado por ${declared.assessedBy}${declared.assessedAt ? ` el ${dateTimeLabel(declared.assessedAt)}` : ''}.${declared.references ? ` Documentos: ${declared.references}.` : ''}`}</p>}
-        <p>{ENS_MATURITY_NOTE}</p>
+        {maturity?.machines ? <p>{`Acreditado: mínimo de ${maturity.machines} máquina${maturity.machines === 1 ? '' : 's'}, ${maturity.period_days || 30} días`}</p> : null}
+        {declared?.assessedBy && <p>{`Valorado: ${declared.assessedBy}${declared.assessedAt ? `, ${dateTimeLabel(declared.assessedAt)}` : ''}${declared.references ? ` · ${declared.references}` : ''}`}</p>}
       </EuiText>
       {maturity?.incoherent && (
         <>

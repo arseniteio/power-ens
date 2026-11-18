@@ -69,7 +69,7 @@ export const GroupControlFlyout = ({ group, control, readOnly, onApply, onClose 
           <h2 id='ens-group-control-title'>{controlTitle(control.controlId)}</h2>
         </EuiTitle>
         <EuiText size='s' color='subdued'>
-          <p>{`Valores para todas las máquinas de «${group.name}». Una máquina puede cambiar cualquiera desde su ficha.`}</p>
+          <p>{`Grupo: ${group.name}`}</p>
         </EuiText>
       </EuiFlyoutHeader>
       <EuiFlyoutBody>
@@ -115,7 +115,7 @@ export const GroupControlFlyout = ({ group, control, readOnly, onApply, onClose 
                   </>
                 ) : (
                   <EuiText size='xs' color='subdued'>
-                    <p>Sin valor en el grupo: se usa el de la plantilla del tipo de sistema o el de la organización.</p>
+                    <p>Sin valor en el grupo</p>
                   </EuiText>
                 )}
               </EuiPanel>
@@ -142,10 +142,6 @@ export const GroupControlFlyout = ({ group, control, readOnly, onApply, onClose 
             </EuiButton>
           </EuiFlexItem>
         </EuiFlexGroup>
-        <EuiSpacer size='xs' />
-        <EuiText size='xs' color='subdued' textAlign='right'>
-          <p>Se guarda con «Guardar cambios», junto al resto de cambios de grupos.</p>
-        </EuiText>
       </EuiFlyoutFooter>
     </EuiFlyout>
   );

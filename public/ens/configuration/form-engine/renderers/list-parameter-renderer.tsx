@@ -9,7 +9,6 @@ import {
 import {
   hasParameterSeparator,
   parseParameterInput,
-  splitsParameterOnSpaces,
 } from '../../../../../common/ens/configuration/services/parameter-input';
 
 export const ListParameterRenderer = ({
@@ -33,15 +32,13 @@ export const ListParameterRenderer = ({
   const publish = (nextItems: string[]) =>
     onChange(parameter.name, nextItems.length ? Array.from(new Set(nextItems)) : undefined);
 
-  const separators = `comas${splitsParameterOnSpaces(parameter) ? ', espacios' : ''} o saltos de línea`;
-
   return (
     <EuiFormRow
       label={`${parameter.id} · ${parameter.label}`}
       helpText={
         parameter.example
-          ? `${parameter.description} Puedes pegar varios elementos separados por ${separators}. Ejemplo: ${parameter.example}`
-          : `${parameter.description} Puedes pegar varios elementos separados por ${separators}.`
+          ? `Ej.: ${parameter.example}`
+          : undefined
       }
       isInvalid={!verdict.valid}
       error={verdict.reason ? [verdict.reason] : undefined}

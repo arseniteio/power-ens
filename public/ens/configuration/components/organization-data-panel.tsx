@@ -264,7 +264,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
                 <li key={state.item.id}>{state.notice}</li>
               ))}
             </ul>
-            <p>Los controles tienen valores distintos. Unifícalos en «Editar».</p>
+            <p>Valores distintos entre controles</p>
           </EuiCallOut>
           <EuiSpacer size='m' />
         </>
@@ -273,7 +273,7 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
       {conflicts.length > 0 && (
         <>
           <EuiCallOut color='warning' iconType='alert' title='Valores distintos entre controles'>
-            <p>Elegir el valor que pasa a ser el de la organización. Mientras tanto, cada control sigue con el suyo. La versión anterior queda en el historial.</p>
+            <p>Valor de la organización pendiente de elegir.</p>
           </EuiCallOut>
           <EuiSpacer size='s' />
           {conflicts.map(state => (
@@ -395,11 +395,11 @@ export const OrganizationDataPanel = ({ configuration, onConfigurationSaved }: O
               <>
                 {state.status === 'conflict' && !state.stored ? (
                   <EuiText size='s' color='subdued'>
-                    <p>Pendiente de elegir arriba, o de escribir aquí.</p>
+                    <p>Pendiente</p>
                   </EuiText>
                 ) : state.status === 'incomplete' ? (
                   <EuiText size='s' color='subdued'>
-                    <p>Sin valor común: cada control sigue con el suyo.</p>
+                    <p>Sin valor común</p>
                   </EuiText>
                 ) : (
                   <ValueLines value={state.value} />

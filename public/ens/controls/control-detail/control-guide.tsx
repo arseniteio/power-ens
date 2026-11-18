@@ -202,7 +202,7 @@ const EvidenceBody = ({
         </Section>
       ) : (
         <Section title='Propuesta de la plantilla'>
-          <p>Evidencia propia de Power ENS. No está en la plantilla.</p>
+          <p>Evidencia propia de Power ENS</p>
         </Section>
       )}
       {guide.setup && (

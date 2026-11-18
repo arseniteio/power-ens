@@ -119,7 +119,7 @@ const STATUS_LEGEND: { status: string; gloss: string }[] = [
     gloss: 'no demostrado · resta igual · se habilita la prueba',
   },
   { status: 'NO_APLICA', gloss: 'fuera del nivel activo · no resta' },
-  { status: ENS_PENDING_MEASUREMENT_LABEL, gloss: 'control sin recolector todavía · no entra en el índice' },
+  { status: ENS_PENDING_MEASUREMENT_LABEL, gloss: 'sin recolector · fuera del índice' },
 ];
 
 const PendingBadge = () => (

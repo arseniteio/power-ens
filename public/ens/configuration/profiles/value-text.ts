@@ -34,7 +34,7 @@ export const originText = (sources: ENSValueSource[]): string => {
     case 'organisation':
       return 'Valor común de la organización';
     case 'profile':
-      return sources.length === 1 ? `Perfil ${quoted(first)}` : `Unión de los perfiles ${sources.map(quoted).join(', ')}`;
+      return sources.length === 1 ? `Grupo ${quoted(first)}` : `Unión de grupos ${sources.map(quoted).join(', ')}`;
     default:
       return '';
   }

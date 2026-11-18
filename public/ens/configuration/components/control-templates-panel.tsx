@@ -188,9 +188,6 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
       <EuiTitle size='s'>
         <h3>Plantillas</h3>
       </EuiTitle>
-      <EuiText size='s' color='subdued'>
-        <p>Las de serie se duplican para editarlas.</p>
-      </EuiText>
       <EuiSpacer size='s' />
 
       {notice && (

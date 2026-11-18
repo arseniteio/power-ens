@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { EuiCallOut, EuiFormRow, EuiPanel, EuiSpacer, EuiSwitch, EuiText, EuiTitle } from '@elastic/eui';
+import { EuiCallOut, EuiFormRow, EuiPanel, EuiSpacer, EuiSwitch, EuiTitle } from '@elastic/eui';
 
 import type { ENSConfigurationVersion } from '../../../../common/ens/configuration/types';
 import { saveFromLatestConfiguration } from '../../../../common/ens/configuration/services';
-import { exclusionGroupOf, withControlGroups } from '../../../../common/ens/core/scope/evaluable-groups';
+import { withControlGroups } from '../../../../common/ens/core/scope/evaluable-groups';
 
 interface ControlGroupsPanelProps {
   configuration: ENSConfigurationVersion;
@@ -36,13 +36,6 @@ export const ControlGroupsPanel = ({ configuration, onConfigurationSaved }: Cont
       <EuiTitle size='s'>
         <h3>Grupos por control</h3>
       </EuiTitle>
-      <EuiText size='s' color='subdued'>
-        <p>
-          El motor crea en Wazuh un grupo por control, como <code>{exclusionGroupOf('op.acc.1')}</code>. Una máquina que metas en ese grupo deja de
-          evaluarse en ese control y aparece como «No aplica». El manager de Wazuh no admite grupos, así que no se puede excluir así.
-        </p>
-        <p>Al desactivarla, los grupos se ignoran y no se borra ninguno.</p>
-      </EuiText>
       <EuiSpacer size='s' />
       {saveError && (
         <>
