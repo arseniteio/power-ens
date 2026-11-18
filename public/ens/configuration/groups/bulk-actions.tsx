@@ -38,7 +38,7 @@ const slug = (text: string): string =>
     .slice(0, 63);
 
 export const TYPE_TEMPLATE_OPTIONS = [
-  { value: '', text: 'La de su tipo detectado' },
+  { value: '', text: 'Detectado automáticamente' },
   ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: `${ENS_SYSTEM_TYPE_LABELS[type]}` })),
   { value: ENS_NO_TEMPLATE, text: 'Sin plantilla' },
 ];

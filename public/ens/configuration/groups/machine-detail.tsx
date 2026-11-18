@@ -65,8 +65,8 @@ const stateOf = (row: ControlRow): { text: string; color: string } => {
 const templateText = (stored: string | undefined, detected?: ENSSystemType): string => {
   if (stored === ENS_NO_TEMPLATE) return 'Sin plantilla';
   const manual = knownSystemType(stored);
-  if (manual) return `${ENS_SYSTEM_TYPE_LABELS[manual]} (elegida a mano)`;
-  return detected ? `${ENS_SYSTEM_TYPE_LABELS[detected]} (la de su tipo detectado)` : 'Ninguna: su tipo no se ha detectado';
+  if (manual) return `${ENS_SYSTEM_TYPE_LABELS[manual]} (asignada manualmente)`;
+  return detected ? `${ENS_SYSTEM_TYPE_LABELS[detected]} (detectado automáticamente)` : 'Ninguna (tipo no detectado)';
 };
 
 export const MachineDetail = ({ agentId, groupName, revision, onBack, onNavigate, onConfigurationSaved }: MachineDetailProps) => {

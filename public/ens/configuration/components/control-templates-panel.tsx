@@ -252,7 +252,7 @@ export const ControlTemplatesPanel = ({ configuration, control, rows, onConfigur
               <Choice
                 legend='Reasignar sus agentes a'
                 options={[
-                  { value: TYPE_DEFAULT, text: 'La de serie de su tipo' },
+                  { value: TYPE_DEFAULT, text: 'Detectado automáticamente' },
                   ...templates.filter(item => item.id !== removal.id).map(item => ({ value: item.id, text: item.name })),
                   { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
                 ]}

@@ -199,7 +199,7 @@ export const ControlAssignmentPanel = ({
             legend='Plantilla que se asigna'
             options={[
               { value: '', text: 'Elegir plantilla…' },
-              { value: BY_TYPE, text: 'La de serie de su tipo' },
+              { value: BY_TYPE, text: 'Detectado automáticamente' },
               ...templates.map(template => ({ value: template.id, text: `${template.name}${template.builtin ? ' (de serie)' : ''}` })),
               { value: ENS_NO_TEMPLATE, text: 'Sin plantilla (valores por defecto)' },
             ]}
