@@ -1,17 +1,21 @@
 import React from 'react';
+import { getHttp } from '../../../services';
+import type { ENSOsKind } from './os-kind';
+
+export { osKindOf } from './os-kind';
+export type { ENSOsKind } from './os-kind';
 
 // Own generic glyphs, not the vendors' trademarks: four panes for Windows, a penguin for Linux.
-export type ENSOsKind = 'windows' | 'linux' | 'apple' | 'other';
+// The Wazuh manager shows the Wazuh mark that the dashboard itself serves.
+const WAZUH_MARK_PATH = '/ui/logos/wazuh_mark_on_light.svg';
 
-export const osKindOf = (host: { family?: string; distro?: string; os?: { platform?: string; name?: string } }): ENSOsKind => {
-  const text = `${host.family || ''} ${host.distro || ''} ${host.os?.platform || ''} ${host.os?.name || ''}`.toLowerCase();
-  if (text.includes('windows')) return 'windows';
-  if (text.includes('darwin') || text.includes('macos')) return 'apple';
-  if (/linux|ubuntu|debian|rhel|rocky|alma|centos|fedora|suse|amazon|alpine|arch/.test(text)) return 'linux';
-  return 'other';
+const OS_NAMES: Record<ENSOsKind, string> = {
+  wazuh: 'Manager de Wazuh',
+  windows: 'Windows',
+  linux: 'Linux',
+  apple: 'macOS',
+  other: 'Otro sistema',
 };
-
-const OS_NAMES: Record<ENSOsKind, string> = { windows: 'Windows', linux: 'Linux', apple: 'macOS', other: 'Otro sistema' };
 
 const WindowsGlyph = () => (
   <g fill='#2f6fbf'>
@@ -48,12 +52,22 @@ const OtherGlyph = () => (
   </g>
 );
 
-export const OsIcon = ({ kind, size = 20 }: { kind: ENSOsKind; size?: number }) => (
-  <svg width={size} height={size} viewBox='0 0 24 24' role='img' aria-label={OS_NAMES[kind]} style={{ flexShrink: 0, verticalAlign: 'middle' }}>
-    <title>{OS_NAMES[kind]}</title>
-    {kind === 'windows' && <WindowsGlyph />}
-    {kind === 'linux' && <PenguinGlyph />}
-    {kind === 'apple' && <AppleGlyph />}
-    {kind === 'other' && <OtherGlyph />}
-  </svg>
-);
+export const OsIcon = ({ kind, size = 20 }: { kind: ENSOsKind; size?: number }) =>
+  kind === 'wazuh' ? (
+    <img
+      src={getHttp().basePath.prepend(WAZUH_MARK_PATH)}
+      width={size}
+      height={size}
+      alt={OS_NAMES.wazuh}
+      title={OS_NAMES.wazuh}
+      style={{ flexShrink: 0, verticalAlign: 'middle', objectFit: 'contain' }}
+    />
+  ) : (
+    <svg width={size} height={size} viewBox='0 0 24 24' role='img' aria-label={OS_NAMES[kind]} style={{ flexShrink: 0, verticalAlign: 'middle' }}>
+      <title>{OS_NAMES[kind]}</title>
+      {kind === 'windows' && <WindowsGlyph />}
+      {kind === 'linux' && <PenguinGlyph />}
+      {kind === 'apple' && <AppleGlyph />}
+      {kind === 'other' && <OtherGlyph />}
+    </svg>
+  );
