@@ -23,7 +23,7 @@ import { FilterBar } from '../ens/ui/filter-bar';
 const PAGE_SIZE = 10;
 const SEARCH_DELAY_MS = 300;
 
-const FAMILY_LABELS: Record<string, string> = { linux: 'Linux', windows: 'Windows', darwin: 'macOS' };
+const FAMILY_LABELS: Record<string, string> = { debian: 'Debian', rhel: 'RHEL', suse: 'SUSE', arch: 'Arch', alpine: 'Alpine', linux: 'Linux', windows: 'Windows', darwin: 'macOS' };
 
 const familyLabel = (family: string): string => FAMILY_LABELS[family.toLowerCase()] || family;
 
