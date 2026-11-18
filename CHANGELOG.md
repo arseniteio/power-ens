@@ -4,38 +4,35 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-18
+
 ### Added
 
-- Choices show every option at once: buttons side by side for a few, a list with a search box for many. Dropdown menus are gone from the configuration, except the fields where a list of values is typed. Máquina opens a side panel with a search and every machine in view.
-- Configuración is organised by groups: Grupos y máquinas replaces Estado, Máquinas and Perfiles. Each group lists its controls and its machines; Cargar plantilla copies a built-in template into a group; selected machines can be added to a hand-picked group, given a plantilla or given a value at once. A machine shows its groups, its plantilla (including Sin plantilla) and a Configurar button per control. Machines show their operating system with Power ENS's own glyphs.
+- Grupos y máquinas in Configuración. Each group lists its controls and its machines. Cargar plantilla copies a built-in template into a group. Selected machines can be added to a hand-picked group, given a template or given a value at once. Each machine shows its groups, its template (Detectado automáticamente, a fixed type or Sin plantilla) and a Configurar button per control.
+- The group editor has four sections (Identificación, Capa, Condiciones, Parámetros) and a live list of the machines the group includes. Importar reads YAML or JSON and shows new, changed, unchanged and invalid groups before applying; Exportar writes YAML in the `oscompliance-policy` format. Edits are collected in one save bar and written together, with a version check against concurrent changes.
+- The machine selector searches the server page by page, with filters by system family and group, and scales to thousands of machines.
+- Machines show an icon of their system: the Wazuh mark for the manager, and own glyphs for Windows, macOS, Ubuntu, Debian, RHEL, Rocky Linux, AlmaLinux, CentOS, Fedora, Oracle Linux, Amazon Linux and SUSE, with a generic Linux icon as fallback.
 - Madurez de la organización at the top of Panel: CMM levels accredited by the engine and assessed by people, distribution, global levels and measures below target. Detalle del control shows the maturity of the control with Valorar, and Informes adds it to the screen and the PDF. Assessments are stored in `configuration.maturity`; the server signs each changed one with the user and the date.
-- Organización holds twelve shared data instead of six: authorised personnel now feeds op.exp.3, op.exp.4, op.exp.8, op.exp.10, mp.info.6 and op.nub.1; retention feeds op.exp.8, op.exp.9, mp.info.6 and mp.s.3; the statement of applicability feeds op.mon.2; and preproduction environment, change and incident tools, CCN-authorised algorithms, certified products, staff training and awareness activities are new. Existing control values move in when they agree, and are flagged when they differ.
-- Organización lists the measures the controls cite without an engine (org.2, op.pl.5, op.ext.3, mp.per.3, mp.per.4, mp.com.2, mp.si.5, mp.info.2, mp.sw.1) to assess their maturity.
-- Exportar métricas (CSV) in Panel downloads per measure the operational status, compliance and accredited, assessed and target maturity, each marked as measured or declared, as data for the article 32 annual report. The official report layout is not built yet.
-- The built-in `windows` profile of the OSCompliance catalog, for every machine of family `windows`, with Windows paths for op.acc.2, op.exp.3, op.exp.6 and op.exp.10 and the English and Spanish names of the built-in groups. Machines with the OSCompliance agent for Windows show their verdicts like any other machine.
-- `/api/powerEns/maturity/organization` returns the newest organization maturity written by the engine.
-- Configuración has the tabs Estado, Máquinas, Perfiles, Pendiente, Organización and General. Estado summarises machines without a profile, unset parameters that leave evidences not evaluable, coverage per role, distribution and profile, and the latest changes.
-- Máquinas lists the machines in `oscompliance-host-profile` with server-side paging, search and filters by profile, role, distribution, service and Wazuh group. Each machine opens a panel with what the engine deduced, its profiles and the value and origin of every per-machine parameter.
-- Perfiles lists the built-in and stored profiles by layer, and edits them with a condition builder, a live preview of the machines that match and the values of the per-machine parameters. New profiles start blank, from a copy or from a file. Importar reads YAML or JSON with one or several profiles and shows new, changed, unchanged and invalid profiles before applying; Exportar writes YAML in the `oscompliance-policy` format.
-- Profile edits are collected in one save bar (Descartar, Revisar, Guardar) and written together, with a version check against concurrent changes.
-- Pendiente lists machines without a profile and the unset parameters of the last verdicts, with a link to where each one is set.
-- `/api/powerEns/profiles` lists, reads, writes, deletes, imports and exports profiles, and `/api/powerEns/hosts` searches the machines and returns a machine with its profiles and values.
-- The plugin ships the built-in profiles of the OSCompliance catalog in `common/ens/catalog/profiles`, and `config/sync-catalog.ts` copies them.
-- New runtime dependency `yaml` 2.6.1 (ISC), used by the server to read and write profile files.
+- Exportar métricas (CSV) in Panel downloads, per measure, the operational status, compliance and the accredited, assessed and target maturity, each marked as measured or declared.
+- Organización holds twelve shared data items instead of six, and lists the measures the controls cite without an engine (org.2, op.pl.5, op.ext.3, mp.per.3, mp.per.4, mp.com.2, mp.si.5, mp.info.2, mp.sw.1) to assess their maturity. Existing control values move in when they agree and are flagged when they differ.
+- Pendiente lists the machines without a group and the unset parameters of the last verdicts, with a link to where each one is set.
+- The built-in `windows` group of the OSCompliance catalog. Machines with the OSCompliance agent for Windows, not yet tested on a physical machine, show their verdicts like any other machine.
+- `/api/powerEns/profiles`, `/api/powerEns/hosts` and `/api/powerEns/maturity/organization`.
+- New runtime dependency `yaml` 2.6.1 (ISC), used by the server to read and write group files.
 
 ### Changed
 
-- The organisation data and the values of each control are in the Organización tab; the client, level, groups in scope and per-control groups are in General.
-- The per-machine values of the old Agentes tab open from the machine panel in Máquinas.
-- Detalle del control and Informes show the value and origin of a per-machine parameter with the profiles of that machine, as the engine resolves it.
-- The usage guide describes the new tabs and the order in which a machine's value is chosen; the installation guide lists the index permissions they need.
-- The repository is now `arseniteio/power-ens-wazuh`, to leave room for other SIEMs. The release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
-- The installation guide lists the disk the plugin needs on each dashboard node.
-- `CONTRIBUTING.md` and `CONTRIBUTING.es.md` explain how to propose a change and the contributor license agreement.
+- The repository is now `arseniteio/power-ens-wazuh`, and the release zips are named `power-ens-wazuh-<version>-osd-<osd>.zip`. The plugin ID `powerEns` and its paths do not change.
+- The interface uses short labels instead of explanatory text. Explanations sit behind an information icon next to the title.
+- Choices are shown as buttons, or as a list with a search box when there are many. The configuration has no dropdown menus, except the fields where a list of values is typed.
+- Organización holds the organisation data and the values of each control; General holds the client, the level, the groups in scope and the per-control groups.
+- Detalle del control and Informes show the value and origin of each per-machine parameter, as the engine resolves it.
+- The usage guide describes the new tabs and the order in which a machine's value is chosen; the installation guide lists the index permissions and the disk each dashboard node needs. `CONTRIBUTING.md` and `CONTRIBUTING.es.md` explain how to propose a change.
 
 ### Fixed
 
-- A whole control row in Panel opens its detail, and Informes and Evidencias link to Detalle del control.
+- A family in Panel filters its controls and scrolls to them, a whole control row opens its detail, and Informes and Evidencias link to Detalle del control.
+- Assigning a template from Valores propios does not ask for a confirmation word.
 - The result screens no longer fail with "Maximum call stack size exceeded" on a deployment with thousands of machines.
 
 ## [1.2.0] - 2026-11-16
@@ -74,7 +71,8 @@ First release.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
 - Plugin builds for OpenSearch Dashboards 2.19.5 (Wazuh 4.14.7) and 2.19.6 (Wazuh 4.14.8 and 4.14.9), and `dashboard.Dockerfile` for Wazuh on Docker.
 
-[Unreleased]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/arseniteio/power-ens-wazuh/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/arseniteio/power-ens-wazuh/releases/tag/v1.0.0
