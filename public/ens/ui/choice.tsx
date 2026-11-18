@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EuiButtonGroup, EuiSelectable } from '@elastic/eui';
+import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiSelectable } from '@elastic/eui';
 
 export interface ENSChoiceOption {
   value: string;
@@ -13,7 +13,6 @@ interface ChoiceProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
-  fullWidth?: boolean;
 }
 
 // Up to this many options are shown as buttons side by side; more become a list with a search box.
@@ -28,23 +27,32 @@ const useId = (): string => {
 const buttonId = (prefix: string, value: string): string => `${prefix}-${value === '' ? 'none' : value.replace(/[^A-Za-z0-9_-]/g, '_')}`;
 
 // Every option stays visible: no menu opens on top of the page.
-export const Choice = ({ legend, options, value, onChange, disabled, fullWidth }: ChoiceProps) => {
+export const Choice = ({ legend, options, value, onChange, disabled }: ChoiceProps) => {
   const prefix = useId();
 
   if (options.length <= BUTTONS_MAX) {
+    // Own toggle buttons: a button group truncates the labels to fit its width.
     return (
-      <EuiButtonGroup
-        legend={legend}
-        buttonSize='compressed'
-        isFullWidth={fullWidth}
-        isDisabled={disabled}
-        idSelected={buttonId(prefix, value)}
-        options={options.map(option => ({ id: buttonId(prefix, option.value), label: option.text, isDisabled: option.disabled }))}
-        onChange={id => {
-          const picked = options.find(option => buttonId(prefix, option.value) === id);
-          if (picked) onChange(picked.value);
-        }}
-      />
+      <EuiFlexGroup gutterSize='xs' wrap responsive={false} role='radiogroup' aria-label={legend}>
+        {options.map(option => {
+          const selected = option.value === value;
+          return (
+            <EuiFlexItem grow={false} key={buttonId(prefix, option.value)}>
+              <EuiButton
+                size='s'
+                fill={selected}
+                color={selected ? 'primary' : 'text'}
+                role='radio'
+                aria-checked={selected}
+                isDisabled={disabled || option.disabled}
+                onClick={() => !selected && onChange(option.value)}
+              >
+                {option.text}
+              </EuiButton>
+            </EuiFlexItem>
+          );
+        })}
+      </EuiFlexGroup>
     );
   }
 
