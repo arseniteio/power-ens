@@ -4,20 +4,20 @@ Power ENS aparece en el menú del dashboard de Wazuh. Todos los resultados viene
 
 ## Configuración
 
-Configuración guarda lo que declara la organización. Cualquiera con acceso al dashboard puede verla; para guardar hace falta el rol `power_ens_admin` o `all_access`. Tiene cuatro pestañas.
+Configuración guarda lo que declara la organización. La explicación de cada sección está en el icono de información junto a su título. Cualquiera con acceso al dashboard puede verla; para guardar hace falta el rol `power_ens_admin` o `all_access`. Tiene cuatro pestañas.
 
 Grupos y máquinas es donde se fijan los valores por grupo de máquinas. La lista de la izquierda muestra los grupos, cuántas máquinas tiene cada uno y si tiene valores, y Sin grupo para las máquinas que no están en ninguno. Una máquina entra en un grupo porque cumple sus condiciones (distribución, familia, función, servicio, grupo de Wazuh, nombre) o porque se añadió a mano. Cada grupo tiene dos vistas:
 
-- Controles del grupo lista los controles con parámetros por máquina. Configurar abre los valores que el grupo da a todas sus máquinas.
-- Máquinas lista sus máquinas, con su sistema operativo, página a página y con búsqueda. Al elegir varias aparecen Añadir a un grupo, Sacar del grupo (en un grupo elegido a mano), Cambiar la plantilla y Cambiar un valor en todas.
+- Controles lista los controles con parámetros por máquina. Configurar abre los valores que el grupo da a todas sus máquinas.
+- Máquinas lista sus máquinas, con su sistema operativo, página a página y con búsqueda. Al elegir varias aparecen Añadir a grupo, Sacar del grupo (en un grupo elegido a mano), Plantilla y Fijar valor.
 
-Cargar plantilla copia en el grupo los valores de una plantilla incluida (Ubuntu, Windows, manager); los que el grupo ya tenía para los mismos parámetros se sustituyen. Editar grupo cambia su nombre, capa y condiciones, con una vista previa de las máquinas que recibe. Nuevo crea un grupo vacío, a partir de otro o desde un fichero; Exportar escribe los grupos en YAML.
+Cargar plantilla copia en el grupo los valores de una plantilla incluida (Ubuntu, Windows, manager); los que el grupo ya tenía para los mismos parámetros se sustituyen. Editar grupo abre el grupo en cuatro secciones, Identificación, Capa, Condiciones y Parámetros, con la lista de máquinas que incluye. Nuevo crea un grupo vacío, a partir de otro o desde un fichero; Exportar escribe los grupos en YAML.
 
-Al abrir una máquina se ven sus grupos, su plantilla y sus controles. La plantilla da valores de partida según el tipo de sistema: la de su tipo detectado, una elegida a mano o Sin plantilla, en cuyo caso solo recibe los valores de sus grupos y los propios. Configurar en un control abre sus parámetros con el origen de cada valor (la máquina, un grupo, la plantilla o la organización); lo que se cambia ahí vale solo para esa máquina.
+Al abrir una máquina se ven sus grupos, su plantilla y sus controles. La plantilla da valores de partida según el tipo de sistema: Detectado automáticamente, una elegida a mano o Sin plantilla, en cuyo caso solo recibe los valores de sus grupos y los propios. Configurar en un control abre sus parámetros con el origen de cada valor (la máquina, un grupo, la plantilla o la organización); lo que se cambia ahí vale solo para esa máquina.
 
 Los cambios en grupos se acumulan en la barra inferior de la página. Revisar los lista, Descartar los quita y Guardar los escribe todos. La plantilla y los valores por máquina se guardan al momento. El motor lo aplica todo en su siguiente pasada.
 
-Pendiente lista lo que necesita una decisión: las máquinas que no cumplen ningún perfil y los parámetros sin valor que dejan evidencias sin evaluar, según los últimos veredictos. Cada parámetro enlaza con donde se fija: un perfil para los parámetros por máquina y Organización para el resto.
+Pendiente lista lo que necesita una decisión: las máquinas sin grupo y los parámetros sin valor que dejan evidencias sin evaluar, según los últimos veredictos. Cada parámetro enlaza con donde se fija: un grupo para los parámetros por máquina y Organización para el resto.
 
 Organización guarda, una sola vez, los datos que comparten varios controles: personal autorizado, entorno de preproducción, herramientas de cambios e incidentes, algoritmos autorizados por el CCN, plazos de retención, zonas controladas, canales de acceso remoto, productos certificados, formación del personal, actividades de concienciación, grupos con privilegio y declaración de aplicabilidad. Cada control lee las filas de su uso. Guarda también los valores de cada control que valen para toda la organización. Abre un control y pulsa Completar configuración para rellenar lo que falta. Desde un control también se puede asignar una plantilla a algunas máquinas.
 
@@ -25,7 +25,7 @@ General guarda el cliente, el nivel ENS (BAJO, MEDIO o ALTO), los grupos en alca
 
 El valor de una máquina sale del primero de: su valor propio, la plantilla asignada en el control, sus grupos, su plantilla y el valor de la organización. Las listas se suman entre grupos; el resto de valores salen de la capa más específica. El orden se describe en [política ENS](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#política-ens).
 
-Para automatizar, `oscompliance-policy` lee y escribe los mismos perfiles desde ficheros YAML en el manager, y `config/set-parameters.py` rellena valores de la organización y de máquinas desde un fichero JSON después del primer guardado. Consulta [perfiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#perfiles) y [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
+Para automatizar, `oscompliance-policy` lee y escribe los mismos grupos, guardados como perfiles, desde ficheros YAML en el manager, y `config/set-parameters.py` rellena valores de la organización y de máquinas desde un fichero JSON después del primer guardado. Consulta [perfiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#perfiles) y [parámetros desde un fichero](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/es/configuration.md#parámetros-desde-un-fichero).
 
 Un parámetro que nadie ha definido nunca se sustituye por una suposición: las evidencias que lo necesitan salen como no evaluables y el motivo nombra el parámetro. El significado de cada parámetro está en las [páginas de control](https://github.com/arseniteio/oscompliance-ens-wazuh/tree/main/docs/es/controls).
 
@@ -39,7 +39,7 @@ Madurez de la organización es la valoración del ENS (Anexo II, apdo. 6): nivel
 
 Vista general muestra una fila por máquina con su cumplimiento total. Al abrir una máquina se ven sus controles, el trabajo pendiente y los últimos 30 días.
 
-Detalle del control muestra un control en una máquina: cada requisito, cada evidencia con su estado y su motivo, y una explicación de cómo se mide. El selector Máquina cambia de máquina. Aquí es donde se averigua por qué falla algo.
+Detalle del control muestra un control en una máquina: cada requisito, cada evidencia con su estado y su motivo, y una explicación de cómo se mide. Seleccionar máquina, arriba en todas las vistas, busca las máquinas en el servidor con filtros por sistema y grupo. Aquí es donde se averigua por qué falla algo.
 
 Evidencias lista las evidencias de todos los controles, con su estado por máquina.
 

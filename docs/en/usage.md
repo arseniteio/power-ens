@@ -4,20 +4,20 @@ Power ENS appears in the Wazuh dashboard menu. The screens are in Spanish, so th
 
 ## Configuration
 
-Configuración holds what the organisation declares. Anyone with dashboard access can read it; saving needs the `power_ens_admin` or `all_access` role. It has four tabs.
+Configuración holds what the organisation declares. Explanations of each section are behind the information icon next to its title. Anyone with dashboard access can read it; saving needs the `power_ens_admin` or `all_access` role. It has four tabs.
 
 Grupos y máquinas is where values are set per group of machines. The list on the left shows the groups, how many machines each has and whether it has values, and Sin grupo for the machines in none. A machine enters a group because it meets its conditions (distribution, family, role, service, Wazuh group, host name) or because it was added by hand. Each group has two views:
 
-- Controles del grupo lists the controls with per-machine parameters. Configurar opens the values the group gives to all its machines.
-- Máquinas lists its machines, with their operating system, page by page and with a search. Selecting several shows Añadir a un grupo, Sacar del grupo (in a group chosen by hand), Cambiar la plantilla and Cambiar un valor en todas.
+- Controles lists the controls with per-machine parameters. Configurar opens the values the group gives to all its machines.
+- Máquinas lists its machines, with their operating system, page by page and with a search. Selecting several shows Añadir a grupo, Sacar del grupo (in a group chosen by hand), Plantilla and Fijar valor.
 
-Cargar plantilla copies the values of a built-in template (Ubuntu, Windows, manager) into the group; values the group already had for the same parameters are replaced. Editar grupo changes its name, layer and conditions, with a preview of the machines it gets. Nuevo starts a group from scratch, from a copy or from a file; Exportar writes the groups as YAML.
+Cargar plantilla copies the values of a built-in template (Ubuntu, Windows, manager) into the group; values the group already had for the same parameters are replaced. Editar grupo opens the group in four sections, Identificación, Capa, Condiciones and Parámetros, with the list of machines it includes. Nuevo starts a group from scratch, from a copy or from a file; Exportar writes the groups as YAML.
 
-Opening a machine shows its groups, its plantilla and its controls. The plantilla gives starting values by system type: the one of its detected type, one chosen by hand, or Sin plantilla, in which case it takes only the values of its groups and its own. Configurar on a control opens its parameters with where each value comes from (the machine, a group, the plantilla or the organisation); what is changed there applies to that machine only.
+Opening a machine shows its groups, its plantilla and its controls. The plantilla gives starting values by system type: Detectado automáticamente, one chosen by hand, or Sin plantilla, in which case it takes only the values of its groups and its own. Configurar on a control opens its parameters with where each value comes from (the machine, a group, the plantilla or the organisation); what is changed there applies to that machine only.
 
 Edits to groups are collected in the bar at the bottom of the page. Revisar lists them, Descartar drops them and Guardar writes them all. Plantilla and per-machine values are saved at once. The engine applies everything on its next pass.
 
-Pendiente lists what needs a decision: machines that match no profile and parameters without a value that leave evidences not evaluable, according to the last verdicts. Each parameter links to where it is set: a profile for per-machine parameters, Organización for the rest.
+Pendiente lists what needs a decision: machines in no group and parameters without a value that leave evidences not evaluable, according to the last verdicts. Each parameter links to where it is set: a group for per-machine parameters, Organización for the rest.
 
 Organización holds the data that several controls share, entered once: authorised personnel, preproduction environment, change and incident tools, CCN-authorised algorithms, retention periods, controlled zones, remote access channels, certified products, staff training, awareness activities, privileged groups and the statement of applicability. Each control reads the rows of its use. It also holds the values of each control that apply to the whole organisation. Open a control and press Completar configuración to fill in what is missing. A control also lets a template be assigned to some machines.
 
@@ -25,7 +25,7 @@ General holds the client, the ENS level (BAJO, MEDIO or ALTO), the groups in sco
 
 A machine's value comes from the first of: its own value, the template assigned to it in the control, its groups, its plantilla, and the organisation value. Lists add up across groups; other values come from the most specific layer. The order is described in [ENS policy](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#ens-policy).
 
-For automation, `oscompliance-policy` reads and writes the same profiles from YAML files on the manager, and `config/set-parameters.py` fills in organisation and machine values from a JSON file after the first save. See [profiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#profiles) and [parameters from a file](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#parameters-from-a-file).
+For automation, `oscompliance-policy` reads and writes the same groups, stored as profiles, from YAML files on the manager, and `config/set-parameters.py` fills in organisation and machine values from a JSON file after the first save. See [profiles](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#profiles) and [parameters from a file](https://github.com/arseniteio/oscompliance-ens-wazuh/blob/main/docs/en/configuration.md#parameters-from-a-file).
 
 A parameter nobody has set is never replaced by an assumption: the evidences that need it show as not evaluable, and the reason names the parameter. What each parameter means is on the [control pages](https://github.com/arseniteio/oscompliance-ens-wazuh/tree/main/docs/en/controls).
 
@@ -39,7 +39,7 @@ Madurez de la organización is the ENS valuation (Anexo II, apdo. 6): CMM levels
 
 Vista general shows one row per machine with its total compliance. Opening a machine shows its controls and the work pending on it, and the last 30 days.
 
-Detalle del control shows one control on one machine: each requirement, each evidence with its status and reason, and an explanation of how it is measured. Use the Máquina selector to change machine. This is where to go to find out why something fails.
+Detalle del control shows one control on one machine: each requirement, each evidence with its status and reason, and an explanation of how it is measured. Seleccionar máquina, at the top of every view, searches the machines in the server with filters by system and group. This is where to go to find out why something fails.
 
 Evidencias lists the evidences of all controls, with their status per machine.
 
