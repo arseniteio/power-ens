@@ -34,7 +34,8 @@ export const MachineSelector = () => {
     );
   }, [agents, query, kind]);
 
-  const searching = Boolean(query.trim() || kind);
+  // With few machines every one is in view; with many, only after filtering.
+  const searching = agents.length <= SHOWN || Boolean(query.trim() || kind);
   const pick = (id?: string) => {
     changes({ agentId: id });
     setQuery('');
@@ -67,7 +68,7 @@ export const MachineSelector = () => {
         onFilter={setKind}
         query={query}
         onQuery={setQuery}
-        placeholder='Buscar máquina por nombre, número de agente o sistema'
+        placeholder='Nombre, agente o sistema'
         ariaLabel='Buscar máquina'
       />
       {searching && (
@@ -99,7 +100,7 @@ export const MachineSelector = () => {
           </EuiFlexGroup>
           <EuiSpacer size='xs' />
           <EuiText size='xs' color='subdued'>
-            <p>{matches.length > SHOWN ? `${SHOWN} de ${matches.length}. Escribe para acotar.` : matches.length ? `${matches.length} máquinas` : 'Ninguna máquina coincide.'}</p>
+            <p>{matches.length > SHOWN ? `${SHOWN} de ${matches.length}` : matches.length ? `${matches.length} máquinas` : 'Ninguna máquina coincide.'}</p>
           </EuiText>
         </>
       )}
