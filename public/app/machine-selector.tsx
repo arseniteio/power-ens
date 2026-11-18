@@ -171,9 +171,18 @@ export const MachineSelector = () => {
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
           {agentId ? (
-            <EuiBadge color='primary' iconType='cross' iconSide='right' iconOnClick={() => pick(undefined)} iconOnClickAriaLabel='Ver todas las máquinas'>
-              {current ? `${current.name || current.id} (${current.id})` : agentId}
-            </EuiBadge>
+            <EuiFlexGroup gutterSize='xs' alignItems='center' responsive={false}>
+              {current && (
+                <EuiFlexItem grow={false}>
+                  <OsIcon kind={osKindOf({ id: current.id, isManager: current.isManager, os: current.os })} size={18} />
+                </EuiFlexItem>
+              )}
+              <EuiFlexItem grow={false}>
+                <EuiBadge color='primary' iconType='cross' iconSide='right' iconOnClick={() => pick(undefined)} iconOnClickAriaLabel='Ver todas las máquinas'>
+                  {current ? `${current.name || current.id} (${current.id})` : agentId}
+                </EuiBadge>
+              </EuiFlexItem>
+            </EuiFlexGroup>
           ) : (
             <EuiText size='s' color='subdued'>
               <span>Todas</span>

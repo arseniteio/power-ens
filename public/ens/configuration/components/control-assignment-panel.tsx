@@ -37,6 +37,7 @@ import { errorMessage } from './confirm-modal';
 import { agentTypeLabel } from './labels';
 import { ENSAgentRow, agentRowLabel } from './use-agents-data';
 import { Choice } from '../../ui/choice';
+import { OsIcon, osKindOf } from '../groups/os-icon';
 
 interface ControlAssignmentPanelProps {
   configuration: ENSConfigurationVersion;
@@ -128,7 +129,7 @@ export const ControlAssignmentPanel = ({
       name: 'Agente',
       render: (_id: string, row: ENSAgentRow) => (
         <EuiButtonEmpty size='xs' flush='left' onClick={() => onNavigate({ view: 'agents', agentId: row.id, controlId })}>
-          {agentRowLabel(row)}
+          <OsIcon kind={osKindOf({ id: row.id, os: row.agent.os })} size={16} /> {agentRowLabel(row)}
         </EuiButtonEmpty>
       ),
     },

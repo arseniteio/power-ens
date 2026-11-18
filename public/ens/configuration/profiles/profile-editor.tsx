@@ -27,6 +27,7 @@ import { LAYER_HELP, LAYER_LABELS, hostLabel, machines } from './profile-labels'
 import { ENSHostPreview, profilesClient } from './profiles-client';
 import { Choice } from '../../ui/choice';
 import { InfoTip } from '../../ui/info-tip';
+import { OsIcon, osKindOf } from '../groups/os-icon';
 
 interface ProfileEditorProps {
   profileId: string;
@@ -451,12 +452,19 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 {preview.hosts.map(host => (
                   <React.Fragment key={host.agentId}>
                     <EuiHorizontalRule margin='xs' />
-                    <EuiText size='s'>
-                      <strong>{hostLabel(host)}</strong>
-                      <EuiText size='xs' color='subdued'>
-                        {[host.agentId, host.distro].filter(Boolean).join(' · ')}
-                      </EuiText>
-                    </EuiText>
+                    <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+                      <EuiFlexItem grow={false}>
+                        <OsIcon kind={osKindOf(host)} />
+                      </EuiFlexItem>
+                      <EuiFlexItem>
+                        <EuiText size='s'>
+                          <strong>{hostLabel(host)}</strong>
+                          <EuiText size='xs' color='subdued'>
+                            {[host.agentId, host.distro].filter(Boolean).join(' · ')}
+                          </EuiText>
+                        </EuiText>
+                      </EuiFlexItem>
+                    </EuiFlexGroup>
                   </React.Fragment>
                 ))}
                 {preview.total > preview.hosts.length && (

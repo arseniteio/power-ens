@@ -7,6 +7,7 @@ import { detectAgentSystem, withInventoryTypes } from '../../../../common/ens/co
 import type { ENSConfigurationTarget } from '../../../routing/configuration-link';
 import { AgentConfigurationPage } from './agent-configuration-page';
 import { ENSAgentRow, agentRowLabel, buildAgentRows, useAgentsData } from './use-agents-data';
+import { OsIcon, osKindOf } from '../groups/os-icon';
 
 interface AgentValuesFlyoutProps {
   configuration: ENSConfigurationVersion;
@@ -33,7 +34,9 @@ export const AgentValuesFlyout = ({ configuration: stored, target, getActiveLeve
     <EuiFlyout size='l' ownFocus onClose={() => onNavigate({ view: 'machines', hostId: openId })} aria-labelledby='ens-agent-flyout-title'>
       <EuiFlyoutHeader hasBorder>
         <EuiTitle size='s'>
-          <h2 id='ens-agent-flyout-title'>{`Valores propios de ${agentRowLabel(row)}`}</h2>
+          <h2 id='ens-agent-flyout-title'>
+            <OsIcon kind={osKindOf({ id: row.id, os: row.agent.os })} size={24} /> {`Valores propios de ${agentRowLabel(row)}`}
+          </h2>
         </EuiTitle>
       </EuiFlyoutHeader>
       <EuiFlyoutBody>
