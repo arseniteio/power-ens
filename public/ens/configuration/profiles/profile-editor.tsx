@@ -4,7 +4,6 @@ import {
   EuiBadge,
   EuiButton,
   EuiButtonEmpty,
-  EuiButtonGroup,
   EuiCallOut,
   EuiFieldText,
   EuiFlexGroup,
@@ -27,6 +26,7 @@ import { useProfileChanges } from './profile-changes';
 import { LAYER_HELP, LAYER_LABELS, hostLabel, machines } from './profile-labels';
 import { ENSHostPreview, profilesClient } from './profiles-client';
 import { Choice } from '../../ui/choice';
+import { InfoTip } from '../../ui/info-tip';
 
 interface ProfileEditorProps {
   profileId: string;
@@ -131,6 +131,51 @@ const usePreview = (match: ENSProfileCondition[]) => {
   return { preview, error };
 };
 
+const Section = ({
+  number,
+  title,
+  info,
+  aside,
+  children,
+}: {
+  number: number;
+  title: string;
+  info?: React.ReactNode;
+  aside?: string;
+  children: React.ReactNode;
+}) => (
+  <>
+    <EuiPanel paddingSize='l' hasBorder>
+      <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color='primary'>{number}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiTitle size='xs'>
+            <h4>{title}</h4>
+          </EuiTitle>
+        </EuiFlexItem>
+        {info && (
+          <EuiFlexItem grow={false}>
+            <InfoTip content={info} />
+          </EuiFlexItem>
+        )}
+        <EuiFlexItem />
+        {aside && (
+          <EuiFlexItem grow={false}>
+            <EuiText size='xs' color='subdued'>
+              <span>{aside}</span>
+            </EuiText>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
+      <EuiSpacer size='m' />
+      {children}
+    </EuiPanel>
+    <EuiSpacer size='m' />
+  </>
+);
+
 export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
   const { working, canChange, stageUpsert, stageDeletion, unstage, editorDrafts } = useProfileChanges();
   const suggestions = useConditionSuggestions();
@@ -160,13 +205,14 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
     onClose();
   };
   const [opened, setOpened] = useState<string | undefined>();
+  const [adding, setAdding] = useState(false);
   const { preview, error: previewError } = usePreview(draft.match);
 
   if (!isNew && !existing) {
     return (
-      <EuiCallOut color='warning' iconType='iInCircle' title={`No hay ningún perfil ${profileId}`}>
+      <EuiCallOut color='warning' iconType='iInCircle' title={`Grupo ${profileId} inexistente`}>
         <EuiButton size='s' onClick={close}>
-          Volver a Perfiles
+          Grupos
         </EuiButton>
       </EuiCallOut>
     );
@@ -175,7 +221,7 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
   const readOnly = existing?.staged === 'deleted' && !isNew;
   const profile = profileOf(draft);
   const takenId = isNew && working.some(entry => entry.profile.id === profile.id && entry.staged !== 'deleted');
-  const errors = [...(takenId ? [`ya hay un perfil con el identificador «${profile.id}»`] : []), ...validateProfile(profile)];
+  const errors = [...(takenId ? [`identificador «${profile.id}» en uso`] : []), ...validateProfile(profile)];
   const changed = JSON.stringify(profile) !== JSON.stringify(profileOf(initial)) || isNew;
 
   const update = (patch: Partial<Draft>) => setDraft(previous => ({ ...previous, ...patch }));
@@ -205,12 +251,12 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
     close();
   };
 
-  const title = isNew ? (copyOf ? `Copia de ${existing?.profile.name || copyOf}` : 'Nuevo perfil') : existing!.profile.name;
+  const title = isNew ? (copyOf ? `Copia de ${existing?.profile.name || copyOf}` : 'Nuevo grupo') : existing!.profile.name;
 
   return (
     <>
       <EuiButtonEmpty iconType='arrowLeft' flush='left' size='s' onClick={close}>
-        Perfiles
+        Grupos
       </EuiButtonEmpty>
       <EuiSpacer size='s' />
       <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
@@ -226,22 +272,22 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
         )}
         {existing?.origin === 'override' && !isNew && (
           <EuiFlexItem grow={false}>
-            <EuiBadge color='hollow'>Sustituye al incluido</EuiBadge>
+            <EuiBadge color='hollow'>Versión propia</EuiBadge>
+          </EuiFlexItem>
+        )}
+        {existing && existing.origin !== 'stored' && !isNew && (
+          <EuiFlexItem grow={false}>
+            <InfoTip content='Grupo incluido en Power ENS. Al guardarlo editado, la versión propia sustituye a la incluida; al eliminarla, se recupera la incluida.' />
           </EuiFlexItem>
         )}
       </EuiFlexGroup>
-      {existing?.origin === 'builtin' && !isNew && (
-        <EuiText size='s' color='subdued'>
-          <p>Viene con Power ENS. Si lo cambias, se guarda tu versión y sustituye a la incluida; puedes volver a la incluida eliminando la tuya.</p>
-        </EuiText>
-      )}
       <EuiSpacer size='m' />
 
       {readOnly && (
         <>
-          <EuiCallOut color='danger' iconType='trash' size='s' title='Este perfil se eliminará al guardar.'>
+          <EuiCallOut color='danger' iconType='trash' size='s' title='Eliminación pendiente de guardar'>
             <EuiButton size='s' onClick={() => unstage(profileId)}>
-              No eliminarlo
+              Mantener
             </EuiButton>
           </EuiCallOut>
           <EuiSpacer size='m' />
@@ -250,17 +296,17 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
 
       <EuiFlexGroup gutterSize='l' alignItems='flexStart'>
         <EuiFlexItem>
-          <EuiPanel paddingSize='l' hasBorder>
+          <Section number={1} title='Identificación'>
             <EuiFlexGroup gutterSize='m'>
               <EuiFlexItem>
                 <EuiFormRow label='Nombre' fullWidth>
-                  <EuiFieldText fullWidth value={draft.name} readOnly={readOnly} placeholder='Por ejemplo, Zimbra' onChange={event => setName(event.target.value)} />
+                  <EuiFieldText fullWidth value={draft.name} readOnly={readOnly} onChange={event => setName(event.target.value)} />
                 </EuiFormRow>
               </EuiFlexItem>
               <EuiFlexItem grow={false} style={{ width: 260 }}>
                 <EuiFormRow
                   label='Identificador'
-                  helpText={isNew ? 'Minúsculas, cifras y guiones. No se puede cambiar después.' : 'No se puede cambiar.'}
+                  labelAppend={<InfoTip content='Minúsculas, cifras y guiones. Fijo tras crear el grupo.' />}
                   isInvalid={isNew && Boolean(draft.id) && !ENS_PROFILE_ID_PATTERN.test(draft.id)}
                 >
                   <EuiFieldText
@@ -275,50 +321,43 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 </EuiFormRow>
               </EuiFlexItem>
             </EuiFlexGroup>
-            <EuiFormRow label='Capa' fullWidth helpText={(LAYER_HELP as Record<string, string>)[draft.layer]}>
-              <EuiButtonGroup
-                legend='Capa'
-                options={ENS_PROFILE_LAYERS.map(layer => ({ id: layer, label: LAYER_LABELS[layer] }))}
-                idSelected={draft.layer}
-                isDisabled={readOnly}
-                onChange={layer => update({ layer })}
-                buttonSize='compressed'
-              />
-            </EuiFormRow>
             <EuiFormRow label='Descripción' fullWidth labelAppend={<EuiText size='xs' color='subdued'>Opcional</EuiText>}>
               <EuiTextArea fullWidth rows={2} value={draft.description} readOnly={readOnly} onChange={event => update({ description: event.target.value })} />
             </EuiFormRow>
+          </Section>
 
-            <EuiHorizontalRule margin='l' />
+          <Section
+            number={2}
+            title='Capa'
+            info={
+              <>
+                {ENS_PROFILE_LAYERS.map(layer => (
+                  <p key={layer}>
+                    <strong>{LAYER_LABELS[layer]}:</strong> {LAYER_HELP[layer]}
+                  </p>
+                ))}
+              </>
+            }
+          >
+            <Choice
+              legend='Capa'
+              options={ENS_PROFILE_LAYERS.map(layer => ({ value: layer, text: LAYER_LABELS[layer] }))}
+              value={draft.layer}
+              disabled={readOnly}
+              onChange={layer => update({ layer })}
+            />
+          </Section>
 
-            <EuiTitle size='xs'>
-              <h4>Se aplica a las máquinas que cumplan</h4>
-            </EuiTitle>
-            <EuiText size='s' color='subdued'>
-              <p>Todas las condiciones a la vez. El motor las comprueba en cada pasada con lo que deduce del inventario de Wazuh.</p>
-            </EuiText>
-            <EuiSpacer size='m' />
+          <Section number={3} title='Condiciones' info='Se exigen todas a la vez. Datos del inventario de Wazuh, recalculados en cada pasada del motor.'>
             <ConditionBuilder match={draft.match} suggestions={suggestions} readOnly={readOnly} onChange={match => update({ match })} />
+          </Section>
 
-            <EuiHorizontalRule margin='l' />
-
-            <EuiFlexGroup alignItems='baseline' justifyContent='spaceBetween' responsive={false}>
-              <EuiFlexItem grow={false}>
-                <EuiTitle size='xs'>
-                  <h4>Valores</h4>
-                </EuiTitle>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiText size='xs' color='subdued'>
-                  <span>{`${valueCount} ${valueCount === 1 ? 'parámetro' : 'parámetros'}`}</span>
-                </EuiText>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-            <EuiText size='s' color='subdued'>
-              <p>Solo los parámetros que se fijan por máquina. Los de toda la organización están en la pestaña Organización.</p>
-            </EuiText>
-            <EuiSpacer size='m' />
-
+          <Section
+            number={4}
+            title='Parámetros'
+            info='Parámetros por máquina. Los de ámbito organización se editan en Organización.'
+            aside={`${valueCount} ${valueCount === 1 ? 'parámetro' : 'parámetros'}`}
+          >
             {controls.map(controlId => (
               <React.Fragment key={controlId}>
                 <EuiAccordion
@@ -329,9 +368,7 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                     </EuiText>
                   }
                   extraAction={
-                    <EuiText size='xs' color='subdued'>
-                      <span>{`${Object.keys(draft.edits[controlId]).length} ${Object.keys(draft.edits[controlId]).length === 1 ? 'parámetro' : 'parámetros'}`}</span>
-                    </EuiText>
+                    <EuiBadge color='hollow'>{Object.keys(draft.edits[controlId]).length}</EuiBadge>
                   }
                   initialIsOpen={opened === controlId || controls.length <= 3}
                   paddingSize='s'
@@ -353,27 +390,55 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 <EuiHorizontalRule margin='s' />
               </React.Fragment>
             ))}
-
-            {!readOnly && (
-              <Choice
-                legend='Añadir un parámetro'
-                options={addOptions.flatMap(group => group.options.map(option => ({ value: String(option.value), text: option.label })))}
-                value=''
-                onChange={value => {
-                  if (!value) return;
-                  const [controlId, parameterId, type] = value.split('|');
-                  setEdit(controlId, parameterId, { value: emptyValueFor(type), replace: false });
-                  setOpened(controlId);
-                }}
-              />
+            {!controls.length && (
+              <EuiText size='s' color='subdued'>
+                <p>Sin parámetros</p>
+              </EuiText>
             )}
-          </EuiPanel>
+            {!readOnly && !adding && (
+              <>
+                <EuiSpacer size='s' />
+                <EuiButton size='s' iconType='plusInCircle' onClick={() => setAdding(true)} isDisabled={!addOptions.length}>
+                  Añadir parámetro
+                </EuiButton>
+              </>
+            )}
+            {!readOnly && adding && (
+              <>
+                <EuiSpacer size='s' />
+                <EuiFlexGroup gutterSize='s' alignItems='center' justifyContent='spaceBetween' responsive={false}>
+                  <EuiFlexItem grow={false}>
+                    <EuiText size='s'>
+                      <strong>Añadir parámetro</strong>
+                    </EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem grow={false}>
+                    <EuiButtonEmpty size='s' onClick={() => setAdding(false)}>
+                      Cerrar
+                    </EuiButtonEmpty>
+                  </EuiFlexItem>
+                </EuiFlexGroup>
+                <Choice
+                  legend='Añadir parámetro'
+                  options={addOptions.flatMap(group => group.options.map(option => ({ value: String(option.value), text: option.label })))}
+                  value=''
+                  onChange={value => {
+                    if (!value) return;
+                    const [controlId, parameterId, type] = value.split('|');
+                    setEdit(controlId, parameterId, { value: emptyValueFor(type), replace: false });
+                    setOpened(controlId);
+                    setAdding(false);
+                  }}
+                />
+              </>
+            )}
+          </Section>
         </EuiFlexItem>
 
         <EuiFlexItem grow={false} style={{ width: 320, position: 'sticky', top: 16 }}>
           <EuiPanel paddingSize='m' hasBorder>
             <EuiTitle size='xs'>
-              <h4>Vista previa</h4>
+              <h4>Máquinas incluidas</h4>
             </EuiTitle>
             <EuiSpacer size='s' />
             {previewError && <EuiCallOut size='s' color='danger' iconType='alert' title={previewError} />}
@@ -382,9 +447,6 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 <EuiTitle size='l'>
                   <span>{preview.total.toLocaleString('es-ES')}</span>
                 </EuiTitle>
-                <EuiText size='s' color='subdued'>
-                  <p>{preview.total === 1 ? 'máquina recibirá este perfil' : 'máquinas recibirán este perfil'}</p>
-                </EuiText>
                 <EuiSpacer size='s' />
                 {preview.hosts.map(host => (
                   <React.Fragment key={host.agentId}>
@@ -399,26 +461,26 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                 ))}
                 {preview.total > preview.hosts.length && (
                   <EuiText size='xs' color='subdued'>
-                    <p>{`y ${machines(preview.total - preview.hosts.length)} más`}</p>
+                    <p>{`+ ${machines(preview.total - preview.hosts.length)}`}</p>
                   </EuiText>
                 )}
               </>
             )}
             {!previewError && preview && preview.problems.length > 0 && (
               <EuiText size='s' color='subdued'>
-                <p>Completa las condiciones para ver a qué máquinas se aplica.</p>
+                <p>Condiciones incompletas</p>
               </EuiText>
             )}
             {!previewError && !preview && (
               <EuiText size='s' color='subdued'>
-                <p>Calculando...</p>
+                <p>Calculando…</p>
               </EuiText>
             )}
           </EuiPanel>
           <EuiSpacer size='m' />
           {errors.length > 0 && !readOnly && (
             <>
-              <EuiCallOut size='s' color='warning' iconType='alert' title='Falta corregir'>
+              <EuiCallOut size='s' color='warning' iconType='alert' title='Pendiente de corregir'>
                 <ul>
                   {errors.slice(0, 8).map(message => (
                     <li key={message}>{message.charAt(0).toUpperCase() + message.slice(1)}</li>
@@ -437,7 +499,7 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
             <>
               <EuiSpacer size='s' />
               <EuiText size='xs' color='subdued'>
-                <p>Para guardar hace falta el rol power_ens_admin o all_access.</p>
+                <p>Requiere rol power_ens_admin o all_access</p>
               </EuiText>
             </>
           )}
@@ -454,7 +516,7 @@ export const ProfileEditor = ({ profileId, onClose }: ProfileEditorProps) => {
                   close();
                 }}
               >
-                {existing.origin === 'override' ? 'Eliminar mi versión y volver a la incluida' : 'Eliminar el perfil'}
+                {existing.origin === 'override' ? 'Restaurar versión incluida' : 'Eliminar grupo'}
               </EuiButtonEmpty>
             </>
           )}

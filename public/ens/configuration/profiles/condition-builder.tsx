@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { EuiButtonEmpty, EuiButtonGroup, EuiButtonIcon, EuiComboBox, EuiFlexGroup, EuiFlexItem, EuiSpacer, EuiText } from '@elastic/eui';
+import { EuiBadge, EuiButtonEmpty, EuiButtonIcon, EuiFieldText, EuiFlexGroup, EuiFlexItem, EuiFormRow, EuiPanel, EuiSpacer, EuiText } from '@elastic/eui';
 import {
   ENSProfileCondition,
   ENS_PROFILE_GROUP_PREFIX,
@@ -49,7 +49,55 @@ interface ConditionBuilderProps {
   onChange: (match: ENSProfileCondition[]) => void;
 }
 
-const valueLabel = (field: string, value: string): string => (field === 'role' ? `${roleLabel(value)} (${value})` : value);
+const valueLabel = (field: string, value: string): string => (field === 'role' ? roleLabel(value) : value);
+
+const SUGGESTIONS_SHOWN = 12;
+
+const placeholderOf = (op: string): string => (op === 'matches' ? 'ubuntu-*' : op === 'in' ? 'web-01, web-02' : 'Valor');
+
+const ValueInput = ({
+  condition,
+  suggestions,
+  readOnly,
+  onChange,
+}: {
+  condition: ENSProfileCondition;
+  suggestions: string[];
+  readOnly: boolean;
+  onChange: (value: string) => void;
+}) => {
+  const typed = condition.value.trim().toLowerCase();
+  const shown = suggestions
+    .filter(value => value !== condition.value && (!typed || value.toLowerCase().includes(typed) || valueLabel(condition.field, value).toLowerCase().includes(typed)))
+    .slice(0, SUGGESTIONS_SHOWN);
+  return (
+    <>
+      <EuiFieldText
+        compressed
+        fullWidth
+        readOnly={readOnly}
+        value={condition.value}
+        placeholder={placeholderOf(condition.op)}
+        onChange={event => onChange(event.target.value)}
+        aria-label='Valor'
+      />
+      {!readOnly && shown.length > 0 && (
+        <>
+          <EuiSpacer size='xs' />
+          <EuiFlexGroup gutterSize='xs' wrap responsive={false}>
+            {shown.map(value => (
+              <EuiFlexItem grow={false} key={value}>
+                <EuiBadge color='hollow' onClick={() => onChange(value)} onClickAriaLabel={`Usar ${valueLabel(condition.field, value)}`}>
+                  {valueLabel(condition.field, value)}
+                </EuiBadge>
+              </EuiFlexItem>
+            ))}
+          </EuiFlexGroup>
+        </>
+      )}
+    </>
+  );
+};
 
 const ConditionRow = ({
   condition,
@@ -65,54 +113,39 @@ const ConditionRow = ({
   onRemove: () => void;
 }) => {
   const ops = isListField(condition.field) ? ENS_PROFILE_LIST_OPS : ENS_PROFILE_SCALAR_OPS;
-  const options = suggestions.map(value => ({ label: valueLabel(condition.field, value), value }));
-  const selected = condition.value ? [{ label: valueLabel(condition.field, condition.value), value: condition.value }] : [];
   return (
-    <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
-      <EuiFlexItem grow={false} style={{ width: 190 }}>
-        <Choice
-          legend='Campo'
-          options={FIELDS.map(field => ({ value: field, text: FIELD_LABELS[field] }))}
-          value={condition.field}
-          onChange={(value: string) => {
-            const field = value;
-            onChange({ field, op: isListField(field) ? 'has' : 'is', value: '' });
-          }}
-          disabled={readOnly}
-        />
-      </EuiFlexItem>
-      <EuiFlexItem grow={false}>
-        <EuiButtonGroup
-          legend='Operador'
-          options={ops.map(op => ({ id: op, label: OP_LABELS[op] }))}
-          idSelected={condition.op}
-          isDisabled={readOnly}
-          onChange={op => onChange({ ...condition, op })}
-          buttonSize='compressed'
-        />
-      </EuiFlexItem>
-      <EuiFlexItem>
-        <EuiComboBox
-          compressed
-          fullWidth
-          isDisabled={readOnly}
-          placeholder={condition.op === 'matches' ? 'Patrón, por ejemplo ubuntu-*' : condition.op === 'in' ? 'Lista separada por comas: web-01, web-02' : 'Escribe o elige un valor'}
-          singleSelection={{ asPlainText: true }}
-          options={options}
-          selectedOptions={selected}
-          onChange={choice => onChange({ ...condition, value: String(choice[0]?.value ?? '') })}
-          onCreateOption={value => onChange({ ...condition, value: value.trim() })}
-          customOptionText='Usar «{searchValue}»'
-          noSuggestions={!options.length}
-          aria-label='Valor'
-        />
-      </EuiFlexItem>
-      {!readOnly && (
-        <EuiFlexItem grow={false}>
-          <EuiButtonIcon iconType='cross' color='danger' onClick={onRemove} aria-label='Quitar la condición' />
+    <EuiPanel color='subdued' paddingSize='s' hasBorder>
+      <EuiFlexGroup gutterSize='s' alignItems='flexStart' responsive={false}>
+        <EuiFlexItem>
+          <EuiFormRow label='Campo' fullWidth display='rowCompressed'>
+            <Choice
+              legend='Campo'
+              options={FIELDS.map(field => ({ value: field, text: FIELD_LABELS[field] }))}
+              value={condition.field}
+              onChange={(field: string) => onChange({ field, op: isListField(field) ? 'has' : 'is', value: '' })}
+              disabled={readOnly}
+            />
+          </EuiFormRow>
+          <EuiFormRow label='Operador' fullWidth display='rowCompressed'>
+            <Choice
+              legend='Operador'
+              options={ops.map(op => ({ value: op, text: OP_LABELS[op] }))}
+              value={condition.op}
+              onChange={(op: string) => onChange({ ...condition, op })}
+              disabled={readOnly}
+            />
+          </EuiFormRow>
+          <EuiFormRow label='Valor' fullWidth display='rowCompressed'>
+            <ValueInput condition={condition} suggestions={suggestions} readOnly={readOnly} onChange={value => onChange({ ...condition, value })} />
+          </EuiFormRow>
         </EuiFlexItem>
-      )}
-    </EuiFlexGroup>
+        {!readOnly && (
+          <EuiFlexItem grow={false}>
+            <EuiButtonIcon iconType='trash' color='danger' onClick={onRemove} aria-label='Quitar condición' />
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
+    </EuiPanel>
   );
 };
 
@@ -122,7 +155,7 @@ export const ConditionBuilder = ({ match, suggestions, readOnly, onChange }: Con
       <React.Fragment key={index}>
         {index > 0 && (
           <EuiText size='xs' color='subdued'>
-            <p>y además</p>
+            <p>Y</p>
           </EuiText>
         )}
         <ConditionRow

@@ -6,6 +6,7 @@ import {
   EuiButton,
   EuiButtonEmpty,
   EuiCallOut,
+  EuiDescriptionList,
   EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
@@ -147,13 +148,9 @@ const GroupList = ({
         </EuiFlexItem>
       </EuiFlexGroup>
       <EuiText size='xs' color='subdued'>
-        Solo reciben su plantilla y los valores de la organización.
+        Sin grupo asignado
       </EuiText>
     </EuiPanel>
-    <EuiSpacer size='s' />
-    <EuiText size='xs' color='subdued'>
-      <p>Una máquina entra en un grupo por sus condiciones (sistema, función, servicio) o porque la añades a mano.</p>
-    </EuiText>
   </EuiPanel>
 );
 
@@ -177,9 +174,6 @@ const TemplateModal = ({
         </EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
-        <EuiText size='s' color='subdued'>
-          <p>Copia sus valores en el grupo. Los que el grupo ya tenía para los mismos parámetros se sustituyen; el resto se conserva. Puedes revisarlo antes de guardar.</p>
-        </EuiText>
         <EuiSpacer size='m' />
         {templates.map(template => (
           <React.Fragment key={template.id}>
@@ -303,7 +297,7 @@ const GroupMachines = ({
 
   return (
     <>
-      <EuiFieldSearch fullWidth placeholder='Buscar por nombre, sistema o servicio' value={text} onChange={event => (setText(event.target.value), setPage(0))} />
+      <EuiFieldSearch fullWidth placeholder='Nombre, sistema o servicio' value={text} onChange={event => (setText(event.target.value), setPage(0))} />
       <EuiSpacer size='s' />
       {selected.length > 0 && (
         <>
@@ -311,12 +305,12 @@ const GroupMachines = ({
             <EuiFlexGroup gutterSize='s' alignItems='center' wrap responsive={false}>
               <EuiFlexItem grow={false}>
                 <EuiText size='s'>
-                  <strong>{`${machinesText(selected.length)} elegidas`}</strong>
+                  <strong>{`${selected.length} seleccionadas`}</strong>
                 </EuiText>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiButton size='s' onClick={() => setAction('group')}>
-                  Añadir a un grupo
+                  Añadir a grupo
                 </EuiButton>
               </EuiFlexItem>
               {group && isHandPicked(group) && (
@@ -328,12 +322,12 @@ const GroupMachines = ({
               )}
               <EuiFlexItem grow={false}>
                 <EuiButton size='s' onClick={() => setAction('template')}>
-                  Cambiar la plantilla
+                  Plantilla
                 </EuiButton>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiButton size='s' onClick={() => setAction('value')}>
-                  Cambiar un valor en todas
+                  Fijar valor
                 </EuiButton>
               </EuiFlexItem>
             </EuiFlexGroup>
@@ -349,7 +343,7 @@ const GroupMachines = ({
         loading={loading}
         isSelectable
         selection={{ onSelectionChange: setSelected }}
-        noItemsMessage={loading ? 'Cargando máquinas…' : 'Ninguna máquina en este grupo.'}
+        noItemsMessage={loading ? 'Cargando máquinas…' : 'Sin máquinas'}
         pagination={{ pageIndex: page, pageSize: PAGE_SIZE, totalItemCount: Math.min(result?.total || 0, 10000), hidePerPageOptions: true }}
         onChange={({ page: next }: any) => next && setPage(next.index)}
       />
@@ -375,7 +369,7 @@ const GroupControls = ({ group, onOpen }: { group: ENSProfile; onOpen: (control:
             <EuiText size='s'>{controlTitle(control.controlId)}</EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiBadge color={set ? 'primary' : 'hollow'}>{set ? `${set} de ${control.parameters.length} con valor` : 'Sin valores del grupo'}</EuiBadge>
+            <EuiBadge color={set ? 'primary' : 'hollow'}>{set ? `${set} de ${control.parameters.length} con valor` : 'Sin valores'}</EuiBadge>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiButton size='s' onClick={() => onOpen(control)}>
@@ -441,13 +435,22 @@ export const GroupsTab = ({ target, summary, revision, onNavigate, onConfigurati
                 <EuiTitle size='s'>
                   <h2>{group ? group.name : 'Sin grupo'}</h2>
                 </EuiTitle>
-                <EuiText size='s' color='subdued'>
-                  <p>
-                    {group
-                      ? `${machinesText(counts[group.id] || 0)} · ${isHandPicked(group) ? `elegidas a mano: ${handPickedHosts(group).join(', ')}` : `condición: ${matchText(group.match)}`}`
-                      : `${machinesText(summary.data?.withoutProfile || 0)} que no cumplen la condición de ningún grupo.`}
-                  </p>
-                </EuiText>
+                <EuiSpacer size='s' />
+                <EuiDescriptionList
+                  type='inline'
+                  compressed
+                  listItems={
+                    group
+                      ? [
+                          { title: 'Máquinas', description: String(counts[group.id] || 0) },
+                          { title: 'Capa', description: layerLabel(group.layer) },
+                          isHandPicked(group)
+                            ? { title: 'Selección', description: handPickedHosts(group).join(', ') || '—' }
+                            : { title: 'Condición', description: matchText(group.match) },
+                        ]
+                      : [{ title: 'Máquinas fuera de grupo', description: String(summary.data?.withoutProfile || 0) }]
+                  }
+                />
               </EuiFlexItem>
               {group && (
                 <EuiFlexItem grow={false}>
@@ -471,7 +474,7 @@ export const GroupsTab = ({ target, summary, revision, onNavigate, onConfigurati
               <>
                 <EuiTabs size='s'>
                   <EuiTab isSelected={view === 'controls'} onClick={() => setView('controls')}>
-                    Controles del grupo
+                    Controles
                   </EuiTab>
                   <EuiTab isSelected={view === 'machines'} onClick={() => setView('machines')}>
                     {`Máquinas (${counts[group.id] || 0})`}
