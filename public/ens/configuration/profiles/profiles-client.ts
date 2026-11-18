@@ -61,6 +61,7 @@ export interface ENSFacetBucket {
 
 export interface ENSHostFilters {
   distro?: string;
+  family?: string;
   role?: string;
   service?: string;
   group?: string;

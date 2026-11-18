@@ -1,45 +1,164 @@
-import React, { useMemo, useState } from 'react';
-import { EuiBadge, EuiCallOut, EuiFlexGroup, EuiFlexItem, EuiHealth, EuiPanel, EuiSpacer, EuiText } from '@elastic/eui';
+import React, { useEffect, useState } from 'react';
+import {
+  EuiBadge,
+  EuiBasicTable,
+  EuiBasicTableColumn,
+  EuiButton,
+  EuiButtonEmpty,
+  EuiCallOut,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiPanel,
+  EuiSpacer,
+  EuiText,
+} from '@elastic/eui';
 import { getActiveENSScopeAgents } from '../../common/ens/core/scope';
 import { useRouterSearch, useSetRouterSearch } from '../routing/use-router-search';
 import { describeAgentOutOfScope, isAgentInScope, normalizeAgentIdForScope } from './agent-in-scope';
-import { ENSOsKind, OsIcon, osKindOf } from '../ens/configuration/groups/os-icon';
+import { OsIcon, osKindOf } from '../ens/configuration/groups/os-icon';
+import { hostLabel } from '../ens/configuration/profiles/profile-labels';
+import { ENSHostFilters, ENSHostPage, ENSHostRow, profilesClient } from '../ens/configuration/profiles/profiles-client';
 import { FilterBar } from '../ens/ui/filter-bar';
 
-const SHOWN = 12;
+const PAGE_SIZE = 10;
+const SEARCH_DELAY_MS = 300;
 
-const KINDS: Array<{ value: ENSOsKind | 'manager'; label: string }> = [
-  { value: 'linux', label: 'Linux' },
-  { value: 'windows', label: 'Windows' },
-  { value: 'manager', label: 'Manager' },
-];
+const FAMILY_LABELS: Record<string, string> = { linux: 'Linux', windows: 'Windows', darwin: 'macOS' };
+
+const familyLabel = (family: string): string => FAMILY_LABELS[family.toLowerCase()] || family;
+
+const useDebounced = (value: string): string => {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [value]);
+  return debounced;
+};
+
+// The search runs in the server, one page at a time: the browser never holds the whole fleet.
+const useHostSearch = (text: string, filters: ENSHostFilters, page: number) => {
+  const [result, setResult] = useState<ENSHostPage | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  const key = JSON.stringify(filters);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    profilesClient
+      .searchHosts({ page, size: PAGE_SIZE, text, filters }, controller.signal)
+      .then(next => {
+        setResult(next);
+        setError(undefined);
+      })
+      .catch(failure => !controller.signal.aborted && setError(failure?.message || String(failure)))
+      .finally(() => !controller.signal.aborted && setLoading(false));
+    return () => controller.abort();
+    // The serialized filters are the dependency; the object identity changes on every render.
+  }, [text, key, page]);
+  return { result, loading, error };
+};
+
+const MachineTable = ({ onPick }: { onPick: (agentId: string) => void }) => {
+  const [query, setQuery] = useState('');
+  const [family, setFamily] = useState('');
+  const [group, setGroup] = useState('');
+  const [page, setPage] = useState(0);
+  const text = useDebounced(query);
+  const filters: ENSHostFilters = { ...(family ? { family } : {}), ...(group ? { profile: group } : {}) };
+  const { result, loading, error } = useHostSearch(text, filters, page);
+
+  useEffect(() => setPage(0), [text, family, group]);
+
+  const groupOptions = (result?.profiles || [])
+    .map(profile => ({ value: profile.id, label: profile.name, count: result?.facets.profile[profile.id] || 0 }))
+    .filter(option => option.count || option.value === group);
+
+  const columns: Array<EuiBasicTableColumn<ENSHostRow>> = [
+    {
+      field: 'name',
+      name: 'Máquina',
+      render: (_name: string, host: ENSHostRow) => (
+        <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
+          <EuiFlexItem grow={false}>
+            <OsIcon kind={osKindOf(host)} />
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiText size='s'>
+              <strong>{hostLabel(host)}</strong>
+            </EuiText>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      ),
+    },
+    { field: 'agentId', name: 'Agente', width: '90px' },
+    { field: 'distro', name: 'Sistema', render: (distro: string, host: ENSHostRow) => distro || host.os?.name || '—' },
+    { field: 'profiles', name: 'Grupos', render: (profiles: ENSHostRow['profiles']) => profiles.map(profile => profile.name).join(', ') || '—' },
+  ];
+
+  return (
+    <>
+      <FilterBar
+        allLabel='Todos los sistemas'
+        options={(result?.facets.family || []).map(bucket => ({ value: bucket.value, label: familyLabel(bucket.value), count: bucket.count }))}
+        active={family}
+        onFilter={setFamily}
+        query={query}
+        onQuery={setQuery}
+        placeholder='Nombre, agente o nombre de host'
+        ariaLabel='Buscar máquina'
+      />
+      {groupOptions.length > 0 && (
+        <>
+          <EuiSpacer size='s' />
+          <EuiFlexGroup gutterSize='xs' alignItems='center' wrap responsive={false}>
+            <EuiFlexItem grow={false}>
+              <EuiText size='xs' color='subdued'>
+                <span>Grupo:</span>
+              </EuiText>
+            </EuiFlexItem>
+            {groupOptions.map(option => (
+              <EuiFlexItem grow={false} key={option.value}>
+                <EuiBadge
+                  color={group === option.value ? 'primary' : 'hollow'}
+                  onClick={() => setGroup(group === option.value ? '' : option.value)}
+                  onClickAriaLabel={`Filtrar por el grupo ${option.label}`}
+                >
+                  {`${option.label} (${option.count})`}
+                </EuiBadge>
+              </EuiFlexItem>
+            ))}
+          </EuiFlexGroup>
+        </>
+      )}
+      <EuiSpacer size='s' />
+      {error && <EuiCallOut size='s' color='danger' iconType='alert' title={error} />}
+      <EuiBasicTable<ENSHostRow>
+        compressed
+        items={result?.hosts || []}
+        itemId='agentId'
+        columns={columns}
+        loading={loading}
+        noItemsMessage={loading ? 'Buscando…' : 'Sin coincidencias'}
+        rowProps={(host: ENSHostRow) => ({ onClick: () => onPick(host.agentId), style: { cursor: 'pointer' } })}
+        pagination={{ pageIndex: page, pageSize: PAGE_SIZE, totalItemCount: Math.min(result?.total || 0, 10000), hidePerPageOptions: true }}
+        onChange={({ page: next }: any) => next && setPage(next.index)}
+      />
+    </>
+  );
+};
 
 export const MachineSelector = () => {
   const { agentId } = useRouterSearch();
   const changes = useSetRouterSearch();
   const agents = getActiveENSScopeAgents();
   const outside = Boolean(agentId) && !isAgentInScope(agentId, agents);
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState('');
-
-  const kindOf = (agent: (typeof agents)[number]): string => (agent.isManager ? 'manager' : osKindOf({ os: agent.os }));
+  const [open, setOpen] = useState(false);
   const current = agentId ? agents.find(agent => agent.id === normalizeAgentIdForScope(agentId)) : undefined;
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return agents.filter(
-      agent =>
-        (!kind || kindOf(agent) === kind) &&
-        (!q || agent.id.includes(q) || (agent.name || '').toLowerCase().includes(q) || (agent.os?.name || '').toLowerCase().includes(q))
-    );
-  }, [agents, query, kind]);
-
-  // With few machines every one is in view; with many, only after filtering.
-  const searching = agents.length <= SHOWN || Boolean(query.trim() || kind);
   const pick = (id?: string) => {
     changes({ agentId: id });
-    setQuery('');
-    setKind('');
+    setOpen(false);
   };
 
   return (
@@ -53,61 +172,36 @@ export const MachineSelector = () => {
         <EuiFlexItem grow={false}>
           {agentId ? (
             <EuiBadge color='primary' iconType='cross' iconSide='right' iconOnClick={() => pick(undefined)} iconOnClickAriaLabel='Ver todas las máquinas'>
-              {current ? `${current.name || 'sin nombre'} (${current.id})` : agentId}
+              {current ? `${current.name || current.id} (${current.id})` : agentId}
             </EuiBadge>
           ) : (
-            <EuiText size='s' color='subdued'>{`todas (${agents.length})`}</EuiText>
+            <EuiText size='s' color='subdued'>
+              <span>Todas</span>
+            </EuiText>
+          )}
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          {open ? (
+            <EuiButtonEmpty size='s' iconType='arrowUp' onClick={() => setOpen(false)}>
+              Cerrar
+            </EuiButtonEmpty>
+          ) : (
+            <EuiButton size='s' iconType='search' onClick={() => setOpen(true)}>
+              Seleccionar máquina
+            </EuiButton>
           )}
         </EuiFlexItem>
       </EuiFlexGroup>
-      <EuiSpacer size='s' />
-      <FilterBar
-        allLabel='Todas'
-        options={KINDS.map(item => ({ value: item.value, label: item.label, count: agents.filter(agent => kindOf(agent) === item.value).length })).filter(item => item.count)}
-        active={kind}
-        onFilter={setKind}
-        query={query}
-        onQuery={setQuery}
-        placeholder='Nombre, agente o sistema'
-        ariaLabel='Buscar máquina'
-      />
-      {searching && (
+      {open && (
         <>
           <EuiSpacer size='s' />
-          <EuiFlexGroup gutterSize='s' wrap responsive={false}>
-            {matches.slice(0, SHOWN).map(agent => (
-              <EuiFlexItem grow={false} key={agent.id} style={{ minWidth: 220 }}>
-                <EuiPanel hasBorder paddingSize='s' onClick={() => pick(agent.id)} aria-label={`Ver ${agent.name || agent.id}`}>
-                  <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false}>
-                    <EuiFlexItem grow={false}>
-                      <OsIcon kind={osKindOf({ os: agent.os })} />
-                    </EuiFlexItem>
-                    <EuiFlexItem>
-                      <EuiText size='s'>
-                        <strong>{agent.name || 'sin nombre'}</strong>
-                      </EuiText>
-                      <EuiText size='xs' color='subdued'>
-                        {agent.id}
-                      </EuiText>
-                    </EuiFlexItem>
-                    <EuiFlexItem grow={false}>
-                      <EuiHealth color={agent.status === 'active' ? 'success' : 'subdued'} />
-                    </EuiFlexItem>
-                  </EuiFlexGroup>
-                </EuiPanel>
-              </EuiFlexItem>
-            ))}
-          </EuiFlexGroup>
-          <EuiSpacer size='xs' />
-          <EuiText size='xs' color='subdued'>
-            <p>{matches.length > SHOWN ? `${SHOWN} de ${matches.length}` : matches.length ? `${matches.length} máquinas` : 'Ninguna máquina coincide.'}</p>
-          </EuiText>
+          <MachineTable onPick={pick} />
         </>
       )}
       {outside && (
         <>
           <EuiSpacer size='s' />
-          <EuiCallOut size='s' color='warning' iconType='alert' title={`${agentId} no está en un grupo ENS evaluable`}>
+          <EuiCallOut size='s' color='warning' iconType='alert' title={`${agentId} fuera de los grupos ENS evaluables`}>
             <p>{describeAgentOutOfScope(agentId as string)}</p>
           </EuiCallOut>
         </>
