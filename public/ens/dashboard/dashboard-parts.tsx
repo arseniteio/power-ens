@@ -4,6 +4,7 @@ import { statusLabel } from '../../../common/ens/core/status-label';
 import { ENS_STATUS_COLORS } from '../status-colors';
 import { ENS_NO_RESULT_PATTERN, ENS_THEME } from '../theme-colors';
 import { DASHBOARD_STATUSES } from './dashboard-model';
+import { InfoTip } from '../ui/info-tip';
 
 export interface Segment {
   key: string;
@@ -17,11 +18,13 @@ export const statusSegments = (counts: Record<string, number>): Segment[] =>
 
 export const primaryShade = (weight: number): string => `color-mix(in srgb, ${ENS_THEME.primary} ${weight}%, ${ENS_THEME.surface})`;
 
-export const SectionTitle = ({ children, aside }: { children: string; aside?: React.ReactNode }) => (
+export const SectionTitle = ({ children, aside, info }: { children: string; aside?: React.ReactNode; info?: React.ReactNode }) => (
   <EuiFlexGroup alignItems='center' justifyContent='spaceBetween' gutterSize='s' responsive={false} wrap>
     <EuiFlexItem grow={false}>
       <EuiTitle size='xs'>
-        <h3>{children}</h3>
+        <h3>
+          {children} {info && <InfoTip content={info} />}
+        </h3>
       </EuiTitle>
     </EuiFlexItem>
     {aside && <EuiFlexItem grow={false}>{aside}</EuiFlexItem>}
