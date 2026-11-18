@@ -38,7 +38,6 @@ import { ComplianceTrend } from './compliance-trend';
 import { ControlMap } from './control-map';
 import { IndexRing, primaryShade, SectionTitle, Segment, SegmentLegend, StackedBar, statusSegments } from './dashboard-parts';
 import { AttentionRow, buildAttentionRows, buildControlMap, buildFamilyRows, CatalogEntry, countControls, FamilyRow, trendDelta } from './dashboard-model';
-import { OPERATIONAL_INDICATOR_NOTE } from '../../../common/ens/catalog/support/provenance';
 import { useOrganizationMaturity } from '../maturity/maturity-client';
 import { OrganizationMaturityPanel } from '../maturity/organization-maturity-panel';
 import { downloadCsv } from '../download-csv';
@@ -57,6 +56,8 @@ interface DashboardResponse {
 const CATALOG: CatalogEntry[] = ENSCatalog.map(control => ({ id: control.id, title: control.name, family: control.category }));
 
 const PAGE_SIZE = 10;
+
+const REVIEW_PANEL_ID = 'ens-controles-revision';
 
 const ATTENTION_FILTERS = ['NO_CUMPLE', 'PARCIAL', 'NO_EVALUABLE'];
 
@@ -175,7 +176,7 @@ const IndexPanel = ({ data, counts, delta }: { data: DashboardResponse; counts: 
           <EuiSpacer size='xs' />
           <EuiText size='s' color='subdued'>
             <p>
-              {compliance.measured ? `${compliance.measured} de ${compliance.total} controles medidos` : 'Ningún control medido todavía'}
+              {compliance.measured ? `${compliance.measured} de ${compliance.total} controles medidos` : 'Sin controles medidos'}
               {level ? ` · Nivel ENS ${LEVEL_LABELS[level] || level}` : ''}
             </p>
           </EuiText>
@@ -227,7 +228,7 @@ const AttentionFigure = ({ data }: { data: DashboardResponse }) => {
   ].filter(segment => segment.count);
 
   return (
-    <FigurePanel value={findings.total} title='Requisitos que requieren atención'>
+    <FigurePanel value={findings.total} title='Requisitos sujetos a revisión'>
       <StackedBar segments={segments} total={findings.total} empty={ENS_THEME.track} />
       <EuiSpacer size='s' />
       <SegmentLegend segments={segments} withCounts />
@@ -294,10 +295,6 @@ const FamiliesPanel = ({ families, selected, onSelect }: { families: FamilyRow[]
         { field: 'score', name: 'Índice', width: '80px', align: 'right', render: (score?: number) => <strong>{percent(score)}</strong> },
       ]}
     />
-    <EuiSpacer size='s' />
-    <EuiText size='xs' color='subdued'>
-      <p>Pulsa una familia para ver solo sus controles en la tabla de abajo. {OPERATIONAL_INDICATOR_NOTE}</p>
-    </EuiText>
   </EuiPanel>
 );
 
@@ -346,9 +343,9 @@ const AttentionPanel = ({
   const countOf = (value: string) => inFamily.filter(row => row.status === value).length;
 
   return (
-    <EuiPanel hasBorder>
+    <EuiPanel hasBorder id={REVIEW_PANEL_ID}>
       <SectionTitle aside={<EuiText size='xs' color='subdued'><span>{`${rows.length} de ${total} controles`}</span></EuiText>}>
-        Controles que requieren atención
+        Controles sujetos a revisión
       </SectionTitle>
       <EuiSpacer size='m' />
       <EuiFlexGroup gutterSize='s' alignItems='center' responsive={false} wrap>
@@ -458,7 +455,14 @@ const Dashboard = ({
         <EuiFlexItem grow={3} style={{ minWidth: 520 }}>
           <EuiFlexGroup direction='column' gutterSize='m'>
             <EuiFlexItem grow={false}>
-              <FamiliesPanel families={families} selected={family} onSelect={setFamily} />
+              <FamiliesPanel
+                  families={families}
+                  selected={family}
+                  onSelect={next => {
+                    setFamily(next);
+                    if (next) document.getElementById(REVIEW_PANEL_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                />
             </EuiFlexItem>
             {machines.length > 0 && (
               <EuiFlexItem grow={false}>
@@ -473,7 +477,7 @@ const Dashboard = ({
               <EuiPanel hasBorder>
                 <SectionTitle>Evolución del índice</SectionTitle>
                 <EuiText size='xs' color='subdued'>
-                  <p>Últimos 7 días. El último punto es el valor actual.</p>
+                  <p>Últimos 7 días</p>
                 </EuiText>
                 <EuiSpacer size='m' />
                 {trend.length || seriesPending ? (
