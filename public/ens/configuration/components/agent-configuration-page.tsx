@@ -163,7 +163,7 @@ export const AgentConfigurationPage = ({
     saveWithPreview({
       title: `Cambiar el tipo de ${label}`,
       confirmLabel: 'Cambiar el tipo',
-      intro: 'Los controles sin plantilla asignada pasan a la de serie del tipo nuevo.',
+      intro: 'Controles sin plantilla asignada: plantilla del tipo nuevo.',
       build: latest => setAgentTypeOverride(latest, agentId, type, row.agent),
       reason:
         type === ENS_NO_TEMPLATE
@@ -181,7 +181,7 @@ export const AgentConfigurationPage = ({
         {
           title: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}`,
           confirmLabel: 'Asignar',
-          intro: 'Los valores personalizados se mantienen.',
+          intro: 'Valores propios conservados.',
           build: latest => setControlTemplateAssignment(latest, controlId, [agentId], templateId, { [agentId]: row.agent }),
           reason: `${controlId}: plantilla ${describeTemplateChoice(configuration, controlId, templateId)} para ${label}.`,
         },
@@ -226,9 +226,9 @@ export const AgentConfigurationPage = ({
     {
       value: '',
       text: storedType && !profile?.typeOverride
-        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[storedType]}`
+        ? `Detectado automáticamente: ${ENS_SYSTEM_TYPE_LABELS[storedType]}`
         : row.detection.type
-        ? `El detectado: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]} (sin guardar)`
+        ? `Detectado automáticamente: ${ENS_SYSTEM_TYPE_LABELS[row.detection.type]} (sin guardar)`
         : 'Sin detectar (elegir uno)',
     },
     ...ENS_SYSTEM_TYPES.map(type => ({ value: type, text: ENS_SYSTEM_TYPE_LABELS[type] })),
@@ -433,7 +433,7 @@ export const AgentConfigurationPage = ({
                     <Choice
                       legend='Plantilla'
                       options={[
-                        { value: BY_TYPE, text: `La de serie de su tipo${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
+                        { value: BY_TYPE, text: `Detectado automáticamente${!typeLabel.stored ? (typeLabel.pending ? ' (tipo sin guardar)' : ' (sin tipo)') : typeDefault ? ` («${typeDefault.name}»)` : ' (ninguna para su tipo)'}` },
                         ...templates.map(template => ({
                           value: template.id,
                           text: `${template.name}${template.builtin ? ' (de serie)' : ''}`,
@@ -452,6 +452,7 @@ export const AgentConfigurationPage = ({
                 <EuiFlexItem grow={false}>
                   <EuiButton
                     size='s'
+                    fill
                     isDisabled={saving || value === (assigned === undefined ? BY_TYPE : assigned)}
                     onClick={() => assign(control.controlId, value)}
                   >

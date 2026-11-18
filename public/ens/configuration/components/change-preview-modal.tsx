@@ -28,30 +28,29 @@ export const ChangePreviewModal = ({ title, confirmLabel, intro, configuration, 
     <ConfirmModal
       title={title}
       confirmLabel={confirmLabel}
-      typedWord={warned ? 'aplicar' : undefined}
       danger={warned}
       onCancel={onCancel}
       onConfirm={onConfirm}
     >
       <EuiText size='s'>
-        <p>{intro} Los veredictos de estos agentes pueden cambiar. La versión anterior queda en el historial.</p>
+        <p>{intro} Versión anterior disponible en el historial.</p>
       </EuiText>
 
       {previews.map(preview => (
         <React.Fragment key={preview.agentId}>
           <EuiSpacer size='m' />
           <EuiText size='s'>
-            <h4>Agente {agentLabels[preview.agentId] || preview.agentId}</h4>
+            <h4>{agentLabels[preview.agentId] || preview.agentId}</h4>
           </EuiText>
           {preview.mismatch && <EuiCallOut color='warning' iconType='alert' size='s' title={`Tipo distinto: ${preview.mismatch}`} />}
           {preview.leftEmpty.length > 0 && (
-            <EuiCallOut color='warning' iconType='alert' size='s' title={`Se quedan sin valor parámetros obligatorios: ${names(preview.leftEmpty, '')}`} />
+            <EuiCallOut color='warning' iconType='alert' size='s' title={`Obligatorios sin valor: ${names(preview.leftEmpty, '')}`} />
           )}
           <EuiText size='xs'>
             <ul>
               {preview.from !== undefined && <li>Plantilla: {preview.from} → {preview.to}.</li>}
-              <li>Cambia el valor de {preview.changes.length} parámetro(s): {names(preview.changes, 'ninguno')}.</li>
-              {preview.ownWins !== undefined && <li>Se mantienen sus valores personalizados: {names(preview.ownWins, 'ninguno')}.</li>}
+              <li>Parámetros con valor nuevo ({preview.changes.length}): {names(preview.changes, 'ninguno')}</li>
+              {preview.ownWins !== undefined && <li>Valores propios conservados: {names(preview.ownWins, 'ninguno')}</li>}
             </ul>
           </EuiText>
         </React.Fragment>
