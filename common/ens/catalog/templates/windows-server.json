@@ -7,8 +7,26 @@
   "type_default": true,
   "values": {
     "op.acc.1": {
+      "P-10": 1000,
       "P-11": [
-        "Administrators"
+        "Administrators",
+        "Administradores",
+        "Domain Admins",
+        "Admins. del dominio",
+        "Enterprise Admins",
+        "Admins. de empresas",
+        "Schema Admins",
+        "Admins. del esquema",
+        "Account Operators",
+        "Opers. de cuentas",
+        "Backup Operators",
+        "Operadores de copia de seguridad",
+        "Server Operators",
+        "Opers. de servidores",
+        "Print Operators",
+        "Opers. de impresión",
+        "Group Policy Creator Owners",
+        "Propietarios del creador de directivas de grupo"
       ]
     },
     "op.acc.2": {},
