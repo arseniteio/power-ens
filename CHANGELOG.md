@@ -4,6 +4,12 @@ All notable changes to Power ENS are documented in this file. The format follows
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-19
+
+### Changed
+
+- The Windows template declares P-10 1000 and the privileged groups of op.acc.1 P-11, with their English and Spanish names, as vendored from OSCompliance ENS 2.0.1.
+
 ## [2.0.0] - 2026-11-18
 
 ### Added
@@ -71,7 +77,8 @@ First release.
 - `set-parameters.py`, which loads control and machine parameters from a JSON file.
 - Plugin builds for OpenSearch Dashboards 2.19.5 (Wazuh 4.14.7) and 2.19.6 (Wazuh 4.14.8 and 4.14.9), and `dashboard.Dockerfile` for Wazuh on Docker.
 
-[Unreleased]: https://github.com/arseniteio/power-ens-wazuh/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/arseniteio/power-ens-wazuh/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/arseniteio/power-ens-wazuh/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/arseniteio/power-ens-wazuh/compare/v1.0.0...v1.1.0
