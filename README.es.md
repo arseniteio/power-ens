@@ -43,8 +43,8 @@ ci/run-tests.sh
 
 ## Licencia
 
-Copyright (c) 2026 Arsenite.
+Copyright (c) 2026 Quer System Informática.
 
 Power ENS se distribuye bajo la GNU Affero General Public License versión 3 (AGPL-3.0-only). Consulta [LICENSE](LICENSE).
 
-Arsenite ofrece también Power ENS con una licencia comercial, para organizaciones que no pueden cumplir las obligaciones de la AGPL, como mantener privados los cambios en un producto o en un servicio en red. Escribe a devqs@quersystem.com para conocer las condiciones.
+Quer System Informática ofrece también Power ENS con una licencia comercial, para organizaciones que no pueden cumplir las obligaciones de la AGPL, como mantener privados los cambios en un producto o en un servicio en red. Escribe a devqs@quersystem.com para conocer las condiciones.
